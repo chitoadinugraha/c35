@@ -11,12 +11,13 @@ use tokio::sync::Semaphore;
 use tracing::{info, warn};
 
 use c35_mod_llm::{
-    embed_cache_get_many_touch, embed_cache_key, embed_cached, embed_model_tag, EMBED_DIMENSIONS_DEFAULT,
-    EMBED_MODEL, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY,
+    embed_cache_get_many_touch, embed_cache_key, embed_cached, embed_model_tag,
+    EMBED_DIMENSIONS_DEFAULT, EMBED_MODEL, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY,
 };
 
 use crate::tool_rag::{
-    cosine_similarity, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K,
+    cosine_similarity, ToolCandidate, DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD,
+    DEFAULT_TOOL_TOP_K,
 };
 use crate::tools::{default_dispatcher, ToolDef};
 
@@ -194,13 +195,14 @@ pub async fn tool_find_vector(
     }
 
     let embed_t0 = Instant::now();
-    let embed = match embed_cached(pool, http, txt, EMBED_TASK_QUERY, EMBED_DIMENSIONS_DEFAULT).await {
-        Ok(r) => r,
-        Err(e) => {
-            warn!("tool_find_vector embed failed: {e}");
-            return empty(embed_model);
-        }
-    };
+    let embed =
+        match embed_cached(pool, http, txt, EMBED_TASK_QUERY, EMBED_DIMENSIONS_DEFAULT).await {
+            Ok(r) => r,
+            Err(e) => {
+                warn!("tool_find_vector embed failed: {e}");
+                return empty(embed_model);
+            }
+        };
     let embed_ms = embed_t0.elapsed().as_millis() as i64;
     let embed_token_in = embed.token_in;
     let embed_cost_usd = billing_embed_cost_usd(&embed_model, embed_token_in);
@@ -227,7 +229,11 @@ pub async fn tool_find_vector(
         }
     }
 
-    scored.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
+    scored.sort_by(|a, b| {
+        b.sim
+            .partial_cmp(&a.sim)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     if scored.len() > DEFAULT_TOOL_TOP_K {
         scored.truncate(DEFAULT_TOOL_TOP_K);
     }
@@ -265,11 +271,17 @@ mod tests {
     #[test]
     fn tool_index_embed_parallel_default_and_env() {
         std::env::remove_var("C35_TOOL_INDEX_EMBED_PARALLEL");
-        assert_eq!(tool_index_embed_parallel(), TOOL_INDEX_EMBED_PARALLEL_DEFAULT);
+        assert_eq!(
+            tool_index_embed_parallel(),
+            TOOL_INDEX_EMBED_PARALLEL_DEFAULT
+        );
         std::env::set_var("C35_TOOL_INDEX_EMBED_PARALLEL", "4");
         assert_eq!(tool_index_embed_parallel(), 4);
         std::env::set_var("C35_TOOL_INDEX_EMBED_PARALLEL", "99");
-        assert_eq!(tool_index_embed_parallel(), TOOL_INDEX_EMBED_PARALLEL_DEFAULT);
+        assert_eq!(
+            tool_index_embed_parallel(),
+            TOOL_INDEX_EMBED_PARALLEL_DEFAULT
+        );
         std::env::remove_var("C35_TOOL_INDEX_EMBED_PARALLEL");
     }
 }

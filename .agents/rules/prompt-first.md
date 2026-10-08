@@ -5,7 +5,7 @@ alwaysApply: true
 
 # Prompt first
 
-Cursor: [`.cursor/rules/prompt-first.mdc`](../../.cursor/rules/prompt-first.mdc). Guide index: [`_/docs/README.md`](../../_/docs/README.md).
+Cursor: [`.cursor/rules/prompt-first.mdc`](../../.cursor/rules/prompt-first.mdc). Guide index: [`_/docs/README.md`](../../_/docs/README.md). How to write a guide: [docs-guides.md](docs-guides.md).
 
 Alien AI is chat-first. Build the prompt path (tool + `ai.inst`) before adding a screen.
 
@@ -27,7 +27,7 @@ A prompt may start a destructive or paid action. The confirm stays on the screen
 
 ## Guide shape
 
-Tag each article `prompt`, `ui`, or `both`. Write `en/` and `id/` as separate files, screenshots included.
+Tag each article `prompt`, `ui`, or `both`. Write `en/` and `id/` as separate files, screenshots included. Plain language and Indonesian wording: [docs-guides.md](docs-guides.md).
 
 ```md
 # Create a bot

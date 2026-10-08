@@ -1,12 +1,14 @@
 use anyhow::Result;
 use c35_mod_admin::{admin_log_list, admin_log_trace, admin_msg_find, admin_msg_get};
-use c35_proto::ReqAdminLogList;
 use c35_mod_log::log_meta_redact;
 use c35_proto::Log;
+use c35_proto::ReqAdminLogList;
 use serde_json::{json, Value};
 
 use crate::tool;
-use crate::tools::builtin::staff::{admin_err_json, arg_i64, arg_str, require_root_json, subject_iid_resolve};
+use crate::tools::builtin::staff::{
+    admin_err_json, arg_i64, arg_str, require_root_json, subject_iid_resolve,
+};
 use crate::tools::ToolContext;
 
 fn log_to_json(l: &Log) -> Value {
@@ -35,7 +37,10 @@ pub async fn admin_log_tail_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
     if let Err(v) = require_root_json(ctx, "admin.log.tail").await {
         return Ok(v);
     }
-    let global = args.get("global").and_then(|v| v.as_bool()).unwrap_or(false);
+    let global = args
+        .get("global")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let subject_iid = if global {
         0
     } else {
@@ -51,36 +56,67 @@ pub async fn admin_log_tail_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
         arg_i64(args, "since_ms")
     };
     let req = ReqAdminLogList {
-        owner_iid: if subject_iid > 0 { Some(subject_iid) } else { None },
+        owner_iid: if subject_iid > 0 {
+            Some(subject_iid)
+        } else {
+            None
+        },
         since_ms,
         until_ms: arg_i64(args, "until_ms"),
         text: arg_str(args, "q"),
         kind: {
             let k = arg_str(args, "kind");
-            if k.is_empty() { None } else { Some(k) }
+            if k.is_empty() {
+                None
+            } else {
+                Some(k)
+            }
         },
         topic: {
             let t = arg_str(args, "topic");
-            if t.is_empty() { None } else { Some(t) }
+            if t.is_empty() {
+                None
+            } else {
+                Some(t)
+            }
         },
         limit: arg_i64(args, "limit") as i32,
         before_id: {
             let b = arg_i64(args, "before_id");
-            if b > 0 { Some(b) } else { None }
+            if b > 0 {
+                Some(b)
+            } else {
+                None
+            }
         },
         event_kind: {
             let e = arg_str(args, "event_kind");
-            if e.is_empty() { None } else { Some(e) }
+            if e.is_empty() {
+                None
+            } else {
+                Some(e)
+            }
         },
         class: {
             let c = arg_str(args, "class");
-            if c.is_empty() { None } else { Some(c) }
+            if c.is_empty() {
+                None
+            } else {
+                Some(c)
+            }
         },
         subject_prefix: {
             let p = arg_str(args, "subject_prefix");
-            if p.is_empty() { None } else { Some(p) }
+            if p.is_empty() {
+                None
+            } else {
+                Some(p)
+            }
         },
-        exclude_trace: args.get("exclude_trace").and_then(|v| v.as_bool()).unwrap_or(false),
+        exclude_trace: args
+            .get("exclude_trace")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
     };
     match admin_log_list(&ctx.pool, ctx.owner_iid, req).await {
         Ok(res) => {

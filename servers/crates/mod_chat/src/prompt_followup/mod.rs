@@ -1,27 +1,29 @@
 mod store;
 
 use anyhow::{anyhow, Result};
+use async_nats::Client;
 use c35_mod_billing::billing_followup_caps;
+use c35_proto::PromptRunJob;
 use c35_proto::{
     PromptFollowupKind, PromptFollowupPush, PromptFollowupRow, ResPromptFollowupCancel,
     ResPromptFollowupList, ResPromptFollowupPut, ResPromptStart,
 };
-use async_nats::Client;
-use c35_proto::PromptRunJob;
 use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::PgPool;
 
 use crate::mention_content::mention_content_normalize;
 use crate::prompt_run::{
-    prompt_followup_fanout_push, prompt_run_enqueue, prompt_run_fanout_publish, prompt_run_fanout_start,
-    prompt_run_get, prompt_run_insert, prompt_run_push_from_row, prompt_run_row_new,
+    prompt_followup_fanout_push, prompt_run_enqueue, prompt_run_fanout_publish,
+    prompt_run_fanout_start, prompt_run_get, prompt_run_insert, prompt_run_push_from_row,
+    prompt_run_row_new,
 };
 
 pub use store::{
     prompt_followup_active_req, prompt_followup_cancel, prompt_followup_cancel_all_for_req,
-    prompt_followup_drain_steers, prompt_followup_list_pending, prompt_followup_mark_queue_delivered,
-    prompt_followup_next_queued, prompt_followup_pop_delivered_queue, FollowupRow,
+    prompt_followup_drain_steers, prompt_followup_list_pending,
+    prompt_followup_mark_queue_delivered, prompt_followup_next_queued,
+    prompt_followup_pop_delivered_queue, FollowupRow,
 };
 
 pub fn prompt_followup_enabled() -> bool {
@@ -174,7 +176,10 @@ pub async fn prompt_followup_cancel_rpc(
     Ok((ResPromptFollowupCancel { ok }, notify))
 }
 
-pub fn prompt_followup_push_from_list(active_req_id: &str, rows: &[FollowupRow]) -> PromptFollowupPush {
+pub fn prompt_followup_push_from_list(
+    active_req_id: &str,
+    rows: &[FollowupRow],
+) -> PromptFollowupPush {
     PromptFollowupPush {
         active_req_id: active_req_id.into(),
         items: rows.iter().map(row_to_proto).collect(),
@@ -229,11 +234,24 @@ pub async fn prompt_followup_start_next_queued(
     .bind(&q.attachments_json)
     .execute(pool)
     .await?;
-    chat_touch_preview(pool, parent.chat_id, parent.owner_iid, &user_content, "streaming").await?;
+    chat_touch_preview(
+        pool,
+        parent.chat_id,
+        parent.owner_iid,
+        &user_content,
+        "streaming",
+    )
+    .await?;
     let mut req = parent.to_req_prompt();
     req.text = user_content.clone();
     req.attachments_json = q.attachments_json.clone();
-    let row = prompt_run_row_new(&new_req_id, parent.owner_iid, parent.chat_id, &req, &parent.locale);
+    let row = prompt_run_row_new(
+        &new_req_id,
+        parent.owner_iid,
+        parent.chat_id,
+        &req,
+        &parent.locale,
+    );
     prompt_run_insert(pool, &row).await?;
     let job = PromptRunJob {
         req_id: new_req_id.clone(),
@@ -253,13 +271,39 @@ pub async fn prompt_followup_start_next_queued(
         },
     )
     .await;
-    let _ = prompt_run_fanout_publish(nats, parent.owner_iid, parent.chat_id, prompt_run_push_from_row(&row)).await;
-    let _ = prompt_followup_publish_state(pool, Some(nats), parent.owner_iid, parent.chat_id, &new_req_id).await;
-    let _ = prompt_followup_publish_state(pool, Some(nats), parent.owner_iid, parent.chat_id, finished_req_id).await;
+    let _ = prompt_run_fanout_publish(
+        nats,
+        parent.owner_iid,
+        parent.chat_id,
+        prompt_run_push_from_row(&row),
+    )
+    .await;
+    let _ = prompt_followup_publish_state(
+        pool,
+        Some(nats),
+        parent.owner_iid,
+        parent.chat_id,
+        &new_req_id,
+    )
+    .await;
+    let _ = prompt_followup_publish_state(
+        pool,
+        Some(nats),
+        parent.owner_iid,
+        parent.chat_id,
+        finished_req_id,
+    )
+    .await;
     Ok(Some(new_req_id))
 }
 
-async fn chat_touch_preview(pool: &PgPool, chat_id: i64, owner_iid: i64, preview: &str, status: &str) -> Result<()> {
+async fn chat_touch_preview(
+    pool: &PgPool,
+    chat_id: i64,
+    owner_iid: i64,
+    preview: &str,
+    status: &str,
+) -> Result<()> {
     let p: String = preview.chars().take(255).collect();
     sqlx::query(
         r#"UPDATE ai.chat SET last_msg_ts = NOW(), last_msg_preview = $2, updated_ts = NOW() WHERE id = $1"#,

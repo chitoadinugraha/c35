@@ -101,7 +101,11 @@ pub fn image_default_draft_tier_from_str(raw: &str) -> ImageTier {
 
 pub fn image_default_draft_tier_from_config(value: Option<&serde_json::Value>) -> ImageTier {
     let tier = value
-        .and_then(|v| v.get("tier").and_then(|t| t.as_str()).or_else(|| v.as_str()))
+        .and_then(|v| {
+            v.get("tier")
+                .and_then(|t| t.as_str())
+                .or_else(|| v.as_str())
+        })
         .unwrap_or("lite");
     image_default_draft_tier_from_str(tier)
 }
@@ -172,7 +176,14 @@ mod tests {
     #[test]
     fn tier_default_follows_config_lite() {
         let lite = image_tier_lite_draft();
-        let t = image_tier_resolve(&[], "buat gambar kucing lucu", "cute cat", "draft", false, &lite);
+        let t = image_tier_resolve(
+            &[],
+            "buat gambar kucing lucu",
+            "cute cat",
+            "draft",
+            false,
+            &lite,
+        );
         assert_eq!(t.id, "lite_draft");
         assert_eq!(t.primary_model, MODEL_FLASH_LITE);
     }
@@ -180,7 +191,14 @@ mod tests {
     #[test]
     fn tier_default_follows_config_flash() {
         let flash = image_tier_flash_draft();
-        let t = image_tier_resolve(&[], "buat gambar kucing lucu", "cute cat", "draft", false, &flash);
+        let t = image_tier_resolve(
+            &[],
+            "buat gambar kucing lucu",
+            "cute cat",
+            "draft",
+            false,
+            &flash,
+        );
         assert_eq!(t.id, "flash_draft");
         assert_eq!(t.primary_model, MODEL_FLASH);
     }
@@ -188,7 +206,14 @@ mod tests {
     #[test]
     fn tier_tulisan_stays_draft_not_hd() {
         let lite = image_tier_lite_draft();
-        let t = image_tier_resolve(&[], "buat gambar roti dengan tulisan gaya baru", "bread with text", "draft", false, &lite);
+        let t = image_tier_resolve(
+            &[],
+            "buat gambar roti dengan tulisan gaya baru",
+            "bread with text",
+            "draft",
+            false,
+            &lite,
+        );
         assert_eq!(t.id, "lite_draft");
     }
 
@@ -202,14 +227,28 @@ mod tests {
     #[test]
     fn tier_logo_phrase_stays_draft_tier() {
         let lite = image_tier_lite_draft();
-        let t = image_tier_resolve(&[], "buat logo toko kopi", "coffee shop logo", "draft", false, &lite);
+        let t = image_tier_resolve(
+            &[],
+            "buat logo toko kopi",
+            "coffee shop logo",
+            "draft",
+            false,
+            &lite,
+        );
         assert_eq!(t.id, "lite_draft");
     }
 
     #[test]
     fn tier_edit_uses_flash_not_lite() {
         let lite = image_tier_lite_draft();
-        let t = image_tier_resolve(&[], "remove background", "remove background", "draft", true, &lite);
+        let t = image_tier_resolve(
+            &[],
+            "remove background",
+            "remove background",
+            "draft",
+            true,
+            &lite,
+        );
         assert_eq!(t.id, "flash_draft");
     }
 
@@ -223,7 +262,10 @@ mod tests {
     #[test]
     fn tier_default_from_config_json() {
         let v = serde_json::json!({"tier": "flash"});
-        assert_eq!(image_default_draft_tier_from_config(Some(&v)).id, "flash_draft");
+        assert_eq!(
+            image_default_draft_tier_from_config(Some(&v)).id,
+            "flash_draft"
+        );
         assert_eq!(image_default_draft_tier_from_config(None).id, "lite_draft");
     }
 }

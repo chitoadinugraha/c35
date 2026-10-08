@@ -8,7 +8,9 @@ use sqlx::{PgPool, Row};
 
 use crate::bot_peer::{bot_access_verify, BOT_APP_CHANNEL_ID};
 
-use super::channel_platform::{bot_channel_platform_map, channel_id_platform, platform_display_label};
+use super::channel_platform::{
+    bot_channel_platform_map, channel_id_platform, platform_display_label,
+};
 
 #[derive(Debug, Clone)]
 struct ChannelCount {
@@ -26,8 +28,12 @@ fn tz_resolve(params: &Value) -> Tz {
 }
 
 fn day_bounds_utc(tz: Tz, day: NaiveDate) -> (DateTime<Utc>, DateTime<Utc>) {
-    let start_local = tz.from_local_datetime(&day.and_hms_opt(0, 0, 0).unwrap()).single();
-    let end_local = tz.from_local_datetime(&(day + Duration::days(1)).and_hms_opt(0, 0, 0).unwrap()).single();
+    let start_local = tz
+        .from_local_datetime(&day.and_hms_opt(0, 0, 0).unwrap())
+        .single();
+    let end_local = tz
+        .from_local_datetime(&(day + Duration::days(1)).and_hms_opt(0, 0, 0).unwrap())
+        .single();
     match (start_local, end_local) {
         (Some(s), Some(e)) => (s.with_timezone(&Utc), e.with_timezone(&Utc)),
         _ => {
@@ -58,10 +64,18 @@ fn aggregate_by_platform(
         .into_iter()
         .map(|(platform, count)| {
             let label = platform_display_label(&platform).to_string();
-            ChannelCount { platform, label, count }
+            ChannelCount {
+                platform,
+                label,
+                count,
+            }
         })
         .collect();
-    channels.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.platform.cmp(&b.platform)));
+    channels.sort_by(|a, b| {
+        b.count
+            .cmp(&a.count)
+            .then_with(|| a.platform.cmp(&b.platform))
+    });
     let total = channels.iter().map(|c| c.count).sum();
     (channels, total)
 }
@@ -141,7 +155,11 @@ async fn stats_today(pool: &PgPool, bot_iid: i64, params: &Value) -> Result<Valu
 }
 
 async fn stats_daily_avg(pool: &PgPool, bot_iid: i64, params: &Value) -> Result<Value> {
-    let days = params.get("days").and_then(|v| v.as_i64()).unwrap_or(30).clamp(1, 365) as i32;
+    let days = params
+        .get("days")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(30)
+        .clamp(1, 365) as i32;
     let exclude = exclude_app(params);
     let until = Utc::now().date_naive();
     let since = until - Duration::days(days as i64);
@@ -187,8 +205,16 @@ async fn stats_daily_avg(pool: &PgPool, bot_iid: i64, params: &Value) -> Result<
 }
 
 async fn top_questions(pool: &PgPool, bot_iid: i64, params: &Value) -> Result<Value> {
-    let days = params.get("days").and_then(|v| v.as_i64()).unwrap_or(30).clamp(1, 365) as i32;
-    let limit = params.get("limit").and_then(|v| v.as_i64()).unwrap_or(20).clamp(1, 50) as i64;
+    let days = params
+        .get("days")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(30)
+        .clamp(1, 365) as i32;
+    let limit = params
+        .get("limit")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(20)
+        .clamp(1, 50) as i64;
     let exclude = exclude_app(params);
     let until = Utc::now().date_naive();
     let since = until - Duration::days(days as i64);
@@ -245,7 +271,11 @@ async fn peer_messages(pool: &PgPool, bot_iid: i64, params: &Value) -> Result<Va
         .and_then(|v| v.as_str())
         .map(str::trim)
         .filter(|s| !s.is_empty());
-    let limit = params.get("limit").and_then(|v| v.as_i64()).unwrap_or(50).clamp(1, 100) as i64;
+    let limit = params
+        .get("limit")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(50)
+        .clamp(1, 100) as i64;
     let exclude = exclude_app(params);
     let rows = if peer.is_some() {
         let peer_pat = format!("%{}%", peer.unwrap().to_lowercase());
@@ -339,7 +369,11 @@ async fn peer_messages(pool: &PgPool, bot_iid: i64, params: &Value) -> Result<Va
 }
 
 pub fn bot_iid_from_params(mention_bots: &[i64], params: &Value) -> Result<i64> {
-    if let Some(iid) = params.get("bot_iid").and_then(|v| v.as_i64()).filter(|i| *i > 0) {
+    if let Some(iid) = params
+        .get("bot_iid")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0)
+    {
         return Ok(iid);
     }
     match mention_bots.len() {

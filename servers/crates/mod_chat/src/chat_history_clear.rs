@@ -2,7 +2,11 @@ use anyhow::Result;
 use c35_proto::{ReqChatHistoryClear, ResChatHistoryClear};
 use sqlx::{PgPool, Row};
 
-pub async fn chat_history_clear(pool: &PgPool, member_iid: i64, req: ReqChatHistoryClear) -> Result<ResChatHistoryClear> {
+pub async fn chat_history_clear(
+    pool: &PgPool,
+    member_iid: i64,
+    req: ReqChatHistoryClear,
+) -> Result<ResChatHistoryClear> {
     let row = sqlx::query(
         r#"
         SELECT

@@ -9,19 +9,19 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use super::llm_route::{bill_model_slug, llm_stream_chain};
-use super::thought::{thought_push, thinking_level};
+use super::thought::{thinking_level, thought_push};
 use super::web_grounding::{
-    pick_visit_url_for_query, reply_looks_like_web_deferral, reply_looks_like_web_placeholder, search_payload,
-    web_grounding_append_user_context,
+    pick_visit_url_for_query, reply_looks_like_web_deferral, reply_looks_like_web_placeholder,
+    search_payload, web_grounding_append_user_context,
 };
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_query_arms_web, catalog_web_after_stock, CatalogWebPhase};
+use crate::chat_title_set;
+use crate::mention_context::{json_device_iid_field, mention_context_register_site};
 use crate::prompt::hooks::PromptHopCheckpoint;
 use crate::prompt_run::{
     chat_tool_rounds_max, checkpoint_record_tool, checkpoint_set_fatal, checkpoint_tool_should_stop,
 };
-use crate::chat_title_set;
-use crate::mention_context::{json_device_iid_field, mention_context_register_site};
 use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
@@ -29,17 +29,24 @@ pub const CHAT_TOOL_ROUNDS_MAX: u8 = 24;
 pub const CHAT_WRAPUP_HINT: &str =
     "Stop using tools. Answer the user now with what you already found. Do not call more tools.";
 
-fn cluster_system(req: &ChatReq) -> String { req.system.trim().to_string() }
+fn cluster_system(req: &ChatReq) -> String {
+    req.system.trim().to_string()
+}
 
 pub fn chat_tool_rounds_done(round: u8, run_kind: &str) -> bool {
     round >= chat_tool_rounds_max(run_kind)
 }
 
 pub fn tool_call_dup(prev: &Option<(String, Value)>, name: &str, args: &Value) -> bool {
-    prev.as_ref().map(|(n, a)| n == name && a == args).unwrap_or(false)
+    prev.as_ref()
+        .map(|(n, a)| n == name && a == args)
+        .unwrap_or(false)
 }
 
-pub fn tool_calls_dup(prev: &[(String, Value, Option<String>)], current: &[(String, Value, Option<String>)]) -> bool {
+pub fn tool_calls_dup(
+    prev: &[(String, Value, Option<String>)],
+    current: &[(String, Value, Option<String>)],
+) -> bool {
     !prev.is_empty()
         && prev.len() == current.len()
         && prev
@@ -118,14 +125,23 @@ pub async fn prompt_cluster_turn(
         if trimmed.is_empty() {
             continue;
         }
-        let role = if h.role == "assistant" { "model" } else { "user" };
+        let role = if h.role == "assistant" {
+            "model"
+        } else {
+            "user"
+        };
         contents.push(json!({ "role": role, "parts": [{ "text": trimmed }] }));
     }
     contents.push(json!({ "role": "user", "parts": [{ "text": req.user }] }));
     if let Some(ctx) = turn_ctx.as_ref() {
-        let image_parts = crate::tools::img::user_image_inline_parts(ctx.pool, ctx.attachments_json).await;
+        let image_parts =
+            crate::tools::img::user_image_inline_parts(ctx.pool, ctx.attachments_json).await;
         if !image_parts.is_empty() {
-            if let Some(parts) = contents.last_mut().and_then(|m| m.get_mut("parts")).and_then(|p| p.as_array_mut()) {
+            if let Some(parts) = contents
+                .last_mut()
+                .and_then(|m| m.get_mut("parts"))
+                .and_then(|p| p.as_array_mut())
+            {
                 parts.extend(image_parts);
             }
         }
@@ -137,6 +153,20 @@ pub async fn prompt_cluster_turn(
     let mut blocks_json = String::from("[]");
     let mut tools_cost_usd = 0.0f64;
     let model_used = bill_slug.clone();
+
+    if req.stock_report {
+        if let Some(ctx) = turn_ctx.as_deref() {
+            if let Some(done) =
+                crate::stock_report_run::stock_report_prefetch(ctx, &req.user).await?
+            {
+                if !done.text.is_empty() {
+                    on_delta(false, done.text.clone());
+                }
+                on_blocks(done.blocks_json.clone());
+                return Ok(done);
+            }
+        }
+    }
 
     if tools.is_empty() {
         let hop_started = Instant::now();
@@ -158,17 +188,47 @@ pub async fn prompt_cluster_turn(
         thought = out.thought.clone();
         if let Some(tr) = tracer {
             let hop_cost = billing_cost_usd(&bill_slug, out.in_tok, out.out_tok);
-            tr.llm_call(1, &bill_slug, out.in_tok, out.out_tok, hop_ms, hop_cost, &out.text).await;
+            tr.llm_call(
+                1,
+                &bill_slug,
+                out.in_tok,
+                out.out_tok,
+                hop_ms,
+                hop_cost,
+                &out.text,
+            )
+            .await;
         }
-        hop_checkpoint(turn_ctx.as_deref(), &on_hop, 1, 1, tokens_in, tokens_out, tools_cost_usd, &blocks_json, "");
-        return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd: 0.0 });
+        hop_checkpoint(
+            turn_ctx.as_deref(),
+            &on_hop,
+            1,
+            1,
+            tokens_in,
+            tokens_out,
+            tools_cost_usd,
+            &blocks_json,
+            "",
+        );
+        return Ok(ChatRes {
+            text,
+            thought,
+            blocks_json,
+            tokens_in,
+            tokens_out,
+            model_used,
+            tools_cost_usd: 0.0,
+        });
     }
 
     let mut prev_calls: Vec<(String, Value, Option<String>)> = Vec::new();
     let mut used_tool = false;
     let mut web_grounded = false;
     let mut stock_returned = false;
-    if req.force_web_tool_call && !req.skip_web_prefetch && tools.iter().any(|t| t.name == "web.search") {
+    if req.force_web_tool_call
+        && !req.skip_web_prefetch
+        && tools.iter().any(|t| t.name == "web.search")
+    {
         let q = search_query_from_user(&req.user);
         if tool_loop_run_web_search(
             &client,
@@ -191,7 +251,9 @@ pub async fn prompt_cluster_turn(
         }
     }
     for round in 0..rounds_max {
-        if cancel.is_cancelled() { anyhow::bail!("aborted"); }
+        if cancel.is_cancelled() {
+            anyhow::bail!("aborted");
+        }
         if let Some(ctx) = turn_ctx.as_ref() {
             if crate::prompt_followup::prompt_followup_enabled() {
                 match crate::prompt_followup::prompt_followup_drain_steers(
@@ -203,9 +265,15 @@ pub async fn prompt_cluster_turn(
                 .await
                 {
                     Ok(steer_texts) if !steer_texts.is_empty() => {
-                        crate::prompt_followup::prompt_followup_append_to_contents(&mut contents, &steer_texts);
+                        crate::prompt_followup::prompt_followup_append_to_contents(
+                            &mut contents,
+                            &steer_texts,
+                        );
                     }
-                    Err(e) => tracing::warn!("[c35:prompt_followup] drain failed req_id={}: {e:#}", ctx.req_id),
+                    Err(e) => tracing::warn!(
+                        "[c35:prompt_followup] drain failed req_id={}: {e:#}",
+                        ctx.req_id
+                    ),
                     _ => {}
                 }
             }
@@ -213,10 +281,22 @@ pub async fn prompt_cluster_turn(
         let wrap = chat_tool_rounds_done(round + 1, run_kind);
         let hop = round + 1;
         let hop_started = Instant::now();
-        let tool_call_mode = if round == 0 && req.force_tool_call && !web_grounded && !wrap { "ANY" } else { "AUTO" };
-        let tools_for_hop = if web_grounded && !wrap { json!([]) } else { tool_json.clone() };
+        let tool_call_mode = if round == 0 && req.force_tool_call && !web_grounded && !wrap {
+            "ANY"
+        } else {
+            "AUTO"
+        };
+        let tools_for_hop = if web_grounded && !wrap {
+            json!([])
+        } else {
+            tool_json.clone()
+        };
         let buffer_deltas = req.force_web_tool_call && web_grounded && !wrap;
-        let mut delta_buf: Option<Vec<(bool, String)>> = if buffer_deltas { Some(Vec::new()) } else { None };
+        let mut delta_buf: Option<Vec<(bool, String)>> = if buffer_deltas {
+            Some(Vec::new())
+        } else {
+            None
+        };
         let mut hop_delta = |thought: bool, s: String| {
             if let Some(buf) = &mut delta_buf {
                 buf.push((thought, s));
@@ -226,7 +306,17 @@ pub async fn prompt_cluster_turn(
         };
         let (out, _provider_model, _) = if wrap {
             contents.push(json!({ "role": "user", "parts": [{ "text": CHAT_WRAPUP_HINT }] }));
-            llm_stream_chain(&requested_model, &contents, &json!([]), &thinking, &system, "AUTO", on_delta, cancel).await?
+            llm_stream_chain(
+                &requested_model,
+                &contents,
+                &json!([]),
+                &thinking,
+                &system,
+                "AUTO",
+                on_delta,
+                cancel,
+            )
+            .await?
         } else {
             llm_stream_chain(
                 &requested_model,
@@ -245,9 +335,28 @@ pub async fn prompt_cluster_turn(
         tokens_out += out.out_tok;
         if let Some(tr) = tracer {
             let hop_cost = billing_cost_usd(&bill_slug, out.in_tok, out.out_tok);
-            tr.llm_call(hop as u8, &bill_slug, out.in_tok, out.out_tok, hop_ms, hop_cost, &out.text).await;
+            tr.llm_call(
+                hop as u8,
+                &bill_slug,
+                out.in_tok,
+                out.out_tok,
+                hop_ms,
+                hop_cost,
+                &out.text,
+            )
+            .await;
         }
-        hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, "");
+        hop_checkpoint(
+            turn_ctx.as_deref(),
+            &on_hop,
+            hop as i32,
+            hop as i32,
+            tokens_in,
+            tokens_out,
+            tools_cost_usd,
+            &blocks_json,
+            "",
+        );
         if !out.thought.is_empty() {
             thought_push(&mut thought, &out.thought);
         }
@@ -261,7 +370,15 @@ pub async fn prompt_cluster_turn(
                         buf.clear();
                     }
                     text = out.text.clone();
-                    return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
+                    return Ok(ChatRes {
+                        text,
+                        thought,
+                        blocks_json,
+                        tokens_in,
+                        tokens_out,
+                        model_used,
+                        tools_cost_usd,
+                    });
                 }
                 if let Some(buf) = delta_buf.as_mut() {
                     buf.clear();
@@ -289,25 +406,49 @@ pub async fn prompt_cluster_turn(
                 emit_thought(on_delta, &mut thought, &label);
             }
 
-            let executions = join_all(out.function_calls.iter().map(|(name, args, gemini_call_id)| {
-                let client = &client;
-                let turn_ctx_ref = turn_ctx.as_deref();
-                let gemini_call_id = gemini_call_id.clone();
-                async move {
-                    let tool_started = Instant::now();
-                    let tool_call_id = snowflake_id().to_string();
-                    let (result, tool_cost) =
-                        cluster_tool_exec(client, name, args, turn_ctx_ref, Some(&tool_call_id)).await;
-                    let tool_ms = tool_started.elapsed().as_millis() as i64;
-                    (name.clone(), args.clone(), gemini_call_id, result, tool_cost, tool_ms, tool_call_id)
-                }
-            }))
+            let executions = join_all(out.function_calls.iter().map(
+                |(name, args, gemini_call_id)| {
+                    let client = &client;
+                    let turn_ctx_ref = turn_ctx.as_deref();
+                    let gemini_call_id = gemini_call_id.clone();
+                    async move {
+                        let tool_started = Instant::now();
+                        let tool_call_id = snowflake_id().to_string();
+                        let (result, tool_cost) = cluster_tool_exec(
+                            client,
+                            name,
+                            args,
+                            turn_ctx_ref,
+                            Some(&tool_call_id),
+                        )
+                        .await;
+                        let tool_ms = tool_started.elapsed().as_millis() as i64;
+                        (
+                            name.clone(),
+                            args.clone(),
+                            gemini_call_id,
+                            result,
+                            tool_cost,
+                            tool_ms,
+                            tool_call_id,
+                        )
+                    }
+                },
+            ))
             .await;
 
             if let Some(ctx) = turn_ctx.as_ref() {
                 let title = ctx.title_slot.lock().ok().and_then(|g| g.clone());
                 if let Some(title) = title {
-                    let _ = chat_title_set(ctx.pool, ctx.nats, ctx.owner_iid, ctx.chat_id, &title, true).await;
+                    let _ = chat_title_set(
+                        ctx.pool,
+                        ctx.nats,
+                        ctx.owner_iid,
+                        ctx.chat_id,
+                        &title,
+                        true,
+                    )
+                    .await;
                 }
             }
 
@@ -315,7 +456,8 @@ pub async fn prompt_cluster_turn(
             let mut latest_img_b64 = None;
             let mut catalog_stock_rows: Option<usize> = None;
 
-            for (name, args, gemini_call_id, result, tool_cost, tool_ms, tool_call_id) in executions {
+            for (name, args, gemini_call_id, result, tool_cost, tool_ms, tool_call_id) in executions
+            {
                 if name == "site.query.run"
                     && args
                         .get("query_id")
@@ -324,30 +466,55 @@ pub async fn prompt_cluster_turn(
                 {
                     stock_returned = true;
                     catalog_stock_rows = Some(
-                        result.get("rows").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0),
+                        result
+                            .get("rows")
+                            .and_then(|v| v.as_array())
+                            .map(|a| a.len())
+                            .unwrap_or(0),
                     );
                 }
                 tools_cost_usd += tool_cost;
                 let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
                 if let Some(tr) = tracer {
-                    tr.tool_result(&name, &tool_call_id, &args, &result, ok, tool_ms).await;
+                    tr.tool_result(&name, &tool_call_id, &args, &result, ok, tool_ms)
+                        .await;
                 }
                 if let Some(block) = result.get("block") {
                     blocks_json = append_block(&blocks_json, block.clone());
                     on_blocks(blocks_json.clone());
                 }
+                if let Some(extra) = result.get("blocks").and_then(|v| v.as_array()) {
+                    for block in extra {
+                        blocks_json = append_block(&blocks_json, block.clone());
+                    }
+                    if !extra.is_empty() {
+                        on_blocks(blocks_json.clone());
+                    }
+                }
                 if name == "site.create" && ok {
                     if let Some(ctx) = turn_ctx.as_mut() {
                         let site_iid = json_device_iid_field(&result, "site_iid");
                         if site_iid > 0 {
-                            let alien_id = result.get("alien_id").and_then(|v| v.as_str()).unwrap_or("");
-                            let site_name = result.get("name").and_then(|v| v.as_str()).unwrap_or("");
-                            mention_context_register_site(&mut ctx.mention, site_iid, alien_id, site_name);
+                            let alien_id = result
+                                .get("alien_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+                            let site_name =
+                                result.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            mention_context_register_site(
+                                &mut ctx.mention,
+                                site_iid,
+                                alien_id,
+                                site_name,
+                            );
                             ctx.site_iid = Some(site_iid);
                         }
                     }
                 }
-                let fail_class = result.get("fail_class").and_then(|v| v.as_str()).unwrap_or("");
+                let fail_class = result
+                    .get("fail_class")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 let circuit_stop = if let Some(ctx) = turn_ctx.as_mut() {
                     if let Some(cp) = ctx.checkpoint.as_deref_mut() {
                         checkpoint_record_tool(cp, &name, &result);
@@ -381,15 +548,27 @@ pub async fn prompt_cluster_turn(
                     );
                     anyhow::bail!(reason);
                 }
-                let err = result
-                    .get("error")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let missing_device = err.contains("device_iid is required") || err.contains("device_iid required");
+                let err = result.get("error").and_then(|v| v.as_str()).unwrap_or("");
+                let missing_device =
+                    err.contains("device_iid is required") || err.contains("device_iid required");
                 let fatal_unrecoverable = matches!(fail_class, "fatal_auth" | "fatal_offline");
                 if fatal_unrecoverable && !missing_device {
-                    let err = if err.is_empty() { "device fatal error" } else { err };
-                    hop_checkpoint(turn_ctx.as_deref(), &on_hop, hop as i32, hop as i32, tokens_in, tokens_out, tools_cost_usd, &blocks_json, fail_class);
+                    let err = if err.is_empty() {
+                        "device fatal error"
+                    } else {
+                        err
+                    };
+                    hop_checkpoint(
+                        turn_ctx.as_deref(),
+                        &on_hop,
+                        hop as i32,
+                        hop as i32,
+                        tokens_in,
+                        tokens_out,
+                        tools_cost_usd,
+                        &blocks_json,
+                        fail_class,
+                    );
                     anyhow::bail!(err.to_string());
                 }
                 let mut llm_result = result.get("llm").cloned().unwrap_or(result.clone());
@@ -401,7 +580,8 @@ pub async fn prompt_cluster_turn(
                     llm_result = json!({ "ok": false, "error": err });
                 }
                 let maybe_img = llm_result.as_object_mut().and_then(|obj| {
-                    obj.remove("image_base64").and_then(|v| v.as_str().map(|s| s.to_string()))
+                    obj.remove("image_base64")
+                        .and_then(|v| v.as_str().map(|s| s.to_string()))
                 });
                 if let Some(img_b64) = maybe_img {
                     latest_img_b64 = Some(img_b64);
@@ -443,7 +623,11 @@ pub async fn prompt_cluster_turn(
                 }));
             }
 
-            if out.function_calls.iter().any(|(n, _, _)| n == "web.search" || n == "web.visit") {
+            if out
+                .function_calls
+                .iter()
+                .any(|(n, _, _)| n == "web.search" || n == "web.visit")
+            {
                 ensure_web_visit_tool(&mut tools, &mut tool_json);
             }
 
@@ -477,8 +661,10 @@ pub async fn prompt_cluster_turn(
             continue;
         }
         let catalog_defer_web = req.catalog_web == CatalogWebPhase::Stock
-            || (matches!(req.catalog_web, CatalogWebPhase::PriceLookup | CatalogWebPhase::PriceCompare)
-                && !stock_returned);
+            || (matches!(
+                req.catalog_web,
+                CatalogWebPhase::PriceLookup | CatalogWebPhase::PriceCompare
+            ) && !stock_returned);
         if round == 0
             && !used_tool
             && !catalog_defer_web
@@ -509,7 +695,8 @@ pub async fn prompt_cluster_turn(
         }
         if !out.text.is_empty() {
             let reject_ungrounded = req.force_web_tool_call && !web_grounded && !used_tool;
-            let reject_placeholder = req.force_web_tool_call && reply_looks_like_web_placeholder(&out.text);
+            let reject_placeholder =
+                req.force_web_tool_call && reply_looks_like_web_placeholder(&out.text);
             let reject_deferral =
                 req.force_web_tool_call && web_grounded && reply_looks_like_web_deferral(&out.text);
             if !reject_ungrounded && !reject_placeholder && !reject_deferral {
@@ -523,7 +710,15 @@ pub async fn prompt_cluster_turn(
                     thought_push(&mut thought, &out.thought);
                 }
                 text = out.text.clone();
-                return Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used, tools_cost_usd });
+                return Ok(ChatRes {
+                    text,
+                    thought,
+                    blocks_json,
+                    tokens_in,
+                    tokens_out,
+                    model_used,
+                    tools_cost_usd,
+                });
             }
             if let Some(buf) = delta_buf.as_mut() {
                 buf.clear();
@@ -569,10 +764,22 @@ async fn wrap_up(
     tracer: Option<&TurnTracer>,
     tools_cost_usd: f64,
 ) -> Result<ChatRes> {
-    if cancel.is_cancelled() { anyhow::bail!("aborted"); }
+    if cancel.is_cancelled() {
+        anyhow::bail!("aborted");
+    }
     contents.push(json!({ "role": "user", "parts": [{ "text": CHAT_WRAPUP_HINT }] }));
     let hop_started = Instant::now();
-    let (out, _provider_model, _) = llm_stream_chain(requested_model, &contents, &json!([]), thinking, system, "AUTO", on_delta, cancel).await?;
+    let (out, _provider_model, _) = llm_stream_chain(
+        requested_model,
+        &contents,
+        &json!([]),
+        thinking,
+        system,
+        "AUTO",
+        on_delta,
+        cancel,
+    )
+    .await?;
     let hop_ms = hop_started.elapsed().as_millis() as i64;
     tokens_in += out.in_tok;
     tokens_out += out.out_tok;
@@ -584,13 +791,30 @@ async fn wrap_up(
     }
     if let Some(tr) = tracer {
         let hop_cost = billing_cost_usd(bill_slug, out.in_tok, out.out_tok);
-        tr.llm_call(99, bill_slug, out.in_tok, out.out_tok, hop_ms, hop_cost, &out.text).await;
+        tr.llm_call(
+            99,
+            bill_slug,
+            out.in_tok,
+            out.out_tok,
+            hop_ms,
+            hop_cost,
+            &out.text,
+        )
+        .await;
     }
     if text.is_empty() {
         let fallback = "I could not finish that lookup. Try again with a shorter question.";
         emit_text(on_delta, &mut text, fallback);
     }
-    Ok(ChatRes { text, thought, blocks_json, tokens_in, tokens_out, model_used: bill_slug.to_string(), tools_cost_usd })
+    Ok(ChatRes {
+        text,
+        thought,
+        blocks_json,
+        tokens_in,
+        tokens_out,
+        model_used: bill_slug.to_string(),
+        tools_cost_usd,
+    })
 }
 
 fn hop_checkpoint(
@@ -647,13 +871,24 @@ fn hop_checkpoint_with_json(
 }
 
 fn emit_thought(on_delta: &mut (dyn FnMut(bool, String) + Send), acc: &mut String, piece: &str) {
-    if piece.trim().is_empty() { return; }
+    if piece.trim().is_empty() {
+        return;
+    }
     thought_push(acc, piece);
-    on_delta(true, if piece.ends_with('\n') { piece.to_string() } else { format!("{piece}\n") });
+    on_delta(
+        true,
+        if piece.ends_with('\n') {
+            piece.to_string()
+        } else {
+            format!("{piece}\n")
+        },
+    );
 }
 
 fn emit_text(on_delta: &mut (dyn FnMut(bool, String) + Send), acc: &mut String, piece: &str) {
-    if piece.is_empty() { return; }
+    if piece.is_empty() {
+        return;
+    }
     acc.push_str(piece);
     on_delta(false, piece.to_string());
 }
@@ -684,22 +919,45 @@ async fn tool_loop_run_web_search(
     let tool_ms = tool_started.elapsed().as_millis() as i64;
     let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
     if let Some(tr) = tracer {
-        tr.tool_result("web.search", &snowflake_id().to_string(), &args, &result, ok, tool_ms).await;
+        tr.tool_result(
+            "web.search",
+            &snowflake_id().to_string(),
+            &args,
+            &result,
+            ok,
+            tool_ms,
+        )
+        .await;
     }
     ensure_web_visit_tool(tools, tool_json);
-    let search_ok = search_payload(&result).get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    let search_ok = search_payload(&result)
+        .get("ok")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let mut visit_result: Option<Value> = None;
     if force_visit && search_ok && tools.iter().any(|t| t.name == "web.visit") {
         if let Some(url) = pick_visit_url_for_query(&result, q) {
             emit_thought(on_delta, thought, "Using web.visit…\n");
             let visit_args = json!({ "url": url });
             let visit_started = Instant::now();
-            let (visit_payload, visit_cost) = cluster_tool_exec(client, "web.visit", &visit_args, turn_ctx, None).await;
+            let (visit_payload, visit_cost) =
+                cluster_tool_exec(client, "web.visit", &visit_args, turn_ctx, None).await;
             *tools_cost_usd += visit_cost;
             let visit_ms = visit_started.elapsed().as_millis() as i64;
-            let visit_ok = visit_payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+            let visit_ok = visit_payload
+                .get("ok")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true);
             if let Some(tr) = tracer {
-                tr.tool_result("web.visit", &snowflake_id().to_string(), &visit_args, &visit_payload, visit_ok, visit_ms).await;
+                tr.tool_result(
+                    "web.visit",
+                    &snowflake_id().to_string(),
+                    &visit_args,
+                    &visit_payload,
+                    visit_ok,
+                    visit_ms,
+                )
+                .await;
             }
             visit_result = Some(visit_payload);
         }
@@ -708,7 +966,10 @@ async fn tool_loop_run_web_search(
     Ok(true)
 }
 
-fn ensure_web_visit_tool(tools: &mut Vec<crate::tools::ToolDef>, tool_json: &mut serde_json::Value) {
+fn ensure_web_visit_tool(
+    tools: &mut Vec<crate::tools::ToolDef>,
+    tool_json: &mut serde_json::Value,
+) {
     if tools.iter().any(|t| t.name == "web.visit") {
         return;
     }
@@ -721,9 +982,28 @@ fn ensure_web_visit_tool(tools: &mut Vec<crate::tools::ToolDef>, tool_json: &mut
 pub fn user_wants_search(text: &str) -> bool {
     let t = text.to_ascii_lowercase();
     [
-        "search", "cari ", "google ", "berita", "latest ", "news ", "what is ", "apa itu ", "siapa ",
-        "film", "bioskop", "cinema", "jadwal", "tayang", "nonton", "cuaca", "harga ", "sekarang apa",
-        "hari ini apa", "apa yang tayang", "jadwal nonton", "showtime",
+        "search",
+        "cari ",
+        "google ",
+        "berita",
+        "latest ",
+        "news ",
+        "what is ",
+        "apa itu ",
+        "siapa ",
+        "film",
+        "bioskop",
+        "cinema",
+        "jadwal",
+        "tayang",
+        "nonton",
+        "cuaca",
+        "harga ",
+        "sekarang apa",
+        "hari ini apa",
+        "apa yang tayang",
+        "jadwal nonton",
+        "showtime",
     ]
     .iter()
     .any(|k| t.contains(k))
@@ -751,7 +1031,9 @@ pub fn search_query_from_user(text: &str) -> String {
     for key in ["cari ", "search ", "google ", "look up "] {
         if let Some(i) = lower.rfind(key) {
             let q = cleaned[i + key.len()..].trim();
-            if !q.is_empty() { return q.to_string(); }
+            if !q.is_empty() {
+                return q.to_string();
+            }
         }
     }
     cleaned.trim().to_string()
@@ -763,7 +1045,8 @@ mod tests {
 
     #[test]
     fn user_wants_search_cinema_id() {
-        assert!(user_wants_search("film apa saja di bioskop malang hari ini ?"));
+        assert!(user_wants_search(
+            "film apa saja di bioskop malang hari ini ?"
+        ));
     }
-
 }

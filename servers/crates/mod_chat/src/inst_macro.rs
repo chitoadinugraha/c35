@@ -28,7 +28,11 @@ pub fn inst_scopes_home() -> Vec<String> {
 
 /// In-memory mention ids for inst pick. Does not mutate the persisted list.
 pub fn inst_mention_ids(mention_ids: &[String], talk: bool) -> Vec<String> {
-    mention_ids.iter().cloned().chain(talk.then(|| "talk".to_string())).collect()
+    mention_ids
+        .iter()
+        .cloned()
+        .chain(talk.then(|| "talk".to_string()))
+        .collect()
 }
 
 pub fn inst_scopes_channel() -> Vec<String> {
@@ -135,7 +139,11 @@ pub fn inst_text_bot_draft_intent(text: &str) -> bool {
 }
 
 pub fn inst_pick(rows: &[InstRow], ctx: &InstMatchCtx<'_>) -> Vec<InstRow> {
-    let mut picked: Vec<InstRow> = rows.iter().filter(|r| inst_applies(r, ctx)).cloned().collect();
+    let mut picked: Vec<InstRow> = rows
+        .iter()
+        .filter(|r| inst_applies(r, ctx))
+        .cloned()
+        .collect();
     picked.sort_by(|a, b| b.priority.cmp(&a.priority).then_with(|| a.id.cmp(&b.id)));
     picked.dedup_by(|a, b| a.id == b.id);
     picked
@@ -236,9 +244,11 @@ fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
             }
             let lower = ctx.text.trim().to_lowercase();
             let phrase_hit = row.phrases.is_empty()
-                || row.phrases.iter().any(|p| lower.contains(&p.to_lowercase()));
-            phrase_hit
-                || (row.id == "inst.site.builder" && inst_text_site_builder_intent(ctx.text))
+                || row
+                    .phrases
+                    .iter()
+                    .any(|p| lower.contains(&p.to_lowercase()));
+            phrase_hit || (row.id == "inst.site.builder" && inst_text_site_builder_intent(ctx.text))
         }
         _ => false,
     }
@@ -266,7 +276,8 @@ fn topic_applies(topics: &[String], topic_id: &str, active_topics: &[String]) ->
             t == "*"
                 || t == topic_id
                 || active_topics.iter().any(|a| a == t)
-                || (t == "general" && (topic_id == "general" || active_topics.iter().any(|a| a == "general")))
+                || (t == "general"
+                    && (topic_id == "general" || active_topics.iter().any(|a| a == "general")))
         })
 }
 
@@ -599,9 +610,15 @@ mod tests {
             signals: &[INST_SIGNAL_MODEL_FRONTIER.into()],
             staff: None,
         };
-        assert!(inst_pick(&[alien.clone(), frontier.clone()], &ctx_alien).iter().any(|r| r.id == "inst.pool.alien"));
-        assert!(!inst_pick(&[alien.clone(), frontier.clone()], &ctx_alien).iter().any(|r| r.id == "inst.pool.frontier"));
-        assert!(inst_pick(&[alien.clone(), frontier.clone()], &ctx_frontier).iter().any(|r| r.id == "inst.pool.frontier"));
+        assert!(inst_pick(&[alien.clone(), frontier.clone()], &ctx_alien)
+            .iter()
+            .any(|r| r.id == "inst.pool.alien"));
+        assert!(!inst_pick(&[alien.clone(), frontier.clone()], &ctx_alien)
+            .iter()
+            .any(|r| r.id == "inst.pool.frontier"));
+        assert!(inst_pick(&[alien.clone(), frontier.clone()], &ctx_frontier)
+            .iter()
+            .any(|r| r.id == "inst.pool.frontier"));
     }
 
     #[test]
@@ -662,7 +679,10 @@ mod tests {
         // Persisted mention list is unchanged; talk is only on the inst-match copy.
         assert_eq!(persisted, vec!["web.builder".to_string()]);
         assert_eq!(without, vec!["web.builder".to_string()]);
-        assert_eq!(with_talk, vec!["web.builder".to_string(), "talk".to_string()]);
+        assert_eq!(
+            with_talk,
+            vec!["web.builder".to_string(), "talk".to_string()]
+        );
         let ctx_on = InstMatchCtx {
             scopes: &scopes,
             topic_id: "general",
@@ -681,8 +701,12 @@ mod tests {
             signals: &[],
             staff: None,
         };
-        assert!(inst_pick(&rows, &ctx_on).iter().any(|r| r.id == "inst.talk.brief"));
-        assert!(inst_pick(&rows, &ctx_off).iter().all(|r| r.id != "inst.talk.brief"));
+        assert!(inst_pick(&rows, &ctx_on)
+            .iter()
+            .any(|r| r.id == "inst.talk.brief"));
+        assert!(inst_pick(&rows, &ctx_off)
+            .iter()
+            .all(|r| r.id != "inst.talk.brief"));
     }
 
     #[test]

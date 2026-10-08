@@ -11,9 +11,7 @@ pub struct SiteContext {
 pub fn site_context_block(ctx: &SiteContext) -> String {
     format!(
         "[SITE CONTEXT] site_iid={} alien_id={} name={}",
-        ctx.site_iid,
-        ctx.alien_id,
-        ctx.name
+        ctx.site_iid, ctx.alien_id, ctx.name
     )
 }
 
@@ -24,7 +22,8 @@ fn alien_id_normalize(raw: &str) -> String {
 pub fn site_at_tokens(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for word in text.split_whitespace() {
-        let w = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '@' && c != '_' && c != '-');
+        let w =
+            word.trim_matches(|c: char| !c.is_alphanumeric() && c != '@' && c != '_' && c != '-');
         if let Some(rest) = w.strip_prefix('@') {
             let id = alien_id_normalize(rest);
             if !id.is_empty() && !out.contains(&id) {
@@ -35,7 +34,11 @@ pub fn site_at_tokens(text: &str) -> Vec<String> {
     out
 }
 
-async fn site_row_get(pool: &PgPool, caller_iid: i64, site_iid: i64) -> Result<Option<SiteContext>> {
+async fn site_row_get(
+    pool: &PgPool,
+    caller_iid: i64,
+    site_iid: i64,
+) -> Result<Option<SiteContext>> {
     let row = sqlx::query(
         r#"
         SELECT i.id, COALESCE(i.alien_id, '') AS alien_id, COALESCE(i.name, '') AS name,
@@ -66,7 +69,11 @@ async fn site_row_get(pool: &PgPool, caller_iid: i64, site_iid: i64) -> Result<O
     }))
 }
 
-async fn site_find_by_alien_id(pool: &PgPool, caller_iid: i64, alien_id: &str) -> Result<Option<SiteContext>> {
+async fn site_find_by_alien_id(
+    pool: &PgPool,
+    caller_iid: i64,
+    alien_id: &str,
+) -> Result<Option<SiteContext>> {
     let alien_id = alien_id_normalize(alien_id);
     if alien_id.is_empty() {
         return Ok(None);

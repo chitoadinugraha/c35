@@ -382,6 +382,10 @@ CREATE TABLE IF NOT EXISTS site.tx_stock (
     FOREIGN KEY (site_iid, tx_id) REFERENCES site.tx (site_iid, tx_id) ON DELETE CASCADE
 );
 
+CREATE INDEX IF NOT EXISTS idx_tx_stock_site_product
+    ON site.tx_stock (site_iid, product_id)
+    WHERE deleted_ts IS NULL;
+
 -- ------------------------------------------------------------------------------
 -- Tx tax / discount lines
 -- ------------------------------------------------------------------------------

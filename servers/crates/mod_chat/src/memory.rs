@@ -39,7 +39,10 @@ pub struct MemoryRetrieveResult {
 
 impl Default for MemoryRetrieveResult {
     fn default() -> Self {
-        Self { block: String::new(), trace: MemoryRetrieveTrace::default() }
+        Self {
+            block: String::new(),
+            trace: MemoryRetrieveTrace::default(),
+        }
     }
 }
 
@@ -55,7 +58,11 @@ pub fn memory_prompt_block(rows: &[(String, String)]) -> String {
                 return None;
             }
             let k = k.trim();
-            Some(if k.is_empty() { format!("- {c}") } else { format!("- {k}: {c}") })
+            Some(if k.is_empty() {
+                format!("- {c}")
+            } else {
+                format!("- {k}: {c}")
+            })
         })
         .collect();
     if lines.is_empty() {
@@ -88,8 +95,21 @@ pub async fn memory_put(
     category: &str,
     source_req_id: &str,
 ) -> Result<i64> {
-    let http = Client::builder().timeout(Duration::from_secs(15)).build().unwrap_or_default();
-    memory_put_with_client(pool, &http, owner_iid, bot_iid, key, content, category, source_req_id).await
+    let http = Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .unwrap_or_default();
+    memory_put_with_client(
+        pool,
+        &http,
+        owner_iid,
+        bot_iid,
+        key,
+        content,
+        category,
+        source_req_id,
+    )
+    .await
 }
 
 pub async fn memory_put_with_client(
@@ -102,9 +122,12 @@ pub async fn memory_put_with_client(
     category: &str,
     source_req_id: &str,
 ) -> Result<i64> {
-    let content_hash = blake3::hash(format!("{}: {}", key.trim(), content.trim()).as_bytes()).to_hex().to_string();
+    let content_hash = blake3::hash(format!("{}: {}", key.trim(), content.trim()).as_bytes())
+        .to_hex()
+        .to_string();
     let payload = format!("{}: {}", key.trim(), content.trim());
-    let embed_vec = match embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
+    let embed_vec = match embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, EMBED_DIMS).await
+    {
         Ok(r) => Some(r.embedding),
         Err(e) => {
             warn!("[c35:memory] embed_cached failed for '{payload}': {e}");
@@ -117,7 +140,9 @@ pub async fn memory_put_with_client(
             }
         }
     };
-    let embed_json = embed_vec.and_then(|v| serde_json::to_value(v).ok()).map(Json);
+    let embed_json = embed_vec
+        .and_then(|v| serde_json::to_value(v).ok())
+        .map(Json);
 
     let existing: Option<i64> = if let Some(bid) = bot_iid {
         sqlx::query_scalar(
@@ -285,7 +310,9 @@ async fn memory_retrieve_impl(
 
     if q.is_empty() {
         let mut combined = pinned_rows;
-        let recent = memory_list_active(pool, owner_iid, bot_iid, limit as i64).await.unwrap_or_default();
+        let recent = memory_list_active(pool, owner_iid, bot_iid, limit as i64)
+            .await
+            .unwrap_or_default();
         for r in recent {
             if !combined.iter().any(|(k, _)| k == &r.0) {
                 combined.push(r);
@@ -465,9 +492,15 @@ async fn memory_active_with_embed(
         .fetch_all(pool)
         .await?
     };
-    Ok(rows.into_iter().map(|(key, content, category, embedding_json)| ActiveMemoryRow {
-        key, content, category, embedding_json: embedding_json.map(|j| j.0),
-    }).collect())
+    Ok(rows
+        .into_iter()
+        .map(|(key, content, category, embedding_json)| ActiveMemoryRow {
+            key,
+            content,
+            category,
+            embedding_json: embedding_json.map(|j| j.0),
+        })
+        .collect())
 }
 
 struct MemoryCand {
@@ -527,7 +560,10 @@ async fn memory_candidates(
         .fetch_all(pool)
         .await?
     };
-    Ok(rows.into_iter().map(|(key, content)| MemoryCand { key, content }).collect())
+    Ok(rows
+        .into_iter()
+        .map(|(key, content)| MemoryCand { key, content })
+        .collect())
 }
 
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
@@ -578,4 +614,3 @@ mod tests {
         assert!(merged.contains("## Memory\n- user_name: Alex"));
     }
 }
-

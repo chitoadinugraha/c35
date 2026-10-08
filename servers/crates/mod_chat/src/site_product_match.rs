@@ -28,25 +28,59 @@ mod tests {
 
     #[test]
     fn product_match_one_site_one_row() {
-        let hit = ProductHit { site_iid: 1, product_id: 9, name: "A".into(), price: 10000 };
-        assert!(matches!(product_match_classify(vec![hit]), ProductMatch::One(_)));
+        let hit = ProductHit {
+            site_iid: 1,
+            product_id: 9,
+            name: "A".into(),
+            price: 10000,
+        };
+        assert!(matches!(
+            product_match_classify(vec![hit]),
+            ProductMatch::One(_)
+        ));
     }
 
     #[test]
     fn product_match_two_sites_is_many() {
         let hits = vec![
-            ProductHit { site_iid: 1, product_id: 9, name: "A".into(), price: 10000 },
-            ProductHit { site_iid: 2, product_id: 8, name: "A".into(), price: 12000 },
+            ProductHit {
+                site_iid: 1,
+                product_id: 9,
+                name: "A".into(),
+                price: 10000,
+            },
+            ProductHit {
+                site_iid: 2,
+                product_id: 8,
+                name: "A".into(),
+                price: 12000,
+            },
         ];
-        assert!(matches!(product_match_classify(hits), ProductMatch::Many(_)));
+        assert!(matches!(
+            product_match_classify(hits),
+            ProductMatch::Many(_)
+        ));
     }
 
     #[test]
     fn product_match_two_rows_one_site_is_many() {
         let hits = vec![
-            ProductHit { site_iid: 1, product_id: 9, name: "A".into(), price: 10000 },
-            ProductHit { site_iid: 1, product_id: 10, name: "A besar".into(), price: 11000 },
+            ProductHit {
+                site_iid: 1,
+                product_id: 9,
+                name: "A".into(),
+                price: 10000,
+            },
+            ProductHit {
+                site_iid: 1,
+                product_id: 10,
+                name: "A besar".into(),
+                price: 11000,
+            },
         ];
-        assert!(matches!(product_match_classify(hits), ProductMatch::Many(_)));
+        assert!(matches!(
+            product_match_classify(hits),
+            ProductMatch::Many(_)
+        ));
     }
 }

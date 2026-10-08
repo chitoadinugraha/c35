@@ -5,14 +5,17 @@ use c35_mod_billing::{billing_resolve, billing_usage_report, TurnBillingCtx};
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::bot_meta::{bot_turn_meta_parse, bot_turn_signals, BOT_GSHEET_WRITE_TOOL_EXCLUDE, BOT_TOPIC, BOT_WEB_TOOL_EXCLUDE};
+use crate::bot_meta::{
+    bot_turn_meta_parse, bot_turn_signals, BOT_GSHEET_WRITE_TOOL_EXCLUDE, BOT_TOPIC,
+    BOT_WEB_TOOL_EXCLUDE,
+};
 use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
-use crate::inst_macro::{inst_pool_signal, inst_scopes_channel};
-use crate::inst_cache::inst_list_for_turn;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
 use crate::context_pack::{context_window_resolve, token_estimate};
+use crate::inst_cache::inst_list_for_turn;
+use crate::inst_macro::{inst_pool_signal, inst_scopes_channel};
 use crate::memory::{memory_prompt_merge, memory_retrieve, MemoryRetrieveResult};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::gemini::gemini_api_key;
@@ -20,11 +23,11 @@ use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{
     location_prompt_block, prompt_context_append, time_prompt_block, time_timezone_resolve,
 };
-use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::tool_loop::prompt_cluster_turn;
+use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::ChatReq;
-use crate::tools::{cluster_tools, TurnCtx};
 use crate::prompt_run::prompt_run_concurrency_acquire;
+use crate::tools::{cluster_tools, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
 pub async fn channel_prompt_turn(
@@ -47,12 +50,18 @@ pub async fn channel_prompt_turn(
     let turn_started = Instant::now();
     let bctx = billing_resolve(
         pool,
-        TurnBillingCtx { owner_iid, bot_iid: Some(bot_iid), device_iid: None },
+        TurnBillingCtx {
+            owner_iid,
+            bot_iid: Some(bot_iid),
+            device_iid: None,
+        },
     )
     .await?;
     let model = match identity_model_resolve(pool, bot_iid).await {
         Some(m) => m,
-        None => identity_model_resolve(pool, owner_iid).await.unwrap_or_else(|| "alienai".into()),
+        None => identity_model_resolve(pool, owner_iid)
+            .await
+            .unwrap_or_else(|| "alienai".into()),
     };
     let brow = c35_mod_billing::billing_gate_scoped(pool, &bctx).await?;
     c35_mod_billing::billing_gate_with_hold_model(
@@ -147,7 +156,8 @@ pub async fn channel_prompt_turn(
         }
         system.push_str(&composed.inst_block);
     }
-    let ds_block = c35_mod_data_source::data_source_prompt_for_bot(pool, &http, bot_iid, &prompt_text).await;
+    let ds_block =
+        c35_mod_data_source::data_source_prompt_for_bot(pool, &http, bot_iid, &prompt_text).await;
     system = c35_mod_data_source::data_source_prompt_merge(&system, &ds_block);
     let memory = memory_task.await.unwrap_or_else(|e| {
         tracing::warn!("[c35:memory] retrieve task failed: {e:#}");
@@ -160,7 +170,9 @@ pub async fn channel_prompt_turn(
     system = prompt_context_append(&system, &time_block, &location_block);
 
     let tracer = TurnTracer::new(pool.clone(), nats.cloned(), owner_iid, chat_id, req_id);
-    tracer.trace_prepare(&composed.trace, &prompt_text, 0, 0).await;
+    tracer
+        .trace_prepare(&composed.trace, &prompt_text, 0, 0)
+        .await;
     tracer.trace_memory(&memory.trace).await;
 
     let user_msg_id: i64 = sqlx::query_scalar(
@@ -201,7 +213,9 @@ pub async fn channel_prompt_turn(
         || match c35_mod_site::site_granted_iids(pool, owner_iid).await {
             Ok(ids) => !ids.is_empty(),
             Err(e) => {
-                tracing::warn!("[c35:catalog_web] site_granted_iids failed owner_iid={owner_iid}: {e:#}");
+                tracing::warn!(
+                    "[c35:catalog_web] site_granted_iids failed owner_iid={owner_iid}: {e:#}"
+                );
                 false
             }
         };
@@ -225,6 +239,10 @@ pub async fn channel_prompt_turn(
         ),
         catalog_web,
         skip_web_prefetch,
+        stock_report: composed
+            .matched_ids
+            .iter()
+            .any(|id| id == "inst.site.stock_report"),
     };
     let mut turn_ctx = TurnCtx {
         pool,
@@ -269,7 +287,17 @@ pub async fn channel_prompt_turn(
         context_billing.merge(&extra);
     }
     let duration_ms = turn_started.elapsed().as_millis() as i32;
-    match memory_extract_turn_gate(pool, &http, owner_iid, Some(bot_iid), req_id, &prompt_text, &res.text).await {
+    match memory_extract_turn_gate(
+        pool,
+        &http,
+        owner_iid,
+        Some(bot_iid),
+        req_id,
+        &prompt_text,
+        &res.text,
+    )
+    .await
+    {
         Ok((writes, tin, tout, cost)) => {
             context_billing.memory_extract_writes += writes;
             context_billing.memory_extract_cost_usd += cost;
@@ -291,40 +319,79 @@ pub async fn channel_prompt_turn(
         res.tokens_out,
         duration_ms,
         Some(&bctx),
-        res.tools_cost_usd + context_extra + composed.trace.tool_embed_cost_usd + memory.trace.embed_cost_usd,
-        if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) { Some(usage_meta) } else { None },
+        res.tools_cost_usd
+            + context_extra
+            + composed.trace.tool_embed_cost_usd
+            + memory.trace.embed_cost_usd,
+        if usage_meta
+            .as_object()
+            .map(|o| !o.is_empty())
+            .unwrap_or(false)
+        {
+            Some(usage_meta)
+        } else {
+            None
+        },
     )
     .await?;
     let cost_usd = billing.cost_usd;
-    tracer.llm_turn(&res.model_used, res.tokens_in, res.tokens_out, duration_ms as i64, 0, cost_usd, &res.text).await;
-    Ok((res.text, res.tokens_in, res.tokens_out, cost_usd, res.model_used, duration_ms))
+    tracer
+        .llm_turn(
+            &res.model_used,
+            res.tokens_in,
+            res.tokens_out,
+            duration_ms as i64,
+            0,
+            cost_usd,
+            &res.text,
+        )
+        .await;
+    Ok((
+        res.text,
+        res.tokens_in,
+        res.tokens_out,
+        cost_usd,
+        res.model_used,
+        duration_ms,
+    ))
 }
 
 async fn bot_meta_load(pool: &PgPool, bot_iid: i64) -> Option<serde_json::Value> {
-    sqlx::query_scalar("SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL")
-        .bind(bot_iid)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
+    sqlx::query_scalar(
+        "SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL",
+    )
+    .bind(bot_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
 }
 
 async fn bot_inst_base(pool: &PgPool, bot_iid: i64) -> Option<String> {
     bot_meta_load(pool, bot_iid)
         .await
-        .and_then(|m| m.get("inst_base").and_then(|v| v.as_str()).map(|s| s.trim().to_string()))
+        .and_then(|m| {
+            m.get("inst_base")
+                .and_then(|v| v.as_str())
+                .map(|s| s.trim().to_string())
+        })
         .filter(|s| !s.is_empty())
 }
 
 async fn identity_model_resolve(pool: &PgPool, iid: i64) -> Option<String> {
-    let meta: Option<serde_json::Value> = sqlx::query_scalar("SELECT meta FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
-        .bind(iid)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten();
-    meta.and_then(|m| m.get("model").and_then(|v| v.as_str()).map(|s| s.to_string()))
-        .filter(|s| !s.is_empty())
+    let meta: Option<serde_json::Value> =
+        sqlx::query_scalar("SELECT meta FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+            .bind(iid)
+            .fetch_optional(pool)
+            .await
+            .ok()
+            .flatten();
+    meta.and_then(|m| {
+        m.get("model")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+    })
+    .filter(|s| !s.is_empty())
 }
 
 fn attach_prompt(text: &str, attachments_json: &str) -> String {

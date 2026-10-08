@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
-use c35_mod_site::{site_granted_iids, site_query_run};
+use c35_mod_site::{site_granted_iids, site_query_run, stock_report_from_query, stock_report_query_id};
 use serde_json::{json, Value};
+
+use crate::stock_report_run::{formats_from_params, materialize};
 
 use crate::site_scope::site_scope_pick;
 use crate::tool;
@@ -9,7 +11,12 @@ use crate::tools::ToolContext;
 fn args_site_iids(args: &Value) -> Vec<i64> {
     args.get("site_iids")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_i64()).filter(|i| *i > 0).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_i64())
+                .filter(|i| *i > 0)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -44,14 +51,15 @@ pub async fn site_query_run_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
         .ok_or_else(|| anyhow!("query_id is required"))?;
     let site_iids = site_iids_resolve(ctx, args).await?;
     let params_json = params_json_resolve(args)?;
-    let res = site_query_run(
-        &ctx.pool,
-        ctx.owner_iid,
-        site_iids,
-        query_id,
-        &params_json,
-    )
-    .await?;
+    let res = site_query_run(&ctx.pool, ctx.owner_iid, site_iids, query_id, &params_json).await?;
+    if stock_report_query_id(query_id) {
+        let params: Value = serde_json::from_str(&params_json).unwrap_or(json!({}));
+        let Some(report) = stock_report_from_query(query_id, &res.rows, &res.result_json) else {
+            return Ok(json!({ "ok": false, "query_id": query_id, "error": "stock report failed" }));
+        };
+        let built = materialize(&ctx.pool, ctx.chat_id, &report, &formats_from_params(&params)).await?;
+        return Ok(built.llm);
+    }
     let rows: Vec<Value> = res
         .rows
         .into_iter()

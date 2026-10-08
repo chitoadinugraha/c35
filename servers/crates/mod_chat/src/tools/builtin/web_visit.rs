@@ -10,12 +10,18 @@ const DEFAULT_MAX_CHARS: usize = 4000;
 const ABSOLUTE_MAX_CHARS: usize = 8000;
 const VISIT_TIMEOUT_SECS: u64 = 15;
 
-pub async fn web_visit_exec(client: &Client, url_str: &str, max_chars: Option<usize>) -> Result<Value> {
+pub async fn web_visit_exec(
+    client: &Client,
+    url_str: &str,
+    max_chars: Option<usize>,
+) -> Result<Value> {
     let url_str = url_str.trim();
     if url_str.is_empty() {
         bail!("URL cannot be empty");
     }
-    let max_len = max_chars.unwrap_or(DEFAULT_MAX_CHARS).clamp(500, ABSOLUTE_MAX_CHARS);
+    let max_len = max_chars
+        .unwrap_or(DEFAULT_MAX_CHARS)
+        .clamp(500, ABSOLUTE_MAX_CHARS);
     let res = match client
         .get(url_str)
         .timeout(Duration::from_secs(VISIT_TIMEOUT_SECS))
@@ -81,7 +87,11 @@ pub fn extract_title(html: &str) -> String {
 
 pub fn extract_description(html: &str) -> String {
     let lower = html.to_lowercase();
-    for target in ["name=\"description\"", "property=\"og:description\"", "name=\"og:description\""] {
+    for target in [
+        "name=\"description\"",
+        "property=\"og:description\"",
+        "name=\"og:description\"",
+    ] {
         if let Some(pos) = lower.find(target) {
             let tag_start = html[..pos].rfind('<').unwrap_or(0);
             let tag_end = html[pos..].find('>').map(|p| pos + p).unwrap_or(html.len());
@@ -106,7 +116,9 @@ pub fn extract_readable_text(html: &str, max_chars: usize) -> String {
             break;
         }
     }
-    for tag in ["script", "style", "noscript", "svg", "nav", "footer", "header", "form", "aside"] {
+    for tag in [
+        "script", "style", "noscript", "svg", "nav", "footer", "header", "form", "aside",
+    ] {
         let open_pat = format!("<{tag}");
         let close_pat = format!("</{tag}>");
         while let Some(start) = s.to_lowercase().find(&open_pat) {
@@ -119,7 +131,10 @@ pub fn extract_readable_text(html: &str, max_chars: usize) -> String {
             }
         }
     }
-    s = s.replace("<br>", "\n").replace("<br/>", "\n").replace("<br />", "\n");
+    s = s
+        .replace("<br>", "\n")
+        .replace("<br/>", "\n")
+        .replace("<br />", "\n");
     s = s.replace("<p>", "\n\n").replace("</p>", "\n");
     let mut out = String::with_capacity(s.len());
     let mut in_tag = false;
@@ -133,7 +148,12 @@ pub fn extract_readable_text(html: &str, max_chars: usize) -> String {
         }
     }
     let decoded = decode_html_entities(&out);
-    let formatted = decoded.lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join("\n");
+    let formatted = decoded
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
     if formatted.chars().count() <= max_chars {
         return formatted;
     }

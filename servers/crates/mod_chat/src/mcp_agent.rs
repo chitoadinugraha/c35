@@ -5,8 +5,8 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
-use crate::inst_macro::inst_pool_signal;
 use crate::inst_cache::inst_list_for_turn;
+use crate::inst_macro::inst_pool_signal;
 use crate::inst_macro::inst_scopes_home;
 use crate::log_list::log_list;
 use crate::mention::mention_list_enabled;
@@ -15,10 +15,10 @@ use crate::mention_registry::{
     mention_active_topics, mention_ref_parse, mention_resolve_all, MentionRef,
 };
 use crate::mention_tool_registry::mention_force_tools;
+use crate::prompt_run::prompt_run_concurrency_acquire;
+use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
-use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
-use crate::prompt_run::prompt_run_concurrency_acquire;
 use crate::tools::{cluster_tools, default_dispatcher, http_client, ToolContext};
 
 pub const DEFAULT_DEBUG_OWNER_IID: i64 = 99000;

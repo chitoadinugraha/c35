@@ -120,20 +120,33 @@ fn screenshot_dims(result: &Value) -> (i64, i64) {
     let h = result
         .get("height")
         .and_then(|v| v.as_i64())
-        .or_else(|| result.pointer("/screenshot/height").and_then(|v| v.as_i64()))
+        .or_else(|| {
+            result
+                .pointer("/screenshot/height")
+                .and_then(|v| v.as_i64())
+        })
         .unwrap_or(0);
     (w, h)
 }
 
 pub fn tool_screenshot_meta_from_result(result: &Value) -> Option<Value> {
-    let hash = result.get("image_hash").and_then(|v| v.as_str()).unwrap_or("");
+    let hash = result
+        .get("image_hash")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     if hash.is_empty() {
         return None;
     }
-    let url = result.get("image_url").and_then(|v| v.as_str()).unwrap_or("");
+    let url = result
+        .get("image_url")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let (width, height) = screenshot_dims(result);
     let som = result.get("som").and_then(|v| v.as_bool()).unwrap_or(false);
-    let marker = result.get("marker").and_then(|v| v.as_bool()).unwrap_or(false);
+    let marker = result
+        .get("marker")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     Some(json!({
         "hash": hash,
         "url": url,
@@ -146,7 +159,10 @@ pub fn tool_screenshot_meta_from_result(result: &Value) -> Option<Value> {
 
 pub fn tool_screenshot_log_text(tool_id: &str, result: &Value) -> String {
     let (width, height) = screenshot_dims(result);
-    let hash = result.get("image_hash").and_then(|v| v.as_str()).unwrap_or("");
+    let hash = result
+        .get("image_hash")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let hash_short = if hash.len() > 12 {
         format!("{}…", &hash[..12])
     } else {

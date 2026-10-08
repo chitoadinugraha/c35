@@ -45,6 +45,11 @@ pub fn tool_mention_capability_eligible(
         .unwrap_or(false)
 }
 
-pub fn tool_mention_eligible(def: &ToolDef, mention: &MentionContext, caps: &SiteCapabilityView) -> bool {
-    tool_mention_kinds_eligible(def, mention) && tool_mention_capability_eligible(def, mention, caps)
+pub fn tool_mention_eligible(
+    def: &ToolDef,
+    mention: &MentionContext,
+    caps: &SiteCapabilityView,
+) -> bool {
+    tool_mention_kinds_eligible(def, mention)
+        && tool_mention_capability_eligible(def, mention, caps)
 }

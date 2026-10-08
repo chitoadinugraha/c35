@@ -35,7 +35,9 @@ pub async fn data_source_prompt_for_bot(
     if bot_iid <= 0 {
         return String::new();
     }
-    let bindings = data_source_list_for_bot(pool, bot_iid).await.unwrap_or_default();
+    let bindings = data_source_list_for_bot(pool, bot_iid)
+        .await
+        .unwrap_or_default();
     if bindings.is_empty() {
         return String::new();
     }
@@ -76,7 +78,8 @@ pub async fn data_source_prompt_for_bot(
                 &[row.id],
                 query_text,
                 data_source_retrieve_limit(),
-            ).await;
+            )
+            .await;
             if !block.is_empty() {
                 blocks.push(data_source_prompt_block(&title, &block));
             }

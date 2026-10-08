@@ -45,6 +45,9 @@ mod mention_bundle;
 mod mention_registry;
 mod mention_tool_registry;
 mod site_capability;
+mod stock_report;
+mod stock_report_render;
+mod stock_report_run;
 mod memory;
 mod memory_rpc;
 mod context_billing;
@@ -63,6 +66,9 @@ pub mod tools;
 mod turn_tracer;
 mod user_error;
 
+pub use stock_report_render::{
+    stock_report_blocks, stock_report_files, stock_report_slides, StockReportFile,
+};
 pub use catalog::{mention_list, topic_list, translation_get, translation_rev, CatalogMentionRow, CatalogTopicRow};
 pub use presentation_theme::{
     presentation_theme_fallback, presentation_theme_list, presentation_theme_resolve, PresentationThemeRow,

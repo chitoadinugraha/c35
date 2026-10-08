@@ -2,8 +2,16 @@ use anyhow::Result;
 use c35_proto::{ReqMemoryDelete, ReqMemoryList, ResMemoryDelete, ResMemoryList, UserMemory};
 use sqlx::PgPool;
 
-pub async fn memory_list_rpc(pool: &PgPool, owner_iid: i64, req: ReqMemoryList) -> Result<ResMemoryList> {
-    let limit = if req.limit <= 0 { 100 } else { req.limit.min(200) };
+pub async fn memory_list_rpc(
+    pool: &PgPool,
+    owner_iid: i64,
+    req: ReqMemoryList,
+) -> Result<ResMemoryList> {
+    let limit = if req.limit <= 0 {
+        100
+    } else {
+        req.limit.min(200)
+    };
     let rows = sqlx::query_as::<_, (i64, i64, Option<i64>, String, String, String, f64)>(
         "SELECT id, owner_iid, bot_iid, category, key, content, confidence::float8 \
          FROM ai.memory \
@@ -18,21 +26,27 @@ pub async fn memory_list_rpc(pool: &PgPool, owner_iid: i64, req: ReqMemoryList) 
 
     let items = rows
         .into_iter()
-        .map(|(id, owner, bot_iid, category, key, content, confidence)| UserMemory {
-            id,
-            owner_iid: owner,
-            bot_iid: bot_iid.unwrap_or(0),
-            category,
-            key,
-            content,
-            confidence,
-        })
+        .map(
+            |(id, owner, bot_iid, category, key, content, confidence)| UserMemory {
+                id,
+                owner_iid: owner,
+                bot_iid: bot_iid.unwrap_or(0),
+                category,
+                key,
+                content,
+                confidence,
+            },
+        )
         .collect();
 
     Ok(ResMemoryList { items })
 }
 
-pub async fn memory_delete_rpc(pool: &PgPool, owner_iid: i64, req: ReqMemoryDelete) -> Result<ResMemoryDelete> {
+pub async fn memory_delete_rpc(
+    pool: &PgPool,
+    owner_iid: i64,
+    req: ReqMemoryDelete,
+) -> Result<ResMemoryDelete> {
     if req.id <= 0 {
         return Ok(ResMemoryDelete { ok: false });
     }
@@ -44,5 +58,7 @@ pub async fn memory_delete_rpc(pool: &PgPool, owner_iid: i64, req: ReqMemoryDele
     .bind(owner_iid)
     .execute(pool)
     .await?;
-    Ok(ResMemoryDelete { ok: res.rows_affected() > 0 })
+    Ok(ResMemoryDelete {
+        ok: res.rows_affected() > 0,
+    })
 }

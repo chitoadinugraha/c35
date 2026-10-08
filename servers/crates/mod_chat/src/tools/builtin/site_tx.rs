@@ -4,9 +4,7 @@ use c35_mod_tx::{
     tx_debt_pay, tx_debt_payment_json_parse, tx_json_parse, tx_list, tx_preview, tx_put,
     tx_result_json, tx_to_json,
 };
-use c35_proto::{
-    ReqTxDebtPay, ReqTxList, ReqTxPreview, ReqTxPut, TxInputSource, TxState, TxType,
-};
+use c35_proto::{ReqTxDebtPay, ReqTxList, ReqTxPreview, ReqTxPut, TxInputSource, TxState, TxType};
 use serde_json::{json, Value};
 
 use crate::mention_context::{json_device_iid_field, site_iid_resolve as mention_site_iid_resolve};
@@ -43,13 +41,7 @@ pub async fn site_tx_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
     if tx.input_source == 0 {
         tx.input_source = i32::from(TxInputSource::Ai);
     }
-    let res = tx_put(
-        &ctx.pool,
-        ctx.owner_iid,
-        ReqTxPut { tx: Some(tx) },
-        None,
-    )
-    .await?;
+    let res = tx_put(&ctx.pool, ctx.owner_iid, ReqTxPut { tx: Some(tx) }, None).await?;
     let tx = res.tx.ok_or_else(|| anyhow!("tx not returned"))?;
     Ok(tx_result_json(&tx))
 }
@@ -58,12 +50,7 @@ pub async fn site_tx_preview_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     let site_iid = site_iid_resolve(ctx, args)?;
     let mut tx = tx_json_parse(args)?;
     tx.site_iid = site_iid;
-    let res = tx_preview(
-        &ctx.pool,
-        ctx.owner_iid,
-        ReqTxPreview { tx: Some(tx) },
-    )
-    .await?;
+    let res = tx_preview(&ctx.pool, ctx.owner_iid, ReqTxPreview { tx: Some(tx) }).await?;
     let tx = res.tx.ok_or_else(|| anyhow!("tx not returned"))?;
     Ok(json!({
         "ok": true,
@@ -106,18 +93,30 @@ pub async fn site_tx_list_exec(ctx: &ToolContext, args: &Value) -> Result<Value>
         ReqTxList {
             site_iid,
             q: args.get("q").and_then(|v| v.as_str()).unwrap_or("").into(),
-            after_tx_id: args.get("after_tx_id").and_then(|v| v.as_i64()).unwrap_or(0),
+            after_tx_id: args
+                .get("after_tx_id")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0),
             limit: args.get("limit").and_then(|v| v.as_i64()).unwrap_or(50) as i32,
-            include_archived: args.get("include_archived").and_then(|v| v.as_bool()).unwrap_or(false),
+            include_archived: args
+                .get("include_archived")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
             r#type: tx_type_resolve(args),
             state: tx_state_resolve(args),
             subject_contact_id: args
                 .get("subject_contact_id")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(0),
-            time_from_ms: args.get("time_from_ms").and_then(|v| v.as_i64()).unwrap_or(0),
+            time_from_ms: args
+                .get("time_from_ms")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(0),
             time_to_ms: args.get("time_to_ms").and_then(|v| v.as_i64()).unwrap_or(0),
-            open_only: args.get("open_only").and_then(|v| v.as_bool()).unwrap_or(false),
+            open_only: args
+                .get("open_only")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
         },
     )
     .await?;
@@ -231,21 +230,22 @@ pub async fn site_order_status_exec(ctx: &ToolContext, args: &Value) -> Result<V
         .and_then(|v| v.as_str())
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| anyhow!("state is required (e.g. ok, pending, cancelled, waiting_payment)"))?;
+        .ok_or_else(|| {
+            anyhow!("state is required (e.g. ok, pending, cancelled, waiting_payment)")
+        })?;
     let new_state = tx_state_from_str(state_str);
     let note = args.get("note").and_then(|v| v.as_str()).unwrap_or("");
 
     let res = c35_mod_tx::tx_get(
         &ctx.pool,
         ctx.owner_iid,
-        c35_proto::ReqTxGet {
-            site_iid,
-            tx_id,
-        },
+        c35_proto::ReqTxGet { site_iid, tx_id },
     )
     .await?;
 
-    let mut tx = res.tx.ok_or_else(|| anyhow!("transaction {} not found", tx_id))?;
+    let mut tx = res
+        .tx
+        .ok_or_else(|| anyhow!("transaction {} not found", tx_id))?;
     tx.state = i32::from(new_state);
     if !note.is_empty() {
         if tx.desc.is_empty() {
@@ -294,4 +294,3 @@ tool! {
         site_order_status_exec(ctx, &args).await
     }
 }
-

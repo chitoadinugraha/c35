@@ -66,7 +66,10 @@ async fn drive_list_exec(args: Value, ctx: &ToolContext) -> Result<Value> {
 }
 
 async fn drive_read_exec(args: Value, ctx: &ToolContext) -> Result<Value> {
-    let path = args.get("path").and_then(|v| v.as_str()).unwrap_or_default();
+    let path = args
+        .get("path")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
     let (path, size, hash) = match drive_path_row(ctx, path).await {
         Ok(v) => v,
         Err(j) => return Ok(j),

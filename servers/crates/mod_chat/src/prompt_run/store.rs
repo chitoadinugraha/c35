@@ -4,7 +4,7 @@ use serde_json::Value;
 use sqlx::types::Json;
 use sqlx::PgPool;
 
-use super::checkpoint::{PROMPT_RUN_MAX_TURNS_DEFAULT, PROMPT_RUN_MAX_DELIVER};
+use super::checkpoint::{PROMPT_RUN_MAX_DELIVER, PROMPT_RUN_MAX_TURNS_DEFAULT};
 
 #[derive(Clone, Debug)]
 pub struct PromptRunRow {
@@ -77,7 +77,13 @@ pub fn prompt_run_row_channel(
     }
 }
 
-pub fn prompt_run_row_new(req_id: &str, owner_iid: i64, chat_id: i64, req: &ReqPrompt, locale: &str) -> PromptRunRow {
+pub fn prompt_run_row_new(
+    req_id: &str,
+    owner_iid: i64,
+    chat_id: i64,
+    req: &ReqPrompt,
+    locale: &str,
+) -> PromptRunRow {
     let mention_ids: Value = serde_json::to_value(&req.mention_ids).unwrap_or(Value::Array(vec![]));
     let device_iid = req.device_iids.first().copied().unwrap_or(0);
     PromptRunRow {
@@ -87,11 +93,19 @@ pub fn prompt_run_row_new(req_id: &str, owner_iid: i64, chat_id: i64, req: &ReqP
         parent_req_id: None,
         kind: "main".into(),
         status: "queued".into(),
-        topic_id: if req.topic_id.is_empty() { "general".into() } else { req.topic_id.clone() },
+        topic_id: if req.topic_id.is_empty() {
+            "general".into()
+        } else {
+            req.topic_id.clone()
+        },
         device_iid,
         text: req.text.clone(),
         mention_ids_json: Json(mention_ids),
-        tool_mode: if req.tool_mode.trim().is_empty() { "agent".into() } else { req.tool_mode.trim().into() },
+        tool_mode: if req.tool_mode.trim().is_empty() {
+            "agent".into()
+        } else {
+            req.tool_mode.trim().into()
+        },
         model: req.model.clone(),
         attachments_json: req.attachments_json.clone(),
         locale: locale.into(),
@@ -118,7 +132,11 @@ impl PromptRunRow {
             .mention_ids_json
             .0
             .as_array()
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect()
+            })
             .unwrap_or_default();
         ReqPrompt {
             chat_id: self.chat_id,
@@ -129,7 +147,11 @@ impl PromptRunRow {
             mention_ids,
             topic_id: self.topic_id.clone(),
             tool_mode: self.tool_mode.clone(),
-            device_iids: if self.device_iid > 0 { vec![self.device_iid] } else { vec![] },
+            device_iids: if self.device_iid > 0 {
+                vec![self.device_iid]
+            } else {
+                vec![]
+            },
             talk: false,
             replace_last_turn: false,
         }
@@ -280,19 +302,26 @@ pub async fn prompt_run_get(pool: &PgPool, req_id: &str) -> Result<Option<Prompt
             r.try_get("topic_id").unwrap_or_default(),
             r.try_get("device_iid").unwrap_or(0),
             r.try_get("text").unwrap_or_default(),
-            r.try_get("mention_ids_json").unwrap_or(Json(Value::Array(vec![]))),
+            r.try_get("mention_ids_json")
+                .unwrap_or(Json(Value::Array(vec![]))),
             r.try_get("tool_mode").unwrap_or_default(),
             r.try_get("model").unwrap_or_default(),
             r.try_get("attachments_json").unwrap_or_default(),
             r.try_get("locale").unwrap_or_default(),
             r.try_get("cancel_requested").unwrap_or(false),
             r.try_get("turn_count").unwrap_or(0),
-            r.try_get("max_turns").unwrap_or(PROMPT_RUN_MAX_TURNS_DEFAULT),
+            r.try_get("max_turns")
+                .unwrap_or(PROMPT_RUN_MAX_TURNS_DEFAULT),
             r.try_get("fail_class").ok(),
             r.try_get("fail_reason").ok(),
-            r.try_get("checkpoint_json").unwrap_or(Json(Value::Object(Default::default()))),
-            r.try_get::<Option<String>, _>("budget_usd_cap").ok().flatten(),
-            r.try_get::<Option<String>, _>("accumulated_cost_usd").ok().flatten(),
+            r.try_get("checkpoint_json")
+                .unwrap_or(Json(Value::Object(Default::default()))),
+            r.try_get::<Option<String>, _>("budget_usd_cap")
+                .ok()
+                .flatten(),
+            r.try_get::<Option<String>, _>("accumulated_cost_usd")
+                .ok()
+                .flatten(),
             r.try_get("tokens_in").unwrap_or(0),
             r.try_get("tokens_out").unwrap_or(0),
             r.try_get::<Option<String>, _>("cost_usd").ok().flatten(),
@@ -392,7 +421,12 @@ pub async fn prompt_run_is_cancelled(pool: &PgPool, req_id: &str) -> Result<bool
     Ok(row.map(|r| r.0).unwrap_or(false))
 }
 
-pub async fn prompt_run_lease_touch(pool: &PgPool, req_id: &str, pod: &str, ttl_secs: i64) -> Result<()> {
+pub async fn prompt_run_lease_touch(
+    pool: &PgPool,
+    req_id: &str,
+    pod: &str,
+    ttl_secs: i64,
+) -> Result<()> {
     sqlx::query(
         r#"
         UPDATE ai.prompt_run
@@ -477,19 +511,18 @@ async fn prompt_run_notify_release(pool: &PgPool, req_id: &str) {
     let Some(hook) = NOTIFY_RELEASE.get() else {
         return;
     };
-    let owner = match sqlx::query_scalar::<_, i64>(
-        "SELECT owner_iid FROM ai.prompt_run WHERE req_id = $1",
-    )
-    .bind(req_id)
-    .fetch_optional(pool)
-    .await
-    {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::warn!(req_id, error = %e, "[c35:notify] owner lookup failed");
-            return;
-        }
-    };
+    let owner =
+        match sqlx::query_scalar::<_, i64>("SELECT owner_iid FROM ai.prompt_run WHERE req_id = $1")
+            .bind(req_id)
+            .fetch_optional(pool)
+            .await
+        {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::warn!(req_id, error = %e, "[c35:notify] owner lookup failed");
+                return;
+            }
+        };
     let Some(owner_iid) = owner else {
         return;
     };
@@ -590,13 +623,15 @@ pub async fn prompt_run_list_active(pool: &PgPool) -> Result<Vec<PromptRunActive
     Ok(rows
         .into_iter()
         .map(
-            |(req_id, owner_iid, status, lease_pod, turn_count, prompt_preview)| PromptRunActiveDiag {
-                req_id,
-                owner_iid,
-                status,
-                lease_pod,
-                turn_count,
-                prompt_preview,
+            |(req_id, owner_iid, status, lease_pod, turn_count, prompt_preview)| {
+                PromptRunActiveDiag {
+                    req_id,
+                    owner_iid,
+                    status,
+                    lease_pod,
+                    turn_count,
+                    prompt_preview,
+                }
             },
         )
         .collect())

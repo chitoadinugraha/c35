@@ -6,8 +6,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tracing::info;
 
-use c35_mod_llm::alien_chain_models;
 use super::gemini::gemini_api_key;
+use c35_mod_llm::alien_chain_models;
 
 const TRANSCRIBE_PROMPT: &str =
     "Transcribe this voice message accurately. The speaker may use Indonesian (Bahasa Indonesia) or English. Reply with only the spoken words, no quotes or commentary.";
@@ -24,7 +24,11 @@ pub fn audio_mime_resolve(item_mime: &str, download_mime: &str, bytes: &[u8]) ->
         return "audio/ogg".into();
     }
     if bytes.len() >= 3 && (bytes[..3] == *b"ID3" || bytes[..3] == *b"Ogg") {
-        return if bytes[..4] == *b"OggS" { "audio/ogg".into() } else { "audio/mpeg".into() };
+        return if bytes[..4] == *b"OggS" {
+            "audio/ogg".into()
+        } else {
+            "audio/mpeg".into()
+        };
     }
     if bytes.len() >= 2 && bytes[0] == 0xFF && (bytes[1] & 0xE0) == 0xE0 {
         return "audio/mpeg".into();
@@ -43,8 +47,22 @@ pub fn is_ogg_audio(mime: &str, bytes: &[u8]) -> bool {
 pub async fn ffmpeg_to_wav_16k_mono(audio: &[u8]) -> Result<Vec<u8>> {
     let mut child = Command::new("ffmpeg")
         .args([
-            "-hide_banner", "-loglevel", "error", "-f", "ogg", "-i", "pipe:0",
-            "-f", "wav", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", "pipe:1",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "ogg",
+            "-i",
+            "pipe:0",
+            "-f",
+            "wav",
+            "-acodec",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "pipe:1",
         ])
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
@@ -56,12 +74,18 @@ pub async fn ffmpeg_to_wav_16k_mono(audio: &[u8]) -> Result<Vec<u8>> {
     let stderr = child.stderr.take();
     let input = audio.to_vec();
     let write = tokio::spawn(async move {
-        stdin.write_all(&input).await.context("ffmpeg stdin write")?;
+        stdin
+            .write_all(&input)
+            .await
+            .context("ffmpeg stdin write")?;
         stdin.shutdown().await.context("ffmpeg stdin shutdown")?;
         Ok::<(), anyhow::Error>(())
     });
     let mut wav = Vec::new();
-    stdout.read_to_end(&mut wav).await.context("ffmpeg stdout read")?;
+    stdout
+        .read_to_end(&mut wav)
+        .await
+        .context("ffmpeg stdout read")?;
     write.await.context("ffmpeg stdin task")??;
     let status = child.wait().await.context("ffmpeg wait")?;
     if !status.success() {
@@ -85,7 +109,9 @@ pub async fn stt_audio_prepare(audio: &[u8], mime: &str) -> Result<(Vec<u8>, Str
     if !is_ogg_audio(&mime, audio) {
         return Ok((audio.to_vec(), mime));
     }
-    let wav = ffmpeg_to_wav_16k_mono(audio).await.context("ogg->wav required for voice stt")?;
+    let wav = ffmpeg_to_wav_16k_mono(audio)
+        .await
+        .context("ogg->wav required for voice stt")?;
     Ok((wav, "audio/wav".into()))
 }
 
@@ -96,8 +122,14 @@ pub fn transcript_valid(t: &str) -> bool {
     }
     let lower = t.to_lowercase();
     for bad in [
-        "cannot transcribe", "can't transcribe", "unable to process", "unable to transcribe",
-        "raw ogg opus", "binary representation", "tidak bisa memproses", "file suara",
+        "cannot transcribe",
+        "can't transcribe",
+        "unable to process",
+        "unable to transcribe",
+        "raw ogg opus",
+        "binary representation",
+        "tidak bisa memproses",
+        "file suara",
     ] {
         if lower.contains(bad) {
             return false;
@@ -115,7 +147,12 @@ pub async fn transcribe_audio(client: &Client, audio: &[u8], mime: &str) -> Resu
     let mut last_err;
     match gemini_transcribe(client, &audio, &mime).await {
         Ok(t) if transcript_valid(&t) => return Ok(t),
-        Ok(t) => last_err = format!("gemini stt rejected: {}", t.chars().take(80).collect::<String>()),
+        Ok(t) => {
+            last_err = format!(
+                "gemini stt rejected: {}",
+                t.chars().take(80).collect::<String>()
+            )
+        }
         Err(e) => last_err = format!("gemini: {e:#}"),
     }
     for lang in TRANSCRIBE_LANGS {
@@ -128,7 +165,12 @@ pub async fn transcribe_audio(client: &Client, audio: &[u8], mime: &str) -> Resu
     Err(anyhow!(last_err))
 }
 
-async fn google_chromium_transcribe(client: &Client, audio: &[u8], lang: &str, mime: &str) -> Result<String> {
+async fn google_chromium_transcribe(
+    client: &Client,
+    audio: &[u8],
+    lang: &str,
+    mime: &str,
+) -> Result<String> {
     let url = format!(
         "https://www.google.com/speech-api/v2/recognize?output=json&lang={}&client=chromium",
         urlencoding::encode(lang)
@@ -150,7 +192,8 @@ async fn google_chromium_transcribe(client: &Client, audio: &[u8], lang: &str, m
         if line.is_empty() {
             continue;
         }
-        let v: Value = serde_json::from_str(line).with_context(|| format!("chromium stt json: {line}"))?;
+        let v: Value =
+            serde_json::from_str(line).with_context(|| format!("chromium stt json: {line}"))?;
         let text = v
             .get("result")
             .and_then(|r| r.as_array())
@@ -186,12 +229,20 @@ pub async fn gemini_transcribe(client: &Client, audio: &[u8], mime: &str) -> Res
             }],
             "generationConfig": { "temperature": 0.1, "maxOutputTokens": 1024 }
         });
-        let res = client.post(&url).json(&payload).send().await.with_context(|| format!("gemini transcribe {model}"))?;
+        let res = client
+            .post(&url)
+            .json(&payload)
+            .send()
+            .await
+            .with_context(|| format!("gemini transcribe {model}"))?;
         if !res.status().is_success() {
             last_err = format!("gemini transcribe {model} {}", res.status());
             continue;
         }
-        let v: Value = res.json().await.with_context(|| format!("gemini transcribe json {model}"))?;
+        let v: Value = res
+            .json()
+            .await
+            .with_context(|| format!("gemini transcribe json {model}"))?;
         if let Some(text) = extract_gemini_text(&v) {
             return Ok(text);
         }
@@ -220,12 +271,17 @@ mod tests {
 
     #[test]
     fn audio_mime_resolve_detects_ogg_magic() {
-        assert_eq!(audio_mime_resolve("", "application/octet-stream", b"OggS\x00"), "audio/ogg");
+        assert_eq!(
+            audio_mime_resolve("", "application/octet-stream", b"OggS\x00"),
+            "audio/ogg"
+        );
     }
 
     #[test]
     fn transcript_valid_rejects_refusal() {
-        assert!(!transcript_valid("I'm sorry, but I cannot transcribe this file."));
+        assert!(!transcript_valid(
+            "I'm sorry, but I cannot transcribe this file."
+        ));
         assert!(transcript_valid("besok hari apa"));
     }
 }

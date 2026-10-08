@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/nav.dart';
 import 'package:alienai_c35/c/update/app_update_android.dart';
@@ -49,12 +47,14 @@ class _AppUpdateHostState extends State<AppUpdateHost> with WidgetsBindingObserv
   }
 
   void _scheduleCheck() {
-    if (kDebugMode || !widget.appReady || !Platform.isAndroid) return;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (kDebugMode || !widget.appReady) return;
     WidgetsBinding.instance.addPostFrameCallback((_) => _check());
   }
 
   Future<void> _check() async {
-    if (kDebugMode || !widget.appReady || !Platform.isAndroid || _checking) return;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    if (kDebugMode || !widget.appReady || _checking) return;
     _checking = true;
     try {
       await appUpdateAndroidCheck(askToUpdate: ({required force, required apkSideload}) => _askToUpdate(force: force, apkSideload: apkSideload), askToRestart: _askToRestart);

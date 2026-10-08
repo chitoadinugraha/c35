@@ -24,7 +24,7 @@ function Set-I18nInnerText([string]$html, [string]$key, [string]$text) {
     if ($html -notmatch "data-i18n=`"$keyEsc`"") { return $html }
     $rx = [regex]::new("(?s)(<(\w+)\b[^>]*\bdata-i18n=`"$keyEsc`"[^>]*>)(.*?)(</\2>)")
     if (-not $rx.IsMatch($html)) { return $html }
-    return $rx.Replace($html, "`${1}$enc`${4}", 1)
+    return $rx.Replace($html, "`${1}$enc`${4}")
 }
 
 function Apply-LocaleDict([string]$html, $dict, [string[]]$prefixSkip) {

@@ -54,7 +54,11 @@ pub async fn vid_generate_exec(
     if prompt.is_empty() {
         bail!("video prompt cannot be empty");
     }
-    let ar = if aspect_ratio.trim().is_empty() { "16:9" } else { aspect_ratio.trim() };
+    let ar = if aspect_ratio.trim().is_empty() {
+        "16:9"
+    } else {
+        aspect_ratio.trim()
+    };
     let provider = video_provider_for(owner_iid, pool, provider_override).await;
     if provider_normalize(&provider) == "gemini" {
         bail!("Gemini Veo video is not enabled yet; choose Auto or Seedance.");
@@ -72,7 +76,13 @@ pub async fn vid_generate_exec(
     Ok(vid_tool_response("vid.generate", &put, prompt, ar, &meta))
 }
 
-fn vid_tool_response(tool: &str, put: &c35_mod_file::CasPutResult, prompt: &str, aspect_ratio: &str, meta: &VideoRunMeta) -> Value {
+fn vid_tool_response(
+    tool: &str,
+    put: &c35_mod_file::CasPutResult,
+    prompt: &str,
+    aspect_ratio: &str,
+    meta: &VideoRunMeta,
+) -> Value {
     json!({
         "ok": true,
         "runner": "cluster",

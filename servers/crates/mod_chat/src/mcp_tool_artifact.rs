@@ -46,7 +46,11 @@ pub async fn mcp_tool_artifact_list(pool: &PgPool, owner_iid: i64, args: &Value)
     if !mcp_agent_owner_allowed(owner_iid) {
         return json!({ "ok": false, "error": "owner not allowed", "owner_iid": owner_iid });
     }
-    let req_id = args.get("req_id").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let req_id = args
+        .get("req_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if req_id.is_empty() {
         return json!({ "ok": false, "error": "args_json.req_id required" });
     }
@@ -76,7 +80,10 @@ pub async fn mcp_tool_artifact_fetch(pool: &PgPool, owner_iid: i64, args: &Value
         return json!({ "ok": false, "error": "args_json.artifact_id required" });
     }
     let artifact_id = artifact_id.unwrap();
-    let include_base64 = args.get("include_base64").and_then(|v| v.as_bool()).unwrap_or(false);
+    let include_base64 = args
+        .get("include_base64")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let row = match tool_artifact_get(pool, owner_iid, artifact_id).await {
         Ok(Some(r)) => r,
         Ok(None) => return json!({ "ok": false, "error": "artifact not found or expired" }),
@@ -114,11 +121,18 @@ pub async fn mcp_trace_screenshot(pool: &PgPool, owner_iid: i64, args: &Value) -
     if !mcp_agent_owner_allowed(owner_iid) {
         return json!({ "ok": false, "error": "owner not allowed", "owner_iid": owner_iid });
     }
-    let req_id = args.get("req_id").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let req_id = args
+        .get("req_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if req_id.is_empty() {
         return json!({ "ok": false, "error": "args_json.req_id required" });
     }
-    let include_base64 = args.get("include_base64").and_then(|v| v.as_bool()).unwrap_or(false);
+    let include_base64 = args
+        .get("include_base64")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let rows = match tool_artifact_list_by_req(pool, owner_iid, req_id, None).await {
         Ok(r) => r,
         Err(e) => return json!({ "ok": false, "error": e.to_string() }),

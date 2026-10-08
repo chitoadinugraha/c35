@@ -7,14 +7,18 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use c35_mod_llm::{
-    alien_default_model, gemini_request_reject_provider_grounding, google_gemini_api_model_id, model_is_alien,
-    provider_model_resolve,
-};
 use super::thought::{gemini_thinking_config, parse_candidate, part_is_thought, part_thought_text};
+use c35_mod_llm::{
+    alien_default_model, gemini_request_reject_provider_grounding, google_gemini_api_model_id,
+    model_is_alien, provider_model_resolve,
+};
 
 /// Sampling for Gemini chat. Frontier (pinned models) keeps legacy 0.2 / 2048; Alien pool only is warmer.
-pub fn gemini_generation_config(requested_slug: &str, provider_model: &str, thinking: &str) -> Value {
+pub fn gemini_generation_config(
+    requested_slug: &str,
+    provider_model: &str,
+    thinking: &str,
+) -> Value {
     let alien = model_is_alien(requested_slug);
     let temperature = if alien { 0.65 } else { 0.2 };
     let max_output_tokens = 2048;
@@ -69,9 +73,16 @@ pub async fn gemini_generate(
     if !system.trim().is_empty() {
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
     }
-    if !tools.is_null() && tools.as_array().map(|a| !a.is_empty()).unwrap_or(true) && tools != &json!([]) {
+    if !tools.is_null()
+        && tools.as_array().map(|a| !a.is_empty()).unwrap_or(true)
+        && tools != &json!([])
+    {
         body["tools"] = tools.clone();
-        let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
+        let mode = if tool_call_mode.trim().is_empty() {
+            "AUTO"
+        } else {
+            tool_call_mode.trim()
+        };
         body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
     gemini_request_reject_provider_grounding(&body)?;
@@ -116,7 +127,10 @@ fn gemini_stream_emit(
     acc_text: &mut String,
     acc_thought: &mut String,
 ) {
-    let parts = v["candidates"][0]["content"]["parts"].as_array().cloned().unwrap_or_default();
+    let parts = v["candidates"][0]["content"]["parts"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
     for part in parts {
         if part_is_thought(&part) {
             if let Some(t) = part_thought_text(&part) {
@@ -158,9 +172,16 @@ pub async fn gemini_generate_stream(
     if !system.trim().is_empty() {
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
     }
-    if !tools.is_null() && tools.as_array().map(|a| !a.is_empty()).unwrap_or(true) && tools != &json!([]) {
+    if !tools.is_null()
+        && tools.as_array().map(|a| !a.is_empty()).unwrap_or(true)
+        && tools != &json!([])
+    {
         body["tools"] = tools.clone();
-        let mode = if tool_call_mode.trim().is_empty() { "AUTO" } else { tool_call_mode.trim() };
+        let mode = if tool_call_mode.trim().is_empty() {
+            "AUTO"
+        } else {
+            tool_call_mode.trim()
+        };
         body["toolConfig"] = json!({ "functionCallingConfig": { "mode": mode } });
     }
     gemini_request_reject_provider_grounding(&body)?;
@@ -195,7 +216,12 @@ pub async fn gemini_generate_stream(
                 }
                 if let Ok(v) = serde_json::from_str::<Value>(payload) {
                     if gemini_response_check(&v).is_err() {
-                        anyhow::bail!("{}", v["error"]["message"].as_str().unwrap_or("gemini stream failed"));
+                        anyhow::bail!(
+                            "{}",
+                            v["error"]["message"]
+                                .as_str()
+                                .unwrap_or("gemini stream failed")
+                        );
                     }
                     gemini_stream_emit(&v, on_delta, &mut acc_text, &mut acc_thought);
                     gemini_stream_acc_content(&mut acc_content, &v);
@@ -204,7 +230,12 @@ pub async fn gemini_generate_stream(
             }
         }
     }
-    Ok(gemini_stream_finalize(&last, &acc_content, &acc_text, &acc_thought))
+    Ok(gemini_stream_finalize(
+        &last,
+        &acc_content,
+        &acc_text,
+        &acc_thought,
+    ))
 }
 
 fn gemini_stream_acc_content(acc: &mut Value, v: &Value) {
@@ -216,7 +247,9 @@ fn gemini_stream_acc_content(acc: &mut Value, v: &Value) {
         *acc = content;
         return;
     }
-    let Some(new_parts) = content["parts"].as_array() else { return };
+    let Some(new_parts) = content["parts"].as_array() else {
+        return;
+    };
     if acc.get("parts").and_then(|p| p.as_array()).is_none() {
         acc["parts"] = json!([]);
     }
@@ -247,7 +280,11 @@ fn gemini_stream_acc_content(acc: &mut Value, v: &Value) {
             continue;
         }
         if part.get("thoughtSignature").is_some() {
-            if let Some(last_fc) = parts.iter_mut().rev().find(|p| p.get("functionCall").is_some()) {
+            if let Some(last_fc) = parts
+                .iter_mut()
+                .rev()
+                .find(|p| p.get("functionCall").is_some())
+            {
                 if let Some(sig) = part.get("thoughtSignature") {
                     last_fc["thoughtSignature"] = sig.clone();
                 }
@@ -259,7 +296,11 @@ fn gemini_stream_acc_content(acc: &mut Value, v: &Value) {
             continue;
         }
         if let Some(t) = part["text"].as_str().filter(|s| !s.is_empty()) {
-            if let Some(last_text) = parts.iter_mut().rev().find(|p| p.get("text").is_some() && !part_is_thought(p)) {
+            if let Some(last_text) = parts
+                .iter_mut()
+                .rev()
+                .find(|p| p.get("text").is_some() && !part_is_thought(p))
+            {
                 let merged = format!("{}{}", last_text["text"].as_str().unwrap_or(""), t);
                 last_text["text"] = json!(merged);
             } else {
@@ -272,10 +313,20 @@ fn gemini_stream_acc_content(acc: &mut Value, v: &Value) {
     }
 }
 
-fn gemini_stream_finalize(last: &Value, acc_content: &Value, acc_text: &str, acc_thought: &str) -> super::thought::ParseOut {
+fn gemini_stream_finalize(
+    last: &Value,
+    acc_content: &Value,
+    acc_text: &str,
+    acc_thought: &str,
+) -> super::thought::ParseOut {
     let parsed = if !acc_content.is_null() {
         let mut wrap = last.clone();
-        if wrap["candidates"].is_null() || wrap["candidates"].as_array().map(|a| a.is_empty()).unwrap_or(true) {
+        if wrap["candidates"].is_null()
+            || wrap["candidates"]
+                .as_array()
+                .map(|a| a.is_empty())
+                .unwrap_or(true)
+        {
             wrap = json!({ "candidates": [{}], "usageMetadata": last.get("usageMetadata").cloned().unwrap_or(json!({})) });
         }
         wrap["candidates"][0]["content"] = acc_content.clone();
@@ -284,8 +335,16 @@ fn gemini_stream_finalize(last: &Value, acc_content: &Value, acc_text: &str, acc
         parse_candidate(last)
     };
     super::thought::ParseOut {
-        text: if acc_text.is_empty() { parsed.text } else { acc_text.to_string() },
-        thought: if acc_thought.is_empty() { parsed.thought } else { acc_thought.to_string() },
+        text: if acc_text.is_empty() {
+            parsed.text
+        } else {
+            acc_text.to_string()
+        },
+        thought: if acc_thought.is_empty() {
+            parsed.thought
+        } else {
+            acc_thought.to_string()
+        },
         function_call: parsed.function_call,
         function_calls: parsed.function_calls,
         in_tok: parsed.in_tok,
@@ -345,8 +404,10 @@ mod tests {
         let mut acc_text = String::new();
         let mut acc_thought = String::new();
         let mut noop = |_thought: bool, _text: String| {};
-        let chunk1 = json!({"candidates":[{"content":{"parts":[{"text":"Sekarang hari Senin."}]}}]});
-        let chunk2 = json!({"candidates":[{"content":{"parts":[{"text":"","thoughtSignature":"sig"}]}}]});
+        let chunk1 =
+            json!({"candidates":[{"content":{"parts":[{"text":"Sekarang hari Senin."}]}}]});
+        let chunk2 =
+            json!({"candidates":[{"content":{"parts":[{"text":"","thoughtSignature":"sig"}]}}]});
         gemini_stream_emit(&chunk1, &mut noop, &mut acc_text, &mut acc_thought);
         gemini_stream_emit(&chunk2, &mut noop, &mut acc_text, &mut acc_thought);
         assert_eq!(acc_text, "Sekarang hari Senin.");
@@ -356,7 +417,8 @@ mod tests {
 
     #[test]
     fn stream_finalize_without_accumulation_reads_empty_final_chunk() {
-        let chunk2 = json!({"candidates":[{"content":{"parts":[{"text":"","thoughtSignature":"sig"}]}}]});
+        let chunk2 =
+            json!({"candidates":[{"content":{"parts":[{"text":"","thoughtSignature":"sig"}]}}]});
         let out = gemini_stream_finalize(&chunk2, &json!(null), "", "");
         assert!(out.text.is_empty());
     }
@@ -372,7 +434,8 @@ mod tests {
     #[test]
     fn generation_config_alien_warmer_than_frontier() {
         let alien = gemini_generation_config("alienai", "gemini-3.1-flash-lite", "off");
-        let frontier = gemini_generation_config("gemini-3.1-flash-lite", "gemini-3.1-flash-lite", "off");
+        let frontier =
+            gemini_generation_config("gemini-3.1-flash-lite", "gemini-3.1-flash-lite", "off");
         assert_eq!(alien["temperature"], 0.65);
         assert_eq!(frontier["temperature"], 0.2);
     }

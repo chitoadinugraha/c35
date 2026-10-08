@@ -1,5 +1,5 @@
-pub mod gemini;
 pub mod audio;
+pub mod gemini;
 pub mod hooks;
 pub mod llm_route;
 pub mod thought;
@@ -30,6 +30,8 @@ pub struct ChatReq {
     pub force_web_tool_call: bool,
     pub catalog_web: CatalogWebPhase,
     pub skip_web_prefetch: bool,
+    /// `inst.site.stock_report` matched. The tool loop may answer from SQL with no model hop.
+    pub stock_report: bool,
 }
 
 #[derive(Debug, Clone, Default)]

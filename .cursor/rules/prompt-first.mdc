@@ -7,7 +7,7 @@ alwaysApply: true
 
 Alien AI is chat-first. A person should be able to do the task by typing on Home. Build the prompt path (tool + `ai.inst`) before adding a screen.
 
-Mirrored for Antigravity: [`.agents/rules/prompt-first.md`](../../.agents/rules/prompt-first.md). Guide index: [`_/docs/README.md`](../../_/docs/README.md).
+Mirrored for Antigravity: [`.agents/rules/prompt-first.md`](../../.agents/rules/prompt-first.md). Guide index: [`_/docs/README.md`](../../_/docs/README.md). How to write a guide: [docs-guides.mdc](docs-guides.mdc).
 
 ## Where to write
 
@@ -27,7 +27,7 @@ A prompt may start a destructive or paid action. The confirm stays on the screen
 
 ## Guide shape
 
-Tag each article `prompt`, `ui`, or `both`. Write `en/` and `id/` as separate files, screenshots included.
+Tag each article `prompt`, `ui`, or `both`. Write `en/` and `id/` as separate files, screenshots included. Plain language and Indonesian wording: [docs-guides.mdc](docs-guides.mdc).
 
 ```md
 # Create a bot

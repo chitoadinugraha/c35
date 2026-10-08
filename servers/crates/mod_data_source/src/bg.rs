@@ -7,8 +7,8 @@ use tokio::sync::Semaphore;
 use tracing::{info, warn};
 
 use crate::config::{
-    data_source_bg_batch, data_source_bg_enabled, data_source_bg_max_concurrent, data_source_bg_tick_sec,
-    data_source_sync_ttl_sec,
+    data_source_bg_batch, data_source_bg_enabled, data_source_bg_max_concurrent,
+    data_source_bg_tick_sec, data_source_sync_ttl_sec,
 };
 use crate::store_due::sync_due_claim_batch;
 use crate::sync::data_source_sync_run;

@@ -82,9 +82,17 @@ pub async fn llm_generate_chain(
     let mut last_err = String::new();
     for target in chain {
         let attempt = if target.provider == "google" {
-            gemini_generate(contents, tools, thinking, &target.provider_model, requested_model, system, tool_call_mode)
-                .await
-                .map(|o| (o, target.provider_model.clone()))
+            gemini_generate(
+                contents,
+                tools,
+                thinking,
+                &target.provider_model,
+                requested_model,
+                system,
+                tool_call_mode,
+            )
+            .await
+            .map(|o| (o, target.provider_model.clone()))
         } else {
             cf_chat_generate(client, &target.provider, &target.provider_model, system, user)
                 .await
@@ -115,7 +123,9 @@ pub async fn llm_generate_chain(
                 last_err = format!("empty response from {provider_model}");
                 continue;
             }
-            Ok((out, provider_model)) => return Ok((out, provider_model, bill_model_slug(requested_model))),
+            Ok((out, provider_model)) => {
+                return Ok((out, provider_model, bill_model_slug(requested_model)))
+            }
             Err(e) => {
                 last_err = format!("{e:#}");
                 if model_is_alien(requested_model) {
@@ -164,15 +174,21 @@ pub async fn llm_stream_chain(
             .map(|out| (out, target.provider_model.clone()))
         } else {
             let user = stream_contents_user(contents);
-            cf_chat_generate(&client, &target.provider, &target.provider_model, system, &user)
-                .await
-                .map(|(text, tin, tout)| {
-                    if !text.is_empty() {
-                        on_delta(false, text.clone());
-                    }
-                    let out = cf_stream_parse_out(text, tin, tout);
-                    (out, target.provider_model.clone())
-                })
+            cf_chat_generate(
+                &client,
+                &target.provider,
+                &target.provider_model,
+                system,
+                &user,
+            )
+            .await
+            .map(|(text, tin, tout)| {
+                if !text.is_empty() {
+                    on_delta(false, text.clone());
+                }
+                let out = cf_stream_parse_out(text, tin, tout);
+                (out, target.provider_model.clone())
+            })
         };
         match attempt {
             Ok((out, provider_model)) if parse_out_ready(&out) => {
@@ -186,7 +202,9 @@ pub async fn llm_stream_chain(
                 last_err = format!("empty response from {provider_model}");
                 continue;
             }
-            Ok((out, provider_model)) => return Ok((out, provider_model, bill_model_slug(requested_model))),
+            Ok((out, provider_model)) => {
+                return Ok((out, provider_model, bill_model_slug(requested_model)))
+            }
             Err(e) => {
                 last_err = format!("{e:#}");
                 if model_is_alien(requested_model) {

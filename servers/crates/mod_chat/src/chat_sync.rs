@@ -1,8 +1,8 @@
 use anyhow::Result;
 use async_nats::Client;
-use chrono::{DateTime, Utc};
 use c35_nats::user_app_subject_inbox;
-use c35_proto::{pb_encode, sync_push, Chat, ChatKind, ResChatPatch, SyncPush, WsRes, ws_res};
+use c35_proto::{pb_encode, sync_push, ws_res, Chat, ChatKind, ResChatPatch, SyncPush, WsRes};
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use crate::asset_tag::asset_tags_map;
@@ -35,11 +35,11 @@ pub async fn chat_title_set(
         "#
     };
     let updated = sqlx::query(sql)
-    .bind(chat_id)
-    .bind(owner_iid)
-    .bind(&title)
-    .execute(pool)
-    .await?;
+        .bind(chat_id)
+        .bind(owner_iid)
+        .bind(&title)
+        .execute(pool)
+        .await?;
     if updated.rows_affected() == 0 {
         return Ok(());
     }
@@ -87,7 +87,9 @@ pub async fn chat_fanout(pool: &PgPool, nats: &Client, owner_iid: i64, chat_id: 
     .bind(owner_iid)
     .fetch_optional(pool)
     .await?;
-    let Some(r) = row else { return Ok(()); };
+    let Some(r) = row else {
+        return Ok(());
+    };
     let tags = asset_tags_map(pool, owner_iid, "chat", &[chat_id])
         .await?
         .remove(&chat_id)
@@ -117,8 +119,11 @@ pub async fn chat_fanout(pool: &PgPool, nats: &Client, owner_iid: i64, chat_id: 
             body: Some(sync_push::Body::Chat(chat)),
         })),
     };
-    nats.publish(prompt_chat_subject(owner_iid, chat_id), pb_encode(&res).into())
-        .await?;
+    nats.publish(
+        prompt_chat_subject(owner_iid, chat_id),
+        pb_encode(&res).into(),
+    )
+    .await?;
     Ok(())
 }
 

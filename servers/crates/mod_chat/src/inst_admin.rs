@@ -1,6 +1,9 @@
 use async_nats::Client;
 use c35_mod_admin::{require_admin, require_root, AdminError};
-use c35_proto::{InstDoc, ReqInstDelete, ReqInstGet, ReqInstList, ReqInstPut, ResInstDelete, ResInstGet, ResInstList, ResInstPut};
+use c35_proto::{
+    InstDoc, ReqInstDelete, ReqInstGet, ReqInstList, ReqInstPut, ResInstDelete, ResInstGet,
+    ResInstList, ResInstPut,
+};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
@@ -41,7 +44,9 @@ pub async fn inst_publish_invalidation(nats: Option<&Client>, inst_id: &str) {
     }
     if let Some(nats) = nats {
         let subject = format!("{NATS_SUBJECT_PREFIX}{inst_id}");
-        let _ = nats.publish(subject, inst_id.as_bytes().to_vec().into()).await;
+        let _ = nats
+            .publish(subject, inst_id.as_bytes().to_vec().into())
+            .await;
     }
 }
 

@@ -1,8 +1,11 @@
 use anyhow::{anyhow, Result};
 use c35_mod_file::cas_dir_default;
-use c35_mod_mail::{ensure_personal_on_first_access, list_for_user, mail_access, MailCas, MailService};
+use c35_mod_mail::{
+    ensure_personal_on_first_access, list_for_user, mail_access, MailCas, MailService,
+};
 use c35_proto::{
-    MailAttachment, MailDirection, MailMailbox, MailMailboxAccess, MailMailboxKind, MailMessage, MailStatus,
+    MailAttachment, MailDirection, MailMailbox, MailMailboxAccess, MailMailboxKind, MailMessage,
+    MailStatus,
 };
 use serde_json::{json, Value};
 
@@ -131,7 +134,11 @@ fn parse_attachments(args: &Value) -> Vec<MailAttachment> {
             }
             Some(MailAttachment {
                 path: path.to_string(),
-                name: a.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                name: a
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 mime: a
                     .get("mime")
                     .and_then(|v| v.as_str())
@@ -144,7 +151,10 @@ fn parse_attachments(args: &Value) -> Vec<MailAttachment> {
 }
 
 async fn require_mail(ctx: &ToolContext) -> Result<Value> {
-    if !mail_access(&ctx.pool, ctx.owner_iid).await.map_err(|e| anyhow!(e))? {
+    if !mail_access(&ctx.pool, ctx.owner_iid)
+        .await
+        .map_err(|e| anyhow!(e))?
+    {
         return Ok(serde_json::from_str(NO_PLATFORM_MAIL_JSON)?);
     }
     ensure_personal_on_first_access(&ctx.pool, ctx.owner_iid)
@@ -158,7 +168,9 @@ pub async fn mail_mailbox_list_exec(ctx: &ToolContext, _args: &Value) -> Result<
     if gate.get("error").is_some() {
         return Ok(gate);
     }
-    let mailboxes = list_for_user(&ctx.pool, ctx.owner_iid).await.map_err(|e| anyhow!(e))?;
+    let mailboxes = list_for_user(&ctx.pool, ctx.owner_iid)
+        .await
+        .map_err(|e| anyhow!(e))?;
     Ok(json!({
         "mailboxes": mailboxes.iter().map(mailbox_json).collect::<Vec<_>>(),
     }))
@@ -172,10 +184,23 @@ pub async fn mail_list_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let direction = parse_direction(args)?;
     let mailbox_id = mailbox_id_arg(args);
     let limit = args.get("limit").and_then(|v| v.as_i64()).unwrap_or(50) as i32;
-    let before = args.get("before_message_id").and_then(|v| v.as_i64()).unwrap_or(0);
-    let is_archived = args.get("is_archived").and_then(|v| v.as_bool()).unwrap_or(false);
+    let before = args
+        .get("before_message_id")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    let is_archived = args
+        .get("is_archived")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let res = mail_svc(ctx)
-        .list(ctx.owner_iid, mailbox_id, direction, limit, before, is_archived)
+        .list(
+            ctx.owner_iid,
+            mailbox_id,
+            direction,
+            limit,
+            before,
+            is_archived,
+        )
         .await
         .map_err(|e| anyhow!(e))?;
     Ok(json!({
@@ -224,14 +249,28 @@ pub async fn mail_send_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow!("body_text is required"))?;
-    let body_html = args.get("body_html").and_then(|v| v.as_str()).unwrap_or("").to_string();
+    let body_html = args
+        .get("body_html")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
     let mailbox_id = mailbox_id_arg(args);
     let attachments = parse_attachments(args);
     let res = mail_svc(ctx)
-        .send(ctx.owner_iid, mailbox_id, to_addr, subject, body_text, &body_html, &attachments)
+        .send(
+            ctx.owner_iid,
+            mailbox_id,
+            to_addr,
+            subject,
+            body_text,
+            &body_html,
+            &attachments,
+        )
         .await
         .map_err(|e| anyhow!(e))?;
-    let msg = res.message.ok_or_else(|| anyhow!("send returned no message"))?;
+    let msg = res
+        .message
+        .ok_or_else(|| anyhow!("send returned no message"))?;
     Ok(json!({ "message": message_json(&msg, false) }))
 }
 
@@ -262,7 +301,10 @@ pub async fn mail_archive_exec(ctx: &ToolContext, args: &Value) -> Result<Value>
         return Ok(gate);
     }
     let mailbox_id = mailbox_id_arg(args);
-    let archive = args.get("archive").and_then(|v| v.as_bool()).unwrap_or(true);
+    let archive = args
+        .get("archive")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
     let ids: Vec<i64> = args
         .get("message_ids")
         .and_then(|v| v.as_array())

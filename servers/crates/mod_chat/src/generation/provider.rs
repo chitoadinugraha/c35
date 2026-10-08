@@ -1,5 +1,11 @@
 const KNOWN: &[&str] = &[
-    "auto", "gemini", "grok", "seedance", "elevenlabs", "lyria", "minimax",
+    "auto",
+    "gemini",
+    "grok",
+    "seedance",
+    "elevenlabs",
+    "lyria",
+    "minimax",
 ];
 
 pub fn provider_normalize(raw: &str) -> String {
@@ -26,11 +32,17 @@ pub fn media_provider_label(provider: &str) -> String {
 }
 
 pub fn image_provider_allowed(provider: &str) -> bool {
-    matches!(provider_normalize(provider).as_str(), "auto" | "gemini" | "grok")
+    matches!(
+        provider_normalize(provider).as_str(),
+        "auto" | "gemini" | "grok"
+    )
 }
 
 pub fn video_provider_allowed(provider: &str) -> bool {
-    matches!(provider_normalize(provider).as_str(), "auto" | "seedance" | "gemini")
+    matches!(
+        provider_normalize(provider).as_str(),
+        "auto" | "seedance" | "gemini"
+    )
 }
 
 pub fn music_provider_allowed(provider: &str) -> bool {

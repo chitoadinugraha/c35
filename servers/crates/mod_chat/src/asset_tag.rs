@@ -30,13 +30,21 @@ pub fn tags_normalize(raw: &[String]) -> Result<Vec<String>> {
     Ok(out)
 }
 
-pub async fn asset_tag_list(pool: &PgPool, owner_iid: i64, req: ReqAssetTagList) -> Result<ResAssetTagList> {
+pub async fn asset_tag_list(
+    pool: &PgPool,
+    owner_iid: i64,
+    req: ReqAssetTagList,
+) -> Result<ResAssetTagList> {
     let kind = req.kind.trim();
     if kind.is_empty() {
         return Err(anyhow!("kind required"));
     }
     let prefix = tag_normalize(&req.prefix);
-    let limit = if req.limit <= 0 { 20 } else { req.limit.min(100) };
+    let limit = if req.limit <= 0 {
+        20
+    } else {
+        req.limit.min(100)
+    };
     let rows = sqlx::query(
         r#"
         SELECT tag, COUNT(*)::INT AS count
@@ -64,7 +72,12 @@ pub async fn asset_tag_list(pool: &PgPool, owner_iid: i64, req: ReqAssetTagList)
     Ok(ResAssetTagList { hints })
 }
 
-pub async fn asset_tags_map(pool: &PgPool, owner_iid: i64, kind: &str, asset_ids: &[i64]) -> Result<HashMap<i64, Vec<String>>> {
+pub async fn asset_tags_map(
+    pool: &PgPool,
+    owner_iid: i64,
+    kind: &str,
+    asset_ids: &[i64],
+) -> Result<HashMap<i64, Vec<String>>> {
     if asset_ids.is_empty() {
         return Ok(HashMap::new());
     }
@@ -90,7 +103,13 @@ pub async fn asset_tags_map(pool: &PgPool, owner_iid: i64, kind: &str, asset_ids
     Ok(out)
 }
 
-pub async fn asset_tags_replace(pool: &PgPool, owner_iid: i64, kind: &str, asset_id: i64, tags: &[String]) -> Result<()> {
+pub async fn asset_tags_replace(
+    pool: &PgPool,
+    owner_iid: i64,
+    kind: &str,
+    asset_id: i64,
+    tags: &[String],
+) -> Result<()> {
     let tags = tags_normalize(tags)?;
     let mut tx = pool.begin().await?;
     sqlx::query(
@@ -137,6 +156,9 @@ mod tests {
 
     #[test]
     fn tags_normalize_dedupes() {
-        assert_eq!(tags_normalize(&["#work".into(), "work".into(), "home".into()]).unwrap(), vec!["work", "home"]);
+        assert_eq!(
+            tags_normalize(&["#work".into(), "work".into(), "home".into()]).unwrap(),
+            vec!["work", "home"]
+        );
     }
 }

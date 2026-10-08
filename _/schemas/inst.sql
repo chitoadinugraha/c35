@@ -1110,6 +1110,37 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.stock_report',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.STOCK.REPORT] Closed stock report. The server runs site.query.run and attaches the file. query_id tx.stock_list for a full stock list, tx.stock_card for one product card, tx.stock_movement for item in and out. Do not paste rows. Do not call web.search or site.tx.put.',
+    ARRAY[
+        'kartu stok', 'stock card', 'daftar stok', 'stock list', 'list stok', 'semua stok',
+        'mutasi stok', 'masuk keluar', 'barang masuk', 'barang keluar', 'stock movement',
+        'laporan stok', 'item in and out', 'in and out'
+    ],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit', 'site.tx.put'],
+    146,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: best-selling products via query catalog
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts

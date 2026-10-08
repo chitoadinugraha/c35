@@ -582,7 +582,11 @@ mod pdf_doc_index_tests {
         let large = pdf_page_embedded_jpeg(&page_with_image(8_193), 1).expect("parse");
         let bytes = large.expect("image");
         assert!(bytes.len() > 8_192);
-        assert!(pdf_page_embedded_jpeg(&hello_pdf(), 1).expect("hello").is_none());
-        assert!(pdf_page_embedded_jpeg(&page_with_image(9_000), 4).expect("missing").is_none());
+        assert!(pdf_page_embedded_jpeg(&hello_pdf(), 1)
+            .expect("hello")
+            .is_none());
+        assert!(pdf_page_embedded_jpeg(&page_with_image(9_000), 4)
+            .expect("missing")
+            .is_none());
     }
 }

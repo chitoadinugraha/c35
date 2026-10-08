@@ -35,7 +35,9 @@ pub fn snapshot_hash(csv: &str) -> String {
 }
 
 pub fn chunk_content_hash(content: &str) -> String {
-    blake3::hash(embed_normalize(content).as_bytes()).to_hex().to_string()
+    blake3::hash(embed_normalize(content).as_bytes())
+        .to_hex()
+        .to_string()
 }
 
 pub fn chunk_embed_eligible(content: &str) -> bool {

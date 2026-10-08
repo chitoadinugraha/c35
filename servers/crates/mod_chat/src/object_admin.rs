@@ -52,16 +52,7 @@ fn opt_trim(s: Option<&String>) -> Option<String> {
         .map(|v| v.to_string())
 }
 
-type ObjectAliasDbRow = (
-    i64,
-    i64,
-    String,
-    String,
-    String,
-    bool,
-    bool,
-    String,
-);
+type ObjectAliasDbRow = (i64, i64, String, String, String, bool, bool, String);
 
 fn object_alias_doc_map(
     (id, obj_id, lang, name, name_norm, is_canonical, verified, obj_path): ObjectAliasDbRow,
@@ -165,7 +156,9 @@ pub async fn object_alias_put(
     .await
     .map_err(|e| ObjectAdminError::bad(e.to_string()))?;
 
-    let saved = row.map(object_alias_doc_map).ok_or_else(ObjectAdminError::not_found)?;
+    let saved = row
+        .map(object_alias_doc_map)
+        .ok_or_else(ObjectAdminError::not_found)?;
     Ok(ResObjectAliasPut { doc: Some(saved) })
 }
 

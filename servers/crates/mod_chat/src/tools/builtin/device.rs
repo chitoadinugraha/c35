@@ -41,7 +41,8 @@ fn device_fail(error: impl Into<String>) -> Value {
 
 fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
     let direct = json_device_iid_field(args, "device_iid");
-    device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct).map_err(|e| device_fail(e.to_string()))
+    device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct)
+        .map_err(|e| device_fail(e.to_string()))
 }
 
 tool! {
@@ -375,7 +376,9 @@ async fn resolve_windows_user_path(
         ctx.owner_iid,
         device_iid,
         "C:\\Users",
-    ).await {
+    )
+    .await
+    {
         for ent in users_res.entries {
             if ent.is_dir {
                 let name = ent.name.trim();
@@ -383,7 +386,8 @@ async fn resolve_windows_user_path(
                 if !matches!(
                     lower.as_str(),
                     "default" | "public" | "all users" | "default user"
-                ) && !name.starts_with('.') {
+                ) && !name.starts_with('.')
+                {
                     return Some(format!("C:\\Users\\{}\\{}", name, sub_path));
                 }
             }
@@ -558,7 +562,15 @@ pub async fn device_pair_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result
             "error": "code required (10 characters, with or without hyphen)",
         }));
     }
-    match device_pair(&ctx.pool, ctx.owner_iid, ReqDevicePair { code: code.to_string() }).await {
+    match device_pair(
+        &ctx.pool,
+        ctx.owner_iid,
+        ReqDevicePair {
+            code: code.to_string(),
+        },
+    )
+    .await
+    {
         Ok(res) => {
             let id = res.device.as_ref().and_then(|r| r.identity.as_ref());
             let llm = json!({
@@ -628,11 +640,26 @@ mod tests {
     #[test]
     fn test_extract_user_subpath() {
         assert_eq!(extract_user_subpath("Desktop").as_deref(), Some("Desktop"));
-        assert_eq!(extract_user_subpath("\"downloads\"").as_deref(), Some("Downloads"));
-        assert_eq!(extract_user_subpath("shell:personal").as_deref(), Some("Documents"));
-        assert_eq!(extract_user_subpath(r"C:\Users\User\Desktop").as_deref(), Some("Desktop"));
-        assert_eq!(extract_user_subpath(r"C:\Users\Admin\Desktop\file.txt").as_deref(), Some("Desktop\\file.txt"));
-        assert_eq!(extract_user_subpath(r"Desktop\test.png").as_deref(), Some("Desktop\\test.png"));
+        assert_eq!(
+            extract_user_subpath("\"downloads\"").as_deref(),
+            Some("Downloads")
+        );
+        assert_eq!(
+            extract_user_subpath("shell:personal").as_deref(),
+            Some("Documents")
+        );
+        assert_eq!(
+            extract_user_subpath(r"C:\Users\User\Desktop").as_deref(),
+            Some("Desktop")
+        );
+        assert_eq!(
+            extract_user_subpath(r"C:\Users\Admin\Desktop\file.txt").as_deref(),
+            Some("Desktop\\file.txt")
+        );
+        assert_eq!(
+            extract_user_subpath(r"Desktop\test.png").as_deref(),
+            Some("Desktop\\test.png")
+        );
         assert_eq!(extract_user_subpath("C:\\foo"), None);
     }
 }

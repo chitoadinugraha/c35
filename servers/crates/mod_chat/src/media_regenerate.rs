@@ -47,33 +47,69 @@ pub async fn media_regenerate(
         bail!("block_index out of range");
     }
     let block = blocks[idx].clone();
-    let kind = block.get("kind").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    let body = block.get("body").cloned().unwrap_or(Value::Object(Default::default()));
-    let prompt = body.get("prompt").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let kind = block
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let body = block
+        .get("body")
+        .cloned()
+        .unwrap_or(Value::Object(Default::default()));
+    let prompt = body
+        .get("prompt")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if prompt.is_empty() {
         bail!("block has no prompt to regenerate");
     }
     let provider_override = provider_normalize(&req.provider);
     let retail = media_regenerate_retail_usd(
         &kind,
-        &body.get("media_provider").and_then(|v| v.as_str()).unwrap_or("auto"),
-        &body.get("media_model").and_then(|v| v.as_str()).unwrap_or(""),
-        &body.get("quality").and_then(|v| v.as_str()).unwrap_or("draft"),
-        body.get("duration_sec").and_then(|v| v.as_i64()).unwrap_or(30) as i32,
+        &body
+            .get("media_provider")
+            .and_then(|v| v.as_str())
+            .unwrap_or("auto"),
+        &body
+            .get("media_model")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+        &body
+            .get("quality")
+            .and_then(|v| v.as_str())
+            .unwrap_or("draft"),
+        body.get("duration_sec")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(30) as i32,
     );
     if retail > 0.0 {
-        let can = billing_can_afford_tool(pool, owner_iid, retail).await.unwrap_or(false);
+        let can = billing_can_afford_tool(pool, owner_iid, retail)
+            .await
+            .unwrap_or(false);
         if !can {
             bail!("Not enough balance or quota to regenerate media.");
         }
     }
     let tool_out = match kind.as_str() {
         "image" => {
-            let aspect_ratio = body.get("aspect_ratio").and_then(|v| v.as_str()).unwrap_or("1:1");
-            let quality = body.get("quality").and_then(|v| v.as_str()).unwrap_or("draft");
-            let tool_name = body.get("tool").and_then(|v| v.as_str()).unwrap_or("img.generate");
+            let aspect_ratio = body
+                .get("aspect_ratio")
+                .and_then(|v| v.as_str())
+                .unwrap_or("1:1");
+            let quality = body
+                .get("quality")
+                .and_then(|v| v.as_str())
+                .unwrap_or("draft");
+            let tool_name = body
+                .get("tool")
+                .and_then(|v| v.as_str())
+                .unwrap_or("img.generate");
             if tool_name.contains("edit") {
-                let source_hash = body.get("source_hash").and_then(|v| v.as_str()).unwrap_or("");
+                let source_hash = body
+                    .get("source_hash")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 img::img_edit_exec(
                     pool,
                     owner_iid,
@@ -104,14 +140,39 @@ pub async fn media_regenerate(
             }
         }
         "video" => {
-            let aspect_ratio = body.get("aspect_ratio").and_then(|v| v.as_str()).unwrap_or("16:9");
-            vid::vid_generate_exec(pool, owner_iid, http, prompt, aspect_ratio, &provider_override).await?
+            let aspect_ratio = body
+                .get("aspect_ratio")
+                .and_then(|v| v.as_str())
+                .unwrap_or("16:9");
+            vid::vid_generate_exec(
+                pool,
+                owner_iid,
+                http,
+                prompt,
+                aspect_ratio,
+                &provider_override,
+            )
+            .await?
         }
         "music" => {
-            let duration = body.get("duration_sec").and_then(|v| v.as_i64()).unwrap_or(30) as i32;
-            let instrumental = body.get("instrumental").and_then(|v| v.as_bool()).unwrap_or(false);
-            music::music_generate_exec(pool, owner_iid, http, prompt, duration, instrumental, &provider_override)
-                .await?
+            let duration = body
+                .get("duration_sec")
+                .and_then(|v| v.as_i64())
+                .unwrap_or(30) as i32;
+            let instrumental = body
+                .get("instrumental")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            music::music_generate_exec(
+                pool,
+                owner_iid,
+                http,
+                prompt,
+                duration,
+                instrumental,
+                &provider_override,
+            )
+            .await?
         }
         other => bail!("unsupported block kind: {other}"),
     };
@@ -157,7 +218,9 @@ pub async fn media_regenerate(
             generation_prefs_put_one(pool, owner_iid, kind_key, &provider_override).await?;
         }
     }
-    let prefs_after = generation_prefs_get(pool, owner_iid).await.unwrap_or(GenerationPrefs::defaults());
+    let prefs_after = generation_prefs_get(pool, owner_iid)
+        .await
+        .unwrap_or(GenerationPrefs::defaults());
     Ok(ResMediaRegenerate {
         blocks_json,
         retail_usd: charged,

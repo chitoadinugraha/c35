@@ -100,7 +100,11 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
     let label = args["label"].as_str().unwrap_or_default().trim();
     let device_iid = args["device_iid"].as_u64().unwrap_or(0) as i64;
 
-    let hold_usd = if kind == "computer_use" { COMPUTER_USE_HOLD_USD } else { CHILD_HOLD_USD };
+    let hold_usd = if kind == "computer_use" {
+        COMPUTER_USE_HOLD_USD
+    } else {
+        CHILD_HOLD_USD
+    };
     if ctx.owner_iid > 0 {
         let can_afford = billing_can_afford_tool(&ctx.pool, ctx.owner_iid, hold_usd)
             .await

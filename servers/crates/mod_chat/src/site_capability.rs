@@ -50,6 +50,9 @@ impl SiteCapabilityView {
     }
 }
 
-pub async fn site_capability_view_for_mention(pool: &PgPool, mention: &MentionContext) -> SiteCapabilityView {
+pub async fn site_capability_view_for_mention(
+    pool: &PgPool,
+    mention: &MentionContext,
+) -> SiteCapabilityView {
     SiteCapabilityView::load(pool, &mention.site_iids()).await
 }

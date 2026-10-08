@@ -8,8 +8,8 @@ use serde_json::{json, Value};
 use sqlx::PgPool;
 use tokio::time::Duration;
 
-use crate::prompt::gemini::gemini_api_key;
 use crate::generation::{generation_prefs_get, provider_normalize};
+use crate::prompt::gemini::gemini_api_key;
 use crate::tools::image_tier::{
     image_default_draft_tier, image_provider_allows_grok_auto, image_provider_forces_gemini,
     image_provider_forces_grok, image_tier_resolve, ImageTier, MODEL_IMAGEN,
@@ -67,7 +67,10 @@ pub fn photo_hashes_from_attachments(attachments_json: &str) -> Vec<String> {
 pub async fn user_image_inline_parts(pool: &PgPool, attachments_json: &str) -> Vec<Value> {
     const MAX_IMAGES: usize = 4;
     let mut parts = Vec::new();
-    for hash in photo_hashes_from_attachments(attachments_json).into_iter().take(MAX_IMAGES) {
+    for hash in photo_hashes_from_attachments(attachments_json)
+        .into_iter()
+        .take(MAX_IMAGES)
+    {
         let Ok((bytes, mime)) = img_load_cas(pool, &hash).await else {
             continue;
         };
@@ -95,7 +98,11 @@ pub async fn img_load_cas(pool: &PgPool, hash: &str) -> Result<(Vec<u8>, String)
     let (bytes, mime) = cas_bytes_get(pool, &cas_dir_default(), hash.trim())
         .await
         .map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let mime = if mime.is_empty() { infer_mime(&bytes).to_string() } else { mime };
+    let mime = if mime.is_empty() {
+        infer_mime(&bytes).to_string()
+    } else {
+        mime
+    };
     Ok((bytes, mime))
 }
 
@@ -253,7 +260,12 @@ async fn gemini_interactions_run(
             "image_size": image_size
         }
     });
-    let res = client.post(&url).timeout(Duration::from_secs(90)).json(&body).send().await?;
+    let res = client
+        .post(&url)
+        .timeout(Duration::from_secs(90))
+        .json(&body)
+        .send()
+        .await?;
     let status = res.status();
     let v: Value = res.json().await?;
     if !status.is_success() {
@@ -275,7 +287,12 @@ async fn gemini_generate_content_run(
         "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
     );
     let body = build_generate_content_body(prompt, aspect_ratio, image_size, source);
-    let res = client.post(&url).timeout(Duration::from_secs(90)).json(&body).send().await?;
+    let res = client
+        .post(&url)
+        .timeout(Duration::from_secs(90))
+        .json(&body)
+        .send()
+        .await?;
     let status = res.status();
     let v: Value = res.json().await?;
     if !status.is_success() {
@@ -303,8 +320,13 @@ async fn gemini_image_run(
     };
     let mut last_err = String::new();
     for model in tier.models() {
-        let size = if model == MODEL_IMAGEN { "1K" } else { tier.image_size };
-        match gemini_interactions_run(client, &key, model, &refined, ar, size, source.clone()).await {
+        let size = if model == MODEL_IMAGEN {
+            "1K"
+        } else {
+            tier.image_size
+        };
+        match gemini_interactions_run(client, &key, model, &refined, ar, size, source.clone()).await
+        {
             Ok(bytes) => {
                 return Ok((
                     bytes,
@@ -319,7 +341,8 @@ async fn gemini_image_run(
             }
             Err(e) => last_err = format!("interactions {model}: {e:#}"),
         }
-        match gemini_generate_content_run(client, &key, model, &refined, ar, size, source.clone()).await
+        match gemini_generate_content_run(client, &key, model, &refined, ar, size, source.clone())
+            .await
         {
             Ok(bytes) => {
                 return Ok((
@@ -457,7 +480,11 @@ pub async fn img_generate_exec(
     } else {
         aspect_ratio.trim()
     };
-    let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
+    let q = if quality.trim().is_empty() {
+        "draft"
+    } else {
+        quality.trim()
+    };
     let default_draft = image_default_draft_tier(pool).await;
     let tier = image_tier_resolve(mention_ids, user_text, prompt, q, false, &default_draft);
     let provider_pref = image_provider_pref(pool, owner_iid, provider_override).await;
@@ -509,7 +536,11 @@ pub async fn img_edit_exec(
     } else {
         aspect_ratio.trim()
     };
-    let q = if quality.trim().is_empty() { "draft" } else { quality.trim() };
+    let q = if quality.trim().is_empty() {
+        "draft"
+    } else {
+        quality.trim()
+    };
     let default_draft = image_default_draft_tier(pool).await;
     let tier = image_tier_resolve(mention_ids, user_text, prompt, q, true, &default_draft);
     let provider_pref = image_provider_pref(pool, owner_iid, provider_override).await;

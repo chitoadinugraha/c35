@@ -5,7 +5,7 @@ use c35_mod_llm::{cf_music_run, lyria_run, CF_MUSIC_DURATION_SEC_DEFAULT};
 use serde_json::{json, Value};
 use sqlx::PgPool;
 
-use crate::generation::{generation_prefs_get, provider_normalize, music_retail_quote};
+use crate::generation::{generation_prefs_get, music_retail_quote, provider_normalize};
 use crate::prompt::gemini::gemini_api_key;
 
 #[derive(Debug, Clone)]
@@ -66,7 +66,11 @@ pub async fn music_generate_exec(
     }
     let provider = music_provider_for(owner_iid, pool, provider_override).await;
     let media_provider = effective_music_provider(&provider);
-    let duration = if duration_sec > 0 { duration_sec } else { CF_MUSIC_DURATION_SEC_DEFAULT };
+    let duration = if duration_sec > 0 {
+        duration_sec
+    } else {
+        CF_MUSIC_DURATION_SEC_DEFAULT
+    };
     let backend = provider_normalize(&provider);
     let (bytes, model, mime) = if backend == "gemini" || backend == "lyria" {
         let (b, m) = lyria_run(client, &gemini_api_key(), prompt).await?;
@@ -84,7 +88,14 @@ pub async fn music_generate_exec(
     };
     let secret = cas_secret_from_env();
     let put = cas_put(pool, &cas_dir_default(), &secret, &bytes, mime).await?;
-    Ok(music_tool_response("music.generate", &put, prompt, duration, instrumental, &meta))
+    Ok(music_tool_response(
+        "music.generate",
+        &put,
+        prompt,
+        duration,
+        instrumental,
+        &meta,
+    ))
 }
 
 fn music_tool_response(

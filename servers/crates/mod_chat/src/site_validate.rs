@@ -22,7 +22,16 @@ pub const BLOCK_TYPES: &[&str] = &[
 
 pub fn block_props_allowed(block_type: &str) -> &'static [&'static str] {
     match block_type {
-        "hero" => &["title", "subtitle", "pic", "cta_label", "cta_href", "cta", "cta_url", "align"],
+        "hero" => &[
+            "title",
+            "subtitle",
+            "pic",
+            "cta_label",
+            "cta_href",
+            "cta",
+            "cta_url",
+            "align",
+        ],
         "markdown" => &["content", "body", "align"],
         "image" => &["pic", "alt", "caption", "href"],
         "gallery" => &["pics", "columns", "title"],
@@ -80,7 +89,11 @@ pub fn validate_block(block: &Value) -> Result<()> {
     if id.is_empty() {
         bail!("block.id is required");
     }
-    let block_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let block_type = obj
+        .get("type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if block_type.is_empty() {
         bail!("block.type is required");
     }
@@ -115,7 +128,11 @@ pub fn validate_sitedoc(doc: &Value) -> Result<()> {
         let page_obj = page
             .as_object()
             .ok_or_else(|| anyhow!("pages[{i}] must be an object"))?;
-        let path = page_obj.get("path").and_then(|v| v.as_str()).unwrap_or("").trim();
+        let path = page_obj
+            .get("path")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
         if path.is_empty() {
             bail!("pages[{i}].path is required");
         }

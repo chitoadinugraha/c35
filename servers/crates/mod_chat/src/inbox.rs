@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
 use c35_proto::{
-    Chat, ChatKind, ChatMember, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ReqChatMsgList, ReqInboxList,
-    ResChatMsgList, ResInboxList,
+    Chat, ChatKind, ChatMember, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ReqChatMsgList,
+    ReqInboxList, ResChatMsgList, ResInboxList,
 };
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use crate::asset_tag::asset_tags_map;
@@ -13,7 +13,11 @@ pub(crate) fn ts_ms(t: Option<DateTime<Utc>>) -> i64 {
 }
 
 pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Result<ResInboxList> {
-    let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
+    let limit = if req.limit <= 0 {
+        100
+    } else {
+        req.limit.min(500)
+    };
     let archived_clause = if req.include_archived {
         ""
     } else {
@@ -38,15 +42,24 @@ pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Re
         "#,
         archived_clause = archived_clause
     );
-    let rows = sqlx::query(&sql).bind(member_iid).bind(limit).fetch_all(pool).await?;
+    let rows = sqlx::query(&sql)
+        .bind(member_iid)
+        .bind(limit)
+        .fetch_all(pool)
+        .await?;
     let chat_ids: Vec<i64> = rows.iter().map(|r| r.get("id")).collect();
     let tags_by_chat = asset_tags_map(pool, member_iid, "chat", &chat_ids).await?;
     let mut chats = Vec::with_capacity(rows.len());
     let mut members = Vec::with_capacity(rows.len());
     for r in rows {
         let chat_id: i64 = r.get("id");
-        let preview: String = r.get::<Option<String>, _>("member_preview").filter(|s| !s.is_empty()).unwrap_or_else(|| r.get("last_msg_preview"));
-        let last_at = r.get::<Option<DateTime<Utc>>, _>("member_last_msg_ts").or_else(|| r.get("last_msg_ts"));
+        let preview: String = r
+            .get::<Option<String>, _>("member_preview")
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| r.get("last_msg_preview"));
+        let last_at = r
+            .get::<Option<DateTime<Utc>>, _>("member_last_msg_ts")
+            .or_else(|| r.get("last_msg_ts"));
         let meta: serde_json::Value = r.get::<serde_json::Value, _>("meta");
         chats.push(Chat {
             id: chat_id,
@@ -82,7 +95,11 @@ pub async fn inbox_list(pool: &PgPool, member_iid: i64, req: ReqInboxList) -> Re
     Ok(ResInboxList { chats, members })
 }
 
-pub async fn chat_msg_list(pool: &PgPool, member_iid: i64, req: ReqChatMsgList) -> Result<ResChatMsgList> {
+pub async fn chat_msg_list(
+    pool: &PgPool,
+    member_iid: i64,
+    req: ReqChatMsgList,
+) -> Result<ResChatMsgList> {
     let chat_id = req.chat_id;
     if chat_id == 0 {
         return Err(anyhow!("chat_id required"));
@@ -101,7 +118,11 @@ pub async fn chat_msg_list(pool: &PgPool, member_iid: i64, req: ReqChatMsgList) 
     if allowed.is_none() {
         return crate::bot_peer::bot_peer_msg_list(pool, member_iid, req).await;
     }
-    let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
+    let limit = if req.limit <= 0 {
+        100
+    } else {
+        req.limit.min(500)
+    };
     let before = req.before_id;
     let rows = if before > 0 {
         sqlx::query(

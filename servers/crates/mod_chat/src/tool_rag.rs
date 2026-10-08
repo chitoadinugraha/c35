@@ -28,9 +28,15 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let (dot, na, nb) = a
         .iter()
         .zip(b.iter())
-        .fold((0.0f32, 0.0f32, 0.0f32), |(d, na, nb), (x, y)| (d + x * y, na + x * x, nb + y * y));
+        .fold((0.0f32, 0.0f32, 0.0f32), |(d, na, nb), (x, y)| {
+            (d + x * y, na + x * x, nb + y * y)
+        });
     let denom = na.sqrt() * nb.sqrt();
-    if denom == 0.0 { 0.0 } else { dot / denom }
+    if denom == 0.0 {
+        0.0
+    } else {
+        dot / denom
+    }
 }
 
 fn tool_id_norm(s: &str) -> String {
@@ -41,7 +47,10 @@ pub fn canonicalize_tool_id(eligible: &[ToolDef], id: &str) -> Option<String> {
     let want = tool_id_norm(id);
     eligible
         .iter()
-        .find(|t| tool_id_norm(&t.name) == want || t.aliases.iter().any(|a| tool_id_norm(a) == want || a == id))
+        .find(|t| {
+            tool_id_norm(&t.name) == want
+                || t.aliases.iter().any(|a| tool_id_norm(a) == want || a == id)
+        })
         .map(|t| t.name.clone())
 }
 
@@ -117,15 +126,29 @@ pub fn tool_find_lexical(
         let sim = lexical_sim(&q, &hay);
         let included = force_include.iter().any(|x| x == &t.name);
         if included {
-            forced.push(ToolCandidate { tool_id: t.name.clone(), sim: sim.max(0.95) });
+            forced.push(ToolCandidate {
+                tool_id: t.name.clone(),
+                sim: sim.max(0.95),
+            });
             continue;
         }
         if sim > 0.12 {
-            scored.push(ToolCandidate { tool_id: t.name.clone(), sim });
+            scored.push(ToolCandidate {
+                tool_id: t.name.clone(),
+                sim,
+            });
         }
     }
-    forced.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
-    scored.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
+    forced.sort_by(|a, b| {
+        b.sim
+            .partial_cmp(&a.sim)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    scored.sort_by(|a, b| {
+        b.sim
+            .partial_cmp(&a.sim)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     if scored.len() > top_k {
         scored.truncate(top_k);
     }
@@ -147,7 +170,11 @@ pub fn tool_trim_ranked(
     }
     let force: std::collections::HashSet<&str> = force_include.iter().map(|s| s.as_str()).collect();
     let mut sorted: Vec<ToolCandidate> = candidates.to_vec();
-    sorted.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| {
+        b.sim
+            .partial_cmp(&a.sim)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let mut out: Vec<ToolCandidate> = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for c in &sorted {
@@ -173,11 +200,19 @@ pub fn tool_trim_ranked(
     if out.is_empty() {
         out.push(sorted[0].clone());
     }
-    out.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
+    out.sort_by(|a, b| {
+        b.sim
+            .partial_cmp(&a.sim)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     out
 }
 
-pub fn tool_select(eligible: &[ToolDef], ranked_ids: &[String], force_include: &[String]) -> Vec<ToolDef> {
+pub fn tool_select(
+    eligible: &[ToolDef],
+    ranked_ids: &[String],
+    force_include: &[String],
+) -> Vec<ToolDef> {
     let mut out = Vec::new();
     let mut seen = std::collections::HashSet::new();
     for id in force_include.iter().chain(ranked_ids.iter()) {
@@ -207,11 +242,18 @@ pub fn tools_for_turn_lexical(
     if eligible.len() <= TOOL_RAG_MIN {
         return eligible;
     }
-    let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();
+    let force: Vec<String> = force
+        .into_iter()
+        .filter(|id| eligible.iter().any(|t| &t.name == id))
+        .collect();
     let ranked = tool_find_lexical(query, &eligible, &force, &exclude, DEFAULT_TOOL_TOP_K);
     let ids: Vec<String> = ranked.into_iter().map(|c| c.tool_id).collect();
     let selected = tool_select(&eligible, &ids, &force);
-    if selected.is_empty() { eligible } else { selected }
+    if selected.is_empty() {
+        eligible
+    } else {
+        selected
+    }
 }
 
 #[cfg(test)]

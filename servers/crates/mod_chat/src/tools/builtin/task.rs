@@ -64,7 +64,11 @@ fn prompt_from_args(args: &Value) -> Result<String, Value> {
             return Ok(t.to_string());
         }
     }
-    if args.get("prompt").map(|v| v.is_object() || v.is_array()).unwrap_or(false) {
+    if args
+        .get("prompt")
+        .map(|v| v.is_object() || v.is_array())
+        .unwrap_or(false)
+    {
         return Ok(args["prompt"].to_string());
     }
     if let Some(recipe) = args.get("recipe") {
@@ -89,7 +93,11 @@ async fn task_run_start_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<
         return Ok(task_fail("task_id or prompt (recipe JSON) is required"));
     }
     let skill_id = args["skill_id"].as_i64().unwrap_or(0);
-    let model = args["model"].as_str().unwrap_or_default().trim().to_string();
+    let model = args["model"]
+        .as_str()
+        .unwrap_or_default()
+        .trim()
+        .to_string();
     let req = ReqTaskRunStart {
         device_iid,
         task_id,
@@ -370,20 +378,26 @@ async fn task_list_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value
         include_inactive: false,
     };
     let res = task_list_rpc(&ctx.pool, ctx.owner_iid, req).await;
-    let list: Vec<Value> = res.tasks.iter().map(|t| json!({
-        "id": t.id,
-        "name": t.name,
-        "device_iid": t.device_iid,
-        "prompt": t.prompt,
-        "is_active": t.is_active,
-        "triggers": t.triggers.iter().map(|tr| json!({
-            "id": tr.id,
-            "kind": if tr.kind == 2 { "cron" } else { "once" },
-            "cron_expr": tr.cron_expr,
-            "label": tr.label,
-            "is_active": tr.is_active,
-        })).collect::<Vec<_>>(),
-    })).collect();
+    let list: Vec<Value> = res
+        .tasks
+        .iter()
+        .map(|t| {
+            json!({
+                "id": t.id,
+                "name": t.name,
+                "device_iid": t.device_iid,
+                "prompt": t.prompt,
+                "is_active": t.is_active,
+                "triggers": t.triggers.iter().map(|tr| json!({
+                    "id": tr.id,
+                    "kind": if tr.kind == 2 { "cron" } else { "once" },
+                    "cron_expr": tr.cron_expr,
+                    "label": tr.label,
+                    "is_active": tr.is_active,
+                })).collect::<Vec<_>>(),
+            })
+        })
+        .collect();
     Ok(json!({ "ok": true, "count": list.len(), "tasks": list }))
 }
 

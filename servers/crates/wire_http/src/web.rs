@@ -336,6 +336,7 @@ pub fn web_router() -> Router<AppState> {
         .route("/apple-touch-icon.png", get(|| page_get("apple-touch-icon.png")))
         .route("/robots.txt", get(|| page_get("robots.txt")))
         .route("/sitemap.xml", get(|| page_get("sitemap.xml")))
+        .route("/platform-home.js", get(|| page_get("platform-home.js")))
         .route("/locales/{file}", get(locale_get))
         .route("/static/{*path}", get(static_get))
         .route("/download/web", get(|| async {
@@ -392,7 +393,19 @@ mod tests {
         assert!(dir.join("apple-touch-icon.png").is_file(), "apple-touch-icon.png must exist");
         assert!(dir.join("robots.txt").is_file(), "robots.txt must exist");
         assert!(dir.join("sitemap.xml").is_file(), "sitemap.xml must exist");
+        assert!(
+            dir.join("platform-home.js").is_file(),
+            "platform-home.js must exist"
+        );
         assert!(dir.join("locales").join("en.json").is_file(), "locales/en.json must exist");
+        assert!(
+            dir.join("static").join("site-home.js").is_file(),
+            "static/site-home.js must exist"
+        );
+        assert!(
+            dir.join("static").join("locale-detect.js").is_file(),
+            "static/locale-detect.js must exist"
+        );
         assert!(dir.join("locales").join("id.json").is_file(), "locales/id.json must exist");
         assert!(dir.join("static").join("starry-night.js").is_file(), "static/starry-night.js must exist");
         assert!(

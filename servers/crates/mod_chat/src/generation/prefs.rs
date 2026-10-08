@@ -33,7 +33,11 @@ fn generation_provider_clamp(kind: &str, raw: &str) -> String {
         "music" => music_provider_allowed(&p),
         _ => true,
     };
-    if ok { p } else { GENERATION_DEFAULT.into() }
+    if ok {
+        p
+    } else {
+        GENERATION_DEFAULT.into()
+    }
 }
 
 fn pref_from_meta(meta: &Value, key: &str) -> String {
@@ -79,7 +83,13 @@ pub fn generation_prefs_merge_json(image: &str, video: &str, music: &str) -> Val
     json!({ "generation": gen })
 }
 
-pub async fn generation_prefs_put(pool: &PgPool, owner_iid: i64, image: &str, video: &str, music: &str) -> Result<()> {
+pub async fn generation_prefs_put(
+    pool: &PgPool,
+    owner_iid: i64,
+    image: &str,
+    video: &str,
+    music: &str,
+) -> Result<()> {
     let patch = generation_prefs_merge_json(image, video, music);
     if patch.as_object().map(|o| o.is_empty()).unwrap_or(true) {
         return Ok(());
@@ -100,7 +110,12 @@ pub async fn generation_prefs_put(pool: &PgPool, owner_iid: i64, image: &str, vi
     Ok(())
 }
 
-pub async fn generation_prefs_put_one(pool: &PgPool, owner_iid: i64, kind: &str, provider: &str) -> Result<()> {
+pub async fn generation_prefs_put_one(
+    pool: &PgPool,
+    owner_iid: i64,
+    kind: &str,
+    provider: &str,
+) -> Result<()> {
     let p = generation_provider_clamp(kind, provider);
     let (image, video, music) = match kind {
         "image" => (p.as_str(), "", ""),

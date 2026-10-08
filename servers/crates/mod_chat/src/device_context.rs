@@ -13,7 +13,10 @@ use crate::mention_registry::{mention_ref_iid, mention_ref_parse, MentionRef};
 
 pub fn chat_bound_device_iid(meta: &Value) -> i64 {
     meta.get("bound_device_iid")
-        .and_then(|v| v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse().ok())))
+        .and_then(|v| {
+            v.as_i64()
+                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+        })
         .filter(|i| *i > 0)
         .unwrap_or(0)
 }
@@ -92,7 +95,11 @@ pub async fn chat_device_context_list(
 ) -> Result<ResChatDeviceContextList> {
     let device_iid = req.device_iid;
     device_caller_may_access(pool, owner_iid, device_iid).await?;
-    let limit = if req.limit <= 0 { 20 } else { req.limit.min(50) };
+    let limit = if req.limit <= 0 {
+        20
+    } else {
+        req.limit.min(50)
+    };
     let archived_clause = if req.include_archived {
         ""
     } else {
@@ -306,8 +313,14 @@ pub async fn chat_mention_context_commit(
 }
 
 /// When the user has exactly one paired remote device, inject it like a bound chat (no @mention needed).
-pub async fn prompt_single_paired_device_inject(pool: &PgPool, owner_iid: i64, req: &mut ReqPrompt) -> Result<()> {
-    if !mention_device_iids_from_req(&req.mention_ids).is_empty() || req.device_iids.iter().any(|i| *i > 0) {
+pub async fn prompt_single_paired_device_inject(
+    pool: &PgPool,
+    owner_iid: i64,
+    req: &mut ReqPrompt,
+) -> Result<()> {
+    if !mention_device_iids_from_req(&req.mention_ids).is_empty()
+        || req.device_iids.iter().any(|i| *i > 0)
+    {
         return Ok(());
     }
     let ids: Vec<i64> = sqlx::query_scalar(
@@ -348,7 +361,11 @@ pub async fn bound_device_prompt_prepare(
     if chat_owner != owner_iid {
         bail!("chat not found");
     }
-    let bound = if bound_col > 0 { bound_col } else { chat_bound_device_iid(&meta) };
+    let bound = if bound_col > 0 {
+        bound_col
+    } else {
+        chat_bound_device_iid(&meta)
+    };
     if bound <= 0 {
         return prompt_single_paired_device_inject(pool, owner_iid, req).await;
     }
@@ -428,8 +445,14 @@ pub async fn tool_exclude_browser_devices(
         return Vec::new();
     }
     if rows.iter().all(|(t, _)| t.eq_ignore_ascii_case("browser")) {
-        let mut out: Vec<String> = BROWSER_DEVICE_TOOL_EXCLUDE.iter().map(|s| s.to_string()).collect();
-        if rows.iter().all(|(_, m)| c35_mod_device::meta_browser_engine(m).eq_ignore_ascii_case("extension")) {
+        let mut out: Vec<String> = BROWSER_DEVICE_TOOL_EXCLUDE
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        if rows
+            .iter()
+            .all(|(_, m)| c35_mod_device::meta_browser_engine(m).eq_ignore_ascii_case("extension"))
+        {
             out.push("browser.task.run".to_string());
             out.push("browser.file.upload".to_string());
         }

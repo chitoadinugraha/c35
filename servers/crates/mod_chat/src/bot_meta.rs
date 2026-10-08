@@ -33,9 +33,18 @@ pub fn bot_turn_meta_parse(meta: Option<&Value>) -> BotTurnMeta {
             web_search: false,
         };
     };
-    let strict_mode = m.get("strict_mode").and_then(|v| v.as_bool()).unwrap_or(true);
-    let auto_block_spammer = m.get("auto_block_spammer").and_then(|v| v.as_bool()).unwrap_or(true);
-    let web_search = m.get("web_search").and_then(|v| v.as_bool()).unwrap_or(false);
+    let strict_mode = m
+        .get("strict_mode")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let auto_block_spammer = m
+        .get("auto_block_spammer")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let web_search = m
+        .get("web_search")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     BotTurnMeta {
         strict_mode,
         auto_block_spammer,

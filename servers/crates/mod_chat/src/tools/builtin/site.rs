@@ -1,11 +1,13 @@
 use anyhow::{anyhow, bail, Result};
 use c35_mod_site::{
     product_icon_ensure, site_capabilities_get, site_config_put, site_contact_upsert,
-    site_grant_delete, site_grant_put, site_grantee_resolve, site_granted_iids, site_handle_put,
+    site_grant_delete, site_grant_put, site_granted_iids, site_grantee_resolve, site_handle_put,
     site_link_delete, site_link_upsert, site_object_upsert, site_preview_token_issue,
     site_publish_from_draft, site_slug_ensure_unique, site_slug_generate,
 };
-use c35_proto::{ReqSiteConfigPut, ReqSiteHandlePut, ReqSiteLinkDelete, SiteContact, SiteLink, SiteObject};
+use c35_proto::{
+    ReqSiteConfigPut, ReqSiteHandlePut, ReqSiteLinkDelete, SiteContact, SiteLink, SiteObject,
+};
 use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::{Postgres, Row, Transaction};
@@ -115,8 +117,8 @@ pub async fn site_config_put_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     let config = res
         .config
         .ok_or_else(|| anyhow!("site.config.put returned no config"))?;
-    let saved: Value = serde_json::from_str(&config.capabilities_json)
-        .unwrap_or_else(|_| json!({}));
+    let saved: Value =
+        serde_json::from_str(&config.capabilities_json).unwrap_or_else(|_| json!({}));
     Ok(json!({
         "ok": true,
         "site_iid": site_iid,
@@ -156,7 +158,11 @@ async fn product_embed_put_tx(
             .and_then(|v| v.as_i64())
             .filter(|i| *i > 0)
             .unwrap_or_else(snowflake_id);
-        let label = embed.get("label").and_then(|v| v.as_str()).unwrap_or("").trim();
+        let label = embed
+            .get("label")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
         sqlx::query(
             r#"
             INSERT INTO site.product_embed (site_iid, embed_id, product_id, label, created_ts, updated_ts)
@@ -186,7 +192,11 @@ pub async fn site_product_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
         .and_then(|v| v.as_i64())
         .filter(|i| *i > 0)
         .unwrap_or_else(snowflake_id);
-    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let name = args
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if name.is_empty() {
         bail!("name is required");
     }
@@ -196,10 +206,19 @@ pub async fn site_product_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
     let price = args.get("price").and_then(|v| v.as_i64()).unwrap_or(0);
     let pic = args.get("pic").and_then(|v| v.as_str()).unwrap_or("");
     let category = args.get("category").and_then(|v| v.as_str()).unwrap_or("");
-    let can_sell = args.get("can_sell").and_then(|v| v.as_bool()).unwrap_or(true);
-    let track_stock = args.get("track_stock").and_then(|v| v.as_bool()).unwrap_or(false);
+    let can_sell = args
+        .get("can_sell")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
+    let track_stock = args
+        .get("track_stock")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let stock_qty = args.get("stock_qty").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
-    let is_archived = args.get("is_archived").and_then(|v| v.as_bool()).unwrap_or(false);
+    let is_archived = args
+        .get("is_archived")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let product_json = args
         .get("product_json")
         .map(|v| v.to_string())
@@ -270,7 +289,11 @@ pub async fn site_product_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
 pub async fn site_contact_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
     let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
-    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let name = args
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if name.is_empty() {
         bail!("name is required");
     }
@@ -278,11 +301,30 @@ pub async fn site_contact_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
         site_iid,
         contact_id: args.get("contact_id").and_then(|v| v.as_i64()).unwrap_or(0),
         name: name.to_string(),
-        phone: args.get("phone").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        email: args.get("email").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        address: args.get("address").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        note: args.get("note").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        is_archived: args.get("is_archived").and_then(|v| v.as_bool()).unwrap_or(false),
+        phone: args
+            .get("phone")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        email: args
+            .get("email")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        address: args
+            .get("address")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        note: args
+            .get("note")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        is_archived: args
+            .get("is_archived")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
         ..Default::default()
     };
     let contact_id = site_contact_upsert(&ctx.pool, owner_iid, site_iid, &contact, None).await?;
@@ -292,8 +334,16 @@ pub async fn site_contact_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
 pub async fn site_link_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
     let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
-    let label = args.get("label").and_then(|v| v.as_str()).unwrap_or("").trim();
-    let url = args.get("url").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let label = args
+        .get("label")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    let url = args
+        .get("url")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if label.is_empty() || url.is_empty() {
         bail!("label and url are required");
     }
@@ -303,8 +353,15 @@ pub async fn site_link_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value
         sort_order: args.get("sort_order").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
         label: label.to_string(),
         url: url.to_string(),
-        icon: args.get("icon").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        is_pinned: args.get("is_pinned").and_then(|v| v.as_bool()).unwrap_or(false),
+        icon: args
+            .get("icon")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        is_pinned: args
+            .get("is_pinned")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
         active: args.get("active").and_then(|v| v.as_bool()).unwrap_or(true),
         ..Default::default()
     };
@@ -337,23 +394,56 @@ pub async fn site_link_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Va
 pub async fn site_object_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
     let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
-    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let name = args
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if name.is_empty() {
         bail!("name is required");
     }
     let obj = SiteObject {
         site_iid,
         id: args.get("id").and_then(|v| v.as_i64()).unwrap_or(0),
-        client_id: args.get("client_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        client_id: args
+            .get("client_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         name: name.to_string(),
-        code: args.get("code").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        kind: args.get("kind").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        code: args
+            .get("code")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        kind: args
+            .get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         product_id: args.get("product_id").and_then(|v| v.as_i64()).unwrap_or(0),
-        can_order: args.get("can_order").and_then(|v| v.as_bool()).unwrap_or(false),
-        can_be_reserved: args.get("can_be_reserved").and_then(|v| v.as_bool()).unwrap_or(false),
-        is_active: args.get("is_active").and_then(|v| v.as_bool()).unwrap_or(true),
-        desc: args.get("desc").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        pic: args.get("pic").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        can_order: args
+            .get("can_order")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        can_be_reserved: args
+            .get("can_be_reserved")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        is_active: args
+            .get("is_active")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true),
+        desc: args
+            .get("desc")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        pic: args
+            .get("pic")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         ..Default::default()
     };
     let id = site_object_upsert(&ctx.pool, owner_iid, site_iid, &obj, None).await?;
@@ -375,7 +465,9 @@ fn work_shift_ids_from_args(args: &Value) -> Option<Vec<String>> {
             .iter()
             .filter_map(|x| x.as_str().map(str::to_string))
             .collect(),
-        Value::String(s) => serde_json::from_str::<Vec<String>>(s).unwrap_or_else(|_| vec![s.clone()]),
+        Value::String(s) => {
+            serde_json::from_str::<Vec<String>>(s).unwrap_or_else(|_| vec![s.clone()])
+        }
         _ => vec![],
     })
 }
@@ -385,8 +477,12 @@ pub async fn site_grant_put_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
     let grantee_iid = site_grantee_resolve(
         &ctx.pool,
         grantee_iid_from_args(args),
-        args.get("grantee_alien_id").and_then(|v| v.as_str()).unwrap_or(""),
-        args.get("grantee_email").and_then(|v| v.as_str()).unwrap_or(""),
+        args.get("grantee_alien_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+        args.get("grantee_email")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
     )
     .await?;
     let role = args
@@ -420,8 +516,12 @@ pub async fn site_grant_delete_exec(ctx: &ToolContext, args: &Value) -> Result<V
     let grantee_iid = site_grantee_resolve(
         &ctx.pool,
         grantee_iid_from_args(args),
-        args.get("grantee_alien_id").and_then(|v| v.as_str()).unwrap_or(""),
-        args.get("grantee_email").and_then(|v| v.as_str()).unwrap_or(""),
+        args.get("grantee_alien_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+        args.get("grantee_email")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
     )
     .await?;
     site_grant_delete(&ctx.pool, ctx.owner_iid, site_iid, grantee_iid).await?;
@@ -739,7 +839,10 @@ tool! {
 }
 
 fn arg_text<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
-    args.get(key).and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty())
+    args.get(key)
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
 }
 
 async fn site_product_id_resolve_on_site(
@@ -747,14 +850,16 @@ async fn site_product_id_resolve_on_site(
     site_iid: i64,
     args: &Value,
 ) -> Result<i64> {
-    let product_id_opt = args.get("product_id").and_then(|v| v.as_i64()).filter(|i| *i > 0);
+    let product_id_opt = args
+        .get("product_id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0);
     let name_opt = arg_text(args, "name").or_else(|| arg_text(args, "q"));
     match product_id_opt {
         Some(id) => Ok(id),
         None => {
-            let name_query = name_opt.ok_or_else(|| {
-                anyhow!("product_id or name is required to identify the product")
-            })?;
+            let name_query = name_opt
+                .ok_or_else(|| anyhow!("product_id or name is required to identify the product"))?;
             sqlx::query_scalar::<_, i64>(
                 r#"
                 SELECT product_id
@@ -917,9 +1022,16 @@ pub async fn site_product_patch_exec(ctx: &ToolContext, args: &Value) -> Result<
     site_product_patch_scoped(ctx, args).await
 }
 
-async fn site_product_patch_on_site(ctx: &ToolContext, site_iid: i64, args: &Value) -> Result<Value> {
+async fn site_product_patch_on_site(
+    ctx: &ToolContext,
+    site_iid: i64,
+    args: &Value,
+) -> Result<Value> {
     let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
-    let product_id_opt = args.get("product_id").and_then(|v| v.as_i64()).filter(|i| *i > 0);
+    let product_id_opt = args
+        .get("product_id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0);
     let name_opt = arg_text(args, "name").or_else(|| arg_text(args, "q"));
 
     if product_id_opt.is_none() && name_opt.is_none() {
@@ -1025,13 +1137,22 @@ async fn site_product_patch_write(
 ) -> Result<Value> {
     let price = args.get("price").and_then(|v| v.as_i64());
     let cost_price = args.get("cost_price").and_then(|v| v.as_i64());
-    let stock_qty = args.get("stock_qty").and_then(|v| v.as_i64()).map(|n| n as i32);
-    let stock_delta = args.get("stock_delta").and_then(|v| v.as_i64()).map(|n| n as i32);
+    let stock_qty = args
+        .get("stock_qty")
+        .and_then(|v| v.as_i64())
+        .map(|n| n as i32);
+    let stock_delta = args
+        .get("stock_delta")
+        .and_then(|v| v.as_i64())
+        .map(|n| n as i32);
     let track_stock = args.get("track_stock").and_then(|v| v.as_bool());
     let can_sell = args.get("can_sell").and_then(|v| v.as_bool());
     let can_reserve = args.get("can_reserve").and_then(|v| v.as_bool());
     let is_archived = args.get("is_archived").and_then(|v| v.as_bool());
-    let soft_delete = args.get("deleted").and_then(|v| v.as_bool()).unwrap_or(false);
+    let soft_delete = args
+        .get("deleted")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let new_name = arg_text(args, "new_name");
 
     let row = sqlx::query(
@@ -1133,7 +1254,9 @@ pub async fn site_draft_get_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
 
     match row {
         Some(doc) => Ok(json!({ "ok": true, "site_iid": site_iid, "doc": doc })),
-        None => Ok(json!({ "ok": false, "site_iid": site_iid, "error": "No draft found for site" })),
+        None => {
+            Ok(json!({ "ok": false, "site_iid": site_iid, "error": "No draft found for site" }))
+        }
     }
 }
 
@@ -1165,7 +1288,10 @@ pub async fn site_domain_put_exec(ctx: &ToolContext, args: &Value) -> Result<Val
         .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow!("hostname is required"))?;
 
-    let is_primary = args.get("is_primary").and_then(|v| v.as_bool()).unwrap_or(false);
+    let is_primary = args
+        .get("is_primary")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let id = args.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
 
     let domain = c35_proto::SiteDomain {
@@ -1222,9 +1348,18 @@ pub async fn site_domain_verify_exec(ctx: &ToolContext, args: &Value) -> Result<
     let site_iid = site_iid_resolve(ctx, args)?;
     let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
 
-    let domain_id = if let Some(id) = args.get("domain_id").and_then(|v| v.as_i64()).filter(|i| *i > 0) {
+    let domain_id = if let Some(id) = args
+        .get("domain_id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0)
+    {
         id
-    } else if let Some(hostname) = args.get("hostname").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty()) {
+    } else if let Some(hostname) = args
+        .get("hostname")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         let id: i64 = sqlx::query_scalar(
             "SELECT id FROM site.domain WHERE site_iid = $1 AND hostname = $2 AND deleted_ts IS NULL",
         )
@@ -1245,7 +1380,10 @@ pub async fn site_domain_verify_exec(ctx: &ToolContext, args: &Value) -> Result<
         id
     };
 
-    let force_tls = args.get("force_tls").and_then(|v| v.as_bool()).unwrap_or(false);
+    let force_tls = args
+        .get("force_tls")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let res = c35_mod_site::site_domain_verify(
         &ctx.pool,
         owner_iid,
@@ -1298,13 +1436,17 @@ fn resolve_target_page_mut<'a>(
         } else {
             format!("/{tp}")
         };
-        pages.iter().position(|p| p.get("path").and_then(|v| v.as_str()) == Some(&norm))
+        pages
+            .iter()
+            .position(|p| p.get("path").and_then(|v| v.as_str()) == Some(&norm))
     } else {
         None
     };
 
     let idx = target_idx.unwrap_or(0);
-    pages.get_mut(idx).ok_or_else(|| anyhow!("at least one page required"))
+    pages
+        .get_mut(idx)
+        .ok_or_else(|| anyhow!("at least one page required"))
 }
 
 fn apply_site_patch(
@@ -1321,8 +1463,12 @@ fn apply_site_patch(
     match action {
         "patch_theme" => {
             let t = theme.ok_or_else(|| anyhow!("theme object required for patch_theme"))?;
-            let t_obj = t.as_object().ok_or_else(|| anyhow!("theme must be an object"))?;
-            let doc_obj = doc.as_object_mut().ok_or_else(|| anyhow!("doc must be an object"))?;
+            let t_obj = t
+                .as_object()
+                .ok_or_else(|| anyhow!("theme must be an object"))?;
+            let doc_obj = doc
+                .as_object_mut()
+                .ok_or_else(|| anyhow!("doc must be an object"))?;
             if !doc_obj.contains_key("theme") || !doc_obj["theme"].is_object() {
                 doc_obj.insert("theme".into(), json!({}));
             }
@@ -1335,8 +1481,12 @@ fn apply_site_patch(
         }
         "patch_meta" => {
             let m = meta.ok_or_else(|| anyhow!("meta object required for patch_meta"))?;
-            let m_obj = m.as_object().ok_or_else(|| anyhow!("meta must be an object"))?;
-            let doc_obj = doc.as_object_mut().ok_or_else(|| anyhow!("doc must be an object"))?;
+            let m_obj = m
+                .as_object()
+                .ok_or_else(|| anyhow!("meta must be an object"))?;
+            let doc_obj = doc
+                .as_object_mut()
+                .ok_or_else(|| anyhow!("doc must be an object"))?;
             if !doc_obj.contains_key("meta") || !doc_obj["meta"].is_object() {
                 doc_obj.insert("meta".into(), json!({}));
             }
@@ -1351,14 +1501,23 @@ fn apply_site_patch(
             if block_id.trim().is_empty() {
                 bail!("block_id is required for delete_block");
             }
-            let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
+            let pages = doc
+                .get_mut("pages")
+                .and_then(|v| v.as_array_mut())
+                .ok_or_else(|| anyhow!("doc.pages required"))?;
             let page = resolve_target_page_mut(pages, page_path)?;
-            let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
+            let blocks = page
+                .get_mut("blocks")
+                .and_then(|v| v.as_array_mut())
+                .ok_or_else(|| anyhow!("page.blocks required"))?;
             if blocks.len() <= 1 {
                 bail!("cannot delete the only remaining block on the page");
             }
             let pos = blocks.iter().position(|b| {
-                b.get("id").and_then(|v| v.as_str()).map(|s| s == block_id).unwrap_or(false)
+                b.get("id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s == block_id)
+                    .unwrap_or(false)
             });
             match pos {
                 Some(idx) => {
@@ -1369,14 +1528,24 @@ fn apply_site_patch(
             }
         }
         "insert_block" => {
-            let new_block = block.ok_or_else(|| anyhow!("block object required for insert_block"))?;
-            let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
+            let new_block =
+                block.ok_or_else(|| anyhow!("block object required for insert_block"))?;
+            let pages = doc
+                .get_mut("pages")
+                .and_then(|v| v.as_array_mut())
+                .ok_or_else(|| anyhow!("doc.pages required"))?;
             let page = resolve_target_page_mut(pages, page_path)?;
-            let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
+            let blocks = page
+                .get_mut("blocks")
+                .and_then(|v| v.as_array_mut())
+                .ok_or_else(|| anyhow!("page.blocks required"))?;
 
             if !after_block_id.trim().is_empty() {
                 let pos = blocks.iter().position(|b| {
-                    b.get("id").and_then(|v| v.as_str()).map(|s| s == after_block_id).unwrap_or(false)
+                    b.get("id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s == after_block_id)
+                        .unwrap_or(false)
                 });
                 if let Some(idx) = pos {
                     blocks.insert(idx + 1, new_block.clone());
@@ -1388,12 +1557,22 @@ fn apply_site_patch(
         }
         _ => {
             // default: "update_block"
-            let pages = doc.get_mut("pages").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("doc.pages required"))?;
+            let pages = doc
+                .get_mut("pages")
+                .and_then(|v| v.as_array_mut())
+                .ok_or_else(|| anyhow!("doc.pages required"))?;
             let page = resolve_target_page_mut(pages, page_path)?;
-            let blocks = page.get_mut("blocks").and_then(|v| v.as_array_mut()).ok_or_else(|| anyhow!("page.blocks required"))?;
+            let blocks = page
+                .get_mut("blocks")
+                .and_then(|v| v.as_array_mut())
+                .ok_or_else(|| anyhow!("page.blocks required"))?;
 
             let effective_id = if block_id.trim().is_empty() && blocks.len() == 1 {
-                blocks[0].get("id").and_then(|v| v.as_str()).unwrap_or("").to_string()
+                blocks[0]
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
             } else {
                 block_id.trim().to_string()
             };
@@ -1403,7 +1582,10 @@ fn apply_site_patch(
             }
 
             let pos = blocks.iter().position(|b| {
-                b.get("id").and_then(|v| v.as_str()).map(|s| s == effective_id).unwrap_or(false)
+                b.get("id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s == effective_id)
+                    .unwrap_or(false)
             });
 
             match pos {
@@ -1411,12 +1593,19 @@ fn apply_site_patch(
                     if let Some(nb) = block {
                         blocks[idx] = nb.clone();
                     } else if let Some(p) = props {
-                        let p_obj = p.as_object().ok_or_else(|| anyhow!("props must be an object"))?;
+                        let p_obj = p
+                            .as_object()
+                            .ok_or_else(|| anyhow!("props must be an object"))?;
                         let existing = &mut blocks[idx];
                         if !existing.as_object().unwrap().contains_key("props") {
-                            existing.as_object_mut().unwrap().insert("props".into(), json!({}));
+                            existing
+                                .as_object_mut()
+                                .unwrap()
+                                .insert("props".into(), json!({}));
                         }
-                        if let Some(target_props) = existing.get_mut("props").and_then(|v| v.as_object_mut()) {
+                        if let Some(target_props) =
+                            existing.get_mut("props").and_then(|v| v.as_object_mut())
+                        {
                             for (k, v) in p_obj {
                                 target_props.insert(k.clone(), v.clone());
                             }
@@ -1433,12 +1622,24 @@ fn apply_site_patch(
 }
 
 pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let name = args.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let name = args
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if name.is_empty() {
         bail!("name is required to create a site");
     }
-    let tagline = args.get("tagline").and_then(|v| v.as_str()).unwrap_or("").trim();
-    let theme_name = args.get("theme").and_then(|v| v.as_str()).unwrap_or("dark").trim();
+    let tagline = args
+        .get("tagline")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    let theme_name = args
+        .get("theme")
+        .and_then(|v| v.as_str())
+        .unwrap_or("dark")
+        .trim();
     let logo_url = args
         .get("logo_url")
         .or_else(|| args.get("pic"))
@@ -1447,7 +1648,11 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .unwrap_or("");
-    let requested_alien_id = args.get("alien_id").and_then(|v| v.as_str()).map(str::trim).filter(|s| !s.is_empty());
+    let requested_alien_id = args
+        .get("alien_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
     let template = args
         .get("template")
         .and_then(|v| v.as_str())
@@ -1677,10 +1882,26 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
 pub async fn site_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
     let owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
-    let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("update_block").trim().to_lowercase();
-    let page_path = args.get("page_path").or_else(|| args.get("path")).and_then(|v| v.as_str());
-    let block_id = args.get("block_id").and_then(|v| v.as_str()).unwrap_or("").trim();
-    let after_block_id = args.get("after_block_id").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let action = args
+        .get("action")
+        .and_then(|v| v.as_str())
+        .unwrap_or("update_block")
+        .trim()
+        .to_lowercase();
+    let page_path = args
+        .get("page_path")
+        .or_else(|| args.get("path"))
+        .and_then(|v| v.as_str());
+    let block_id = args
+        .get("block_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    let after_block_id = args
+        .get("after_block_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     let block = args.get("block");
     let props = args.get("props");
     let theme = args.get("theme");
@@ -1719,10 +1940,11 @@ pub async fn site_patch_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     .execute(&ctx.pool)
     .await?;
 
-    let ident_row = sqlx::query("SELECT alien_id, name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
-        .bind(site_iid)
-        .fetch_optional(&ctx.pool)
-        .await?;
+    let ident_row =
+        sqlx::query("SELECT alien_id, name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+            .bind(site_iid)
+            .fetch_optional(&ctx.pool)
+            .await?;
     let alien_id = ident_row
         .as_ref()
         .and_then(|r| r.get::<Option<String>, _>("alien_id"))
@@ -2060,10 +2282,10 @@ mod tests {
             None,
         );
         assert!(res.is_ok());
-        assert_eq!(doc["pages"][1]["blocks"][0]["props"]["content"], "Updated about us");
+        assert_eq!(
+            doc["pages"][1]["blocks"][0]["props"]["content"],
+            "Updated about us"
+        );
         assert_eq!(doc["pages"][0]["blocks"][0]["props"]["title"], "Home Page");
     }
 }
-
-
-

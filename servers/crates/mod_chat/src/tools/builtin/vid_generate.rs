@@ -1,7 +1,7 @@
-use anyhow::bail;
-use c35_mod_billing::billing_can_afford_tool;
 use crate::tool;
 use crate::tools::vid::vid_retail_estimate;
+use anyhow::bail;
+use c35_mod_billing::billing_can_afford_tool;
 
 tool! {
     struct: VidGenerateTool,

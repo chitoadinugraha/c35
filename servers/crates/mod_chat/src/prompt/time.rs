@@ -55,7 +55,10 @@ pub fn time_prompt_block(timezone: &str) -> String {
     let now_utc = Utc::now();
     let tz_label = timezone.trim();
     let now = if let Ok(tz) = tz_label.parse::<Tz>() {
-        format!("Now: {}", now_utc.with_timezone(&tz).format("%A, %d %B %Y, %H:%M %Z"))
+        format!(
+            "Now: {}",
+            now_utc.with_timezone(&tz).format("%A, %d %B %Y, %H:%M %Z")
+        )
     } else {
         let offset = time_timezone_offset(tz_label);
         let label = if !tz_label.is_empty() && !tz_label.eq_ignore_ascii_case("utc") {
@@ -83,7 +86,10 @@ pub fn location_prompt_block(city: &str, region: &str, country: &str) -> String 
     if !country.trim().is_empty() {
         parts.push(country.trim().to_ascii_uppercase());
     }
-    format!("{LOCATION_INST}\n\nUser location (approximate): {}", parts.join(", "))
+    format!(
+        "{LOCATION_INST}\n\nUser location (approximate): {}",
+        parts.join(", ")
+    )
 }
 
 fn locale_prefers_indonesian(user: &str, locale: &str) -> bool {
@@ -106,8 +112,22 @@ fn locale_prefers_indonesian(user: &str, locale: &str) -> bool {
 
 fn web_lookup_blocks_time_strip(t: &str) -> bool {
     [
-        "search", "cari ", "google ", "berita", "latest ", "news ", "film", "bioskop", "cinema", "jadwal",
-        "tayang", "nonton", "cuaca", "harga ", "showtime", "jadwal nonton",
+        "search",
+        "cari ",
+        "google ",
+        "berita",
+        "latest ",
+        "news ",
+        "film",
+        "bioskop",
+        "cinema",
+        "jadwal",
+        "tayang",
+        "nonton",
+        "cuaca",
+        "harga ",
+        "showtime",
+        "jadwal nonton",
     ]
     .iter()
     .any(|k| t.contains(k))
@@ -196,7 +216,6 @@ pub fn prompt_context_append(base: &str, time_block: &str, location_block: &str)
     out
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -209,7 +228,9 @@ mod tests {
         assert!(!user_asks_time("buatkan gambar kucing"));
         assert!(!user_asks_time("apa aja yang aku makan hari ini?"));
         assert!(!user_asks_time("riwayat makan kemarin"));
-        assert!(!user_asks_time("film apa saja di bioskop malang hari ini ?"));
+        assert!(!user_asks_time(
+            "film apa saja di bioskop malang hari ini ?"
+        ));
     }
 
     #[test]
@@ -230,7 +251,10 @@ mod tests {
 
     #[test]
     fn time_timezone_resolve_prefers_indonesian_user_text() {
-        assert_eq!(time_timezone_resolve("", "en", "sekarang hari apa ?"), "Asia/Jakarta");
+        assert_eq!(
+            time_timezone_resolve("", "en", "sekarang hari apa ?"),
+            "Asia/Jakarta"
+        );
     }
 
     #[test]

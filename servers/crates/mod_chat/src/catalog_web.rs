@@ -72,18 +72,36 @@ mod tests {
 
     #[test]
     fn catalog_web_compare_beats_lookup() {
-        let ids = vec!["inst.site.catalog.price".into(), "inst.site.price_compare".into()];
+        let ids = vec![
+            "inst.site.catalog.price".into(),
+            "inst.site.price_compare".into(),
+        ];
         assert_eq!(catalog_web_phase(&ids, true), CatalogWebPhase::PriceCompare);
         assert!(catalog_web_after_stock(CatalogWebPhase::PriceCompare, 2));
     }
 
     #[test]
     fn catalog_compare_arms_on_menu_list() {
-        assert!(catalog_query_arms_web(CatalogWebPhase::PriceCompare, "product.list"));
-        assert!(catalog_query_arms_web(CatalogWebPhase::PriceCompare, "product.stock"));
-        assert!(!catalog_query_arms_web(CatalogWebPhase::PriceLookup, "product.list"));
-        assert!(catalog_query_arms_web(CatalogWebPhase::PriceLookup, "product.stock"));
-        assert!(!catalog_query_arms_web(CatalogWebPhase::Off, "product.list"));
+        assert!(catalog_query_arms_web(
+            CatalogWebPhase::PriceCompare,
+            "product.list"
+        ));
+        assert!(catalog_query_arms_web(
+            CatalogWebPhase::PriceCompare,
+            "product.stock"
+        ));
+        assert!(!catalog_query_arms_web(
+            CatalogWebPhase::PriceLookup,
+            "product.list"
+        ));
+        assert!(catalog_query_arms_web(
+            CatalogWebPhase::PriceLookup,
+            "product.stock"
+        ));
+        assert!(!catalog_query_arms_web(
+            CatalogWebPhase::Off,
+            "product.list"
+        ));
     }
 
     #[test]

@@ -1,11 +1,11 @@
 use crate::tool;
 use anyhow::Result;
 use c35_mod_expense::{
-    day_bounds_ms, detect_pic, detect_text, expense_compact_for_llm, expense_delete,
-    expense_duplicate_today, expense_fingerprint, expense_get, expense_get_latest_today,
-    expense_chat_title, expense_glance_block, expense_log_coach, expense_put, expense_receipt_block, expense_summary,
-    expense_total_minor, glance_coach_with_match,     receipt_from_detect,
-    spending_sum_day, summary_compact_for_llm, today_day_id,
+    day_bounds_ms, detect_pic, detect_text, expense_chat_title, expense_compact_for_llm,
+    expense_delete, expense_duplicate_today, expense_fingerprint, expense_get,
+    expense_get_latest_today, expense_glance_block, expense_log_coach, expense_put,
+    expense_receipt_block, expense_summary, expense_total_minor, glance_coach_with_match,
+    receipt_from_detect, spending_sum_day, summary_compact_for_llm, today_day_id,
 };
 use c35_mod_file::{cas_bytes_get, cas_dir_default};
 use serde_json::{json, Value};
@@ -38,9 +38,18 @@ async fn load_photo(pool: &PgPool, hash: &str) -> Result<(Vec<u8>, String), Stri
 }
 
 pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let note = args.get("note").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let note = args
+        .get("note")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     let force = args.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
-    let mut photo_hash = args.get("photo_hash").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+    let mut photo_hash = args
+        .get("photo_hash")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string();
     let attached_pics = photo_hashes_from_attachments(&ctx.attachments_json);
     if photo_hash.is_empty() {
         photo_hash = attached_pics.first().cloned().unwrap_or_default();
@@ -54,7 +63,9 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         match load_photo(&ctx.pool, &photo_hash).await {
             Ok((bytes, mime)) => detect_pic(&ctx.pool, ctx.owner_iid, &bytes, &mime, note).await,
             Err(e) => {
-                return Ok(json!({ "ok": false, "runner": "cluster", "tool": "expense.add", "error": e }));
+                return Ok(
+                    json!({ "ok": false, "runner": "cluster", "tool": "expense.add", "error": e }),
+                );
             }
         }
     } else if !note.is_empty() {
@@ -65,7 +76,11 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
 
     let detect = match detect {
         Ok(v) => v,
-        Err(e) => return Ok(json!({ "ok": false, "runner": "cluster", "tool": "expense.add", "error": e })),
+        Err(e) => {
+            return Ok(
+                json!({ "ok": false, "runner": "cluster", "tool": "expense.add", "error": e }),
+            )
+        }
     };
 
     let fingerprint = expense_fingerprint(&detect.items);
@@ -76,9 +91,16 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         .await
         .unwrap_or((0, 0));
 
-    let dup = expense_duplicate_today(&ctx.pool, ctx.owner_iid, start, end, &photo_hash, &fingerprint)
-        .await
-        .unwrap_or(None);
+    let dup = expense_duplicate_today(
+        &ctx.pool,
+        ctx.owner_iid,
+        start,
+        end,
+        &photo_hash,
+        &fingerprint,
+    )
+    .await
+    .unwrap_or(None);
     if dup.is_some() && !force {
         let today = c35_mod_expense::ExpenseTodaySummary {
             so_far_minor: so_far_before,
@@ -96,7 +118,8 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
             locale,
         );
         let block = expense_receipt_block(&receipt, locale);
-        let compact = expense_compact_for_llm(&json!({ "ok": true, "saved": false, "duplicate": true }));
+        let compact =
+            expense_compact_for_llm(&json!({ "ok": true, "saved": false, "duplicate": true }));
         return Ok(json!({
             "ok": true,
             "runner": "cluster",
@@ -119,7 +142,11 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
     .await
     {
         Ok(id) => id,
-        Err(e) => return Ok(json!({ "ok": false, "runner": "cluster", "tool": "expense.add", "error": e })),
+        Err(e) => {
+            return Ok(
+                json!({ "ok": false, "runner": "cluster", "tool": "expense.add", "error": e }),
+            )
+        }
     };
 
     let (so_far, tx_count) = spending_sum_day(&ctx.pool, ctx.owner_iid, start, end)
@@ -144,11 +171,16 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
 
     // Food-Expense Bridge:
     // If dining / cafe ready-to-eat meal with <= 5 items (never for bulk groceries), auto-log to nutrition!
-    let log_food_requested = args.get("log_food").and_then(|v| v.as_bool()).unwrap_or(true);
+    let log_food_requested = args
+        .get("log_food")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(true);
     if detect.can_log_food && log_food_requested && !dup.is_some() {
         let meal_type = c35_mod_consumption::infer_meal_type(note, locale);
-        let food_items: Vec<c35_mod_consumption::ConsumptionItem> = detect.items.iter().map(|i| {
-            c35_mod_consumption::ConsumptionItem {
+        let food_items: Vec<c35_mod_consumption::ConsumptionItem> = detect
+            .items
+            .iter()
+            .map(|i| c35_mod_consumption::ConsumptionItem {
                 name: i.name.clone(),
                 name_id: i.name_id.clone(),
                 qty: i.qty,
@@ -166,8 +198,8 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
                 purines: 20,
                 verified: i.obj_id > 0,
                 confidence: if i.obj_id > 0 { 0.90 } else { 0.65 },
-            }
-        }).collect();
+            })
+            .collect();
         let mfp = c35_mod_consumption::meal_fingerprint(&food_items);
         if let Ok(cid) = c35_mod_consumption::food_put(
             &ctx.pool,
@@ -178,7 +210,9 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
             &mfp,
             meal_type,
             &food_items,
-        ).await {
+        )
+        .await
+        {
             receipt.linked_consumption_id = Some(cid);
             let _ = sqlx::query(
                 "UPDATE site.tx SET tx_data_json = tx_data_json || $3 WHERE site_iid = $1 AND tx_id = $2"
@@ -192,7 +226,11 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
     }
 
     let block = expense_receipt_block(&receipt, locale);
-    let total = if detect.total_minor > 0 { detect.total_minor } else { expense_total_minor(&detect.items) };
+    let total = if detect.total_minor > 0 {
+        detect.total_minor
+    } else {
+        expense_total_minor(&detect.items)
+    };
     let coach = expense_log_coach(true, total, so_far, dup.is_some(), &detect.currency, locale);
 
     let full = json!({
@@ -226,7 +264,11 @@ pub async fn expense_add_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
 
 pub async fn expense_summary_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let day_id = args.get("day_id").and_then(|v| v.as_str());
-    let days = args.get("days").and_then(|v| v.as_i64()).unwrap_or(1).clamp(1, 30) as i32;
+    let days = args
+        .get("days")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(1)
+        .clamp(1, 30) as i32;
     let category_path = args
         .get("category_path")
         .and_then(|v| v.as_str())
@@ -248,7 +290,11 @@ pub async fn expense_summary_exec(ctx: &ToolContext, args: &Value) -> Result<Val
     .await
     {
         Ok(g) => g,
-        Err(e) => return Ok(json!({ "ok": false, "runner": "cluster", "tool": "expense.summary", "error": e })),
+        Err(e) => {
+            return Ok(
+                json!({ "ok": false, "runner": "cluster", "tool": "expense.summary", "error": e }),
+            )
+        }
     };
     let coach = glance_coach_with_match(&glance, &ctx.locale);
     let glance_with_coach = c35_mod_expense::ExpenseGlance {
@@ -275,7 +321,11 @@ pub async fn expense_summary_exec(ctx: &ToolContext, args: &Value) -> Result<Val
 }
 
 pub async fn expense_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let id_s = args.get("tx_id").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let id_s = args
+        .get("tx_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     let locale = ctx.locale.as_str();
     let day = today_day_id(locale);
     let (start, end) = day_bounds_ms(&day, locale).unwrap_or((0, i64::MAX));
@@ -285,7 +335,9 @@ pub async fn expense_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
         if parsed == 0 {
             return Ok(json!({ "ok": false, "error": "invalid tx_id" }));
         }
-        let receipt = expense_get(&ctx.pool, ctx.owner_iid, parsed).await.unwrap_or(None);
+        let receipt = expense_get(&ctx.pool, ctx.owner_iid, parsed)
+            .await
+            .unwrap_or(None);
         (parsed, receipt)
     } else {
         match expense_get_latest_today(&ctx.pool, ctx.owner_iid, start, end).await {
@@ -315,9 +367,15 @@ pub async fn expense_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
                 .await
                 .unwrap_or((0, 0));
             let msg = if locale.to_lowercase().starts_with("id") {
-                format!("Pengeluaran berhasil dihapus. Total hari ini: {} ({} transaksi).", so_far, tx_count)
+                format!(
+                    "Pengeluaran berhasil dihapus. Total hari ini: {} ({} transaksi).",
+                    so_far, tx_count
+                )
             } else {
-                format!("Expense deleted. Remaining today: {} ({} purchases).", so_far, tx_count)
+                format!(
+                    "Expense deleted. Remaining today: {} ({} purchases).",
+                    so_far, tx_count
+                )
             };
             Ok(json!({
                 "ok": true,

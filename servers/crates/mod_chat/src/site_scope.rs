@@ -1,7 +1,11 @@
 /// Pick the site ids a catalog read or write may use.
 ///
 /// Order: explicit args (must stay inside a non-empty mention), else the mention, else every grant.
-pub fn site_scope_pick(mentioned: &[i64], granted: &[i64], arg_iids: &[i64]) -> Result<Vec<i64>, String> {
+pub fn site_scope_pick(
+    mentioned: &[i64],
+    granted: &[i64],
+    arg_iids: &[i64],
+) -> Result<Vec<i64>, String> {
     if !arg_iids.is_empty() {
         if !mentioned.is_empty() && arg_iids.iter().any(|id| !mentioned.contains(id)) {
             return Err("site_iid is outside the mentioned sites".to_string());
@@ -31,12 +35,18 @@ mod tests {
     fn site_scope_pick_mentioned_ignores_other_grants() {
         let mentioned = [111_i64];
         let granted = [111, 222];
-        assert_eq!(site_scope_pick(&mentioned, &granted, &[]).unwrap(), vec![111]);
+        assert_eq!(
+            site_scope_pick(&mentioned, &granted, &[]).unwrap(),
+            vec![111]
+        );
     }
 
     #[test]
     fn site_scope_pick_no_mention_uses_all_granted() {
-        assert_eq!(site_scope_pick(&[], &[111, 222], &[]).unwrap(), vec![111, 222]);
+        assert_eq!(
+            site_scope_pick(&[], &[111, 222], &[]).unwrap(),
+            vec![111, 222]
+        );
     }
 
     #[test]

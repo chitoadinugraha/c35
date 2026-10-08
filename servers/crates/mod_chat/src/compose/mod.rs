@@ -3,8 +3,8 @@
 mod mail_gate;
 mod mention_gate;
 mod staff_gate;
-mod topic;
 mod tool_select;
+mod topic;
 
 use std::time::Instant;
 
@@ -12,13 +12,15 @@ use reqwest::Client;
 use sqlx::PgPool;
 
 use super::inst_macro::{
-    inst_matched_prompt, inst_pick, inst_text_site_builder_intent, inst_tool_directives, InstMatchCtx, InstRow,
+    inst_matched_prompt, inst_pick, inst_text_site_builder_intent, inst_tool_directives,
+    InstMatchCtx, InstRow,
 };
 use super::mention::MentionRow;
 use super::tool_index::{tool_find_vector, tool_index_ready, ToolFindResult};
 use super::tool_rag::{
-    tool_find_lexical, tool_select as rag_tool_select, tool_trim_ranked, ToolCandidate, DEFAULT_TOOL_SIM_GAP,
-    DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K, LEXICAL_SIM_THRESHOLD, TOOL_RAG_MIN,
+    tool_find_lexical, tool_select as rag_tool_select, tool_trim_ranked, ToolCandidate,
+    DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K, LEXICAL_SIM_THRESHOLD,
+    TOOL_RAG_MIN,
 };
 use c35_mod_admin::StaffView;
 
@@ -26,16 +28,16 @@ use crate::mention_context::MentionContext;
 use crate::site_capability::SiteCapabilityView;
 use crate::tools::ToolDef;
 
+pub use mail_gate::tool_platform_mail_eligible;
 pub use mention_gate::{
     tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
 };
-pub use mail_gate::tool_platform_mail_eligible;
 pub use staff_gate::tool_staff_eligible;
-pub use topic::{tool_topic_eligible, topic_resolve};
 pub use tool_select::{
     compose_bot_web_tools_inject, compose_force_bot_web, compose_force_general_web,
     compose_inject_force_tools, tool_turn_eligible, tools_for_turn,
 };
+pub use topic::{tool_topic_eligible, topic_resolve};
 
 #[derive(Clone, Copy)]
 pub struct ComposeTurnOpts<'a> {
@@ -84,7 +86,10 @@ pub fn compose_force_presentation_tool_call(matched_ids: &[String], tools: &[Too
 }
 
 /// First LLM hop must call consumption.today when nutrition coach inst matched.
-pub fn compose_force_consumption_coach_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+pub fn compose_force_consumption_coach_tool_call(
+    matched_ids: &[String],
+    tools: &[ToolDef],
+) -> bool {
     matched_ids.iter().any(|id| id == "inst.consumption_coach")
         && tools.iter().any(|t| t.name == "consumption.today")
 }
@@ -101,7 +106,8 @@ pub fn compose_force_account_tool_call(matched_ids: &[String], tools: &[ToolDef]
             tools_has(tools, "account.billing.get") || tools_has(tools, "account.billing.history")
         }
         "inst.account.referral" => {
-            tools_has(tools, "account.referral.stats") || tools_has(tools, "account.referral.ledger")
+            tools_has(tools, "account.referral.stats")
+                || tools_has(tools, "account.referral.ledger")
         }
         "inst.account.snapshot" => tools_has(tools, "account.snapshot"),
         "inst.account.assets" => {
@@ -116,7 +122,11 @@ pub fn compose_force_account_tool_call(matched_ids: &[String], tools: &[ToolDef]
 }
 
 /// Force site.create only after discovery — user explicitly asks to generate the site.
-pub fn compose_force_site_builder_tool_call(matched_ids: &[String], tools: &[ToolDef], user_text: &str) -> bool {
+pub fn compose_force_site_builder_tool_call(
+    matched_ids: &[String],
+    tools: &[ToolDef],
+    user_text: &str,
+) -> bool {
     if !matched_ids.iter().any(|id| id == "inst.site.builder") {
         return false;
     }
@@ -169,7 +179,9 @@ pub fn site_builder_ready_to_create(text: &str) -> bool {
 /// First LLM hop must call a tool when a force-* inst matched and its tool is available.
 /// Menu-photo catalog add must call `site.product_put` on hop 1 (inst owns the price scale).
 pub fn compose_force_catalog_menu_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
-    matched_ids.iter().any(|id| id == "inst.site.catalog.add.menu")
+    matched_ids
+        .iter()
+        .any(|id| id == "inst.site.catalog.add.menu")
         && tools.iter().any(|t| t.name == "site.product_put")
 }
 
@@ -181,7 +193,11 @@ pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> boo
         || compose_force_catalog_menu_tool_call(matched_ids, tools)
 }
 
-pub fn compose_force_tool_call_with_text(matched_ids: &[String], tools: &[ToolDef], user_text: &str) -> bool {
+pub fn compose_force_tool_call_with_text(
+    matched_ids: &[String],
+    tools: &[ToolDef],
+    user_text: &str,
+) -> bool {
     compose_force_tool_call(matched_ids, tools)
         || compose_force_site_builder_tool_call(matched_ids, tools, user_text)
 }
@@ -226,8 +242,12 @@ pub struct ComposeTrace {
     pub tool_embed_cached: bool,
 }
 
-fn trace_dropped_gap(ranked: &[ToolCandidate], trimmed: &[ToolCandidate]) -> Vec<ComposeTraceCandidate> {
-    let kept: std::collections::HashSet<&str> = trimmed.iter().map(|c| c.tool_id.as_str()).collect();
+fn trace_dropped_gap(
+    ranked: &[ToolCandidate],
+    trimmed: &[ToolCandidate],
+) -> Vec<ComposeTraceCandidate> {
+    let kept: std::collections::HashSet<&str> =
+        trimmed.iter().map(|c| c.tool_id.as_str()).collect();
     ranked
         .iter()
         .filter(|c| !kept.contains(c.tool_id.as_str()))
@@ -259,7 +279,8 @@ struct ComposePrep {
 
 fn ranked_with_forced(ranked: &[ToolCandidate], force: &[String]) -> Vec<ToolCandidate> {
     let mut out = ranked.to_vec();
-    let mut seen: std::collections::HashSet<String> = out.iter().map(|c| c.tool_id.clone()).collect();
+    let mut seen: std::collections::HashSet<String> =
+        out.iter().map(|c| c.tool_id.clone()).collect();
     for id in force {
         if seen.insert(id.clone()) {
             out.push(ToolCandidate {
@@ -268,7 +289,11 @@ fn ranked_with_forced(ranked: &[ToolCandidate], force: &[String]) -> Vec<ToolCan
             });
         }
     }
-    out.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
+    out.sort_by(|a, b| {
+        b.sim
+            .partial_cmp(&a.sim)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     out
 }
 
@@ -279,7 +304,14 @@ fn compose_tools_ranked(
     exclude: &[String],
     rag_skipped: bool,
     vector_find: Option<&ToolFindResult>,
-) -> (Vec<ToolCandidate>, Vec<ToolCandidate>, Vec<ToolDef>, String, f32, bool) {
+) -> (
+    Vec<ToolCandidate>,
+    Vec<ToolCandidate>,
+    Vec<ToolDef>,
+    String,
+    f32,
+    bool,
+) {
     if rag_skipped {
         let all = eligible
             .iter()
@@ -288,13 +320,25 @@ fn compose_tools_ranked(
                 sim: 1.0,
             })
             .collect::<Vec<_>>();
-        return (all.clone(), all, eligible.to_vec(), "all".into(), 1.0, false);
+        return (
+            all.clone(),
+            all,
+            eligible.to_vec(),
+            "all".into(),
+            1.0,
+            false,
+        );
     }
 
     if let Some(vf) = vector_find {
         if !vf.ranked.is_empty() {
             let ranked = ranked_with_forced(&vf.ranked, force);
-            let trimmed = tool_trim_ranked(&ranked, force, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_SIM_GAP);
+            let trimmed = tool_trim_ranked(
+                &ranked,
+                force,
+                DEFAULT_TOOL_SIM_THRESHOLD,
+                DEFAULT_TOOL_SIM_GAP,
+            );
             let ranked_ids: Vec<String> = trimmed.iter().map(|c| c.tool_id.clone()).collect();
             let mut tools = rag_tool_select(eligible, &ranked_ids, force);
             for id in force {
@@ -305,7 +349,14 @@ fn compose_tools_ranked(
                     tools.push(t.clone());
                 }
             }
-            return (ranked, trimmed, tools, vf.ranker.to_string(), vf.best_sim, vf.query_cached);
+            return (
+                ranked,
+                trimmed,
+                tools,
+                vf.ranker.to_string(),
+                vf.best_sim,
+                vf.query_cached,
+            );
         }
     }
 
@@ -368,7 +419,9 @@ fn compose_prepare_scoped(
             staff: Some(staff),
         },
     );
-    if matched.iter().any(|r| r.id == "inst.presentation") && !topics.iter().any(|t| t == "presentation") {
+    if matched.iter().any(|r| r.id == "inst.presentation")
+        && !topics.iter().any(|t| t == "presentation")
+    {
         topics.push("presentation".into());
     }
     let topic_refs: Vec<&str> = topics.iter().map(|t| t.as_str()).collect();
@@ -448,7 +501,10 @@ fn compose_prepare_scoped(
     if ask_mode {
         eligible.retain(|t| t.readonly);
     }
-    let force: Vec<String> = force.into_iter().filter(|id| eligible.iter().any(|t| &t.name == id)).collect();
+    let force: Vec<String> = force
+        .into_iter()
+        .filter(|id| eligible.iter().any(|t| &t.name == id))
+        .collect();
     let rag_skipped = eligible.len() <= TOOL_RAG_MIN;
 
     Ok(ComposePrep {
@@ -462,7 +518,12 @@ fn compose_prepare_scoped(
     })
 }
 
-fn compose_finish(started: Instant, prep: ComposePrep, text: &str, vector_find: Option<&ToolFindResult>) -> ComposeOutput {
+fn compose_finish(
+    started: Instant,
+    prep: ComposePrep,
+    text: &str,
+    vector_find: Option<&ToolFindResult>,
+) -> ComposeOutput {
     let (ranked, trimmed, tools, ranker, best_sim, embed_cached) = compose_tools_ranked(
         text,
         &prep.eligible,
@@ -472,15 +533,23 @@ fn compose_finish(started: Instant, prep: ComposePrep, text: &str, vector_find: 
         vector_find,
     );
     let selected_tools: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
-    let selected_set: std::collections::HashSet<&str> = selected_tools.iter().map(|s| s.as_str()).collect();
+    let selected_set: std::collections::HashSet<&str> =
+        selected_tools.iter().map(|s| s.as_str()).collect();
     let mut all_candidates = ranked.clone();
     for t in &prep.eligible {
         if all_candidates.iter().any(|c| c.tool_id == t.name) {
             continue;
         }
-        all_candidates.push(ToolCandidate { tool_id: t.name.clone(), sim: 0.0 });
+        all_candidates.push(ToolCandidate {
+            tool_id: t.name.clone(),
+            sim: 0.0,
+        });
     }
-    all_candidates.sort_by(|a, b| b.sim.partial_cmp(&a.sim).unwrap_or(std::cmp::Ordering::Equal));
+    all_candidates.sort_by(|a, b| {
+        b.sim
+            .partial_cmp(&a.sim)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     let candidates: Vec<ComposeTraceCandidate> = all_candidates
         .iter()
         .map(|c| ComposeTraceCandidate {
@@ -501,7 +570,11 @@ fn compose_finish(started: Instant, prep: ComposePrep, text: &str, vector_find: 
             dropped_gap: trace_dropped_gap(&ranked, &trimmed),
             selected_tools,
             rag_skipped: prep.rag_skipped,
-            rag_skip_reason: if prep.rag_skipped { "few_tools".into() } else { String::new() },
+            rag_skip_reason: if prep.rag_skipped {
+                "few_tools".into()
+            } else {
+                String::new()
+            },
             ranker,
             best_sim,
             embed_cached,
@@ -530,7 +603,9 @@ pub async fn compose_tools_and_inst_async(
 ) -> ComposeOutput {
     let started = Instant::now();
     let staff = c35_mod_admin::staff_view_load(pool, owner_iid).await;
-    let platform_mail = c35_mod_mail::mail_access(pool, owner_iid).await.unwrap_or(false);
+    let platform_mail = c35_mod_mail::mail_access(pool, owner_iid)
+        .await
+        .unwrap_or(false);
     let prep = match compose_prepare_scoped(
         inst_rows,
         text,
@@ -561,7 +636,11 @@ pub async fn compose_tools_and_inst_async(
         }
     };
 
-    let locale_eff = if locale.trim().is_empty() { "id-ID" } else { locale.trim() };
+    let locale_eff = if locale.trim().is_empty() {
+        "id-ID"
+    } else {
+        locale.trim()
+    };
     let enrich_ctx = crate::inst_enrich::InstEnrichCtx {
         pool,
         owner_iid,

@@ -1,9 +1,13 @@
+use crate::pdf_cas::{
+    pdf_structure_for_hash, PDF_EXTRACT_DEFAULT_MAX_CHARS as EXTRACT_DEFAULT_MAX,
+};
+use crate::tool;
 use anyhow::{bail, Context, Result};
+use c35_mod_youtube::{
+    video_extract_json, video_structure_json, EXTRACT_DEFAULT_MAX_CHARS as VIDEO_EXTRACT_DEFAULT,
+};
 use serde_json::{json, Value};
 use std::path::Path;
-use crate::pdf_cas::{pdf_structure_for_hash, PDF_EXTRACT_DEFAULT_MAX_CHARS as EXTRACT_DEFAULT_MAX};
-use c35_mod_youtube::{video_extract_json, video_structure_json, EXTRACT_DEFAULT_MAX_CHARS as VIDEO_EXTRACT_DEFAULT};
-use crate::tool;
 
 fn resolve_presentation_runner() -> Result<(String, Vec<String>)> {
     // 1. Direct binary env var
@@ -47,12 +51,21 @@ fn resolve_presentation_runner() -> Result<(String, Vec<String>)> {
 
     for candidate in script_candidates {
         if Path::new(candidate).exists() {
-            return Ok(("bun".to_string(), vec!["run".to_string(), candidate.to_string()]));
+            return Ok((
+                "bun".to_string(),
+                vec!["run".to_string(), candidate.to_string()],
+            ));
         }
     }
 
     // Fallback: assume bun is in PATH and default relative script path
-    Ok(("bun".to_string(), vec!["run".to_string(), "scripts/presentation/render_pptx.ts".to_string()]))
+    Ok((
+        "bun".to_string(),
+        vec![
+            "run".to_string(),
+            "scripts/presentation/render_pptx.ts".to_string(),
+        ],
+    ))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -84,7 +97,11 @@ fn slide_patch_parse(raw: &str) -> Option<SlidePatch> {
         return None;
     }
     if let Some(idx) = slide_patch_digits_after(trimmed, "slide-patch:delete") {
-        return Some(SlidePatch { action: SlidePatchAction::Delete, slide_index: idx, content: String::new() });
+        return Some(SlidePatch {
+            action: SlidePatchAction::Delete,
+            slide_index: idx,
+            content: String::new(),
+        });
     }
     if let Some(idx) = slide_patch_digits_after(trimmed, "slide-patch:add after=") {
         let body = trimmed
@@ -92,7 +109,11 @@ fn slide_patch_parse(raw: &str) -> Option<SlidePatch> {
             .map(|(_, tail)| tail.trim())
             .unwrap_or("")
             .to_string();
-        return Some(SlidePatch { action: SlidePatchAction::Insert, slide_index: idx, content: body });
+        return Some(SlidePatch {
+            action: SlidePatchAction::Insert,
+            slide_index: idx,
+            content: body,
+        });
     }
     if let Some(idx) = slide_patch_digits_after(trimmed, "slide-patch:") {
         let body = trimmed
@@ -100,7 +121,11 @@ fn slide_patch_parse(raw: &str) -> Option<SlidePatch> {
             .map(|(_, tail)| tail.trim())
             .unwrap_or("")
             .to_string();
-        return Some(SlidePatch { action: SlidePatchAction::Replace, slide_index: idx, content: body });
+        return Some(SlidePatch {
+            action: SlidePatchAction::Replace,
+            slide_index: idx,
+            content: body,
+        });
     }
     None
 }
@@ -137,7 +162,12 @@ fn slide_deck_apply(slides: &mut Vec<String>, patch: &SlidePatch) -> bool {
     }
 }
 
-fn presentation_deck_replay_block_body(body: &Value, title: &mut String, slides: &mut Vec<String>, theme: &mut String) {
+fn presentation_deck_replay_block_body(
+    body: &Value,
+    title: &mut String,
+    slides: &mut Vec<String>,
+    theme: &mut String,
+) {
     if let Some(th) = body.get("theme").and_then(|v| v.as_str()) {
         let tt = th.trim();
         if !tt.is_empty() {
@@ -168,7 +198,11 @@ fn presentation_deck_replay_block_body(body: &Value, title: &mut String, slides:
     }
 }
 
-async fn presentation_deck_from_chat(pool: &sqlx::PgPool, owner_iid: i64, chat_id: i64) -> (String, Vec<String>, String) {
+async fn presentation_deck_from_chat(
+    pool: &sqlx::PgPool,
+    owner_iid: i64,
+    chat_id: i64,
+) -> (String, Vec<String>, String) {
     let mut title = "Presentation".to_string();
     let mut slides: Vec<String> = Vec::new();
     let mut theme = "dark".to_string();
@@ -246,7 +280,11 @@ pub async fn presentation_export_exec(
 
     if !output.status.success() {
         let err_msg = String::from_utf8_lossy(&output.stderr);
-        bail!("Presentation rendering failed (exit {}): {}", output.status, err_msg.trim());
+        bail!(
+            "Presentation rendering failed (exit {}): {}",
+            output.status,
+            err_msg.trim()
+        );
     }
 
     let pptx_bytes = output.stdout;
@@ -277,7 +315,13 @@ pub async fn presentation_export_exec(
         clean_title
     }
     .chars()
-    .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+    .map(|c| {
+        if c.is_alphanumeric() || c == '-' || c == '_' {
+            c
+        } else {
+            '_'
+        }
+    })
     .collect::<String>();
 
     let filename = format!("{safe_title}.pptx");
@@ -603,7 +647,10 @@ mod tests {
         assert_eq!(def.name, "presentation.export");
         assert!(def.aliases.contains(&"pptx.export".to_string()));
         assert!(def.topics.contains(&"presentation".to_string()));
-        assert_eq!(def.parameters["properties"]["slides_markdown"]["type"], "string");
+        assert_eq!(
+            def.parameters["properties"]["slides_markdown"]["type"],
+            "string"
+        );
         assert_eq!(def.parameters["properties"]["theme"]["default"], "dark");
     }
 
@@ -693,7 +740,8 @@ mod tests {
         assert_eq!(replace.slide_index, 2);
         assert_eq!(replace.content, "# New");
 
-        let insert = slide_patch_parse("<!-- slide-patch:add after=1 -->\n# Inserted").expect("insert");
+        let insert =
+            slide_patch_parse("<!-- slide-patch:add after=1 -->\n# Inserted").expect("insert");
         assert_eq!(insert.action, SlidePatchAction::Insert);
         assert_eq!(insert.slide_index, 1);
 
@@ -702,4 +750,3 @@ mod tests {
         assert_eq!(delete.slide_index, 3);
     }
 }
-

@@ -27,11 +27,19 @@ pub async fn inst_enrich_append(matched: &[InstRow], ctx: &InstEnrichCtx<'_>) ->
     let mut keys = Vec::new();
     for row in matched {
         if row.id == "inst.presentation" {
-            if let Some(block) = crate::pdf_cas::presentation_pdf_enrich(ctx.pool, ctx.attachments_json).await {
+            if let Some(block) =
+                crate::pdf_cas::presentation_pdf_enrich(ctx.pool, ctx.attachments_json).await
+            {
                 keys.push("presentation.pdf".into());
                 suffix.push_str(&format!("\n\n[ENRICH:presentation.pdf]\n{block}"));
             }
-            if let Some(block) = crate::video_source::presentation_youtube_enrich(ctx.pool, ctx.user_text, ctx.owner_iid).await {
+            if let Some(block) = crate::video_source::presentation_youtube_enrich(
+                ctx.pool,
+                ctx.user_text,
+                ctx.owner_iid,
+            )
+            .await
+            {
                 keys.push("presentation.youtube".into());
                 suffix.push_str(&format!("\n\n[ENRICH:presentation.youtube]\n{block}"));
             }
@@ -49,7 +57,9 @@ pub async fn inst_enrich_append(matched: &[InstRow], ctx: &InstEnrichCtx<'_>) ->
 async fn enrich_one(row: &InstRow, ctx: &InstEnrichCtx<'_>) -> Option<(String, String)> {
     match row.id.as_str() {
         "inst.consumption_coach" => {
-            let v = consumption_coach_enrich(ctx.pool, ctx.owner_iid, ctx.locale, ctx.user_text).await.ok()?;
+            let v = consumption_coach_enrich(ctx.pool, ctx.owner_iid, ctx.locale, ctx.user_text)
+                .await
+                .ok()?;
             Some(("consumption.nutrition".into(), v.to_string()))
         }
         _ => None,

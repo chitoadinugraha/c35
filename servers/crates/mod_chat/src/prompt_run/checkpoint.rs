@@ -79,7 +79,10 @@ pub fn checkpoint_record_screenshot_hash_hex(checkpoint: &mut Value, hash: &str)
 }
 
 pub fn checkpoint_screenshot_stuck(checkpoint: &Value) -> bool {
-    let hashes = match checkpoint.get(CK_SCREENSHOT_HASHES).and_then(|v| v.as_array()) {
+    let hashes = match checkpoint
+        .get(CK_SCREENSHOT_HASHES)
+        .and_then(|v| v.as_array())
+    {
         Some(h) => h,
         None => return false,
     };
@@ -153,7 +156,10 @@ pub fn checkpoint_record_tool(checkpoint: &mut Value, tool_name: &str, result: &
     }
 }
 
-pub fn checkpoint_tool_should_stop(checkpoint: &Value, kind: &str) -> Option<(&'static str, &'static str)> {
+pub fn checkpoint_tool_should_stop(
+    checkpoint: &Value,
+    kind: &str,
+) -> Option<(&'static str, &'static str)> {
     if checkpoint_fatal_class(checkpoint).is_some() {
         return Some(("fatal_checkpoint", "checkpoint marked fatal"));
     }

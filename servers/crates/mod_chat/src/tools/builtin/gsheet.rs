@@ -10,12 +10,11 @@ use crate::tool;
 use crate::tools::context::ToolContext;
 
 async fn bot_iid_for_chat(ctx: &ToolContext) -> Result<i64> {
-    let bid: Option<i64> = sqlx::query_scalar(
-        "SELECT bot_iid FROM ai.chat WHERE id = $1 AND deleted_ts IS NULL",
-    )
-    .bind(ctx.chat_id)
-    .fetch_optional(&ctx.pool)
-    .await?;
+    let bid: Option<i64> =
+        sqlx::query_scalar("SELECT bot_iid FROM ai.chat WHERE id = $1 AND deleted_ts IS NULL")
+            .bind(ctx.chat_id)
+            .fetch_optional(&ctx.pool)
+            .await?;
     bid.filter(|b| *b > 0)
         .ok_or_else(|| anyhow::anyhow!("gsheet tools require a bot_peer chat"))
 }
@@ -29,7 +28,10 @@ async fn sheet_bindings(ctx: &ToolContext) -> Result<Vec<GoogleSheetConfig>> {
         .collect()
 }
 
-fn binding_resolve<'a>(bindings: &'a [GoogleSheetConfig], spreadsheet_id: Option<&str>) -> Result<&'a GoogleSheetConfig> {
+fn binding_resolve<'a>(
+    bindings: &'a [GoogleSheetConfig],
+    spreadsheet_id: Option<&str>,
+) -> Result<&'a GoogleSheetConfig> {
     let want = spreadsheet_id.map(str::trim).filter(|s| !s.is_empty());
     match want {
         Some(id) => bindings
@@ -57,9 +59,14 @@ fn row_from_args(args: &Value) -> Result<Vec<String>> {
         .get("row")
         .or_else(|| args.get("values"))
         .context("row (array of strings) is required")?;
-    let items = row.as_array().context("row must be a JSON array of strings")?;
+    let items = row
+        .as_array()
+        .context("row must be a JSON array of strings")?;
     let flat = if items.len() == 1 {
-        items[0].as_array().map(|inner| inner.as_slice()).unwrap_or(items.as_slice())
+        items[0]
+            .as_array()
+            .map(|inner| inner.as_slice())
+            .unwrap_or(items.as_slice())
     } else {
         items.as_slice()
     };
@@ -108,7 +115,11 @@ async fn gsheet_update_exec(args: Value, ctx: &ToolContext) -> Result<Value> {
     if !cfg.write_allowed {
         bail!("this Google Sheet is read-only");
     }
-    let range = args.get("range").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let range = args
+        .get("range")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     if range.is_empty() {
         bail!("range is required");
     }

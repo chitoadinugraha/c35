@@ -5,11 +5,11 @@ use c35_mod_log::{log_put, LogPut};
 use serde_json::Value;
 use sqlx::PgPool;
 
+use crate::compose::ComposeTrace;
+use crate::memory::MemoryRetrieveTrace;
 use crate::tools::device_screenshot_artifact::{
     tool_result_preview_trim, tool_screenshot_log_text, tool_screenshot_meta_from_result,
 };
-use crate::compose::ComposeTrace;
-use crate::memory::MemoryRetrieveTrace;
 
 pub struct TurnTracer {
     pool: PgPool,
@@ -54,7 +54,8 @@ impl TurnTracer {
             &self.pool,
             self.nats.as_ref(),
             LogPut {
-                class: None,                owner_iid: self.owner_iid,
+                class: None,
+                owner_iid: self.owner_iid,
                 kind,
                 topic,
                 dv: "",
@@ -101,7 +102,13 @@ impl TurnTracer {
         }))
     }
 
-    pub async fn trace_prepare(&self, trace: &ComposeTrace, user_text: &str, prepare_ms: i64, context_tokens_est: i32) {
+    pub async fn trace_prepare(
+        &self,
+        trace: &ComposeTrace,
+        user_text: &str,
+        prepare_ms: i64,
+        context_tokens_est: i32,
+    ) {
         const STEP: u32 = 1;
         const GROUP: &str = "prepare";
         let fed = trace.candidates.iter().filter(|c| c.fed).count();
@@ -115,7 +122,10 @@ impl TurnTracer {
             if let Some(obj) = embed_meta.as_object_mut() {
                 obj.insert("topic".into(), serde_json::json!("trace_tool_embed"));
                 obj.insert("duration_ms".into(), serde_json::json!(trace.tool_embed_ms));
-                obj.insert("embed_cached".into(), serde_json::json!(trace.tool_embed_cached));
+                obj.insert(
+                    "embed_cached".into(),
+                    serde_json::json!(trace.tool_embed_cached),
+                );
                 obj.insert("task".into(), serde_json::json!("retrieval_query"));
             }
             self.put(
@@ -136,8 +146,14 @@ impl TurnTracer {
             if let Some(obj) = m.as_object_mut() {
                 obj.insert("topic".into(), serde_json::json!("trace_inst_enrich"));
                 obj.insert("inst_ids".into(), serde_json::json!(trace.inst_ids));
-                obj.insert("enrich_keys".into(), serde_json::json!(trace.inst_enrich_keys));
-                obj.insert("duration_ms".into(), serde_json::json!(trace.inst_enrich_ms));
+                obj.insert(
+                    "enrich_keys".into(),
+                    serde_json::json!(trace.inst_enrich_keys),
+                );
+                obj.insert(
+                    "duration_ms".into(),
+                    serde_json::json!(trace.inst_enrich_ms),
+                );
             }
             m
         };
@@ -167,28 +183,41 @@ impl TurnTracer {
             obj.insert("topic".into(), serde_json::json!("trace_tool_filter"));
             obj.insert("inst_ids".into(), serde_json::json!(trace.inst_ids));
             obj.insert("rag_skipped".into(), serde_json::json!(trace.rag_skipped));
-            obj.insert("rag_skip_reason".into(), serde_json::json!(trace.rag_skip_reason));
+            obj.insert(
+                "rag_skip_reason".into(),
+                serde_json::json!(trace.rag_skip_reason),
+            );
             obj.insert("candidates".into(), serde_json::json!(trace.candidates));
             obj.insert("dropped_gap".into(), serde_json::json!(trace.dropped_gap));
-            obj.insert("duration_ms".into(), serde_json::json!(trace.tool_filter_ms));
+            obj.insert(
+                "duration_ms".into(),
+                serde_json::json!(trace.tool_filter_ms),
+            );
         }
         self.put(
             "system",
             "trace_tool_filter",
-            &format!("Tool filter · {fed} fed · {} ranked", trace.candidates.len()),
+            &format!(
+                "Tool filter · {fed} fed · {} ranked",
+                trace.candidates.len()
+            ),
             tool_meta,
             "",
             0,
             0,
             trace.tool_filter_ms as i32,
             0.0,
-        ).await;
+        )
+        .await;
         let mut prep_meta = Self::branch_meta(STEP, "compose", GROUP, "compose_parallel");
         if let Some(obj) = prep_meta.as_object_mut() {
             obj.insert("topic".into(), serde_json::json!("trace_prepare"));
             obj.insert("duration_ms".into(), serde_json::json!(prepare_ms));
             obj.insert("compose_ms".into(), serde_json::json!(trace.duration_ms));
-            obj.insert("context_tokens_est".into(), serde_json::json!(context_tokens_est));
+            obj.insert(
+                "context_tokens_est".into(),
+                serde_json::json!(context_tokens_est),
+            );
             obj.insert("user_prompt".into(), serde_json::json!(user_text));
             obj.insert("inst_ids".into(), serde_json::json!(trace.inst_ids));
         }
@@ -202,7 +231,8 @@ impl TurnTracer {
             0,
             prepare_ms as i32,
             0.0,
-        ).await;
+        )
+        .await;
     }
 
     pub async fn trace_memory(&self, trace: &MemoryRetrieveTrace) {
@@ -216,7 +246,10 @@ impl TurnTracer {
             obj.insert("memory_count".into(), serde_json::json!(trace.memory_count));
             obj.insert("embed_ms".into(), serde_json::json!(trace.embed_ms));
             obj.insert("embed_cached".into(), serde_json::json!(trace.embed_cached));
-            obj.insert("embed_skipped".into(), serde_json::json!(trace.embed_skipped));
+            obj.insert(
+                "embed_skipped".into(),
+                serde_json::json!(trace.embed_skipped),
+            );
             obj.insert("pinned_count".into(), serde_json::json!(trace.pinned_count));
             obj.insert("active_count".into(), serde_json::json!(trace.active_count));
         }
@@ -230,15 +263,29 @@ impl TurnTracer {
             0,
             trace.duration_ms as i32,
             trace.embed_cost_usd,
-        ).await;
+        )
+        .await;
     }
 
-    pub async fn llm_call(&self, hop: u8, model: &str, token_in: i32, token_out: i32, duration_ms: i64, cost_usd: f64, reply_preview: &str) {
+    pub async fn llm_call(
+        &self,
+        hop: u8,
+        model: &str,
+        token_in: i32,
+        token_out: i32,
+        duration_ms: i64,
+        cost_usd: f64,
+        reply_preview: &str,
+    ) {
         let step = hop as u32 + 1;
         if let Ok(mut h) = self.hop.lock() {
             *h = hop;
         }
-        let retail = if cost_usd > 0.0 { cost_usd } else { billing_cost_usd(model, token_in, token_out) };
+        let retail = if cost_usd > 0.0 {
+            cost_usd
+        } else {
+            billing_cost_usd(model, token_in, token_out)
+        };
         self.put(
             "llm",
             "llm_call",
@@ -257,10 +304,19 @@ impl TurnTracer {
             token_out,
             duration_ms as i32,
             retail,
-        ).await;
+        )
+        .await;
     }
 
-    pub async fn tool_result(&self, tool: &str, tool_call_id: &str, args: &Value, result: &Value, ok: bool, duration_ms: i64) {
+    pub async fn tool_result(
+        &self,
+        tool: &str,
+        tool_call_id: &str,
+        args: &Value,
+        result: &Value,
+        ok: bool,
+        duration_ms: i64,
+    ) {
         let hop = self.hop.lock().map(|h| *h).unwrap_or(1);
         let step = hop as u32 + 1;
         let tool_id = tool.replace('_', ".");
@@ -313,11 +369,25 @@ impl TurnTracer {
             0,
             duration_ms as i32,
             0.0,
-        ).await;
+        )
+        .await;
     }
 
-    pub async fn llm_turn(&self, model: &str, token_in: i32, token_out: i32, duration_ms: i64, prepare_ms: i64, cost_usd: f64, text: &str) {
-        let retail = if cost_usd > 0.0 { cost_usd } else { billing_cost_usd(model, token_in, token_out) };
+    pub async fn llm_turn(
+        &self,
+        model: &str,
+        token_in: i32,
+        token_out: i32,
+        duration_ms: i64,
+        prepare_ms: i64,
+        cost_usd: f64,
+        text: &str,
+    ) {
+        let retail = if cost_usd > 0.0 {
+            cost_usd
+        } else {
+            billing_cost_usd(model, token_in, token_out)
+        };
         self.put(
             "llm",
             "llm_turn",
@@ -336,6 +406,7 @@ impl TurnTracer {
             token_out,
             duration_ms as i32,
             retail,
-        ).await;
+        )
+        .await;
     }
 }

@@ -8,6 +8,9 @@ const SEED_QUERY_IDS: &[&str] = &[
     "tx.profit_summary",
     "tx.top_products",
     "tx.product_compare",
+    "tx.stock_list",
+    "tx.stock_card",
+    "tx.stock_movement",
 ];
 
 #[test]

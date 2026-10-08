@@ -9,24 +9,12 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::catalog_add_followup::{catalog_add_followup_boost, chat_last_assistant_content};
+use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::compose::{
-    compose_force_tool_call_with_text, compose_force_web_tool_call, compose_tools_and_inst_async, ComposeTurnOpts,
+    compose_force_tool_call_with_text, compose_force_web_tool_call, compose_tools_and_inst_async,
+    ComposeTurnOpts,
 };
-use crate::inst_cache::inst_list_for_turn;
-use crate::prompt_run::prompt_run_get;
-use crate::mention_registry::{
-    mention_active_topics, mention_prompt_block, mention_ref_parse, mention_resolve_all, MentionRef,
-};
-use crate::mention_tool_registry::mention_force_tools;
-use crate::site_capability::site_capability_view_for_mention;
-use crate::inst_macro::{inst_pool_signal, inst_scopes_home};
-use crate::mention_context::{
-    mention_context_build, mention_context_sites_block, MentionContext,
-};
-use crate::site_resolve::site_context_resolve;
-use crate::mention::mention_list_enabled;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
 use crate::context_pack::{context_window_resolve, token_estimate, ContextUsageEst};
@@ -34,16 +22,28 @@ use crate::device_context::{
     bound_device_prompt_prepare, chat_bound_device_iid_for_owner, chat_mention_context_commit,
     tool_exclude_browser_devices,
 };
-use crate::mention_content::mention_content_normalize;
+use crate::inst_cache::inst_list_for_turn;
+use crate::inst_macro::{inst_pool_signal, inst_scopes_home};
 use crate::memory::{memory_prompt_merge, memory_retrieve, MemoryRetrieveResult};
 use crate::memory_extract::memory_extract_turn_gate;
+use crate::mention::mention_list_enabled;
+use crate::mention_content::mention_content_normalize;
+use crate::mention_context::{mention_context_build, mention_context_sites_block, MentionContext};
+use crate::mention_registry::{
+    mention_active_topics, mention_prompt_block, mention_ref_parse, mention_resolve_all, MentionRef,
+};
+use crate::mention_tool_registry::mention_force_tools;
 use crate::prompt::thought::thinking_level;
 use crate::prompt::time::{
-    location_prompt_block, prompt_context_append, time_prompt_block, time_timezone_resolve, user_asks_time,
+    location_prompt_block, prompt_context_append, time_prompt_block, time_timezone_resolve,
+    user_asks_time,
 };
-use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::tool_loop::{prompt_cluster_turn, user_wants_search};
+use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::ChatReq;
+use crate::prompt_run::prompt_run_get;
+use crate::site_capability::site_capability_view_for_mention;
+use crate::site_resolve::site_context_resolve;
 use crate::tools::{cluster_tools, http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
@@ -116,7 +116,9 @@ pub fn chat_title_from_text(text: &str) -> String {
 }
 
 pub async fn chat_title_from_prompt(pool: &PgPool, text: &str, mention_ids: &[String]) -> String {
-    use crate::mention_content::{mention_bracket_for_id, mention_content_normalize, mention_plain_for_title};
+    use crate::mention_content::{
+        mention_bracket_for_id, mention_content_normalize, mention_plain_for_title,
+    };
     let normalized = mention_content_normalize(text, mention_ids);
     let mut plain = normalized;
     for id in mention_ids {
@@ -129,13 +131,12 @@ pub async fn chat_title_from_prompt(pool: &PgPool, text: &str, mention_ids: &[St
         if !plain.contains(&bracket) {
             continue;
         }
-        let name: Option<String> = sqlx::query_scalar(
-            "SELECT name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL",
-        )
-        .bind(iid)
-        .fetch_optional(pool)
-        .await
-        .unwrap_or(None);
+        let name: Option<String> =
+            sqlx::query_scalar("SELECT name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
+                .bind(iid)
+                .fetch_optional(pool)
+                .await
+                .unwrap_or(None);
         if let Some(n) = name.filter(|s| !s.trim().is_empty()) {
             plain = plain.replace(&bracket, n.trim());
         }
@@ -232,10 +233,16 @@ where
     let turn_started = Instant::now();
     let bctx = billing_resolve(
         pool,
-        TurnBillingCtx { owner_iid, bot_iid: None, device_iid: None },
+        TurnBillingCtx {
+            owner_iid,
+            bot_iid: None,
+            device_iid: None,
+        },
     )
     .await?;
-    let freemium = c35_mod_billing::billing_freemium_applies(pool, owner_iid).await.unwrap_or(false);
+    let freemium = c35_mod_billing::billing_freemium_applies(pool, owner_iid)
+        .await
+        .unwrap_or(false);
     let requested_model = if freemium {
         "alienai"
     } else if req.model.trim().is_empty() {
@@ -282,47 +289,47 @@ where
         .unwrap_or(None);
 
         if !req.replace_last_turn {
-        if let Some((last_id, status)) = last_msg {
-            if status == "error" || status == "interrupted" {
-                let last_user_id: Option<i64> = sqlx::query_scalar(
-                    r#"
+            if let Some((last_id, status)) = last_msg {
+                if status == "error" || status == "interrupted" {
+                    let last_user_id: Option<i64> = sqlx::query_scalar(
+                        r#"
                     SELECT id FROM ai.chat_msg
                     WHERE chat_id = $1 AND deleted_ts IS NULL AND role = 'user' AND id < $2
                     ORDER BY id DESC LIMIT 1
                     "#,
-                )
-                .bind(chat_id)
-                .bind(last_id)
-                .fetch_optional(pool)
-                .await
-                .unwrap_or(None);
+                    )
+                    .bind(chat_id)
+                    .bind(last_id)
+                    .fetch_optional(pool)
+                    .await
+                    .unwrap_or(None);
 
-                if let Some(uid) = last_user_id {
-                    let _ = sqlx::query(
-                        r#"
+                    if let Some(uid) = last_user_id {
+                        let _ = sqlx::query(
+                            r#"
                         UPDATE ai.chat_msg SET deleted_ts = NOW()
                         WHERE chat_id = $1 AND id IN ($2, $3)
                         "#,
-                    )
-                    .bind(chat_id)
-                    .bind(last_id)
-                    .bind(uid)
-                    .execute(pool)
-                    .await;
-                } else {
-                    let _ = sqlx::query(
-                        r#"
+                        )
+                        .bind(chat_id)
+                        .bind(last_id)
+                        .bind(uid)
+                        .execute(pool)
+                        .await;
+                    } else {
+                        let _ = sqlx::query(
+                            r#"
                         UPDATE ai.chat_msg SET deleted_ts = NOW()
                         WHERE chat_id = $1 AND id = $2
                         "#,
-                    )
-                    .bind(chat_id)
-                    .bind(last_id)
-                    .execute(pool)
-                    .await;
+                        )
+                        .bind(chat_id)
+                        .bind(last_id)
+                        .execute(pool)
+                        .await;
+                    }
                 }
             }
-        }
         }
     }
 
@@ -342,7 +349,9 @@ where
     .bind(chat_attachments_json(&req.attachments_json))
     .execute(pool)
     .await?;
-    let _ = crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &user_content, "streaming").await;
+    let _ =
+        crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &user_content, "streaming")
+            .await;
 
     let model = if freemium {
         c35_mod_billing::FREEMIUM_MODEL.to_string()
@@ -357,7 +366,8 @@ where
         &req.attachments_json,
     )
     .await;
-    let is_simple_time = user_asks_time(&req.text) && req.mention_ids.is_empty() && !user_wants_search(&req.text);
+    let is_simple_time =
+        user_asks_time(&req.text) && req.mention_ids.is_empty() && !user_wants_search(&req.text);
     let http = http_client(std::time::Duration::from_secs(30));
     let mention_ids: Vec<String> = req.mention_ids.clone();
 
@@ -388,7 +398,10 @@ where
         }
     );
     let prompt_run = prompt_run_res;
-    let run_kind = prompt_run.as_ref().map(|r| r.kind.as_str()).unwrap_or("main");
+    let run_kind = prompt_run
+        .as_ref()
+        .map(|r| r.kind.as_str())
+        .unwrap_or("main");
     let mut checkpoint = prompt_run
         .as_ref()
         .map(|r| r.checkpoint_json.0.clone())
@@ -422,9 +435,17 @@ where
     let caps = site_capability_view_for_mention(pool, &mention_ctx).await;
     let commerce_site_iids = caps.commerce_site_iids(&mention_ctx.site_iids());
     let active_topics = mention_active_topics(&resolved, &explicit_topic, &commerce_site_iids);
-    let tool_mode = if req.tool_mode.trim().is_empty() { "agent" } else { req.tool_mode.trim() };
+    let tool_mode = if req.tool_mode.trim().is_empty() {
+        "agent"
+    } else {
+        req.tool_mode.trim()
+    };
     let inst_scopes = inst_scopes_home();
-    let locale_eff = if locale.trim().is_empty() { user_ctx.locale.as_str() } else { locale };
+    let locale_eff = if locale.trim().is_empty() {
+        user_ctx.locale.as_str()
+    } else {
+        locale
+    };
     let (bound_device_iid, catalog_followup_raw) = tokio::join!(
         chat_bound_device_iid_for_owner(pool, owner_iid, chat_id),
         chat_last_assistant_content(pool, chat_id),
@@ -438,7 +459,10 @@ where
         .as_ref()
         .map(|b| b.force_tools.clone())
         .unwrap_or_default();
-    let catalog_inst_suffix = catalog_followup.as_ref().map(|b| b.inst_suffix.as_str()).unwrap_or("");
+    let catalog_inst_suffix = catalog_followup
+        .as_ref()
+        .map(|b| b.inst_suffix.as_str())
+        .unwrap_or("");
     let compose_signals = [inst_pool_signal(&model).to_string()];
     let composed = compose_tools_and_inst_async(
         pool,
@@ -475,12 +499,14 @@ where
     let tools = if is_simple_time {
         vec![]
     } else {
-        composed.tools
+        composed
+            .tools
             .into_iter()
             .filter(|t| !freemium || c35_mod_billing::freemium_tool_allowed(&t.name))
             .collect()
     };
-    let force_tool_call = compose_force_tool_call_with_text(&composed.matched_ids, &tools, &req.text);
+    let force_tool_call =
+        compose_force_tool_call_with_text(&composed.matched_ids, &tools, &req.text);
     let force_web_tool_call = compose_force_web_tool_call(&composed.matched_ids, &tools);
 
     let tz = time_timezone_resolve(&user_ctx.tz, locale_eff, &req.text);
@@ -520,7 +546,10 @@ where
         }
         system.push_str(&mention_block);
     }
-    let context_named = token_estimate(&sites_block) + token_estimate(&mention_block) + token_estimate(&time_block) + token_estimate(&location_block);
+    let context_named = token_estimate(&sites_block)
+        + token_estimate(&mention_block)
+        + token_estimate(&time_block)
+        + token_estimate(&location_block);
     let memory_tokens = token_estimate(&memory.block);
     system = memory_prompt_merge(&system, &memory.block);
 
@@ -529,7 +558,17 @@ where
     system = prompt_context_append(&system, &time_block, &location_block);
 
     let prepared = prepare_prompt_history(
-        pool, &http, nats, chat_id, owner_iid, user_msg_id, req_id, &model, &system, &user, None,
+        pool,
+        &http,
+        nats,
+        chat_id,
+        owner_iid,
+        user_msg_id,
+        req_id,
+        &model,
+        &system,
+        &user,
+        None,
     )
     .await
     .unwrap_or_else(|e| {
@@ -548,14 +587,28 @@ where
     let prepare_ms = prepare_started.elapsed().as_millis() as i64;
     let context_tokens_est = ((system.len() + user.len()) as f64 / 4.0).ceil() as i32;
     let tracer = TurnTracer::new(pool.clone(), nats.cloned(), owner_iid, chat_id, req_id);
-    tracer.trace_prepare(&composed.trace, &req.text, prepare_ms, context_tokens_est).await;
+    tracer
+        .trace_prepare(&composed.trace, &req.text, prepare_ms, context_tokens_est)
+        .await;
     tracer.trace_memory(&memory.trace).await;
 
     let system_tokens = token_estimate(&system);
-    let named = instructions_base + context_named + memory_tokens + if force_web_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 };
+    let named = instructions_base
+        + context_named
+        + memory_tokens
+        + if force_web_tool_call {
+            token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE)
+        } else {
+            0
+        };
     let slack = system_tokens.saturating_sub(named);
     let usage_base = ContextUsageEst {
-        instructions: instructions_base + if force_web_tool_call { token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE) } else { 0 },
+        instructions: instructions_base
+            + if force_web_tool_call {
+                token_estimate(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE)
+            } else {
+                0
+            },
         memory: memory_tokens,
         context: context_named + slack,
         tools: token_estimate(&tool_decls(&tools).to_string()),
@@ -567,7 +620,9 @@ where
         || match c35_mod_site::site_granted_iids(pool, owner_iid).await {
             Ok(ids) => !ids.is_empty(),
             Err(e) => {
-                tracing::warn!("[c35:catalog_web] site_granted_iids failed owner_iid={owner_iid}: {e:#}");
+                tracing::warn!(
+                    "[c35:catalog_web] site_granted_iids failed owner_iid={owner_iid}: {e:#}"
+                );
                 false
             }
         };
@@ -584,6 +639,10 @@ where
         force_web_tool_call,
         catalog_web,
         skip_web_prefetch,
+        stock_report: composed
+            .matched_ids
+            .iter()
+            .any(|id| id == "inst.site.stock_report"),
     };
     let attachments_json = req.attachments_json.as_str();
     let mut turn_ctx = TurnCtx {
@@ -645,7 +704,9 @@ where
             .execute(pool)
             .await;
             let _ = c35_mod_billing::billing_reservation_refund(pool, req_id).await;
-            let _ = crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &err_text, "error").await;
+            let _ =
+                crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &err_text, "error")
+                    .await;
             return Err(e);
         }
     };
@@ -654,7 +715,11 @@ where
     }
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     let assistant_msg_id = snowflake_id();
-    let blocks_json = if res.blocks_json.is_empty() { "[]" } else { res.blocks_json.as_str() };
+    let blocks_json = if res.blocks_json.is_empty() {
+        "[]"
+    } else {
+        res.blocks_json.as_str()
+    };
     tracer
         .llm_turn(
             &res.model_used,
@@ -666,7 +731,8 @@ where
             &res.text,
         )
         .await;
-    match memory_extract_turn_gate(pool, &http, owner_iid, None, req_id, &req.text, &res.text).await {
+    match memory_extract_turn_gate(pool, &http, owner_iid, None, req_id, &req.text, &res.text).await
+    {
         Ok((writes, tin, tout, cost)) => {
             context_billing.memory_extract_writes += writes;
             context_billing.memory_extract_cost_usd += cost;
@@ -688,8 +754,19 @@ where
         res.tokens_out,
         duration_ms,
         Some(&bctx),
-        res.tools_cost_usd + context_extra + composed.trace.tool_embed_cost_usd + memory.trace.embed_cost_usd,
-        if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) { Some(usage_meta) } else { None },
+        res.tools_cost_usd
+            + context_extra
+            + composed.trace.tool_embed_cost_usd
+            + memory.trace.embed_cost_usd,
+        if usage_meta
+            .as_object()
+            .map(|o| !o.is_empty())
+            .unwrap_or(false)
+        {
+            Some(usage_meta)
+        } else {
+            None
+        },
     )
     .await;
     let (cost_usd, billing_included, status, error_text) = match billing {
@@ -721,7 +798,11 @@ where
     .bind(&error_text)
     .execute(pool)
     .await?;
-    let final_status = if error_text.is_empty() { "done" } else { "error" };
+    let final_status = if error_text.is_empty() {
+        "done"
+    } else {
+        "error"
+    };
     crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &res.text, final_status).await?;
 
     Ok(PromptTurn {

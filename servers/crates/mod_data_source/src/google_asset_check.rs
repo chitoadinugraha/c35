@@ -8,12 +8,12 @@ use serde_json::{json, Value};
 
 use crate::config::SOURCE_KIND_GOOGLE_SHEET;
 use crate::google_sheet::{
-    config_merge_sheet_url, google_sheet_metadata, google_sheet_read_csv, parse_sheet_url, sheet_tab_title_or_index,
-    GoogleSheetConfig,
+    config_merge_sheet_url, google_sheet_metadata, google_sheet_read_csv, parse_sheet_url,
+    sheet_tab_title_or_index, GoogleSheetConfig,
 };
 use crate::google_url::{
-    config_merge_doc_url, config_merge_slide_url, html_title_from_document, parse_google_doc_url, parse_google_slide_url,
-    SOURCE_KIND_GOOGLE_DOC, SOURCE_KIND_GOOGLE_SLIDE,
+    config_merge_doc_url, config_merge_slide_url, html_title_from_document, parse_google_doc_url,
+    parse_google_slide_url, SOURCE_KIND_GOOGLE_DOC, SOURCE_KIND_GOOGLE_SLIDE,
 };
 
 #[derive(Clone, Debug)]
@@ -29,7 +29,11 @@ pub struct AssetCheckResult {
     pub tabs: Vec<SheetTabInfo>,
 }
 
-pub async fn data_source_check_run(http: &Client, source_kind: &str, view_url: &str) -> Result<AssetCheckResult> {
+pub async fn data_source_check_run(
+    http: &Client,
+    source_kind: &str,
+    view_url: &str,
+) -> Result<AssetCheckResult> {
     let url = view_url.trim();
     if url.is_empty() {
         bail!("url required");
@@ -55,9 +59,9 @@ async fn google_sheet_check(http: &Client, view_url: &str) -> Result<AssetCheckR
         sheet_name: String::new(),
         write_allowed: true,
     };
-    google_sheet_read_csv(http, &cfg)
-        .await
-        .context("cannot read sheet — share as Anyone with the link can view or invite the service account")?;
+    google_sheet_read_csv(http, &cfg).await.context(
+        "cannot read sheet — share as Anyone with the link can view or invite the service account",
+    )?;
     let title = if !api_title.is_empty() {
         api_title
     } else {
@@ -86,12 +90,19 @@ async fn google_sheet_check(http: &Client, view_url: &str) -> Result<AssetCheckR
         });
         tabs
     };
-    Ok(AssetCheckResult { title, config, tabs })
+    Ok(AssetCheckResult {
+        title,
+        config,
+        tabs,
+    })
 }
 
 async fn google_doc_check(http: &Client, view_url: &str) -> Result<AssetCheckResult> {
     let document_id = parse_google_doc_url(view_url)?;
-    let export_url = format!("https://docs.google.com/document/d/{}/export?format=txt", document_id);
+    let export_url = format!(
+        "https://docs.google.com/document/d/{}/export?format=txt",
+        document_id
+    );
     verify_public_fetch(http, &export_url)
         .await
         .context("cannot read document — share as Anyone with the link can view")?;

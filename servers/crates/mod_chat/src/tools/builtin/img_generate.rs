@@ -1,7 +1,9 @@
+use crate::tool;
+use crate::tools::image_tier::{
+    image_default_draft_tier, image_tier_resolve, image_tier_retail_usd,
+};
 use anyhow::bail;
 use c35_mod_billing::billing_can_afford_tool;
-use crate::tool;
-use crate::tools::image_tier::{image_default_draft_tier, image_tier_resolve, image_tier_retail_usd};
 
 tool! {
     struct: ImgGenerateTool,

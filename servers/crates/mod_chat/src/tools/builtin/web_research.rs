@@ -2,9 +2,9 @@ use anyhow::bail;
 use reqwest::Client;
 use serde_json::{json, Value};
 
+use super::web_visit::web_visit_exec;
 use crate::tool;
 use crate::tools::web;
-use super::web_visit::web_visit_exec;
 
 pub async fn web_research_exec(
     client: &Client,
@@ -43,8 +43,13 @@ pub async fn web_research_exec(
             continue;
         }
 
-        let visit_res = web_visit_exec(client, url, Some(3000)).await.unwrap_or(Value::Null);
-        let content = visit_res.get("content").and_then(|c| c.as_str()).unwrap_or(snippet);
+        let visit_res = web_visit_exec(client, url, Some(3000))
+            .await
+            .unwrap_or(Value::Null);
+        let content = visit_res
+            .get("content")
+            .and_then(|c| c.as_str())
+            .unwrap_or(snippet);
 
         dossier.push(json!({
             "title": title,

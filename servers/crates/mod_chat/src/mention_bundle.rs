@@ -8,7 +8,11 @@ use tracing::warn;
 
 use crate::mention_registry::mention_items_build;
 
-pub async fn mention_bundle_get(pool: &PgPool, user_iid: i64, since_ms: i64) -> Result<MentionCatalog> {
+pub async fn mention_bundle_get(
+    pool: &PgPool,
+    user_iid: i64,
+    since_ms: i64,
+) -> Result<MentionCatalog> {
     let row = sqlx::query("SELECT updated_ts_ms, body FROM ai.mention_bundle WHERE user_iid = $1")
         .bind(user_iid)
         .fetch_optional(pool)
@@ -69,7 +73,11 @@ pub async fn mention_bundle_compile(pool: &PgPool, user_iid: i64) -> Result<Ment
     Ok(catalog)
 }
 
-pub async fn mention_list_bundle_rpc(pool: &PgPool, caller_iid: i64, since_ms: i64) -> c35_proto::ResMentionList {
+pub async fn mention_list_bundle_rpc(
+    pool: &PgPool,
+    caller_iid: i64,
+    since_ms: i64,
+) -> c35_proto::ResMentionList {
     match mention_bundle_get(pool, caller_iid, since_ms).await {
         Ok(catalog) => c35_proto::ResMentionList {
             rev: catalog.rev,

@@ -2,7 +2,9 @@ use anyhow::{bail, Result};
 use c35_mod_billing::billing_frontier_try_deduct;
 use sqlx::PgPool;
 
-use crate::tools::image_tier::{image_default_draft_tier, image_tier_resolve, image_tier_retail_usd};
+use crate::tools::image_tier::{
+    image_default_draft_tier, image_tier_resolve, image_tier_retail_usd,
+};
 use crate::tools::img::img_generate_exec;
 
 pub struct AssetImage {

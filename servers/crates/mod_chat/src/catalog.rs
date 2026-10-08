@@ -91,15 +91,17 @@ pub async fn mention_list(pool: &PgPool) -> Vec<CatalogMentionRow> {
     match rows {
         Ok(rows) => rows
             .into_iter()
-            .map(|(id, topic_id, icon, color, sort, label_key, caption_key)| CatalogMentionRow {
-                id,
-                topic_id: topic_id.unwrap_or_default(),
-                icon,
-                color,
-                sort,
-                label_key,
-                caption_key,
-            })
+            .map(
+                |(id, topic_id, icon, color, sort, label_key, caption_key)| CatalogMentionRow {
+                    id,
+                    topic_id: topic_id.unwrap_or_default(),
+                    icon,
+                    color,
+                    sort,
+                    label_key,
+                    caption_key,
+                },
+            )
             .collect(),
         Err(e) if missing_table(&e) => {
             warn!(error = %e, "mention_list: ai.mention missing");

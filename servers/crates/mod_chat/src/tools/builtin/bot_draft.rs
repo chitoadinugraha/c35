@@ -1,23 +1,32 @@
 use anyhow::{anyhow, Result};
-use sqlx::Row;
 use c35_mod_identity::identity_put;
 use c35_proto::{DataSourceDoc, ReqDataSourcePut, ReqIdentityPut};
 use serde_json::{json, Value};
+use sqlx::Row;
 
 use crate::bot_draft::{
-    draft_summary, flag_true, plan_bot_draft, purpose_clear, sheet_config, BotDraftInput, PlannedSheet, SheetIn,
+    draft_summary, flag_true, plan_bot_draft, purpose_clear, sheet_config, BotDraftInput,
+    PlannedSheet, SheetIn,
 };
 use crate::data_source_put;
 use crate::tool;
 use crate::tools::ToolContext;
 
 fn arg_str(args: &Value, key: &str) -> String {
-    args.get(key).and_then(|v| v.as_str()).unwrap_or("").trim().to_string()
+    args.get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string()
 }
 
 fn arg_i64(args: &Value, key: &str) -> i64 {
     args.get(key)
-        .map(|v| v.as_i64().or_else(|| v.as_f64().map(|n| n as i64)).or_else(|| v.as_str().and_then(|s| s.parse().ok())))
+        .map(|v| {
+            v.as_i64()
+                .or_else(|| v.as_f64().map(|n| n as i64))
+                .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+        })
         .flatten()
         .unwrap_or(0)
 }
@@ -25,19 +34,41 @@ fn arg_i64(args: &Value, key: &str) -> i64 {
 fn sheets_from_args(args: &Value) -> Vec<SheetIn> {
     let mut out = Vec::new();
     let raw = args.get("sheets").cloned().or_else(|| {
-        args.get("sheets_json").and_then(|v| v.as_str()).and_then(|s| serde_json::from_str(s).ok())
+        args.get("sheets_json")
+            .and_then(|v| v.as_str())
+            .and_then(|s| serde_json::from_str(s).ok())
     });
     if let Some(arr) = raw.as_ref().and_then(|v| v.as_array()) {
         for item in arr {
-            let url = item.get("url").and_then(|v| v.as_str()).unwrap_or("").trim().to_string();
+            let url = item
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
             if url.is_empty() {
                 continue;
             }
             out.push(SheetIn {
                 url,
-                name: item.get("name").and_then(|v| v.as_str()).unwrap_or("").trim().to_string(),
-                tab: item.get("tab").and_then(|v| v.as_str()).unwrap_or("").trim().to_string(),
-                access_mode: item.get("access_mode").and_then(|v| v.as_str()).unwrap_or("").trim().to_string(),
+                name: item
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string(),
+                tab: item
+                    .get("tab")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string(),
+                access_mode: item
+                    .get("access_mode")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string(),
             });
         }
     }
@@ -85,7 +116,12 @@ async fn attach_sheet(ctx: &ToolContext, bot_iid: i64, sheet: &PlannedSheet) -> 
         synced_ts_ms: 0,
         updated_ts_ms: 0,
     };
-    let res = data_source_put(&ctx.pool, ctx.owner_iid, ReqDataSourcePut { doc: Some(doc) }).await?;
+    let res = data_source_put(
+        &ctx.pool,
+        ctx.owner_iid,
+        ReqDataSourcePut { doc: Some(doc) },
+    )
+    .await?;
     Ok(res.id)
 }
 
@@ -130,7 +166,11 @@ pub async fn bot_draft_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
         (String::new(), String::new(), String::new())
     };
     if plan.name.is_empty() {
-        plan.name = if name.is_empty() { "Bot".into() } else { name.clone() };
+        plan.name = if name.is_empty() {
+            "Bot".into()
+        } else {
+            name.clone()
+        };
     }
     if plan.inst_base.is_empty() {
         plan.inst_base = kept_inst;
@@ -146,7 +186,9 @@ pub async fn bot_draft_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
         if plan.active {
             meta["active"] = json!(true);
         }
-        if !input.inst_base.trim().is_empty() || !input.purpose.trim().is_empty() && !plan.inst_base.is_empty() {
+        if !input.inst_base.trim().is_empty()
+            || !input.purpose.trim().is_empty() && !plan.inst_base.is_empty()
+        {
             meta["inst_base"] = json!(plan.inst_base);
         }
         if plan.web_search {

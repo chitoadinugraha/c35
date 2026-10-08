@@ -60,7 +60,12 @@ pub fn plan_bot_draft(input: &BotDraftInput) -> DraftPlan {
         purpose.clear();
     }
     let channel = channel_from_text(&format!("{} {}", purpose, input.channel));
-    let pending_urls: Vec<String> = input.sheets.iter().map(|s| s.url.clone()).filter(|u| !u.trim().is_empty()).collect();
+    let pending_urls: Vec<String> = input
+        .sheets
+        .iter()
+        .map(|s| s.url.clone())
+        .filter(|u| !u.trim().is_empty())
+        .collect();
     if !purpose_clear(&purpose) && input.bot_iid <= 0 {
         return DraftPlan {
             ask: "purpose".into(),
@@ -86,7 +91,11 @@ pub fn plan_bot_draft(input: &BotDraftInput) -> DraftPlan {
             String::new()
         }
     };
-    let access = if clear { access_plan(&purpose) } else { AccessPlan::ReadOnly };
+    let access = if clear {
+        access_plan(&purpose)
+    } else {
+        AccessPlan::ReadOnly
+    };
     let inst_base = {
         let given = input.inst_base.trim();
         if !given.is_empty() {
@@ -123,12 +132,24 @@ pub fn plan_bot_draft(input: &BotDraftInput) -> DraftPlan {
 pub fn draft_summary(plan: &DraftPlan, locale: &str, attached: &[PlannedSheet]) -> String {
     let id = locale_id(locale);
     if plan.ask == "purpose" {
-        return if id { "Bot-nya untuk apa?".into() } else { "What should this bot do?".into() };
+        return if id {
+            "Bot-nya untuk apa?".into()
+        } else {
+            "What should this bot do?".into()
+        };
     }
-    let sheets = if attached.is_empty() { plan.sheets.as_slice() } else { attached };
+    let sheets = if attached.is_empty() {
+        plan.sheets.as_slice()
+    } else {
+        attached
+    };
     let mut lines = Vec::new();
     let state = if plan.active {
-        if id { "sudah aktif" } else { "on" }
+        if id {
+            "sudah aktif"
+        } else {
+            "on"
+        }
     } else if id {
         "masih mati"
     } else {
@@ -137,7 +158,11 @@ pub fn draft_summary(plan: &DraftPlan, locale: &str, attached: &[PlannedSheet]) 
     let headline = if plan.updating && !plan.active {
         format!("Bot {}.", plan.name)
     } else if id {
-        let verb = if plan.updating { "diperbarui" } else { "dibuat" };
+        let verb = if plan.updating {
+            "diperbarui"
+        } else {
+            "dibuat"
+        };
         format!("Bot {} {verb}, {state}.", plan.name)
     } else {
         let verb = if plan.updating { "updated" } else { "drafted" };
@@ -147,7 +172,11 @@ pub fn draft_summary(plan: &DraftPlan, locale: &str, attached: &[PlannedSheet]) 
     lines.push(String::new());
     let brief = purpose_brief(&plan.inst_base);
     if !brief.is_empty() {
-        lines.push(if id { format!("Instruksi: {brief}") } else { format!("Instruction: {brief}") });
+        lines.push(if id {
+            format!("Instruksi: {brief}")
+        } else {
+            format!("Instruction: {brief}")
+        });
         lines.push(String::new());
     }
     for s in sheets {
@@ -164,7 +193,11 @@ pub fn draft_summary(plan: &DraftPlan, locale: &str, attached: &[PlannedSheet]) 
         return lines.join("\n");
     }
     if plan.ask == "sheet_url" {
-        lines.push(if id { "Kirim link sheet-nya.".into() } else { "Send the sheet link.".into() });
+        lines.push(if id {
+            "Kirim link sheet-nya.".into()
+        } else {
+            "Send the sheet link.".into()
+        });
     }
     if !plan.channel.is_empty() && plan.ask != "sheet_url" {
         let ch = channel_label(&plan.channel, id);
@@ -174,7 +207,11 @@ pub fn draft_summary(plan: &DraftPlan, locale: &str, attached: &[PlannedSheet]) 
             format!("Connect {ch} from the Bots page. Turn it on now, or connect first?")
         });
     } else if plan.ask.is_empty() && !plan.active {
-        lines.push(if id { "Aktifkan?".into() } else { "Turn it on?".into() });
+        lines.push(if id {
+            "Aktifkan?".into()
+        } else {
+            "Turn it on?".into()
+        });
     }
     lines.join("\n")
 }
@@ -191,14 +228,25 @@ fn purpose_brief(inst_base: &str) -> String {
 pub fn bot_name_from_purpose(purpose: &str) -> String {
     let lower = purpose.trim().to_lowercase();
     let mut rest = lower.as_str();
-    for p in ["buat bot ", "bikin bot ", "create a bot ", "create bot ", "new bot ", "bot baru ", "bot untuk ", "bot "] {
+    for p in [
+        "buat bot ",
+        "bikin bot ",
+        "create a bot ",
+        "create bot ",
+        "new bot ",
+        "bot baru ",
+        "bot untuk ",
+        "bot ",
+    ] {
         if let Some(stripped) = rest.strip_prefix(p) {
             rest = stripped;
             break;
         }
     }
     let stop = rest.find(['.', '!', '?']).unwrap_or(rest.len());
-    let skip = ["jawab", "answer", "untuk", "yang", "bisa", "agar", "supaya", "to", "that", "can"];
+    let skip = [
+        "jawab", "answer", "untuk", "yang", "bisa", "agar", "supaya", "to", "that", "can",
+    ];
     let words: Vec<String> = rest[..stop]
         .split_whitespace()
         .filter(|w| !w.contains("http") && !w.contains("docs.google"))
@@ -206,7 +254,11 @@ pub fn bot_name_from_purpose(purpose: &str) -> String {
         .take(3)
         .map(|w| title_word(w))
         .collect();
-    if words.is_empty() { "Bot".into() } else { words.join(" ") }
+    if words.is_empty() {
+        "Bot".into()
+    } else {
+        words.join(" ")
+    }
 }
 
 fn title_word(w: &str) -> String {
@@ -219,12 +271,46 @@ fn title_word(w: &str) -> String {
 
 pub fn purpose_clear(purpose: &str) -> bool {
     let filler = [
-        "buat", "bikin", "create", "bot", "untuk", "yang", "pakai", "gunakan", "dengan", "ini", "itu", "sheet",
-        "spreadsheet", "google", "drive", "link", "url", "the", "a", "an", "for", "using", "this", "my", "new",
-        "baru", "tolong", "please", "saya", "aku", "from", "and", "dan", "chat", "test",
+        "buat",
+        "bikin",
+        "create",
+        "bot",
+        "untuk",
+        "yang",
+        "pakai",
+        "gunakan",
+        "dengan",
+        "ini",
+        "itu",
+        "sheet",
+        "spreadsheet",
+        "google",
+        "drive",
+        "link",
+        "url",
+        "the",
+        "a",
+        "an",
+        "for",
+        "using",
+        "this",
+        "my",
+        "new",
+        "baru",
+        "tolong",
+        "please",
+        "saya",
+        "aku",
+        "from",
+        "and",
+        "dan",
+        "chat",
+        "test",
     ];
     let has_topic_token = purpose.split_whitespace().any(|raw| {
-        let w = raw.trim_matches(|c: char| !c.is_alphanumeric()).to_ascii_lowercase();
+        let w = raw
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .to_ascii_lowercase();
         w.len() >= 3 && !w.contains("http") && !w.contains("docs") && !filler.contains(&w.as_str())
     });
     has_topic_token && purpose_has_intent(purpose)
@@ -237,18 +323,67 @@ fn purpose_has_intent(text: &str) -> bool {
     }
     let t = format!(" {} ", norm(text));
     const VERBS: &[&str] = &[
-        "jawab", "answer", "sapa", "greet", "tandai", "booking", "booked", "reservasi", "reservation", "reserve",
-        "kurangi", "reduce", "catat", "record", "kelola", "manage", "bantu", "help", "layani", "serve", "terima",
-        "receive", "handle", "cek", "check", "inform", "beri", "give", "jelaskan", "explain", "tanya", "ask",
-        "faq", "promosi", "promote", "jual", "sell", "order",
+        "jawab",
+        "answer",
+        "sapa",
+        "greet",
+        "tandai",
+        "booking",
+        "booked",
+        "reservasi",
+        "reservation",
+        "reserve",
+        "kurangi",
+        "reduce",
+        "catat",
+        "record",
+        "kelola",
+        "manage",
+        "bantu",
+        "help",
+        "layani",
+        "serve",
+        "terima",
+        "receive",
+        "handle",
+        "cek",
+        "check",
+        "inform",
+        "beri",
+        "give",
+        "jelaskan",
+        "explain",
+        "tanya",
+        "ask",
+        "faq",
+        "promosi",
+        "promote",
+        "jual",
+        "sell",
+        "order",
     ];
     VERBS.iter().any(|w| t.contains(&format!(" {w} ")))
 }
 
 fn wants_sheet(purpose: &str) -> bool {
     let words = [
-        "sheet", "spreadsheet", "menu", "stok", "stock", "katalog", "catalog", "jadwal", "schedule", "faq", "sop",
-        "reservasi", "reservation", "antrian", "queue", "keluhan", "order",
+        "sheet",
+        "spreadsheet",
+        "menu",
+        "stok",
+        "stock",
+        "katalog",
+        "catalog",
+        "jadwal",
+        "schedule",
+        "faq",
+        "sop",
+        "reservasi",
+        "reservation",
+        "antrian",
+        "queue",
+        "keluhan",
+        "order",
     ];
     let text = format!(" {} ", norm(purpose));
     words.iter().any(|w| text.contains(&format!(" {w} ")))
@@ -285,18 +420,52 @@ fn access_plan(text: &str) -> AccessPlan {
 fn write_signal(text: &str) -> bool {
     let t = format!(" {} ", norm(text));
     const PHRASES: &[&str] = &[
-        "kurangi stok", "kurangi stock", "reduce stock", "mark reserved", "tandai", "booking", "booked",
-        "reservasi", "reservation", "reserve", "catat", "antrian", "waitlist", "keluhan", "complaint",
-        "daftar hadir", "absen", "ubah status", "update status", "catat order", "order masuk",
+        "kurangi stok",
+        "kurangi stock",
+        "reduce stock",
+        "mark reserved",
+        "tandai",
+        "booking",
+        "booked",
+        "reservasi",
+        "reservation",
+        "reserve",
+        "catat",
+        "antrian",
+        "waitlist",
+        "keluhan",
+        "complaint",
+        "daftar hadir",
+        "absen",
+        "ubah status",
+        "update status",
+        "catat order",
+        "order masuk",
     ];
-    PHRASES.iter().any(|p| t.contains(&format!(" {p} ")) || (p.contains(' ') && t.contains(p)))
+    PHRASES
+        .iter()
+        .any(|p| t.contains(&format!(" {p} ")) || (p.contains(' ') && t.contains(p)))
 }
 
 fn read_signal(text: &str) -> bool {
     let t = format!(" {} ", norm(text));
     const WORDS: &[&str] = &[
-        "jawab", "answer", "faq", "kebijakan", "policy", "sop", "menu", "harga", "price", "jadwal", "schedule",
-        "katalog", "catalog", "spesifikasi", "stok", "stock",
+        "jawab",
+        "answer",
+        "faq",
+        "kebijakan",
+        "policy",
+        "sop",
+        "menu",
+        "harga",
+        "price",
+        "jadwal",
+        "schedule",
+        "katalog",
+        "catalog",
+        "spesifikasi",
+        "stok",
+        "stock",
     ];
     WORDS.iter().any(|w| t.contains(&format!(" {w} ")))
 }
@@ -319,7 +488,11 @@ fn plan_sheets(purpose: &str, access: AccessPlan, sheets: &[SheetIn]) -> (Vec<Pl
         .collect();
     match access {
         AccessPlan::ReadOnly | AccessPlan::ReadWrite => {
-            let mode = if access == AccessPlan::ReadWrite { "read_write" } else { "read_only" };
+            let mode = if access == AccessPlan::ReadWrite {
+                "read_write"
+            } else {
+                "read_only"
+            };
             for slot in drafted.iter_mut().flatten() {
                 if slot.source_kind == "google_sheet" && slot.access_mode.is_empty() {
                     slot.access_mode = mode.into();
@@ -329,8 +502,15 @@ fn plan_sheets(purpose: &str, access: AccessPlan, sheets: &[SheetIn]) -> (Vec<Pl
         }
         AccessPlan::Split => fill_split(purpose, &mut drafted),
     }
-    let ask_split = access == AccessPlan::Split && drafted.iter().any(|s| s.is_none() || s.as_ref().is_some_and(|p| p.access_mode.is_empty()));
-    let ready = drafted.into_iter().flatten().filter(|s| !s.access_mode.is_empty() && !s.source_kind.is_empty()).collect();
+    let ask_split = access == AccessPlan::Split
+        && drafted
+            .iter()
+            .any(|s| s.is_none() || s.as_ref().is_some_and(|p| p.access_mode.is_empty()));
+    let ready = drafted
+        .into_iter()
+        .flatten()
+        .filter(|s| !s.access_mode.is_empty() && !s.source_kind.is_empty())
+        .collect();
     (ready, ask_split)
 }
 
@@ -355,16 +535,33 @@ fn draft_one(purpose: &str, sheet: &SheetIn) -> Option<PlannedSheet> {
         Some(mode) => (mode.to_string(), reason_for(mode, purpose, &name)),
         None => (String::new(), String::new()),
     };
-    Some(PlannedSheet { url, name, tab, source_kind: kind.into(), access_mode, reason })
+    Some(PlannedSheet {
+        url,
+        name,
+        tab,
+        source_kind: kind.into(),
+        access_mode,
+        reason,
+    })
 }
 
 fn fill_split(purpose: &str, drafted: &mut [Option<PlannedSheet>]) {
-    let known_ro = drafted.iter().flatten().any(|s| s.access_mode == "read_only");
-    let known_rw = drafted.iter().flatten().any(|s| s.access_mode == "read_write");
+    let known_ro = drafted
+        .iter()
+        .flatten()
+        .any(|s| s.access_mode == "read_only");
+    let known_rw = drafted
+        .iter()
+        .flatten()
+        .any(|s| s.access_mode == "read_write");
     let unknown: Vec<usize> = drafted
         .iter()
         .enumerate()
-        .filter_map(|(i, s)| s.as_ref().filter(|p| p.source_kind == "google_sheet" && p.access_mode.is_empty()).map(|_| i))
+        .filter_map(|(i, s)| {
+            s.as_ref()
+                .filter(|p| p.source_kind == "google_sheet" && p.access_mode.is_empty())
+                .map(|_| i)
+        })
         .collect();
     let mode = match (unknown.len(), known_ro, known_rw) {
         (1, true, false) => Some("read_write"),
@@ -397,7 +594,11 @@ fn label_mode(label: &str) -> Option<&'static str> {
 fn sheet_name(sheet: &SheetIn, kind: &str, tab: &str) -> String {
     let base = sheet.name.trim();
     let base = if base.is_empty() {
-        if !tab.is_empty() { tab } else { kind_fallback(kind) }
+        if !tab.is_empty() {
+            tab
+        } else {
+            kind_fallback(kind)
+        }
     } else if !tab.is_empty() && !base.to_lowercase().contains(&tab.to_lowercase()) {
         return clip(&format!("{base} / {tab}"), 120);
     } else {
@@ -446,12 +647,17 @@ fn mode_label(mode: &str, id: bool) -> &'static str {
 
 fn reason_for(mode: &str, purpose: &str, label: &str) -> String {
     let text = format!("{purpose} {label}");
-    if mode == "read_write" { reason_write(&text) } else { reason_read(&text) }
+    if mode == "read_write" {
+        reason_write(&text)
+    } else {
+        reason_read(&text)
+    }
 }
 
 fn reason_write(text: &str) -> String {
     let t = norm(text);
-    if t.contains("reserv") || t.contains("booking") || t.contains("booked") || t.contains("tandai") {
+    if t.contains("reserv") || t.contains("booking") || t.contains("booked") || t.contains("tandai")
+    {
         "tandai booking".into()
     } else if t.contains("kurangi") || t.contains("reduce stock") {
         "kurangi stok".into()
@@ -489,7 +695,11 @@ fn inst_base_build(name: &str, purpose: &str, access: AccessPlan, web_search: bo
         AccessPlan::ReadWrite => "Kamu boleh menambah atau mengubah baris hanya untuk tugas di atas.",
         AccessPlan::Split => "Sheet baca saja hanya untuk menjawab. Sheet baca-tulis hanya untuk mencatat atau menandai.",
     };
-    let web = if web_search { " Kamu boleh mencari web untuk informasi di luar sheet." } else { "" };
+    let web = if web_search {
+        " Kamu boleh mencari web untuk informasi di luar sheet."
+    } else {
+        ""
+    };
     format!("Kamu adalah {name}.\n{purpose}\nGunakan sheet yang terpasang sebagai sumber. {rule}{web}\nJika data tidak ada, katakan tidak tahu.")
 }
 
@@ -509,7 +719,10 @@ pub fn sheet_config(sheet: &PlannedSheet) -> Value {
 }
 
 pub fn flag_true(raw: &str) -> bool {
-    matches!(raw.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "ya" | "on")
+    matches!(
+        raw.trim().to_ascii_lowercase().as_str(),
+        "1" | "true" | "yes" | "ya" | "on"
+    )
 }
 
 #[cfg(test)]
@@ -530,12 +743,20 @@ mod tests {
     }
 
     fn sheet(url: &str, name: &str) -> SheetIn {
-        SheetIn { url: url.into(), name: name.into(), tab: String::new(), access_mode: String::new() }
+        SheetIn {
+            url: url.into(),
+            name: name.into(),
+            tab: String::new(),
+            access_mode: String::new(),
+        }
     }
 
     #[test]
     fn purpose_missing_does_not_create() {
-        let plan = plan_bot_draft(&input("buat bot yang pakai sheet ini", vec![sheet("https://docs.google.com/spreadsheets/d/aaa/edit", "")]));
+        let plan = plan_bot_draft(&input(
+            "buat bot yang pakai sheet ini",
+            vec![sheet("https://docs.google.com/spreadsheets/d/aaa/edit", "")],
+        ));
         assert!(!plan.create);
         assert_eq!(plan.ask, "purpose");
         assert_eq!(plan.pending_urls.len(), 1);
@@ -546,7 +767,10 @@ mod tests {
     fn stock_is_read_only_and_named() {
         let plan = plan_bot_draft(&input(
             "Bot untuk jawab stok barang",
-            vec![sheet("https://docs.google.com/spreadsheets/d/ccc/edit", "Stok")],
+            vec![sheet(
+                "https://docs.google.com/spreadsheets/d/ccc/edit",
+                "Stok",
+            )],
         ));
         assert!(plan.create);
         assert!(!plan.active);
@@ -559,7 +783,10 @@ mod tests {
 
     #[test]
     fn reservation_write_and_whatsapp() {
-        let plan = plan_bot_draft(&input("Buat bot reservasi resto, tandai meja, nanti dipakai di WhatsApp", vec![]));
+        let plan = plan_bot_draft(&input(
+            "Buat bot reservasi resto, tandai meja, nanti dipakai di WhatsApp",
+            vec![],
+        ));
         assert!(plan.create);
         assert_eq!(plan.channel, "whatsapp");
         assert_eq!(plan.ask, "sheet_url");
@@ -582,12 +809,21 @@ mod tests {
 
     #[test]
     fn split_uses_tab_names() {
-        let mut stok = sheet("https://docs.google.com/spreadsheets/d/eee/edit#gid=0", "Stok");
+        let mut stok = sheet(
+            "https://docs.google.com/spreadsheets/d/eee/edit#gid=0",
+            "Stok",
+        );
         stok.tab = "Stok".into();
-        let mut order = sheet("https://docs.google.com/spreadsheets/d/eee/edit#gid=1", "Order");
+        let mut order = sheet(
+            "https://docs.google.com/spreadsheets/d/eee/edit#gid=1",
+            "Order",
+        );
         order.tab = "Order".into();
         order.name = "Order".into();
-        let plan = plan_bot_draft(&input("Bot yang bisa jawab stok dan sekaligus kurangi stok kalau ada order", vec![stok, order]));
+        let plan = plan_bot_draft(&input(
+            "Bot yang bisa jawab stok dan sekaligus kurangi stok kalau ada order",
+            vec![stok, order],
+        ));
         assert_eq!(plan.ask, "");
         assert_eq!(plan.sheets[0].access_mode, "read_only");
         assert_eq!(plan.sheets[1].access_mode, "read_write");

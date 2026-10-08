@@ -77,7 +77,11 @@ fn doc_from_args(args: &Value, owner_iid: i64) -> Result<ReferralCodeDoc, String
         r#type,
         name,
         issued_by: owner_iid,
-        price_usd: args.get("price_usd").and_then(|v| v.as_f64()).unwrap_or(0.0).max(0.0),
+        price_usd: args
+            .get("price_usd")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0)
+            .max(0.0),
         duration_months: args
             .get("duration_months")
             .and_then(|v| v.as_i64())
@@ -90,7 +94,10 @@ fn doc_from_args(args: &Value, owner_iid: i64) -> Result<ReferralCodeDoc, String
             .to_string(),
         max_uses: args.get("max_uses").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
         used_count: args.get("used_count").and_then(|v| v.as_i64()).unwrap_or(0) as i32,
-        expires_at_ms: args.get("expires_at_ms").and_then(|v| v.as_i64()).unwrap_or(0),
+        expires_at_ms: args
+            .get("expires_at_ms")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0),
     })
 }
 
@@ -160,7 +167,12 @@ pub async fn referral_code_list_exec(ctx: &ToolContext, args: &Value) -> Result<
 }
 
 pub async fn referral_code_delete_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let code = match args.get("code").and_then(|v| v.as_str()).map(normalize_code).filter(|s| !s.is_empty()) {
+    let code = match args
+        .get("code")
+        .and_then(|v| v.as_str())
+        .map(normalize_code)
+        .filter(|s| !s.is_empty())
+    {
         Some(c) => c,
         None => {
             return Ok(json!({

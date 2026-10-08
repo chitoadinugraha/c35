@@ -1,15 +1,15 @@
 use anyhow::Result;
 use c35_mod_admin::{admin_user_search, require_referral_staff, require_root, AdminError};
-use c35_mod_device::{mcp_client_list, mcp_device_list};
-use c35_mod_task::task_list_rpc;
 use c35_mod_billing::{
     billing_topup_list, billing_topup_review, commission_withdraw_list, commission_withdraw_review,
 };
+use c35_mod_device::{mcp_client_list, mcp_device_list};
 use c35_mod_referral::{referral_commission_simulate, referral_user_stats};
+use c35_mod_task::task_list_rpc;
 use c35_proto::{
-    BillingTopupQueueItem, CommissionWithdrawQueueItem, ReferralCommissionLevel, ReqAdminUserSearch,
-    ReqBillingTopupList, ReqBillingTopupReview, ReqCommissionWithdrawList, ReqCommissionWithdrawReview,
-    ReqReferralUserStats, ReqTaskList, Task,
+    BillingTopupQueueItem, CommissionWithdrawQueueItem, ReferralCommissionLevel,
+    ReqAdminUserSearch, ReqBillingTopupList, ReqBillingTopupReview, ReqCommissionWithdrawList,
+    ReqCommissionWithdrawReview, ReqReferralUserStats, ReqTaskList, Task,
 };
 use serde_json::{json, Value};
 use sqlx::Row;
@@ -19,7 +19,11 @@ use crate::tool;
 use crate::tools::ToolContext;
 
 pub(crate) fn arg_str(args: &Value, key: &str) -> String {
-    args.get(key).and_then(|v| v.as_str()).unwrap_or("").trim().to_string()
+    args.get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string()
 }
 
 pub(crate) fn arg_i64(args: &Value, key: &str) -> i64 {
@@ -183,7 +187,11 @@ fn finance_err_json(tool: &str, e: c35_mod_billing::FinanceError) -> Value {
 }
 
 pub async fn admin_user_search_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let query = args.get("query").and_then(|v| v.as_str()).unwrap_or("").trim();
+    let query = args
+        .get("query")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
     let limit = args.get("limit").and_then(|v| v.as_i64()).unwrap_or(20) as i32;
     let req = ReqAdminUserSearch {
         query: query.to_string(),
@@ -206,7 +214,10 @@ pub async fn admin_user_search_exec(ctx: &ToolContext, args: &Value) -> Result<V
 }
 
 pub async fn referral_user_stats_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let subject_uid = args.get("subject_uid").and_then(|v| v.as_i64()).unwrap_or(0);
+    let subject_uid = args
+        .get("subject_uid")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
     let req = ReqReferralUserStats {
         subject_uid,
         col_a: None,
@@ -237,9 +248,16 @@ pub async fn referral_user_stats_exec(ctx: &ToolContext, args: &Value) -> Result
 }
 
 pub async fn referral_commission_simulate_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let subject_uid = args.get("subject_uid").and_then(|v| v.as_i64()).unwrap_or(0);
-    let purchase_amount = args.get("purchase_amount").and_then(|v| v.as_i64()).unwrap_or(0);
-    match referral_commission_simulate(&ctx.pool, ctx.owner_iid, subject_uid, purchase_amount).await {
+    let subject_uid = args
+        .get("subject_uid")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    let purchase_amount = args
+        .get("purchase_amount")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    match referral_commission_simulate(&ctx.pool, ctx.owner_iid, subject_uid, purchase_amount).await
+    {
         Ok(res) => Ok(json!({
             "ok": true,
             "tool": "referral.commission.simulate",
@@ -291,7 +309,9 @@ pub async fn billing_topup_review_exec(ctx: &ToolContext, args: &Value) -> Resul
         reason,
     };
     match billing_topup_review(&ctx.pool, ctx.owner_iid, req).await {
-        Ok(_) => Ok(json!({ "ok": true, "tool": "billing.topup.review", "request_id": request_id })),
+        Ok(_) => {
+            Ok(json!({ "ok": true, "tool": "billing.topup.review", "request_id": request_id }))
+        }
         Err(e) => Ok(finance_err_json("billing.topup.review", e)),
     }
 }
@@ -339,7 +359,9 @@ pub async fn billing_withdraw_review_exec(ctx: &ToolContext, args: &Value) -> Re
         transfer_proof_url,
     };
     match commission_withdraw_review(&ctx.pool, ctx.owner_iid, req).await {
-        Ok(_) => Ok(json!({ "ok": true, "tool": "billing.withdraw.review", "request_id": request_id })),
+        Ok(_) => {
+            Ok(json!({ "ok": true, "tool": "billing.withdraw.review", "request_id": request_id }))
+        }
         Err(e) => Ok(finance_err_json("billing.withdraw.review", e)),
     }
 }
@@ -629,7 +651,10 @@ pub async fn admin_task_list_exec(ctx: &ToolContext, args: &Value) -> Result<Val
         subject_iid,
         ReqTaskList {
             device_iid,
-            include_inactive: args.get("include_inactive").and_then(|v| v.as_bool()).unwrap_or(false),
+            include_inactive: args
+                .get("include_inactive")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
         },
     )
     .await;

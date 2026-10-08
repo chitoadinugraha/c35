@@ -200,10 +200,19 @@ Grant: for each `site_iid`, same check as `site_grant_check` (owner or staff gra
 | `tx.sales_summary` | Revenue by period |
 | `tx.profit_summary` | Profit compare (multi-site) |
 | `tx.top_products` | Best sellers by quantity (readonly) |
+| `tx.stock_list` | Tracked products and current qty. Preview 40 rows. Export cap 20,000 |
+| `tx.stock_card` | One product's in/out lines. Requires `q` or `product_id` |
+| `tx.stock_movement` | Qty in, qty out, and net per product for a time window |
 
 Port SQL ideas from id.alienai `tx.acc_profit_loss` / CSA `mod_site_tx` reports — implement as defs, not LLM SQL.
 
 `params.range` is `today`, `this_week`, or `this_month`. When `time_from_ms` is unset, that value is a UTC calendar window.
+
+### Stock reports
+
+`inst.site.stock_report` (priority 146) matches stock list, stock card, and item in/out phrases. It does not match bare `stok` or profit phrases (`untung`, `laba`). Those stay on `inst.site.catalog.stock` and `inst.site.report`.
+
+When that inst matches, the server parses the month and the format, runs the query, and returns a `site.stock_report` block plus any requested file. PDF and Excel are CAS files. Slides are a summary deck of at most 6 slides. A Google Sheet write happens only when the chat's bot already has a linked sheet; otherwise the Excel file is attached. The model does not receive the row grid. The tool payload is counts, totals, and file ids. Token use on that path is zero.
 
 ### Compare flow
 

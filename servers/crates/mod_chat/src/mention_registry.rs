@@ -33,13 +33,25 @@ pub fn mention_ref_parse(raw: &str) -> Option<MentionRef> {
         return (!path.is_empty()).then(|| MentionRef::Drive(path.to_string()));
     }
     if let Some(id) = s.strip_prefix("iid:") {
-        return id.parse::<i64>().ok().filter(|i| *i > 0).map(MentionRef::Iid);
+        return id
+            .parse::<i64>()
+            .ok()
+            .filter(|i| *i > 0)
+            .map(MentionRef::Iid);
     }
     if let Some(id) = s.strip_prefix("device:") {
-        return id.parse::<i64>().ok().filter(|i| *i > 0).map(MentionRef::Iid);
+        return id
+            .parse::<i64>()
+            .ok()
+            .filter(|i| *i > 0)
+            .map(MentionRef::Iid);
     }
     if let Some(id) = s.strip_prefix("site:") {
-        return id.parse::<i64>().ok().filter(|i| *i > 0).map(MentionRef::Iid);
+        return id
+            .parse::<i64>()
+            .ok()
+            .filter(|i| *i > 0)
+            .map(MentionRef::Iid);
     }
     if let Ok(iid) = s.parse::<i64>() {
         if iid > 0 {
@@ -67,7 +79,9 @@ fn identity_topic(kind: &str) -> &'static str {
 }
 
 fn meta_online(meta: &Value) -> bool {
-    meta.get("online").and_then(|v| v.as_bool()).unwrap_or(false)
+    meta.get("online")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
 }
 
 fn catalog_mention_kind(id: &str) -> &'static str {
@@ -83,7 +97,20 @@ fn mention_visible_to_caller(item: &MentionItem, caller_is_root: bool) -> bool {
 }
 
 async fn catalog_rows(pool: &PgPool) -> Vec<MentionItem> {
-    let rows = sqlx::query_as::<_, (String, Option<String>, String, String, i32, String, String, Vec<String>, bool)>(
+    let rows = sqlx::query_as::<
+        _,
+        (
+            String,
+            Option<String>,
+            String,
+            String,
+            i32,
+            String,
+            String,
+            Vec<String>,
+            bool,
+        ),
+    >(
         "SELECT id, topic_id, icon, color, sort, label_key, caption_key, search_terms, root_only \
          FROM ai.mention WHERE enabled = true ORDER BY sort ASC, id ASC",
     )
@@ -92,32 +119,44 @@ async fn catalog_rows(pool: &PgPool) -> Vec<MentionItem> {
     match rows {
         Ok(rows) => rows
             .into_iter()
-            .map(|(id, topic_id, icon, color, sort, label_key, caption_key, search_terms, root_only)| {
-                let label = label_key.clone();
-                let terms = if search_terms.is_empty() {
-                    vec![id.clone(), label_key.to_lowercase()]
-                } else {
-                    search_terms
-                };
-                MentionItem {
-                    id: mention_ref_catalog(&id),
-                    topic_id: topic_id.unwrap_or_default(),
-                    inst_id: String::new(),
+            .map(
+                |(
+                    id,
+                    topic_id,
                     icon,
                     color,
                     sort,
-                    label_key: label_key.clone(),
+                    label_key,
                     caption_key,
-                    search_terms: terms,
-                    enabled: true,
-                    title: label.clone(),
-                    scope_label: String::new(),
-                    label,
-                    scope_ref: String::new(),
-                    kind: catalog_mention_kind(&id).into(),
+                    search_terms,
                     root_only,
-                }
-            })
+                )| {
+                    let label = label_key.clone();
+                    let terms = if search_terms.is_empty() {
+                        vec![id.clone(), label_key.to_lowercase()]
+                    } else {
+                        search_terms
+                    };
+                    MentionItem {
+                        id: mention_ref_catalog(&id),
+                        topic_id: topic_id.unwrap_or_default(),
+                        inst_id: String::new(),
+                        icon,
+                        color,
+                        sort,
+                        label_key: label_key.clone(),
+                        caption_key,
+                        search_terms: terms,
+                        enabled: true,
+                        title: label.clone(),
+                        scope_label: String::new(),
+                        label,
+                        scope_ref: String::new(),
+                        kind: catalog_mention_kind(&id).into(),
+                        root_only,
+                    }
+                },
+            )
             .collect(),
         Err(e) if missing_table(&e) => {
             warn!(error = %e, "mention catalog rows: ai.mention missing");
@@ -303,7 +342,11 @@ pub async fn mention_search_rpc(
         .collect();
     scored.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| a.1.label.cmp(&b.1.label)));
     ResMentionSearch {
-        mentions: scored.into_iter().take(limit).map(|(_, item)| item).collect(),
+        mentions: scored
+            .into_iter()
+            .take(limit)
+            .map(|(_, item)| item)
+            .collect(),
     }
 }
 
@@ -349,7 +392,11 @@ async fn identity_resolve(pool: &PgPool, caller_iid: i64, iid: i64) -> Option<Me
             item,
             identity_iid: Some(iid),
             identity_kind: Some(kind),
-            identity_type: if identity_type.is_empty() { None } else { Some(identity_type) },
+            identity_type: if identity_type.is_empty() {
+                None
+            } else {
+                Some(identity_type)
+            },
             device_engine,
         })
 }
@@ -429,10 +476,7 @@ pub fn mention_prompt_block(resolved: &[MentionResolved]) -> String {
         .iter()
         .map(|r| {
             if let Some(iid) = r.identity_iid {
-                let kind = r
-                    .item
-                    .topic_id
-                    .clone();
+                let kind = r.item.topic_id.clone();
                 let mut extra = String::new();
                 if let Some(ref dt) = r.identity_type {
                     if !dt.is_empty() {
@@ -449,7 +493,10 @@ pub fn mention_prompt_block(resolved: &[MentionResolved]) -> String {
                     r.item.label, r.item.id, iid, kind, extra
                 )
             } else {
-                format!("- {} (ref={}, topic={})", r.item.label, r.item.id, r.item.topic_id)
+                format!(
+                    "- {} (ref={}, topic={})",
+                    r.item.label, r.item.id, r.item.topic_id
+                )
             }
         })
         .collect();
@@ -472,9 +519,7 @@ pub fn mention_bot_iids(resolved: &[MentionResolved]) -> Vec<i64> {
 pub fn mention_device_iids(resolved: &[MentionResolved]) -> Vec<i64> {
     resolved
         .iter()
-        .filter(|r| {
-            r.item.topic_id == "device" && r.identity_iid.is_some_and(|i| i > 0)
-        })
+        .filter(|r| r.item.topic_id == "device" && r.identity_iid.is_some_and(|i| i > 0))
         .filter_map(|r| r.identity_iid)
         .collect()
 }

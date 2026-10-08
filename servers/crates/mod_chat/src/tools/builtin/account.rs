@@ -5,8 +5,8 @@ use c35_mod_device::{mcp_client_list, mcp_device_list};
 use c35_mod_identity::{identity_list, identity_nav_counts, identity_profile_get};
 use c35_mod_referral::{referral_ledger_list, referral_user_stats};
 use c35_proto::{
-    BillingAccount, IdentityListRow, ReferralUserStatColumn, ReferralUserWalletSnapshot, ReqBillingHistory,
-    ReqIdentityList, ReqReferralLedgerList, ReqReferralUserStats,
+    BillingAccount, IdentityListRow, ReferralUserStatColumn, ReferralUserWalletSnapshot,
+    ReqBillingHistory, ReqIdentityList, ReqReferralLedgerList, ReqReferralUserStats,
 };
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
@@ -106,10 +106,18 @@ fn identity_row_llm(row: &IdentityListRow) -> Value {
 
 pub async fn account_get_exec(ctx: &ToolContext, _args: &Value) -> Result<Value> {
     let c = tool_ctx(ctx);
-    let profile = identity_profile_get(&c).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let nav = identity_nav_counts(&c).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let profile = identity_profile_get(&c)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let nav = identity_nav_counts(&c)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let (auth_email, auth_phone) = auth_contact_for_iid(&ctx.pool, ctx.owner_iid).await;
-    let email = if profile.email.is_empty() { auth_email } else { profile.email.clone() };
+    let email = if profile.email.is_empty() {
+        auth_email
+    } else {
+        profile.email.clone()
+    };
     let llm = json!({
         "iid": profile.iid,
         "name": profile.name,
@@ -130,30 +138,62 @@ pub async fn account_get_exec(ctx: &ToolContext, _args: &Value) -> Result<Value>
 
 pub async fn account_billing_get_exec(ctx: &ToolContext, _args: &Value) -> Result<Value> {
     let c = tool_ctx(ctx);
-    let profile = identity_profile_get(&c).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
-    let billing_iid = if profile.billing_iid > 0 { profile.billing_iid } else { ctx.owner_iid };
-    let billing = billing_account_get(&c, billing_iid).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let profile = identity_profile_get(&c)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+    let billing_iid = if profile.billing_iid > 0 {
+        profile.billing_iid
+    } else {
+        ctx.owner_iid
+    };
+    let billing = billing_account_get(&c, billing_iid)
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     let llm = billing_llm(&billing);
     Ok(json!({ "ok": true, "tool": "account.billing.get", "billing": llm, "llm": llm }))
 }
 
 pub async fn account_billing_history_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let limit = args.get("limit").and_then(|v| v.as_i64()).unwrap_or(10).clamp(1, 50) as i32;
-    let mut currency = args.get("currency").and_then(|v| v.as_str()).unwrap_or("").trim().to_uppercase();
+    let limit = args
+        .get("limit")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(10)
+        .clamp(1, 50) as i32;
+    let mut currency = args
+        .get("currency")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_uppercase();
     if currency.is_empty() {
         let c = tool_ctx(ctx);
-        let profile = identity_profile_get(&c).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
-        let billing_iid = if profile.billing_iid > 0 { profile.billing_iid } else { ctx.owner_iid };
-        let billing = billing_account_get(&c, billing_iid).await.map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let profile = identity_profile_get(&c)
+            .await
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
+        let billing_iid = if profile.billing_iid > 0 {
+            profile.billing_iid
+        } else {
+            ctx.owner_iid
+        };
+        let billing = billing_account_get(&c, billing_iid)
+            .await
+            .map_err(|e| anyhow::anyhow!(e.to_string()))?;
         currency = billing.billing_currency.trim().to_uppercase();
         if currency.is_empty() {
-            currency = if billing.balance_idr >= billing.balance_usd { "IDR".into() } else { "USD".into() };
+            currency = if billing.balance_idr >= billing.balance_usd {
+                "IDR".into()
+            } else {
+                "USD".into()
+            };
         }
     }
     let hist = billing_history(
         &ctx.pool,
         ctx.owner_iid,
-        ReqBillingHistory { limit, currency: currency.clone() },
+        ReqBillingHistory {
+            limit,
+            currency: currency.clone(),
+        },
     )
     .await;
     let rows: Vec<Value> = hist
@@ -204,7 +244,6 @@ pub async fn account_referral_stats_exec(ctx: &ToolContext, _args: &Value) -> Re
         Err(e) => Ok(json!({ "ok": false, "tool": "account.referral.stats", "error": e })),
     }
 }
-
 
 pub async fn account_referral_ledger_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let limit = args

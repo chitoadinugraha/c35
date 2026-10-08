@@ -1,7 +1,7 @@
 use anyhow::Result;
-use async_nats::Client;
-use async_nats::jetstream::{self, consumer::AckPolicy, stream::RetentionPolicy};
 use async_nats::jetstream::consumer::pull;
+use async_nats::jetstream::{self, consumer::AckPolicy, stream::RetentionPolicy};
+use async_nats::Client;
 use c35_proto::PromptRunJob;
 use std::time::Duration;
 
@@ -22,7 +22,9 @@ pub async fn prompt_jetstream_ensure(client: &Client) -> Result<jetstream::Conte
     Ok(js)
 }
 
-pub async fn prompt_jetstream_consumer(js: &jetstream::Context) -> Result<jetstream::consumer::Consumer<pull::Config>> {
+pub async fn prompt_jetstream_consumer(
+    js: &jetstream::Context,
+) -> Result<jetstream::consumer::Consumer<pull::Config>> {
     let stream = js.get_stream(STREAM_NAME).await?;
     let consumer = stream
         .get_or_create_consumer(

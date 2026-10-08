@@ -44,12 +44,14 @@ pub async fn bot_name_load(pool: &PgPool, bot_iid: i64) -> String {
 }
 
 pub async fn bot_meta_load(pool: &PgPool, bot_iid: i64) -> Option<Value> {
-    sqlx::query_scalar("SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL")
-        .bind(bot_iid)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
+    sqlx::query_scalar(
+        "SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL",
+    )
+    .bind(bot_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
 }
 
 pub async fn bot_welcome_text(pool: &PgPool, bot_iid: i64) -> Option<String> {
@@ -65,7 +67,11 @@ mod tests {
 
     #[test]
     fn shared_skips_auto_welcome() {
-        assert!(bot_welcome_message_resolve(Some(&json!({"billing_plan_slug": "shared"})), "Test Cafe").is_none());
+        assert!(bot_welcome_message_resolve(
+            Some(&json!({"billing_plan_slug": "shared"})),
+            "Test Cafe"
+        )
+        .is_none());
     }
 
     #[test]
@@ -80,6 +86,10 @@ mod tests {
 
     #[test]
     fn paid_empty_skips() {
-        assert!(bot_welcome_message_resolve(Some(&json!({"billing_plan_slug": "bot.lite"})), "Shop").is_none());
+        assert!(bot_welcome_message_resolve(
+            Some(&json!({"billing_plan_slug": "bot.lite"})),
+            "Shop"
+        )
+        .is_none());
     }
 }

@@ -1,5 +1,6 @@
 mod params;
 mod product;
+mod stock_report;
 mod tx;
 
 use std::collections::HashMap;
@@ -45,9 +46,17 @@ fn query_registry() -> &'static Vec<Arc<dyn QueryDef>> {
             Arc::new(tx::ProfitSummaryQuery),
             Arc::new(tx::TopProductsQuery),
             Arc::new(tx::ProductCompareQuery),
+            Arc::new(stock_report::StockListQuery),
+            Arc::new(stock_report::StockCardQuery),
+            Arc::new(stock_report::StockMovementQuery),
         ]
     })
 }
+
+pub use stock_report::{
+    stock_report_from_query, stock_report_preview, stock_report_query_id, StockReport,
+    STOCK_EXPORT_CAP, STOCK_PREVIEW_ROWS,
+};
 
 pub fn query_def_get(query_id: &str) -> Option<Arc<dyn QueryDef>> {
     query_registry()

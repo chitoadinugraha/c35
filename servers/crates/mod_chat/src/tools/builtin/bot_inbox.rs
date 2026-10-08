@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use serde_json::Value;
 
-use crate::bot_inbox::{bot_inbox_query_run, bot_iid_from_params};
+use crate::bot_inbox::{bot_iid_from_params, bot_inbox_query_run};
 use crate::tool;
 use crate::tools::ToolContext;
 

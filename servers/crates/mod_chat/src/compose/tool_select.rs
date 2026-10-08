@@ -1,6 +1,6 @@
+use super::topic::tool_topic_eligible;
 use crate::tool_rag::{self, TOOL_RAG_MIN};
 use crate::tools::ToolDef;
-use super::topic::tool_topic_eligible;
 
 fn tool_def_topics(t: &ToolDef) -> Vec<String> {
     t.topics.clone()
@@ -11,7 +11,11 @@ fn tool_def_always(t: &ToolDef, active_topic: &str) -> bool {
 }
 
 /// Force web.search on general topic; pair web.visit so the model can read URLs from results.
-pub fn compose_force_general_web(eligible: &[ToolDef], active_topics: &[&str], force_include: &mut Vec<String>) {
+pub fn compose_force_general_web(
+    eligible: &[ToolDef],
+    active_topics: &[&str],
+    force_include: &mut Vec<String>,
+) {
     if !active_topics.iter().any(|t| *t == "general") {
         return;
     }
@@ -19,7 +23,10 @@ pub fn compose_force_general_web(eligible: &[ToolDef], active_topics: &[&str], f
     if has("web.search") && !force_include.iter().any(|x| x == "web.search") {
         force_include.push("web.search".into());
     }
-    if force_include.iter().any(|x| x == "web.search") && has("web.visit") && !force_include.iter().any(|x| x == "web.visit") {
+    if force_include.iter().any(|x| x == "web.search")
+        && has("web.visit")
+        && !force_include.iter().any(|x| x == "web.visit")
+    {
         force_include.push("web.visit".into());
     }
 }
@@ -30,7 +37,10 @@ pub fn compose_force_bot_web(eligible: &[ToolDef], force_include: &mut Vec<Strin
     if has("web.search") && !force_include.iter().any(|x| x == "web.search") {
         force_include.push("web.search".into());
     }
-    if force_include.iter().any(|x| x == "web.search") && has("web.visit") && !force_include.iter().any(|x| x == "web.visit") {
+    if force_include.iter().any(|x| x == "web.search")
+        && has("web.visit")
+        && !force_include.iter().any(|x| x == "web.visit")
+    {
         force_include.push("web.visit".into());
     }
 }
@@ -43,7 +53,10 @@ pub fn compose_inject_force_tools(
     exclude: &[String],
 ) {
     for name in force_include {
-        if name.is_empty() || exclude.iter().any(|x| x == name) || eligible.iter().any(|t| &t.name == name) {
+        if name.is_empty()
+            || exclude.iter().any(|x| x == name)
+            || eligible.iter().any(|t| &t.name == name)
+        {
             continue;
         }
         if let Some(t) = catalog.iter().find(|t| &t.name == name) {
@@ -52,7 +65,11 @@ pub fn compose_inject_force_tools(
     }
 }
 
-pub fn compose_bot_web_tools_inject(catalog: &[ToolDef], eligible: &mut Vec<ToolDef>, exclude: &[String]) {
+pub fn compose_bot_web_tools_inject(
+    catalog: &[ToolDef],
+    eligible: &mut Vec<ToolDef>,
+    exclude: &[String],
+) {
     for name in ["web.search", "web.visit"] {
         if exclude.iter().any(|x| x == name) || eligible.iter().any(|t| t.name == name) {
             continue;

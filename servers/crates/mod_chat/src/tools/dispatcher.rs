@@ -10,10 +10,7 @@ use super::definition::{Tool, ToolDefinition};
 fn mcp_operator_device_tool(name: &str) -> bool {
     matches!(
         name,
-        "shell.run"
-            | "device.input"
-            | "device.screenshot"
-            | "computer_use.delegate"
+        "shell.run" | "device.input" | "device.screenshot" | "computer_use.delegate"
     )
 }
 
@@ -62,7 +59,10 @@ impl ToolDispatcher {
             self.aliases.insert(underscore_name, primary_name.clone());
         }
 
-        info!("Registered tool '{}' (aliases: {:?})", primary_name, def.aliases);
+        info!(
+            "Registered tool '{}' (aliases: {:?})",
+            primary_name, def.aliases
+        );
     }
 
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
@@ -78,7 +78,10 @@ impl ToolDispatcher {
     }
 
     pub fn definitions(&self) -> Vec<ToolDefinition> {
-        self.tools.iter().map(|item| item.value().definition()).collect()
+        self.tools
+            .iter()
+            .map(|item| item.value().definition())
+            .collect()
     }
 
     pub async fn execute(&self, name: &str, args: Value, ctx: &ToolContext) -> (Value, f64) {

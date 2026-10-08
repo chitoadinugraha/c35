@@ -14,11 +14,18 @@ const CONTEXT_WINDOW_PICKER_MAX: i32 = 524_288;
 
 pub fn model_context_limit(model: &str) -> i32 {
     let m = model.to_ascii_lowercase();
-    if m.contains("gemini") { CONTEXT_WINDOW_GEMINI_CEILING } else { 128_000 }
+    if m.contains("gemini") {
+        CONTEXT_WINDOW_GEMINI_CEILING
+    } else {
+        128_000
+    }
 }
 
 pub fn context_model_is_alien(model: &str) -> bool {
-    matches!(model.trim().to_ascii_lowercase().as_str(), "" | "alien" | "alienai" | "auto" | "cloud")
+    matches!(
+        model.trim().to_ascii_lowercase().as_str(),
+        "" | "alien" | "alienai" | "auto" | "cloud"
+    )
 }
 
 /// Largest window the picker may store for this model.
@@ -33,7 +40,12 @@ pub fn context_window_picker_ceiling(model: &str) -> i32 {
 }
 
 fn context_window_snap_down(n: i32) -> i32 {
-    CONTEXT_WINDOW_STEPS.iter().rev().find(|&&s| s <= n).copied().unwrap_or(CONTEXT_WINDOW_STEPS[0])
+    CONTEXT_WINDOW_STEPS
+        .iter()
+        .rev()
+        .find(|&&s| s <= n)
+        .copied()
+        .unwrap_or(CONTEXT_WINDOW_STEPS[0])
 }
 
 /// `stored == 0` → `min(128_000, model ceiling)`. 128_000 stays 128_000 (not snapped to 65_536).
@@ -47,7 +59,11 @@ pub fn context_window_default(model: &str) -> i32 {
         model_context_limit(model)
     };
     let raw = CONTEXT_WINDOW_DEFAULT.min(ceiling);
-    if raw >= CONTEXT_WINDOW_DEFAULT { CONTEXT_WINDOW_DEFAULT } else { context_window_snap_down(raw) }
+    if raw >= CONTEXT_WINDOW_DEFAULT {
+        CONTEXT_WINDOW_DEFAULT
+    } else {
+        context_window_snap_down(raw)
+    }
 }
 
 pub fn context_window_resolve(model: &str, stored: i32) -> i32 {
@@ -56,12 +72,19 @@ pub fn context_window_resolve(model: &str, stored: i32) -> i32 {
     }
     let ceiling = context_window_picker_ceiling(model);
     let capped = if stored > ceiling { ceiling } else { stored };
-    if CONTEXT_WINDOW_STEPS.contains(&capped) { capped } else { context_window_snap_down(capped) }
+    if CONTEXT_WINDOW_STEPS.contains(&capped) {
+        capped
+    } else {
+        context_window_snap_down(capped)
+    }
 }
 
 pub fn context_window_options(model: &str) -> Vec<i32> {
     let ceiling = context_window_picker_ceiling(model);
-    CONTEXT_WINDOW_STEPS.into_iter().filter(|&s| s <= ceiling).collect()
+    CONTEXT_WINDOW_STEPS
+        .into_iter()
+        .filter(|&s| s <= ceiling)
+        .collect()
 }
 
 /// `Ok(0)` stores the default. Rejects values above the picker ceiling and values that are not a step.
@@ -71,7 +94,9 @@ pub fn context_window_store(model: &str, requested: i32) -> Result<i32, String> 
     }
     let ceiling = context_window_picker_ceiling(model);
     if requested > ceiling {
-        return Err(format!("context_window {requested} above model ceiling {ceiling}"));
+        return Err(format!(
+            "context_window {requested} above model ceiling {ceiling}"
+        ));
     }
     if !CONTEXT_WINDOW_STEPS.contains(&requested) {
         return Err(format!("context_window {requested} is not an allowed step"));
@@ -118,12 +143,17 @@ pub struct PackedHistory {
 
 pub fn history_rows_tokens(rows: &[HistoryRow]) -> i32 {
     rows.iter().fold(0i32, |acc, row| {
-        acc.saturating_add(token_estimate(&history_prune_for_prompt(&row.content, &row.blocks_json)))
+        acc.saturating_add(token_estimate(&history_prune_for_prompt(
+            &row.content,
+            &row.blocks_json,
+        )))
     })
 }
 
 pub fn prompt_tokens_estimate(system_tokens: i32, packed_tokens: i32, user_tokens: i32) -> i32 {
-    system_tokens.saturating_add(packed_tokens).saturating_add(user_tokens)
+    system_tokens
+        .saturating_add(packed_tokens)
+        .saturating_add(user_tokens)
 }
 
 /// Counts only. Built from the pieces already assembled for the prompt.
@@ -138,7 +168,11 @@ pub struct ContextUsageEst {
 
 impl ContextUsageEst {
     pub fn total(self) -> i32 {
-        self.instructions.saturating_add(self.memory).saturating_add(self.context).saturating_add(self.tools).saturating_add(self.conversation)
+        self.instructions
+            .saturating_add(self.memory)
+            .saturating_add(self.context)
+            .saturating_add(self.tools)
+            .saturating_add(self.conversation)
     }
 
     pub fn proto(self) -> c35_proto::ContextUsage {
@@ -181,7 +215,10 @@ pub fn context_pack_history(
         if tok > remaining && picked.len() >= CONTEXT_RECENT_MSG_MIN {
             break;
         }
-        picked.push(ChatHistoryMsg { role: row.role.clone(), content: pruned });
+        picked.push(ChatHistoryMsg {
+            role: row.role.clone(),
+            content: pruned,
+        });
         used_tokens += tok;
         remaining = (remaining - tok).max(0);
     }

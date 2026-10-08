@@ -1,16 +1,16 @@
+pub mod asset_image;
 pub mod builtin;
 pub mod context;
 pub mod definition;
+pub mod device_screenshot_artifact;
 pub mod dispatcher;
 pub mod egress_http;
-pub mod device_screenshot_artifact;
-pub mod asset_image;
-pub mod img;
 pub mod image_tier;
+pub mod img;
+pub mod macros;
 pub mod media;
 pub mod music;
 pub mod vid;
-pub mod macros;
 pub mod web;
 
 use std::sync::{Arc, Mutex, OnceLock};
@@ -31,42 +31,36 @@ use crate::mention_context::MentionContext;
 
 use builtin::{
     AccountBillingGetTool, AccountBillingHistoryTool, AccountGetTool, AccountReferralLedgerTool,
-    AccountReferralStatsTool,
-    AccountSnapshotTool, BotListTool, BotDraftTool, BotInboxQueryTool, BrowserFileUploadTool,
-    ClientListTool, DeviceListTool, SiteListTool, BrowserPageActTool, BrowserPageExtractTool, BrowserPageObserveTool,
-    BrowserAgentRestartTool, BrowserExtensionTool, BrowserPageScreenshotTool,
-    BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRowSetTool,
-    BrowserSheetsRangeReadTool, BrowserTabsTool,
-    BrowserTaskRunTool, DriveListTool,
-    DriveReadTool, GsheetAppendTool,
-    GsheetReadTool, GsheetUpdateTool, ComputerUseDelegateTool, ConsumptionAddTool,
-    ConsumptionDeleteTool, ConsumptionTodayTool,
-    ConsumptionUpdateTool, DelegateRunTool, DocExtractTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
-    DeviceInputTool, DevicePairTool, DeviceScreenshotTool,
-    ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, MusicGenerateTool,
-    VidGenerateTool,
-    ChatMessagesTool, ChatSearchTool, MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool,
+    AccountReferralStatsTool, AccountSnapshotTool, AdminBotListTool, AdminChatMessagesTool,
+    AdminChatSearchTool, AdminClientListTool, AdminDeviceListTool, AdminLogTailTool,
+    AdminMsgFindTool, AdminMsgGetTool, AdminTaskListTool, AdminTraceGetTool, AdminUserSearchTool,
+    BillingTopupListTool, BillingTopupReviewTool, BillingWithdrawListTool,
+    BillingWithdrawReviewTool, BotDraftTool, BotInboxQueryTool, BotListTool,
+    BrowserAgentRestartTool, BrowserExtensionTool, BrowserFileUploadTool, BrowserPageActTool,
+    BrowserPageExtractTool, BrowserPageObserveTool, BrowserPageScreenshotTool,
+    BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRangeReadTool,
+    BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool, ChatMessagesTool, ChatSearchTool,
+    ClientListTool, ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool,
+    ConsumptionTodayTool, ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool,
+    DeviceFsReadTool, DeviceInputTool, DeviceListTool, DevicePairTool, DeviceScreenshotTool,
+    DocExtractTool, DriveListTool, DriveReadTool, ExpenseAddTool, ExpenseDeleteTool,
+    ExpenseSummaryTool, GsheetAppendTool, GsheetReadTool, GsheetUpdateTool, ImgEditTool,
+    ImgGenerateTool, MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool,
     MailMarkReadTool, MailSendTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
-    NotifyCancelTool, NotifyListTool, NotifyScheduleTool,
+    MusicGenerateTool, NotifyCancelTool, NotifyListTool, NotifyScheduleTool,
     PresentationCreateTool, PresentationExportTool, PresentationPatchTool,
-    PresentationSourceExtractTool, PresentationSourceStructureTool,
-    PresentationVideoExtractTool, PresentationVideoStructureTool,
-    ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
-    AdminBotListTool, AdminChatMessagesTool, AdminChatSearchTool, AdminClientListTool,
-    AdminDeviceListTool, AdminLogTailTool, AdminMsgFindTool, AdminMsgGetTool, AdminTaskListTool,
-    AdminTraceGetTool, AdminUserSearchTool, BillingTopupListTool,
-    BillingTopupReviewTool, BillingWithdrawListTool, BillingWithdrawReviewTool,
-    ReferralCommissionSimulateTool, ReferralUserStatsStaffTool,
-    SiteContactDeleteTool, SiteContactPutTool, SiteConfigPutTool, SiteCreateTool, SiteDomainPutTool,
-    SiteLinkDeleteTool, SiteLinkPutTool,
-    SiteDomainVerifyTool, SiteDraftGetTool, SiteGrantDeleteTool, SiteGrantPutTool, SiteDraftPutTool,
-    SiteHandleUpdateTool, SiteObjectDeleteTool, SiteObjectPutTool, SiteOrderStatusTool, SitePatchTool,
-    SiteProductDeleteTool, SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool,
-    SitePicGenerateTool,
-    SitePublishTool, SiteQueryRunTool,
-    SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, TaskCreateTool,
-    TaskDeleteTool, TaskListTool, TaskRunCancelDeviceTool,
-    TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool, WebResearchTool, WebSearchTool,
+    PresentationSourceExtractTool, PresentationSourceStructureTool, PresentationVideoExtractTool,
+    PresentationVideoStructureTool, ReferralCodeDeleteTool, ReferralCodeListTool,
+    ReferralCodePutTool, ReferralCommissionSimulateTool, ReferralTreeGetTool,
+    ReferralUserStatsStaffTool, ShellRunTool, SiteConfigPutTool, SiteContactDeleteTool,
+    SiteContactPutTool, SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool,
+    SiteDraftPutTool, SiteGrantDeleteTool, SiteGrantPutTool, SiteHandleUpdateTool,
+    SiteLinkDeleteTool, SiteLinkPutTool, SiteListTool, SiteObjectDeleteTool, SiteObjectPutTool,
+    SiteOrderStatusTool, SitePatchTool, SitePicGenerateTool, SiteProductDeleteTool,
+    SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool,
+    SiteQueryRunTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
+    TaskCreateTool, TaskDeleteTool, TaskListTool, TaskRunCancelDeviceTool, TaskRunCancelTool,
+    TaskRunStartTool, TaskRunStatusTool, VidGenerateTool, WebResearchTool, WebSearchTool,
     WebVisitTool,
 };
 

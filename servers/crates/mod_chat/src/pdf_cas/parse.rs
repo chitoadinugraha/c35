@@ -33,7 +33,12 @@ pub fn pdf_structure(bytes: &[u8]) -> Result<PdfStructure> {
     })
 }
 
-pub fn pdf_extract_pages(bytes: &[u8], page_from: u32, page_to: u32, max_chars: usize) -> Result<String> {
+pub fn pdf_extract_pages(
+    bytes: &[u8],
+    page_from: u32,
+    page_to: u32,
+    max_chars: usize,
+) -> Result<String> {
     if bytes.is_empty() {
         bail!("empty PDF");
     }
@@ -48,8 +53,15 @@ pub fn pdf_extract_pages(bytes: &[u8], page_from: u32, page_to: u32, max_chars: 
     let max_len = max_chars.clamp(500, PDF_EXTRACT_ABSOLUTE_MAX_CHARS);
     let mut out = String::new();
     for p in from..=to {
-        let chunk = doc.extract_text(&[p]).with_context(|| format!("extract page {p}"))?;
-        let chunk = chunk.lines().map(str::trim).filter(|l| !l.is_empty()).collect::<Vec<_>>().join("\n");
+        let chunk = doc
+            .extract_text(&[p])
+            .with_context(|| format!("extract page {p}"))?;
+        let chunk = chunk
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .collect::<Vec<_>>()
+            .join("\n");
         if chunk.is_empty() {
             continue;
         }
@@ -66,7 +78,11 @@ fn outline_sections(_doc: &Document, _pages: &BTreeMap<u32, (u32, u16)>) -> Vec<
     Vec::new()
 }
 
-fn heading_heuristic(doc: &Document, pages: &BTreeMap<u32, (u32, u16)>, max_pages: u32) -> Vec<PdfSection> {
+fn heading_heuristic(
+    doc: &Document,
+    pages: &BTreeMap<u32, (u32, u16)>,
+    max_pages: u32,
+) -> Vec<PdfSection> {
     let mut out = Vec::new();
     let scan = pages.len().min(max_pages as usize) as u32;
     for p in 1..=scan {

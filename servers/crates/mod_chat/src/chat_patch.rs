@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use async_nats::Client;
-use chrono::Utc;
 use c35_proto::{Chat, ChatKind, ChatMember, ReqChatPatch, ResChatPatch};
+use chrono::Utc;
 use sqlx::{PgPool, Row};
 
 use crate::asset_tag::{asset_tags_map, asset_tags_replace};
@@ -95,7 +95,12 @@ pub async fn chat_patch(
     Ok(res)
 }
 
-async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: bool) -> Result<ResChatPatch> {
+async fn chat_patch_get(
+    pool: &PgPool,
+    member_iid: i64,
+    chat_id: i64,
+    deleted: bool,
+) -> Result<ResChatPatch> {
     let row = sqlx::query(
         r#"
         SELECT c.id, c.kind, c.owner_iid, c.title, c.model, c.last_msg_ts, c.last_msg_preview,
@@ -115,13 +120,18 @@ async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: b
     .ok_or_else(|| anyhow!("chat not found"))?;
 
     let owner_iid: i64 = row.get("owner_iid");
-    let tags = asset_tags_map(pool, owner_iid, "chat", &[chat_id]).await?.remove(&chat_id).unwrap_or_default();
+    let tags = asset_tags_map(pool, owner_iid, "chat", &[chat_id])
+        .await?
+        .remove(&chat_id)
+        .unwrap_or_default();
 
     let preview: String = row
         .get::<Option<String>, _>("member_preview")
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| row.get("last_msg_preview"));
-    let last_at = row.get::<Option<chrono::DateTime<Utc>>, _>("member_last_msg_ts").or_else(|| row.get("last_msg_ts"));
+    let last_at = row
+        .get::<Option<chrono::DateTime<Utc>>, _>("member_last_msg_ts")
+        .or_else(|| row.get("last_msg_ts"));
 
     let chat = Chat {
         id: chat_id,
@@ -135,7 +145,11 @@ async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: b
         context_window: row.get("context_window"),
         created_ts_ms: ts_ms(row.get("created_ts")),
         updated_ts_ms: ts_ms(row.get("updated_ts")),
-        deleted_ts_ms: if deleted { Utc::now().timestamp_millis() } else { ts_ms(row.get("deleted_ts")) },
+        deleted_ts_ms: if deleted {
+            Utc::now().timestamp_millis()
+        } else {
+            ts_ms(row.get("deleted_ts"))
+        },
         ..Default::default()
     };
     let member = ChatMember {
@@ -156,5 +170,8 @@ async fn chat_patch_get(pool: &PgPool, member_iid: i64, chat_id: i64, deleted: b
         },
         last_msg_status: row.get::<String, _>("last_msg_status"),
     };
-    Ok(ResChatPatch { chat: Some(chat), member: Some(member) })
+    Ok(ResChatPatch {
+        chat: Some(chat),
+        member: Some(member),
+    })
 }

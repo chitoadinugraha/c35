@@ -34,7 +34,8 @@ pub fn ocr_usage_from_response(v: &Value) -> Option<OcrUsage> {
     }
     let tokens_in = usage_count(v, "promptTokenCount");
     let tokens_out = usage_count(v, "candidatesTokenCount");
-    let cost_usd = c35_mod_billing::billing_cost_usd(c35_mod_llm::CHEAP_MODEL, tokens_in, tokens_out);
+    let cost_usd =
+        c35_mod_billing::billing_cost_usd(c35_mod_llm::CHEAP_MODEL, tokens_in, tokens_out);
     Some(OcrUsage {
         text: text.trim().to_string(),
         tokens_in,
@@ -83,7 +84,10 @@ pub async fn ocr_jpeg(client: &Client, jpeg: &[u8]) -> Result<OcrUsage> {
     if !resp.status().is_success() {
         anyhow::bail!("gemini HTTP {}", resp.status());
     }
-    let v: Value = resp.json().await.map_err(|e| anyhow!("gemini OCR parse: {e}"))?;
+    let v: Value = resp
+        .json()
+        .await
+        .map_err(|e| anyhow!("gemini OCR parse: {e}"))?;
     ocr_usage_from_response(&v).ok_or_else(|| anyhow!("gemini OCR response empty"))
 }
 
@@ -107,7 +111,10 @@ fn usage_count(v: &Value, key: &str) -> i32 {
     let Some(n) = v.get("usageMetadata").and_then(|u| u.get(key)) else {
         return 0;
     };
-    let raw = n.as_i64().or_else(|| n.as_u64().and_then(|u| i64::try_from(u).ok())).unwrap_or(0);
+    let raw = n
+        .as_i64()
+        .or_else(|| n.as_u64().and_then(|u| i64::try_from(u).ok()))
+        .unwrap_or(0);
     i32::try_from(raw.max(0)).unwrap_or(i32::MAX)
 }
 

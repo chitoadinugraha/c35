@@ -350,14 +350,16 @@ pub async fn presentation_theme_list(pool: &PgPool) -> Vec<PresentationThemeRow>
     match rows {
         Ok(rows) if !rows.is_empty() => rows
             .into_iter()
-            .map(|(id, label_key, sort, icon, tokens, aliases)| PresentationThemeRow {
-                id,
-                label_key,
-                sort,
-                icon,
-                tokens,
-                aliases,
-            })
+            .map(
+                |(id, label_key, sort, icon, tokens, aliases)| PresentationThemeRow {
+                    id,
+                    label_key,
+                    sort,
+                    icon,
+                    tokens,
+                    aliases,
+                },
+            )
             .collect(),
         Ok(_) => presentation_theme_fallback(),
         Err(e) if missing_table(&e) => {
@@ -393,7 +395,12 @@ async fn presentation_theme_resolve_id(pool: &PgPool, id: &str) -> PresentationT
         .await
         .into_iter()
         .find(|t| t.id == id)
-        .unwrap_or_else(|| presentation_theme_fallback().into_iter().next().expect("dark theme"))
+        .unwrap_or_else(|| {
+            presentation_theme_fallback()
+                .into_iter()
+                .next()
+                .expect("dark theme")
+        })
 }
 
 #[cfg(test)]

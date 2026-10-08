@@ -24,7 +24,12 @@ pub fn bot_inbox_content_fingerprint(normalized: &str) -> String {
     blake3::hash(normalized.as_bytes()).to_hex().to_string()
 }
 
-pub async fn bot_inbox_user_msg_record(pool: &PgPool, chat_id: i64, content: &str, at: DateTime<Utc>) -> Result<()> {
+pub async fn bot_inbox_user_msg_record(
+    pool: &PgPool,
+    chat_id: i64,
+    content: &str,
+    at: DateTime<Utc>,
+) -> Result<()> {
     let row = sqlx::query(
         r#"
         SELECT kind, bot_iid, channel_id

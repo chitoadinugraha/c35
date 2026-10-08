@@ -26,7 +26,8 @@ pub use csv::{parse_csv, parse_csv_line};
 pub use google_asset_check::{data_source_check_run, AssetCheckResult, SheetTabInfo};
 pub use google_sheet::{
     config_merge_sheet_url, google_sheet_config_from_row, google_sheet_metadata, google_sheet_read_csv,
-    google_sheet_write_append, google_sheet_write_update, parse_sheet_url, sheet_tab_name, GoogleSheetConfig,
+    google_sheet_replace_grid, google_sheet_write_append, google_sheet_write_update, parse_sheet_url,
+    sheet_tab_name, GoogleSheetConfig,
     ParsedSheetUrl,
 };
 pub use google_url::{

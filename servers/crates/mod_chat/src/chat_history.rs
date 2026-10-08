@@ -17,12 +17,74 @@ const MESSAGE_CHARS: usize = 1200;
 const FALLBACK_MESSAGES: i64 = 4;
 
 const STOPWORDS: &[&str] = &[
-    "when", "did", "do", "does", "what", "which", "where", "who", "how", "i", "you", "we", "our", "me", "my",
-    "to", "the", "a", "an", "ask", "asked", "say", "said", "tell", "told", "about", "based", "on", "of", "for",
-    "conversation", "chat", "remember", "yesterday", "today", "exact", "words", "word", "quote", "please",
-    "kapan", "saya", "aku", "kamu", "kita", "yang", "untuk", "minta", "bilang", "tanya", "ingat", "percakapan",
-    "obrolan", "tentang", "kemarin", "hari", "ini", "itu", "dari", "dengan", "apa", "apakah", "tolong", "dong",
-    "ya", "kan", "our", "based",
+    "when",
+    "did",
+    "do",
+    "does",
+    "what",
+    "which",
+    "where",
+    "who",
+    "how",
+    "i",
+    "you",
+    "we",
+    "our",
+    "me",
+    "my",
+    "to",
+    "the",
+    "a",
+    "an",
+    "ask",
+    "asked",
+    "say",
+    "said",
+    "tell",
+    "told",
+    "about",
+    "based",
+    "on",
+    "of",
+    "for",
+    "conversation",
+    "chat",
+    "remember",
+    "yesterday",
+    "today",
+    "exact",
+    "words",
+    "word",
+    "quote",
+    "please",
+    "kapan",
+    "saya",
+    "aku",
+    "kamu",
+    "kita",
+    "yang",
+    "untuk",
+    "minta",
+    "bilang",
+    "tanya",
+    "ingat",
+    "percakapan",
+    "obrolan",
+    "tentang",
+    "kemarin",
+    "hari",
+    "ini",
+    "itu",
+    "dari",
+    "dengan",
+    "apa",
+    "apakah",
+    "tolong",
+    "dong",
+    "ya",
+    "kan",
+    "our",
+    "based",
 ];
 
 pub struct ChatHistoryQuery {
@@ -63,13 +125,19 @@ pub fn chat_query_tokens(query: &str) -> Vec<String> {
         .collect();
     let kept: Vec<String> = raw.iter().filter(|t| !is_stopword(t)).cloned().collect();
     let tokens = if kept.is_empty() { raw } else { kept };
-    tokens.into_iter().map(|t| format!("%{}%", chat_like_escape(&t))).collect()
+    tokens
+        .into_iter()
+        .map(|t| format!("%{}%", chat_like_escape(&t)))
+        .collect()
 }
 
 pub fn chat_time_label(ts: DateTime<Utc>, tz_name: &str) -> String {
     let tz_name = tz_name.trim();
     if let Ok(tz) = tz_name.parse::<Tz>() {
-        return ts.with_timezone(&tz).format("%A, %d %B %Y, %H:%M %Z").to_string();
+        return ts
+            .with_timezone(&tz)
+            .format("%A, %d %B %Y, %H:%M %Z")
+            .to_string();
     }
     ts.format("%A, %d %B %Y, %H:%M UTC").to_string()
 }
@@ -79,7 +147,8 @@ fn parse_local_day(raw: &str) -> Result<NaiveDate, String> {
     if raw.is_empty() {
         return Err("empty".into());
     }
-    NaiveDate::parse_from_str(raw, "%Y-%m-%d").map_err(|_| format!("date must be YYYY-MM-DD, got {raw}"))
+    NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+        .map_err(|_| format!("date must be YYYY-MM-DD, got {raw}"))
 }
 
 fn day_start_utc(tz: Tz, day: NaiveDate) -> Result<DateTime<Utc>, String> {
@@ -89,7 +158,11 @@ fn day_start_utc(tz: Tz, day: NaiveDate) -> Result<DateTime<Utc>, String> {
         .ok_or_else(|| format!("cannot place {day} in timezone"))
 }
 
-pub fn chat_local_range(tz_name: &str, since: &str, until: &str) -> Result<(Option<DateTime<Utc>>, Option<DateTime<Utc>>), String> {
+pub fn chat_local_range(
+    tz_name: &str,
+    since: &str,
+    until: &str,
+) -> Result<(Option<DateTime<Utc>>, Option<DateTime<Utc>>), String> {
     let tz: Tz = tz_name.parse().unwrap_or(chrono_tz::UTC);
     let start = if since.trim().is_empty() {
         None
@@ -121,11 +194,22 @@ async fn owner_tz(pool: &PgPool, owner_iid: i64, locale: &str, user_text: &str) 
             )
         })
         .unwrap_or_default();
-    let locale = if locale.trim().is_empty() { loc } else { locale.to_string() };
+    let locale = if locale.trim().is_empty() {
+        loc
+    } else {
+        locale.to_string()
+    };
     time_timezone_resolve(&tz, &locale, user_text)
 }
 
-fn msg_json(id: i64, role: &str, content: &str, ts: DateTime<Utc>, tz_name: &str, max: usize) -> Value {
+fn msg_json(
+    id: i64,
+    role: &str,
+    content: &str,
+    ts: DateTime<Utc>,
+    tz_name: &str,
+    max: usize,
+) -> Value {
     json!({
         "id": id.to_string(),
         "role": role,
@@ -166,7 +250,11 @@ pub async fn chat_search(pool: &PgPool, q: &ChatHistoryQuery) -> Result<Value, S
     let tz_name = owner_tz(pool, q.owner_iid, &q.locale, &q.user_text).await;
     let (since, until) = chat_local_range(&tz_name, &q.since, &q.until)?;
     let patterns = chat_query_tokens(&q.query);
-    let limit = if q.limit <= 0 { SEARCH_LIMIT_DEFAULT } else { q.limit.clamp(1, SEARCH_LIMIT_MAX) };
+    let limit = if q.limit <= 0 {
+        SEARCH_LIMIT_DEFAULT
+    } else {
+        q.limit.clamp(1, SEARCH_LIMIT_MAX)
+    };
     let rows = sqlx::query(
         r#"
         SELECT c.id, c.title, COALESCE(c.context_summary, '') AS context_summary, c.last_msg_ts,
@@ -244,7 +332,11 @@ pub async fn chat_search(pool: &PgPool, q: &ChatHistoryQuery) -> Result<Value, S
 }
 
 pub async fn chat_messages(pool: &PgPool, q: &ChatHistoryQuery) -> Result<Value, String> {
-    let chat_id = if q.chat_id > 0 { q.chat_id } else { q.current_chat_id };
+    let chat_id = if q.chat_id > 0 {
+        q.chat_id
+    } else {
+        q.current_chat_id
+    };
     if chat_id <= 0 {
         return Ok(json!({ "ok": false, "error": "chat_id required" }));
     }
@@ -262,7 +354,11 @@ pub async fn chat_messages(pool: &PgPool, q: &ChatHistoryQuery) -> Result<Value,
         return Ok(json!({ "ok": false, "error": "chat not found" }));
     };
     let patterns = chat_query_tokens(&q.query);
-    let limit = if q.limit <= 0 { MESSAGE_LIMIT_DEFAULT } else { q.limit.clamp(1, MESSAGE_LIMIT_MAX) };
+    let limit = if q.limit <= 0 {
+        MESSAGE_LIMIT_DEFAULT
+    } else {
+        q.limit.clamp(1, MESSAGE_LIMIT_MAX)
+    };
     let newest_first = patterns.is_empty() && since.is_none() && until.is_none();
     let rows = if newest_first {
         sqlx::query(
@@ -343,9 +439,24 @@ mod tests {
     #[test]
     fn question_words_drop_out_of_search_tokens() {
         let tokens = chat_query_tokens("when did I ask you to remove product A");
-        assert!(tokens.iter().any(|t| t.to_ascii_lowercase().contains("remove")), "{tokens:?}");
-        assert!(tokens.iter().any(|t| t.to_ascii_lowercase().contains("product")), "{tokens:?}");
-        assert!(!tokens.iter().any(|t| t.to_ascii_lowercase().contains("when")), "{tokens:?}");
+        assert!(
+            tokens
+                .iter()
+                .any(|t| t.to_ascii_lowercase().contains("remove")),
+            "{tokens:?}"
+        );
+        assert!(
+            tokens
+                .iter()
+                .any(|t| t.to_ascii_lowercase().contains("product")),
+            "{tokens:?}"
+        );
+        assert!(
+            !tokens
+                .iter()
+                .any(|t| t.to_ascii_lowercase().contains("when")),
+            "{tokens:?}"
+        );
     }
 
     #[test]

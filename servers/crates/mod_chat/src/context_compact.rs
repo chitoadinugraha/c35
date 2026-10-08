@@ -14,8 +14,9 @@ use tracing::warn;
 use crate::chat_sync::chat_title_set;
 use crate::context_billing::ContextBillingExtra;
 use crate::context_pack::{
-    context_pack_history, context_window_resolve, context_window_store, history_rows_tokens, history_with_summary,
-    prompt_tokens_estimate, token_estimate, HistoryRow, CONTEXT_RECENT_MSG_MIN,
+    context_pack_history, context_window_resolve, context_window_store, history_rows_tokens,
+    history_with_summary, prompt_tokens_estimate, token_estimate, HistoryRow,
+    CONTEXT_RECENT_MSG_MIN,
 };
 use crate::prompt_turn::chat_title_from_text;
 use crate::tools::http_client;
@@ -58,13 +59,26 @@ pub struct PreparedPromptHistory {
     pub context_window: i32,
 }
 
-pub fn should_compact(window: i32, system_tokens: i32, summary_tokens: i32, history_tokens: i32, user_tokens: i32) -> bool {
-    let total = system_tokens.saturating_add(summary_tokens).saturating_add(history_tokens).saturating_add(user_tokens);
+pub fn should_compact(
+    window: i32,
+    system_tokens: i32,
+    summary_tokens: i32,
+    history_tokens: i32,
+    user_tokens: i32,
+) -> bool {
+    let total = system_tokens
+        .saturating_add(summary_tokens)
+        .saturating_add(history_tokens)
+        .saturating_add(user_tokens);
     total as f64 >= (window.max(1) as f64) * CONTEXT_COMPACT_THRESHOLD_RATIO
 }
 
 /// Auto title may replace the first-message title. A tool-set title (`title_locked`) stays.
-pub fn title_refresh_allowed(meta: &serde_json::Value, current_title: &str, first_user_text: &str) -> bool {
+pub fn title_refresh_allowed(
+    meta: &serde_json::Value,
+    current_title: &str,
+    first_user_text: &str,
+) -> bool {
     if meta.get("title_locked").and_then(|v| v.as_bool()) == Some(true) {
         return false;
     }
@@ -149,7 +163,12 @@ pub async fn history_rows_load(
     .await?;
     Ok(rows
         .into_iter()
-        .map(|(id, role, content, blocks_json)| HistoryRow { id, role, content, blocks_json })
+        .map(|(id, role, content, blocks_json)| HistoryRow {
+            id,
+            role,
+            content,
+            blocks_json,
+        })
         .collect())
 }
 
@@ -167,7 +186,10 @@ fn transcript_from_rows(rows: &[HistoryRow]) -> String {
         .join("\n")
 }
 
-async fn compact_llm(transcript: &str, old_summary: &str) -> Result<(String, String, i32, i32, f64)> {
+async fn compact_llm(
+    transcript: &str,
+    old_summary: &str,
+) -> Result<(String, String, i32, i32, f64)> {
     let user = if old_summary.trim().is_empty() {
         format!("Transcript:\n{transcript}")
     } else {
@@ -175,7 +197,16 @@ async fn compact_llm(transcript: &str, old_summary: &str) -> Result<(String, Str
     };
     let model = gemini_model(CONTEXT_COMPACT_MODEL);
     let contents = vec![json!({ "role": "user", "parts": [{ "text": user }] })];
-    let out = gemini_generate(&contents, &json!([]), &thinking_level("off"), &model, CONTEXT_COMPACT_MODEL, COMPACT_SYSTEM, "AUTO").await?;
+    let out = gemini_generate(
+        &contents,
+        &json!([]),
+        &thinking_level("off"),
+        &model,
+        CONTEXT_COMPACT_MODEL,
+        COMPACT_SYSTEM,
+        "AUTO",
+    )
+    .await?;
     let cost = billing_cost_usd(&model, out.in_tok, out.out_tok);
     let (summary, title) = parse_compact_out(&out.text);
     Ok((summary, title, out.in_tok, out.out_tok, cost))
@@ -188,7 +219,9 @@ fn compact_title_cap(title: &str) -> String {
 fn parse_compact_out(text: &str) -> (String, String) {
     let t = text.trim();
     let parsed = serde_json::from_str::<CompactOut>(t).ok().or_else(|| {
-        let (Some(start), Some(end)) = (t.find('{'), t.rfind('}')) else { return None };
+        let (Some(start), Some(end)) = (t.find('{'), t.rfind('}')) else {
+            return None;
+        };
         serde_json::from_str::<CompactOut>(&t[start..=end]).ok()
     });
     if let Some(v) = parsed {
@@ -248,12 +281,17 @@ pub async fn context_compact(
     if summarize_rows.is_empty() {
         return Ok(None);
     }
-    let upto_id = summarize_rows.iter().map(|r| r.id).max().unwrap_or(ctx.summary_upto_msg_id);
+    let upto_id = summarize_rows
+        .iter()
+        .map(|r| r.id)
+        .max()
+        .unwrap_or(ctx.summary_upto_msg_id);
     let transcript = transcript_from_rows(&summarize_rows);
     if transcript.trim().is_empty() {
         return Ok(None);
     }
-    let (batch_summary, batch_title, tin, tout, cost) = compact_llm(&transcript, &ctx.summary).await?;
+    let (batch_summary, batch_title, tin, tout, cost) =
+        compact_llm(&transcript, &ctx.summary).await?;
     if batch_summary.trim().is_empty() {
         return Ok(None);
     }
@@ -279,7 +317,9 @@ pub async fn context_compact(
     .execute(pool)
     .await?;
     let (mem_writes, mem_tin, mem_tout, mem_cost) =
-        memory_extract_batch(pool, http, owner_iid, bot_iid, req_id, &transcript).await.unwrap_or((0, 0, 0, 0.0));
+        memory_extract_batch(pool, http, owner_iid, bot_iid, req_id, &transcript)
+            .await
+            .unwrap_or((0, 0, 0, 0.0));
     let log_id = snowflake_id();
     let _ = sqlx::query(
         r#"
@@ -304,7 +344,8 @@ pub async fn context_compact(
     .bind(mem_writes)
     .execute(pool)
     .await;
-    let title = match compact_title_apply(pool, nats, chat_id, owner_iid, &ctx, &batch_title).await {
+    let title = match compact_title_apply(pool, nats, chat_id, owner_iid, &ctx, &batch_title).await
+    {
         Ok(t) => t,
         Err(e) => {
             warn!("[c35:context_compact] title refresh chat_id={chat_id}: {e:#}");
@@ -341,8 +382,26 @@ pub async fn prepare_prompt_history(
     let window = context_window_resolve(model, ctx.context_window);
     let rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
     let full_history_tokens = history_rows_tokens(&rows);
-    if should_compact(window, system_tokens, token_estimate(&ctx.summary), full_history_tokens, user_tokens) {
-        match context_compact(pool, http, nats, chat_id, owner_iid, req_id, user_msg_id, bot_iid, "threshold").await {
+    if should_compact(
+        window,
+        system_tokens,
+        token_estimate(&ctx.summary),
+        full_history_tokens,
+        user_tokens,
+    ) {
+        match context_compact(
+            pool,
+            http,
+            nats,
+            chat_id,
+            owner_iid,
+            req_id,
+            user_msg_id,
+            bot_iid,
+            "threshold",
+        )
+        .await
+        {
             Ok(Some(compact)) => {
                 billing.compaction_cost_usd = compact.cost_usd;
                 billing.compaction_tokens_in = compact.tokens_in;
@@ -382,7 +441,11 @@ async fn chat_prompt_tokens_now(pool: &PgPool, chat_id: i64, model: &str) -> Res
     Ok(packed.tokens_est)
 }
 
-pub async fn chat_context_window_set(pool: &PgPool, owner_iid: i64, req: ReqChatContextWindowSet) -> Result<ResChatContextWindowSet> {
+pub async fn chat_context_window_set(
+    pool: &PgPool,
+    owner_iid: i64,
+    req: ReqChatContextWindowSet,
+) -> Result<ResChatContextWindowSet> {
     if req.chat_id == 0 {
         anyhow::bail!("chat_id required");
     }
@@ -398,7 +461,13 @@ pub async fn chat_context_window_set(pool: &PgPool, owner_iid: i64, req: ReqChat
     Ok(ResChatContextWindowSet {
         context_window: store,
         prompt_tokens,
-        usage: Some(crate::context_pack::ContextUsageEst { conversation: prompt_tokens, ..Default::default() }.proto()),
+        usage: Some(
+            crate::context_pack::ContextUsageEst {
+                conversation: prompt_tokens,
+                ..Default::default()
+            }
+            .proto(),
+        ),
     })
 }
 
@@ -456,21 +525,46 @@ pub async fn chat_compact_manual(
     let user_msg_id = latest.unwrap_or(0).saturating_add(1);
     let req_id = format!("compact-{chat_id}-{}", snowflake_id());
     let http = http_client(Duration::from_secs(60));
-    let compact = context_compact(pool, &http, nats, chat_id, owner_iid, &req_id, user_msg_id, None, "manual").await?;
+    let compact = context_compact(
+        pool,
+        &http,
+        nats,
+        chat_id,
+        owner_iid,
+        &req_id,
+        user_msg_id,
+        None,
+        "manual",
+    )
+    .await?;
     let cost_usd = if let Some(c) = &compact {
-        if c.cost_usd > 0.0 { bill_manual_compact(pool, nats, owner_iid, chat_id, &req_id, c).await? } else { 0.0 }
+        if c.cost_usd > 0.0 {
+            bill_manual_compact(pool, nats, owner_iid, chat_id, &req_id, c).await?
+        } else {
+            0.0
+        }
     } else {
         0.0
     };
     let ctx = chat_context_load(pool, chat_id).await?;
-    let title = compact.as_ref().map(|c| c.title.clone()).filter(|t| !t.is_empty()).unwrap_or(ctx.title);
+    let title = compact
+        .as_ref()
+        .map(|c| c.title.clone())
+        .filter(|t| !t.is_empty())
+        .unwrap_or(ctx.title);
     let prompt_tokens = chat_prompt_tokens_now(pool, chat_id, &model).await?;
     Ok(ResChatCompact {
         ran: compact.is_some(),
         title,
         prompt_tokens,
         cost_usd,
-        usage: Some(crate::context_pack::ContextUsageEst { conversation: prompt_tokens, ..Default::default() }.proto()),
+        usage: Some(
+            crate::context_pack::ContextUsageEst {
+                conversation: prompt_tokens,
+                ..Default::default()
+            }
+            .proto(),
+        ),
     })
 }
 

@@ -191,9 +191,7 @@ fn narrow_specific_names(rows: Vec<ProductPicRow>) -> Vec<ProductPicRow> {
                 return false;
             }
             !lowered.iter().enumerate().any(|(j, other)| {
-                j != *i
-                    && other.chars().count() > name.chars().count()
-                    && other.contains(name)
+                j != *i && other.chars().count() > name.chars().count() && other.contains(name)
             })
         })
         .map(|(_, row)| row)
@@ -514,7 +512,10 @@ mod tests {
 
     #[test]
     fn site_pic_prompt_empty_name() {
-        assert_eq!(site_pic_default_prompt(SitePicSlot::Product, "   ", "x"), "");
+        assert_eq!(
+            site_pic_default_prompt(SitePicSlot::Product, "   ", "x"),
+            ""
+        );
         assert_eq!(site_pic_default_prompt(SitePicSlot::Icon, "", "x"), "");
     }
 

@@ -1,12 +1,18 @@
 use std::time::Duration;
 
-use c35_mod_youtube::{video_structure_cached_only, video_structure_json, youtube_urls_in_text, youtube_video_id};
+use c35_mod_youtube::{
+    video_structure_cached_only, video_structure_json, youtube_urls_in_text, youtube_video_id,
+};
 use sqlx::PgPool;
 use tokio::time::timeout;
 
 const ENRICH_FETCH_MS: u64 = 2500;
 
-pub async fn presentation_youtube_enrich(pool: &PgPool, user_text: &str, owner_iid: i64) -> Option<String> {
+pub async fn presentation_youtube_enrich(
+    pool: &PgPool,
+    user_text: &str,
+    owner_iid: i64,
+) -> Option<String> {
     let urls = youtube_urls_in_text(user_text);
     let url = urls.first()?;
     let video_id = youtube_video_id(url)?;

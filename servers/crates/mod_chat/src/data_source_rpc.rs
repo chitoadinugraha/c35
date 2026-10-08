@@ -1,15 +1,16 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
-use c35_proto::{
-    DataSourceDoc, DataSourceSheetTab, ReqDataSourceCheck, ReqDataSourceDelete, ReqDataSourceList, ReqDataSourcePut,
-    ReqDataSourceSync, ResDataSourceCheck, ResDataSourceDelete, ResDataSourceList, ResDataSourcePut, ResDataSourceSync,
-};
 use c35_mod_data_source::{
-    config_merge_doc_url, config_merge_sheet_url, config_merge_slide_url, config_normalize_access_mode,
-    data_source_check_run, data_source_sync_invalidate, SOURCE_KIND_GOOGLE_DOC,
-    SOURCE_KIND_GOOGLE_SLIDE,
+    config_merge_doc_url, config_merge_sheet_url, config_merge_slide_url,
+    config_normalize_access_mode, data_source_check_run, data_source_sync_invalidate,
+    SOURCE_KIND_GOOGLE_DOC, SOURCE_KIND_GOOGLE_SLIDE,
+};
+use c35_proto::{
+    DataSourceDoc, DataSourceSheetTab, ReqDataSourceCheck, ReqDataSourceDelete, ReqDataSourceList,
+    ReqDataSourcePut, ReqDataSourceSync, ResDataSourceCheck, ResDataSourceDelete,
+    ResDataSourceList, ResDataSourcePut, ResDataSourceSync,
 };
 use c35_store::snowflake_id;
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use crate::bot_peer::bot_access_verify;
@@ -45,7 +46,9 @@ fn row_to_doc(r: sqlx::postgres::PgRow) -> DataSourceDoc {
         source_kind: r.get("source_kind"),
         name: r.get("name"),
         config_json: config.to_string(),
-        sync_status: r.get::<Option<String>, _>("sync_status").unwrap_or_default(),
+        sync_status: r
+            .get::<Option<String>, _>("sync_status")
+            .unwrap_or_default(),
         row_count: r.get::<Option<i32>, _>("row_count").unwrap_or(0),
         synced_ts_ms: ts_ms(r.get::<Option<DateTime<Utc>>, _>("synced_ts")),
         updated_ts_ms: ts_ms(r.get("updated_ts")),
@@ -66,14 +69,23 @@ async fn data_source_doc_fetch(pool: &PgPool, caller_iid: i64, id: i64) -> Resul
     .bind(caller_iid)
     .fetch_optional(pool)
     .await?;
-    row.map(row_to_doc).ok_or_else(|| anyhow!("data source not found"))
+    row.map(row_to_doc)
+        .ok_or_else(|| anyhow!("data source not found"))
 }
 
-pub async fn data_source_list(pool: &PgPool, caller_iid: i64, req: ReqDataSourceList) -> Result<ResDataSourceList> {
+pub async fn data_source_list(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqDataSourceList,
+) -> Result<ResDataSourceList> {
     if req.bot_iid > 0 {
         bot_access_verify(pool, caller_iid, req.bot_iid).await?;
     }
-    let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
+    let limit = if req.limit <= 0 {
+        100
+    } else {
+        req.limit.min(500)
+    };
     let since = req.since_updated_ts_ms;
     let rows = if req.bot_iid > 0 {
         sqlx::query(
@@ -117,7 +129,11 @@ pub async fn data_source_list(pool: &PgPool, caller_iid: i64, req: ReqDataSource
     Ok(ResDataSourceList { items })
 }
 
-pub async fn data_source_put(pool: &PgPool, caller_iid: i64, req: ReqDataSourcePut) -> Result<ResDataSourcePut> {
+pub async fn data_source_put(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqDataSourcePut,
+) -> Result<ResDataSourcePut> {
     let doc = req.doc.ok_or_else(|| anyhow!("doc required"))?;
     let source_kind = doc.source_kind.trim();
     let name = doc.name.trim();
@@ -150,7 +166,11 @@ pub async fn data_source_put(pool: &PgPool, caller_iid: i64, req: ReqDataSourceP
         }
     }
     config_normalize_access_mode(&mut config, source_kind);
-    let bot_iid: Option<i64> = if doc.bot_iid > 0 { Some(doc.bot_iid) } else { None };
+    let bot_iid: Option<i64> = if doc.bot_iid > 0 {
+        Some(doc.bot_iid)
+    } else {
+        None
+    };
     let id = if doc.id > 0 {
         data_source_owned_get(pool, caller_iid, doc.id).await?;
         sqlx::query(
@@ -203,7 +223,11 @@ pub async fn data_source_put(pool: &PgPool, caller_iid: i64, req: ReqDataSourceP
     Ok(ResDataSourcePut { id, doc: Some(out) })
 }
 
-pub async fn data_source_delete(pool: &PgPool, caller_iid: i64, req: ReqDataSourceDelete) -> Result<ResDataSourceDelete> {
+pub async fn data_source_delete(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqDataSourceDelete,
+) -> Result<ResDataSourceDelete> {
     data_source_owned_get(pool, caller_iid, req.id).await?;
     sqlx::query(
         r#"
@@ -219,7 +243,11 @@ pub async fn data_source_delete(pool: &PgPool, caller_iid: i64, req: ReqDataSour
     Ok(ResDataSourceDelete { ok: true })
 }
 
-pub async fn data_source_check(_pool: &PgPool, _caller_iid: i64, req: ReqDataSourceCheck) -> Result<ResDataSourceCheck> {
+pub async fn data_source_check(
+    _pool: &PgPool,
+    _caller_iid: i64,
+    req: ReqDataSourceCheck,
+) -> Result<ResDataSourceCheck> {
     let source_kind = req.source_kind.trim();
     let view_url = req.view_url.trim();
     if source_kind.is_empty() {
@@ -254,7 +282,11 @@ pub async fn data_source_check(_pool: &PgPool, _caller_iid: i64, req: ReqDataSou
     }
 }
 
-pub async fn data_source_sync(pool: &PgPool, caller_iid: i64, req: ReqDataSourceSync) -> Result<ResDataSourceSync> {
+pub async fn data_source_sync(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqDataSourceSync,
+) -> Result<ResDataSourceSync> {
     data_source_owned_get(pool, caller_iid, req.id).await?;
     let http = crate::tools::http_client(std::time::Duration::from_secs(60));
     c35_mod_data_source::data_source_sync_run(&http, pool, req.id)

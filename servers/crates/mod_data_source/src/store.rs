@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
+use c35_store::snowflake_id;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use sqlx::{PgPool, Row};
-use c35_store::snowflake_id;
 
 #[derive(Clone, Debug)]
 pub struct DataSourceRow {
@@ -116,13 +116,15 @@ pub async fn sync_row_get(pool: &PgPool, data_source_id: i64) -> Result<Option<(
 }
 
 pub async fn sync_row_count(pool: &PgPool, data_source_id: i64) -> usize {
-    sqlx::query_scalar::<_, i32>("SELECT row_count FROM ai.data_source_sync WHERE data_source_id = $1")
-        .bind(data_source_id)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
-        .unwrap_or(0) as usize
+    sqlx::query_scalar::<_, i32>(
+        "SELECT row_count FROM ai.data_source_sync WHERE data_source_id = $1",
+    )
+    .bind(data_source_id)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or(0) as usize
 }
 
 pub async fn sync_touch(pool: &PgPool, data_source_id: i64) -> Result<()> {
@@ -180,7 +182,12 @@ pub async fn sync_upsert_ok(
     Ok(())
 }
 
-pub async fn sync_upsert_error(pool: &PgPool, data_source_id: i64, source_kind: &str, msg: &str) -> Result<()> {
+pub async fn sync_upsert_error(
+    pool: &PgPool,
+    data_source_id: i64,
+    source_kind: &str,
+    msg: &str,
+) -> Result<()> {
     sqlx::query(
         r#"
         INSERT INTO ai.data_source_sync (data_source_id, source_kind, snapshot_hash, row_count, status, error_msg, synced_ts, updated_ts)
@@ -286,7 +293,11 @@ pub async fn chunk_candidates_fts(
     Ok(rows.into_iter().map(chunk_row_to_cand).collect())
 }
 
-pub async fn chunk_candidates_recent(pool: &PgPool, data_source_ids: &[i64], limit: i64) -> Result<Vec<ChunkCand>> {
+pub async fn chunk_candidates_recent(
+    pool: &PgPool,
+    data_source_ids: &[i64],
+    limit: i64,
+) -> Result<Vec<ChunkCand>> {
     if data_source_ids.is_empty() {
         return Ok(Vec::new());
     }
@@ -313,7 +324,9 @@ fn row_to_data_source(row: sqlx::postgres::PgRow) -> Option<DataSourceRow> {
         bot_iid: row.try_get("bot_iid").ok(),
         source_kind: row.try_get("source_kind").unwrap_or_default(),
         name: row.try_get("name").unwrap_or_default(),
-        config: row.try_get("config").unwrap_or_else(|_| serde_json::json!({})),
+        config: row
+            .try_get("config")
+            .unwrap_or_else(|_| serde_json::json!({})),
     })
 }
 

@@ -103,7 +103,16 @@ pub async fn memory_extract_apply(
         if cat == "ephemeral" || c.content.trim().is_empty() {
             continue;
         }
-        memory_put(pool, owner_iid, bot_iid, key, c.content.trim(), &cat, source_req_id).await?;
+        memory_put(
+            pool,
+            owner_iid,
+            bot_iid,
+            key,
+            c.content.trim(),
+            &cat,
+            source_req_id,
+        )
+        .await?;
         writes += 1;
     }
     Ok(writes)
@@ -122,12 +131,27 @@ async fn memory_extract_llm(
     let user_prompt = if existing.is_empty() {
         format!("Transcript:\n{transcript}")
     } else {
-        let mem_lines: Vec<String> = existing.iter().map(|(k, c)| format!("- {k}: {c}")).collect();
-        format!("Known memories for this user:\n{}\n\nTranscript:\n{transcript}", mem_lines.join("\n"))
+        let mem_lines: Vec<String> = existing
+            .iter()
+            .map(|(k, c)| format!("- {k}: {c}"))
+            .collect();
+        format!(
+            "Known memories for this user:\n{}\n\nTranscript:\n{transcript}",
+            mem_lines.join("\n")
+        )
     };
 
     let contents = vec![json!({ "role": "user", "parts": [{ "text": user_prompt }] })];
-    let out = gemini_generate(&contents, &json!([]), &thinking_level("off"), &model, MEMORY_EXTRACT_MODEL, EXTRACT_SYSTEM, "AUTO").await?;
+    let out = gemini_generate(
+        &contents,
+        &json!([]),
+        &thinking_level("off"),
+        &model,
+        MEMORY_EXTRACT_MODEL,
+        EXTRACT_SYSTEM,
+        "AUTO",
+    )
+    .await?;
     let cost = billing_cost_usd(&model, out.in_tok, out.out_tok);
     let actions = parse_memory_actions(&out.text);
     Ok((actions, out.in_tok, out.out_tok, cost))
@@ -166,7 +190,9 @@ pub async fn memory_extract_batch(
     source_req_id: &str,
     transcript: &str,
 ) -> Result<(i32, i32, i32, f64)> {
-    let existing = memory_list_active(pool, owner_iid, bot_iid, 10).await.unwrap_or_default();
+    let existing = memory_list_active(pool, owner_iid, bot_iid, 10)
+        .await
+        .unwrap_or_default();
     let (actions, tin, tout, cost) = memory_extract_llm(transcript, &existing).await?;
     let writes = memory_extract_apply(pool, owner_iid, bot_iid, source_req_id, &actions).await?;
     Ok((writes, tin, tout, cost))
@@ -182,9 +208,32 @@ pub fn memory_extract_should_skip(user_text: &str) -> bool {
     }
     let lower = t.to_ascii_lowercase();
     const EPHEMERAL_EXACT: &[&str] = &[
-        "hi", "hello", "halo", "hai", "hey", "p", "test", "ping", "ok", "oke", "okay",
-        "thanks", "terima kasih", "makasih", "siap", "yes", "ya", "no", "tidak", "gak",
-        "nggak", "bye", "good morning", "selamat pagi", "selamat siang", "selamat sore",
+        "hi",
+        "hello",
+        "halo",
+        "hai",
+        "hey",
+        "p",
+        "test",
+        "ping",
+        "ok",
+        "oke",
+        "okay",
+        "thanks",
+        "terima kasih",
+        "makasih",
+        "siap",
+        "yes",
+        "ya",
+        "no",
+        "tidak",
+        "gak",
+        "nggak",
+        "bye",
+        "good morning",
+        "selamat pagi",
+        "selamat siang",
+        "selamat sore",
         "selamat malam",
     ];
     if EPHEMERAL_EXACT.iter().any(|&e| lower == e) {
@@ -202,11 +251,20 @@ pub async fn memory_extract_turn_gate(
     user_text: &str,
     assistant_text: &str,
 ) -> Result<(i32, i32, i32, f64)> {
-    if assistant_text.trim().is_empty() || user_text.trim().is_empty() || memory_extract_should_skip(user_text) {
+    if assistant_text.trim().is_empty()
+        || user_text.trim().is_empty()
+        || memory_extract_should_skip(user_text)
+    {
         return Ok((0, 0, 0, 0.0));
     }
-    let transcript = format!("User: {}\nAssistant: {}", user_text.trim(), assistant_text.trim());
-    let existing = memory_list_active(pool, owner_iid, bot_iid, 8).await.unwrap_or_default();
+    let transcript = format!(
+        "User: {}\nAssistant: {}",
+        user_text.trim(),
+        assistant_text.trim()
+    );
+    let existing = memory_list_active(pool, owner_iid, bot_iid, 8)
+        .await
+        .unwrap_or_default();
     let (actions, tin, tout, cost) = memory_extract_llm(&transcript, &existing).await?;
     let writes = memory_extract_apply(pool, owner_iid, bot_iid, source_req_id, &actions).await?;
     Ok((writes, tin, tout, cost))

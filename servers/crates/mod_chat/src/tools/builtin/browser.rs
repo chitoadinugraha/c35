@@ -28,11 +28,14 @@ fn arg_str(v: &Value, key: &str) -> String {
 fn browser_fail(error: impl Into<String>) -> Value {
     let error = error.into();
     let e = error.to_lowercase();
-    let (fail_class, retryable) = if e.contains("device_iid is required") || e.contains("device_iid required") {
+    let (fail_class, retryable) = if e.contains("device_iid is required")
+        || e.contains("device_iid required")
+    {
         ("transient", true)
     } else if e.contains("offline") || e.contains("not connected") || e.contains("disconnected") {
         ("fatal_offline", false)
-    } else if e.contains("forbidden") || e.contains("access denied") || e.contains("invalid device") {
+    } else if e.contains("forbidden") || e.contains("access denied") || e.contains("invalid device")
+    {
         ("fatal_auth", false)
     } else {
         ("tool_error", false)
@@ -69,7 +72,11 @@ fn browser_sheets_cell_set_result(raw: Value, cell: &str, value: &str) -> Value 
     let err = raw
         .get("error")
         .and_then(|v| v.as_str())
-        .or_else(|| raw.get("llm").and_then(|l| l.get("error")).and_then(|v| v.as_str()))
+        .or_else(|| {
+            raw.get("llm")
+                .and_then(|l| l.get("error"))
+                .and_then(|v| v.as_str())
+        })
         .unwrap_or("cell_set failed");
     browser_sheets_llm_fail(err)
 }
@@ -218,7 +225,8 @@ fn browser_sheets_append_row_result(raw: Value) -> Value {
 
 fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
     let direct = json_device_iid_field(args, "device_iid");
-    device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct).map_err(|e| browser_fail(e.to_string()))
+    device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct)
+        .map_err(|e| browser_fail(e.to_string()))
 }
 
 async fn browser_invoke(

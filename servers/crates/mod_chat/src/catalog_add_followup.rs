@@ -6,7 +6,10 @@ pub struct CatalogAddFollowup {
     pub force_tools: Vec<String>,
 }
 
-pub fn catalog_add_followup_boost(last_assistant: &str, user_text: &str) -> Option<CatalogAddFollowup> {
+pub fn catalog_add_followup_boost(
+    last_assistant: &str,
+    user_text: &str,
+) -> Option<CatalogAddFollowup> {
     if !catalog_add_user_affirms(user_text) {
         return None;
     }
@@ -26,8 +29,22 @@ fn catalog_add_user_affirms(text: &str) -> bool {
     }
     matches!(
         t.as_str(),
-        "ya" | "iya" | "y" | "ok" | "oke" | "okay" | "setuju" | "benar" | "sip" | "yes" | "yep" | "sure" | "betul"
-            | "bener" | "lanjut" | "gas" | "go"
+        "ya" | "iya"
+            | "y"
+            | "ok"
+            | "oke"
+            | "okay"
+            | "setuju"
+            | "benar"
+            | "sip"
+            | "yes"
+            | "yep"
+            | "sure"
+            | "betul"
+            | "bener"
+            | "lanjut"
+            | "gas"
+            | "go"
     )
 }
 
@@ -68,7 +85,10 @@ mod tests {
     fn affirm_after_tambah_confirm_boosts() {
         let boost = catalog_add_followup_boost("Tambah Indomie Goreng di situs Warung A?", "ya");
         assert!(boost.is_some());
-        assert!(boost.unwrap().force_tools.contains(&"site.product_put".into()));
+        assert!(boost
+            .unwrap()
+            .force_tools
+            .contains(&"site.product_put".into()));
     }
 
     #[test]
@@ -78,6 +98,9 @@ mod tests {
 
     #[test]
     fn long_user_text_not_affirm() {
-        assert!(catalog_add_followup_boost("Tambah X di situs Y?", "ya tambahkan sekarang juga").is_none());
+        assert!(
+            catalog_add_followup_boost("Tambah X di situs Y?", "ya tambahkan sekarang juga")
+                .is_none()
+        );
     }
 }

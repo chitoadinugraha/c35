@@ -7,7 +7,11 @@ pub async fn log_list(pool: &PgPool, owner_iid: i64, req: ReqLogList) -> Result<
     if req_id.is_empty() {
         return Ok(ResLogList { logs: vec![] });
     }
-    let limit = if req.limit <= 0 { 200 } else { req.limit.min(500) };
+    let limit = if req.limit <= 0 {
+        200
+    } else {
+        req.limit.min(500)
+    };
     let rows = sqlx::query(
         r#"
         SELECT id, owner_iid, kind, topic, dv, req_id, chat_id, task_id, device_iid,

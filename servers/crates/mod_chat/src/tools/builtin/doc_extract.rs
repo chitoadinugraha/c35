@@ -80,19 +80,32 @@ async fn fill_pdf_ocr(
     unit_from: i64,
     unit_to: i64,
 ) -> OcrCallCharge {
-    let mut charged = OcrCallCharge { pages: 0, tokens_in: 0, tokens_out: 0, cost_usd: 0.0 };
+    let mut charged = OcrCallCharge {
+        pages: 0,
+        tokens_in: 0,
+        tokens_out: 0,
+        cost_usd: 0.0,
+    };
     let pages = ocr_candidate_pages(index, unit_from, unit_to);
     if pages.is_empty() {
         return charged;
     }
     let gate_ok = match ctx.billing.as_ref() {
-        Some(bctx) => c35_mod_billing::billing_gate_scoped(&ctx.pool, bctx).await.is_ok(),
+        Some(bctx) => c35_mod_billing::billing_gate_scoped(&ctx.pool, bctx)
+            .await
+            .is_ok(),
         None => false,
     };
     if !crate::doc_ocr::ocr_charge_allowed(gate_ok) {
         return charged;
     }
-    let pdf_bytes = match c35_mod_file::cas_bytes_get(&ctx.pool, &c35_mod_file::cas_dir_default(), hash).await {
+    let pdf_bytes = match c35_mod_file::cas_bytes_get(
+        &ctx.pool,
+        &c35_mod_file::cas_dir_default(),
+        hash,
+    )
+    .await
+    {
         Ok((bytes, _)) => bytes,
         Err(err) => {
             tracing::warn!("[c35:doc_ocr] blob read failed hash={hash}: {err}");
@@ -131,9 +144,10 @@ fn ocr_candidate_pages(index: &Value, unit_from: i64, unit_to: i64) -> Vec<u32> 
         return Vec::new();
     }
     let pages = index.get("pages").and_then(|v| v.as_array());
-    let units = index.get("units").and_then(|v| v.as_u64()).unwrap_or_else(|| {
-        pages.map(|rows| rows.len() as u64).unwrap_or(0)
-    });
+    let units = index
+        .get("units")
+        .and_then(|v| v.as_u64())
+        .unwrap_or_else(|| pages.map(|rows| rows.len() as u64).unwrap_or(0));
     if units == 0 {
         return Vec::new();
     }
@@ -147,7 +161,10 @@ fn ocr_candidate_pages(index: &Value, unit_from: i64, unit_to: i64) -> Vec<u32> 
             if n < from as u64 || n > to as u64 {
                 continue;
             }
-            let needs = row.get("needs_ocr").and_then(|v| v.as_bool()).unwrap_or(false);
+            let needs = row
+                .get("needs_ocr")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let text = row.get("text").and_then(|v| v.as_str()).unwrap_or("");
             if needs && text.trim().is_empty() {
                 nums.push(n as u32);
@@ -162,7 +179,9 @@ fn ocr_candidate_pages(index: &Value, unit_from: i64, unit_to: i64) -> Vec<u32> 
 
 async fn page_jpeg(pdf_bytes: &[u8], page: u32) -> Option<Vec<u8>> {
     let bytes = pdf_bytes.to_vec();
-    let parsed = tokio::task::spawn_blocking(move || c35_mod_file::pdf_page_embedded_jpeg(&bytes, page)).await;
+    let parsed =
+        tokio::task::spawn_blocking(move || c35_mod_file::pdf_page_embedded_jpeg(&bytes, page))
+            .await;
     match parsed {
         Ok(Ok(Some(jpeg))) if !jpeg.is_empty() => Some(jpeg),
         Ok(Err(err)) => {
@@ -212,7 +231,9 @@ pub async fn doc_extract_for_hash(
         bail!("file_hash required");
     }
     let index = load_doc_index(pool, hash).await?;
-    Ok(doc_extract_from_index(hash, &index, unit_from, unit_to, max_chars))
+    Ok(doc_extract_from_index(
+        hash, &index, unit_from, unit_to, max_chars,
+    ))
 }
 
 /// Cached index when `variants.doc_index` exists. On a miss with empty mime, read blob mime and build once.
@@ -231,7 +252,8 @@ async fn load_doc_index(pool: &sqlx::PgPool, hash: &str) -> Result<Value> {
 }
 
 fn is_unknown_kind(err: &anyhow::Error) -> bool {
-    err.chain().any(|cause| cause.to_string().contains("unknown document kind"))
+    err.chain()
+        .any(|cause| cause.to_string().contains("unknown document kind"))
 }
 
 async fn blob_mime(pool: &sqlx::PgPool, hash: &str) -> Result<String> {
@@ -285,11 +307,17 @@ pub fn doc_extract_from_index(
             if n < from as u64 || n > to as u64 {
                 continue;
             }
-            let needs = row.get("needs_ocr").and_then(|v| v.as_bool()).unwrap_or(false);
+            let needs = row
+                .get("needs_ocr")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let text = if needs {
                 String::new()
             } else {
-                row.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string()
+                row.get("text")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
             };
             selected.push((n, text, needs));
         }
@@ -378,7 +406,10 @@ mod tests {
         assert_eq!(out["unit_to"].as_i64(), Some(2));
         assert_eq!(out["units"].as_i64(), Some(3));
         assert_eq!(out["text"], "--- page 1 ---\nAlpha\n--- page 2 ---\nBeta");
-        assert_eq!(out["char_count"].as_i64(), Some(out["text"].as_str().unwrap().chars().count() as i64));
+        assert_eq!(
+            out["char_count"].as_i64(),
+            Some(out["text"].as_str().unwrap().chars().count() as i64)
+        );
         assert_eq!(out["needs_ocr"], false);
         assert_eq!(out["ocr_pages"].as_i64(), Some(0));
         assert_eq!(out["ocr_cost_usd"].as_f64(), Some(0.0));
@@ -396,7 +427,10 @@ mod tests {
         let low = doc_extract_from_index("h", &index, 1, 1, 10);
         assert_eq!(low["char_count"].as_i64(), Some(500));
         assert_eq!(low["text"].as_str().unwrap().chars().count(), 500);
-        assert!(low["text"].as_str().unwrap().starts_with("--- page 1 ---\n"));
+        assert!(low["text"]
+            .as_str()
+            .unwrap()
+            .starts_with("--- page 1 ---\n"));
 
         let huge = "y".repeat(40_000);
         let index_huge = json!({
@@ -447,7 +481,10 @@ mod tests {
         assert!(def.always.is_empty());
         assert!(def.rag_phrases.iter().any(|p| p == "baca dokumen"));
         assert_eq!(def.parameters["properties"]["file_hash"]["type"], "string");
-        assert_eq!(def.parameters["properties"]["max_chars"]["default"].as_i64(), Some(14000));
+        assert_eq!(
+            def.parameters["properties"]["max_chars"]["default"].as_i64(),
+            Some(14000)
+        );
         let required = def.parameters["required"].as_array().unwrap();
         assert!(required.iter().any(|v| v == "file_hash"));
         assert!(required.iter().any(|v| v == "unit_from"));

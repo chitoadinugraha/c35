@@ -32,11 +32,16 @@ pub fn channel_id_platform(channel_id: &str, platform_map: &HashMap<String, Stri
         .unwrap_or_else(|| "unknown".into())
 }
 
-pub async fn bot_channel_platform_map(pool: &PgPool, bot_iid: i64) -> Result<HashMap<String, String>> {
-    let row = sqlx::query("SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL")
-        .bind(bot_iid)
-        .fetch_optional(pool)
-        .await?;
+pub async fn bot_channel_platform_map(
+    pool: &PgPool,
+    bot_iid: i64,
+) -> Result<HashMap<String, String>> {
+    let row = sqlx::query(
+        "SELECT meta FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL",
+    )
+    .bind(bot_iid)
+    .fetch_optional(pool)
+    .await?;
     let mut out = HashMap::new();
     let Some(row) = row else {
         return Ok(out);

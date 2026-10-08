@@ -129,7 +129,19 @@ pub async fn prompt_followup_list_pending(pool: &PgPool, req_id: &str) -> Result
     Ok(rows
         .into_iter()
         .map(
-            |(id, req_id, chat_id, owner_iid, seq, kind, status, text, attachments_json, source, created_ts)| {
+            |(
+                id,
+                req_id,
+                chat_id,
+                owner_iid,
+                seq,
+                kind,
+                status,
+                text,
+                attachments_json,
+                source,
+                created_ts,
+            )| {
                 FollowupRow {
                     id,
                     req_id,
@@ -148,10 +160,7 @@ pub async fn prompt_followup_list_pending(pool: &PgPool, req_id: &str) -> Result
         .collect())
 }
 
-pub async fn prompt_followup_meta(
-    pool: &PgPool,
-    id: &str,
-) -> Result<Option<(i64, i64, String)>> {
+pub async fn prompt_followup_meta(pool: &PgPool, id: &str) -> Result<Option<(i64, i64, String)>> {
     let row = sqlx::query_as::<_, (i64, i64, String)>(
         r#"SELECT chat_id, owner_iid, req_id FROM ai.prompt_followup WHERE id = $1"#,
     )
@@ -239,7 +248,10 @@ pub async fn prompt_followup_drain_steers(
     Ok(out)
 }
 
-pub async fn prompt_followup_next_queued(pool: &PgPool, req_id: &str) -> Result<Option<FollowupRow>> {
+pub async fn prompt_followup_next_queued(
+    pool: &PgPool,
+    req_id: &str,
+) -> Result<Option<FollowupRow>> {
     let row = sqlx::query_as::<_, (String, String, i64, i64, i32, String, String, String, String, String, DateTime<Utc>)>(
         r#"
         SELECT id, req_id, chat_id, owner_iid, seq, kind, status, text, attachments_json, source, created_ts
@@ -253,7 +265,19 @@ pub async fn prompt_followup_next_queued(pool: &PgPool, req_id: &str) -> Result<
     .fetch_optional(pool)
     .await?;
     Ok(row.map(
-        |(id, req_id, chat_id, owner_iid, seq, kind, status, text, attachments_json, source, created_ts)| {
+        |(
+            id,
+            req_id,
+            chat_id,
+            owner_iid,
+            seq,
+            kind,
+            status,
+            text,
+            attachments_json,
+            source,
+            created_ts,
+        )| {
             FollowupRow {
                 id,
                 req_id,
@@ -281,6 +305,9 @@ pub async fn prompt_followup_mark_queue_delivered(pool: &PgPool, id: &str) -> Re
     Ok(())
 }
 
-pub async fn prompt_followup_pop_delivered_queue(_pool: &PgPool, _req_id: &str) -> Result<Option<(String, String)>> {
+pub async fn prompt_followup_pop_delivered_queue(
+    _pool: &PgPool,
+    _req_id: &str,
+) -> Result<Option<(String, String)>> {
     Ok(None)
 }

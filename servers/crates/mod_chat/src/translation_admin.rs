@@ -44,7 +44,9 @@ pub async fn translation_put(
     let category = req.category.trim();
     let text = req.text.trim();
     if lang.is_empty() || key.is_empty() || category.is_empty() || text.is_empty() {
-        return Err(TranslationAdminError::bad("lang, key, category, and text are required"));
+        return Err(TranslationAdminError::bad(
+            "lang, key, category, and text are required",
+        ));
     }
 
     let row = sqlx::query_scalar::<_, chrono::DateTime<chrono::Utc>>(

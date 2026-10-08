@@ -531,6 +531,78 @@ pub async fn google_sheet_write_append(cfg: &GoogleSheetConfig, row: Vec<String>
     values_append(api.as_ref(), &cfg.spreadsheet_id, &range, vec![row]).await
 }
 
+/// Overwrite the linked tab from A1 with the header plus every data row.
+/// Chunks are 500 data rows; the header is sent only on the first chunk.
+pub async fn google_sheet_replace_grid(
+    cfg: &GoogleSheetConfig,
+    headers: &[String],
+    rows: &[Vec<String>],
+) -> Result<()> {
+    let Some(api) = sheets_api()? else {
+        bail!("gsheet not_linked");
+    };
+    let tab = google_sheet_tab_resolve(api.as_ref(), cfg).await?;
+    let width = headers
+        .len()
+        .max(rows.iter().map(|r| r.len()).max().unwrap_or(0));
+    if width == 0 {
+        let range = sheet_a1_range(&tab, "A1");
+        values_put(
+            api.as_ref(),
+            &cfg.spreadsheet_id,
+            &range,
+            vec![vec![String::new()]],
+        )
+        .await?;
+        return Ok(());
+    }
+    let end_col = a1_col(width - 1);
+    const DATA_CHUNK: usize = 500;
+    let mut offset = 0usize;
+    let mut start_row = 1u32;
+    loop {
+        let mut grid = Vec::new();
+        if start_row == 1 && !headers.is_empty() {
+            grid.push(fit_width(headers, width));
+        }
+        let end = (offset + DATA_CHUNK).min(rows.len());
+        for row in &rows[offset..end] {
+            grid.push(fit_width(row, width));
+        }
+        offset = end;
+        if grid.is_empty() {
+            break;
+        }
+        let end_row = start_row + grid.len() as u32 - 1;
+        let range = sheet_a1_range(&tab, &format!("A{start_row}:{end_col}{end_row}"));
+        values_put(api.as_ref(), &cfg.spreadsheet_id, &range, grid).await?;
+        start_row = end_row + 1;
+        if offset >= rows.len() {
+            break;
+        }
+    }
+    Ok(())
+}
+
+fn fit_width(row: &[String], width: usize) -> Vec<String> {
+    let mut out = Vec::with_capacity(width);
+    for i in 0..width {
+        out.push(row.get(i).cloned().unwrap_or_default());
+    }
+    out
+}
+
+fn a1_col(index: usize) -> String {
+    let mut n = index as u32 + 1;
+    let mut s = String::new();
+    while n > 0 {
+        n -= 1;
+        s.insert(0, (b'A' + (n % 26) as u8) as char);
+        n /= 26;
+    }
+    s
+}
+
 fn sheets_api() -> Result<Option<Arc<SheetsApi>>> {
     Ok(API
         .get_or_init(|| match load_sheets_api() {

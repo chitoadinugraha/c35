@@ -5,7 +5,11 @@ use anyhow::Result;
 use serde_json::{json, Value};
 
 fn arg_str(args: &Value, key: &str) -> String {
-    args.get(key).and_then(|v| v.as_str()).unwrap_or("").trim().to_string()
+    args.get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim()
+        .to_string()
 }
 
 fn arg_i64(args: &Value, key: &str) -> i64 {

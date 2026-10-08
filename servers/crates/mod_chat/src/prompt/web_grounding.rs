@@ -4,7 +4,10 @@ pub const WEB_GROUNDED_REPLY_RULE: &str =
     "\n\n[WEB GROUNDING] Answer only from web.search / web.visit tool results in this conversation. Summarize what the tools returned (titles, times, venues, links). Never refuse with \"I cannot show\" when tool results are present. Never invent schedules or use placeholder titles (Film A, Film B, Film C, etc.). If results are empty or unclear, say you could not load live listings and suggest official cinema apps.";
 
 pub fn search_payload(result: &Value) -> &Value {
-    result.get("llm").filter(|v| v.is_object()).unwrap_or(result)
+    result
+        .get("llm")
+        .filter(|v| v.is_object())
+        .unwrap_or(result)
 }
 
 pub fn search_result_urls(result: &Value, limit: usize) -> Vec<String> {
@@ -86,20 +89,50 @@ pub fn pick_visit_url(search_result: &Value) -> Option<String> {
 }
 
 /// Append prefetch web.search / web.visit payloads to the latest user turn (Gemini 3-safe; no synthetic functionCall).
-pub fn web_grounding_append_user_context(contents: &mut Vec<Value>, search: &Value, visit: Option<&Value>) {
+pub fn web_grounding_append_user_context(
+    contents: &mut Vec<Value>,
+    search: &Value,
+    visit: Option<&Value>,
+) {
     let root = search_payload(search);
     let mut block = String::from("[WEB SEARCH RESULTS — answer only from this data]\n");
     if let Some(results) = root.get("results").and_then(|r| r.as_array()) {
         for (i, item) in results.iter().take(6).enumerate() {
-            let title = item.get("title").and_then(|v| v.as_str()).unwrap_or("").trim();
-            let url = item.get("url").and_then(|v| v.as_str()).unwrap_or("").trim();
-            let snippet = item.get("snippet").and_then(|v| v.as_str()).unwrap_or("").trim();
-            block.push_str(&format!("\n{}. {}\n   {}\n   {}\n", i + 1, title, url, snippet));
+            let title = item
+                .get("title")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            let url = item
+                .get("url")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            let snippet = item
+                .get("snippet")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .trim();
+            block.push_str(&format!(
+                "\n{}. {}\n   {}\n   {}\n",
+                i + 1,
+                title,
+                url,
+                snippet
+            ));
         }
     }
     if let Some(visit) = visit {
-        let url = visit.get("url").and_then(|v| v.as_str()).unwrap_or("").trim();
-        let title = visit.get("title").and_then(|v| v.as_str()).unwrap_or("").trim();
+        let url = visit
+            .get("url")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+        let title = visit
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
         let content = visit
             .get("content")
             .and_then(|v| v.as_str())
@@ -188,7 +221,9 @@ mod tests {
     #[test]
     fn reply_placeholder_detected() {
         assert!(reply_looks_like_web_placeholder("Film A and Film B today"));
-        assert!(!reply_looks_like_web_placeholder("Dune: Part Three — 14:30"));
+        assert!(!reply_looks_like_web_placeholder(
+            "Dune: Part Three — 14:30"
+        ));
     }
 
     #[test]
@@ -196,7 +231,9 @@ mod tests {
         assert!(reply_looks_like_web_deferral(
             "Saya tidak dapat menampilkan daftar film dan jam tayang secara langsung"
         ));
-        assert!(!reply_looks_like_web_deferral("Araya XXI — Dune 14:30, 17:00"));
+        assert!(!reply_looks_like_web_deferral(
+            "Araya XXI — Dune 14:30, 17:00"
+        ));
     }
 
     #[test]
@@ -204,13 +241,14 @@ mod tests {
         let search = json!({
             "results": [{ "title": "T1", "url": "https://example.com", "snippet": "S1" }]
         });
-        let mut contents = vec![
-            json!({ "role": "user", "parts": [{ "text": "hello" }] }),
-        ];
+        let mut contents = vec![json!({ "role": "user", "parts": [{ "text": "hello" }] })];
         web_grounding_append_user_context(&mut contents, &search, None);
         assert_eq!(contents.len(), 1);
         let parts = contents[0]["parts"].as_array().unwrap();
         assert_eq!(parts.len(), 2);
-        assert!(parts[1]["text"].as_str().unwrap().contains("WEB SEARCH RESULTS"));
+        assert!(parts[1]["text"]
+            .as_str()
+            .unwrap()
+            .contains("WEB SEARCH RESULTS"));
     }
 }

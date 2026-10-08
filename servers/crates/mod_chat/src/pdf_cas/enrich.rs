@@ -13,7 +13,11 @@ pub async fn pdf_bytes_load(pool: &PgPool, hash: &str) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-pub async fn pdf_structure_for_hash(pool: &PgPool, hash: &str, name: &str) -> Result<serde_json::Value> {
+pub async fn pdf_structure_for_hash(
+    pool: &PgPool,
+    hash: &str,
+    name: &str,
+) -> Result<serde_json::Value> {
     let index = c35_mod_file::doc_index_load_or_build(pool, hash, "application/pdf", name).await?;
     let page_count = index.get("units").and_then(|v| v.as_u64()).unwrap_or(0);
     let sections: Vec<serde_json::Value> = index
@@ -77,7 +81,9 @@ pub async fn presentation_pdf_enrich(pool: &PgPool, attachments_json: &str) -> O
     for (hash, name) in items.iter().take(2) {
         match pdf_structure_for_hash(pool, hash, name).await {
             Ok(v) => blocks.push(v.to_string()),
-            Err(e) => blocks.push(json!({ "ok": false, "file_hash": hash, "error": e.to_string() }).to_string()),
+            Err(e) => blocks.push(
+                json!({ "ok": false, "file_hash": hash, "error": e.to_string() }).to_string(),
+            ),
         }
     }
     Some(blocks.join("\n"))

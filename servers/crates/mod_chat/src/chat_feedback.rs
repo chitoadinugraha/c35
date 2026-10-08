@@ -1,11 +1,11 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
 use c35_proto::{
-    ChatFeedbackAuthorRole, ChatFeedbackPost, ChatFeedbackReason, ChatFeedbackVote, ChatMsgFeedback,
-    ReqChatFeedbackReasonList, ReqChatMsgFeedbackList, ReqChatMsgFeedbackPut, ResChatFeedbackReasonList,
-    ResChatMsgFeedbackList, ResChatMsgFeedbackPut,
+    ChatFeedbackAuthorRole, ChatFeedbackPost, ChatFeedbackReason, ChatFeedbackVote,
+    ChatMsgFeedback, ReqChatFeedbackReasonList, ReqChatMsgFeedbackList, ReqChatMsgFeedbackPut,
+    ResChatFeedbackReasonList, ResChatMsgFeedbackList, ResChatMsgFeedbackPut,
 };
 use c35_store::snowflake_id;
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use crate::inbox::ts_ms;
@@ -54,7 +54,10 @@ fn author_role_code(role: &str) -> i32 {
     }
 }
 
-pub async fn chat_feedback_reason_list(pool: &PgPool, req: ReqChatFeedbackReasonList) -> Result<ResChatFeedbackReasonList> {
+pub async fn chat_feedback_reason_list(
+    pool: &PgPool,
+    req: ReqChatFeedbackReasonList,
+) -> Result<ResChatFeedbackReasonList> {
     let vote = vote_name(req.vote);
     let rows = sqlx::query(
         r#"
@@ -91,7 +94,12 @@ struct MsgAnchor {
     owner_iid: i64,
 }
 
-async fn assistant_msg(pool: &PgPool, rater_iid: i64, msg_id: i64, chat_id: i64) -> Result<MsgAnchor> {
+async fn assistant_msg(
+    pool: &PgPool,
+    rater_iid: i64,
+    msg_id: i64,
+    chat_id: i64,
+) -> Result<MsgAnchor> {
     let row = sqlx::query(
         r#"
         SELECT m.req_id, c.owner_iid
@@ -129,7 +137,11 @@ async fn member_chat(pool: &PgPool, rater_iid: i64, chat_id: i64) -> Result<()> 
     ok.map(|_| ()).ok_or_else(|| anyhow!("chat not found"))
 }
 
-pub async fn chat_msg_feedback_put(pool: &PgPool, rater_iid: i64, req: ReqChatMsgFeedbackPut) -> Result<ResChatMsgFeedbackPut> {
+pub async fn chat_msg_feedback_put(
+    pool: &PgPool,
+    rater_iid: i64,
+    req: ReqChatMsgFeedbackPut,
+) -> Result<ResChatMsgFeedbackPut> {
     if req.msg_id == 0 {
         return Err(anyhow!("msg_id required"));
     }
@@ -244,7 +256,8 @@ pub async fn chat_msg_feedback_put(pool: &PgPool, rater_iid: i64, req: ReqChatMs
     }
     tx.commit().await?;
 
-    let feedback = feedback_load(pool, rater_iid, req.chat_id, Some(feedback_id), &req.locale).await?;
+    let feedback =
+        feedback_load(pool, rater_iid, req.chat_id, Some(feedback_id), &req.locale).await?;
     Ok(ResChatMsgFeedbackPut {
         feedback: feedback.into_iter().next(),
     })
@@ -279,7 +292,11 @@ async fn clear_feedback(pool: &PgPool, msg_id: i64, rater_iid: i64) -> Result<()
     Ok(())
 }
 
-pub async fn chat_msg_feedback_list(pool: &PgPool, rater_iid: i64, req: ReqChatMsgFeedbackList) -> Result<ResChatMsgFeedbackList> {
+pub async fn chat_msg_feedback_list(
+    pool: &PgPool,
+    rater_iid: i64,
+    req: ReqChatMsgFeedbackList,
+) -> Result<ResChatMsgFeedbackList> {
     if req.chat_id == 0 {
         return Err(anyhow!("chat_id required"));
     }

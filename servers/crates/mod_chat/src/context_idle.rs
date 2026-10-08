@@ -20,7 +20,12 @@ pub const CONTEXT_IDLE_MIN_MSGS: i64 = 4;
 /// Off unless `C35_CONTEXT_IDLE_COMPACT=1`. Per-turn memory extract and the 70% window compact stay on.
 pub fn context_idle_compact_enabled() -> bool {
     std::env::var("C35_CONTEXT_IDLE_COMPACT")
-        .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
         .unwrap_or(false)
 }
 
@@ -61,7 +66,19 @@ pub async fn context_idle_process(pool: &PgPool, chat_id: i64, owner_iid: i64) -
     let user_msg_id = latest_user_msg.unwrap_or(0) + 1;
     let http = http_client(Duration::from_secs(30));
     let mut billing = ContextBillingExtra::default();
-    if let Some(compact) = context_compact(pool, &http, None, chat_id, owner_iid, &req_id, user_msg_id, None, "idle").await? {
+    if let Some(compact) = context_compact(
+        pool,
+        &http,
+        None,
+        chat_id,
+        owner_iid,
+        &req_id,
+        user_msg_id,
+        None,
+        "idle",
+    )
+    .await?
+    {
         billing.compaction_cost_usd = compact.cost_usd;
         billing.compaction_tokens_in = compact.tokens_in;
         billing.compaction_tokens_out = compact.tokens_out;
@@ -71,7 +88,8 @@ pub async fn context_idle_process(pool: &PgPool, chat_id: i64, owner_iid: i64) -
         let rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
         if rows.len() > CONTEXT_RECENT_MSG_MIN {
             let transcript = transcript_from_rows(&rows);
-            let (writes, tin, tout, cost) = memory_extract_batch(pool, &http, owner_iid, None, &req_id, &transcript).await?;
+            let (writes, tin, tout, cost) =
+                memory_extract_batch(pool, &http, owner_iid, None, &req_id, &transcript).await?;
             billing.memory_extract_cost_usd = cost;
             billing.memory_extract_writes = writes;
             billing.compaction_tokens_in = tin;
@@ -144,7 +162,11 @@ impl FetchTask for ContextIdleFetchTask {
 
     async fn run(&self, ctx: &c35_mod_fetch::FetchCtx) -> Result<FetchOutcome> {
         if !context_idle_compact_enabled() {
-            return Ok(FetchOutcome { changed: false, nats_subject: None, nats_payload: None });
+            return Ok(FetchOutcome {
+                changed: false,
+                nats_subject: None,
+                nats_payload: None,
+            });
         }
         let n = context_idle_scan(&ctx.pool).await?;
         Ok(FetchOutcome {

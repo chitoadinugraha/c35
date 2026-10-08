@@ -4,12 +4,16 @@ use serde_json::Value;
 use sqlx::{PgPool, Row};
 use tracing::info;
 
-use crate::chunk::{chunk_content_hash, chunk_embed_eligible, embed_normalize, sheet_csv_chunk_rows, snapshot_hash};
-use crate::config::{data_source_sync_ttl_sec, DATA_SOURCE_SYNCING_STUCK_SEC, SOURCE_KIND_GOOGLE_SHEET};
+use crate::chunk::{
+    chunk_content_hash, chunk_embed_eligible, embed_normalize, sheet_csv_chunk_rows, snapshot_hash,
+};
+use crate::config::{
+    data_source_sync_ttl_sec, DATA_SOURCE_SYNCING_STUCK_SEC, SOURCE_KIND_GOOGLE_SHEET,
+};
 use crate::google_sheet::{google_sheet_config_from_row, google_sheet_read_csv, sheet_tab_name};
 use crate::store::{
-    chunk_insert, chunks_delete_for_source, data_source_get, sync_row_get, sync_touch, sync_invalidate_row,
-    sync_upsert_error, sync_upsert_ok, DataSourceRow,
+    chunk_insert, chunks_delete_for_source, data_source_get, sync_invalidate_row, sync_row_get,
+    sync_touch, sync_upsert_error, sync_upsert_ok, DataSourceRow,
 };
 use c35_mod_llm::{embed_cached, EMBED_TASK_DOCUMENT};
 
@@ -20,7 +24,11 @@ pub async fn data_source_sync_invalidate(pool: &PgPool, data_source_id: i64) {
     let _ = sync_invalidate_row(pool, data_source_id).await;
 }
 
-pub async fn data_source_sync_if_stale(http: &Client, pool: &PgPool, data_source_id: i64) -> Result<()> {
+pub async fn data_source_sync_if_stale(
+    http: &Client,
+    pool: &PgPool,
+    data_source_id: i64,
+) -> Result<()> {
     if data_source_id <= 0 {
         return Ok(());
     }
@@ -37,7 +45,9 @@ pub async fn data_source_sync_run(http: &Client, pool: &PgPool, data_source_id: 
     match row.source_kind.as_str() {
         SOURCE_KIND_GOOGLE_SHEET => {
             if let Err(e) = google_sheet_sync_run(http, pool, &row).await {
-                let _ = sync_upsert_error(pool, data_source_id, &row.source_kind, &format!("{e:#}")).await;
+                let _ =
+                    sync_upsert_error(pool, data_source_id, &row.source_kind, &format!("{e:#}"))
+                        .await;
                 return Err(e);
             }
             Ok(())
@@ -57,7 +67,9 @@ async fn google_sheet_sync_run(http: &Client, pool: &PgPool, row: &DataSourceRow
     } else {
         let cfg = google_sheet_config_from_row(row).context("google sheet config")?;
         let tab = sheet_tab_name(&cfg);
-        let csv = google_sheet_read_csv(http, &cfg).await.context("data source sync read csv")?;
+        let csv = google_sheet_read_csv(http, &cfg)
+            .await
+            .context("data source sync read csv")?;
         let (chunks, data_rows) = sheet_csv_chunk_rows(&csv, &tab);
         (snapshot_hash(&csv), chunks, data_rows)
     };
@@ -90,7 +102,14 @@ async fn google_sheet_sync_run(http: &Client, pool: &PgPool, row: &DataSourceRow
             let _ = embed_cached(pool, http, &payload, EMBED_TASK_DOCUMENT, dims).await;
         }
     }
-    sync_upsert_ok(pool, data_source_id, SOURCE_KIND_GOOGLE_SHEET, &hash, data_rows as i32).await?;
+    sync_upsert_ok(
+        pool,
+        data_source_id,
+        SOURCE_KIND_GOOGLE_SHEET,
+        &hash,
+        data_rows as i32,
+    )
+    .await?;
     info!(
         "[c35:data_source] synced id={} rows={} chunks={} hash_changed=true",
         data_source_id,

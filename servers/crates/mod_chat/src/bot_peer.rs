@@ -1,13 +1,13 @@
 use anyhow::{anyhow, Result};
 use async_nats::Client;
-use c35_proto::{
-    Chat, ChatKind, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ChatTyping, ReqBotPeerAppSend,
-    ReqBotPeerCreate, ReqBotPeerDelete, ReqBotPeerList, ReqChatMsgList, ReqChatSend, ReqChatStop, ResBotPeerAppSend,
-    ResBotPeerCreate, ResBotPeerDelete, ResBotPeerList, ResChatMsgList, ResChatSend, ResChatStop, SyncPush, WsRes,
-    ws_res,
-};
 use c35_nats::user_app_subject_chat;
 use c35_proto::{pb_encode, sync_push};
+use c35_proto::{
+    ws_res, Chat, ChatKind, ChatMsg, ChatMsgRole, ChatMsgSource, ChatMsgStatus, ChatTyping,
+    ReqBotPeerAppSend, ReqBotPeerCreate, ReqBotPeerDelete, ReqBotPeerList, ReqChatMsgList,
+    ReqChatSend, ReqChatStop, ResBotPeerAppSend, ResBotPeerCreate, ResBotPeerDelete,
+    ResBotPeerList, ResChatMsgList, ResChatSend, ResChatStop, SyncPush, WsRes,
+};
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
 
@@ -56,10 +56,18 @@ async fn bot_peer_chat_verify(pool: &PgPool, caller_iid: i64, chat_id: i64) -> R
     Ok(row.get("owner_iid"))
 }
 
-pub async fn bot_peer_msg_list(pool: &PgPool, caller_iid: i64, req: ReqChatMsgList) -> Result<ResChatMsgList> {
+pub async fn bot_peer_msg_list(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqChatMsgList,
+) -> Result<ResChatMsgList> {
     let chat_id = req.chat_id;
     bot_peer_chat_verify(pool, caller_iid, chat_id).await?;
-    let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
+    let limit = if req.limit <= 0 {
+        100
+    } else {
+        req.limit.min(500)
+    };
     let before = req.before_id;
     let rows = if before > 0 {
         sqlx::query(
@@ -99,7 +107,11 @@ pub async fn bot_peer_msg_list(pool: &PgPool, caller_iid: i64, req: ReqChatMsgLi
 
 pub const BOT_APP_CHANNEL_ID: &str = "app";
 
-pub async fn bot_peer_create(pool: &PgPool, caller_iid: i64, req: ReqBotPeerCreate) -> Result<ResBotPeerCreate> {
+pub async fn bot_peer_create(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqBotPeerCreate,
+) -> Result<ResBotPeerCreate> {
     bot_access_verify(pool, caller_iid, req.bot_iid).await?;
     let owner_iid = sqlx::query_scalar::<_, i64>(
         "SELECT owner_iid FROM ai.identity WHERE id = $1 AND kind = 'bot' AND deleted_ts IS NULL",
@@ -201,7 +213,11 @@ pub async fn bot_peer_welcome_put(
     Ok(())
 }
 
-pub async fn bot_peer_app_send_verify(pool: &PgPool, caller_iid: i64, req: ReqBotPeerAppSend) -> Result<(i64, i64, String, String)> {
+pub async fn bot_peer_app_send_verify(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqBotPeerAppSend,
+) -> Result<(i64, i64, String, String)> {
     let chat_id = req.chat_id;
     let _owner_iid = bot_peer_chat_verify(pool, caller_iid, chat_id).await?;
     let row = sqlx::query(
@@ -243,7 +259,9 @@ pub async fn bot_peer_typing_fanout(
     party: &str,
     active: bool,
 ) -> Result<()> {
-    let Some(nats) = nats else { return Ok(()); };
+    let Some(nats) = nats else {
+        return Ok(());
+    };
     if chat_id <= 0 {
         return Ok(());
     }
@@ -257,8 +275,11 @@ pub async fn bot_peer_typing_fanout(
             })),
         })),
     };
-    nats.publish(user_app_subject_chat(owner_iid, chat_id), pb_encode(&res).into())
-        .await?;
+    nats.publish(
+        user_app_subject_chat(owner_iid, chat_id),
+        pb_encode(&res).into(),
+    )
+    .await?;
     Ok(())
 }
 
@@ -269,7 +290,9 @@ pub async fn bot_peer_msg_fanout(
     chat_id: i64,
     msg_id: i64,
 ) -> Result<()> {
-    let Some(nats) = nats else { return Ok(()); };
+    let Some(nats) = nats else {
+        return Ok(());
+    };
     if msg_id <= 0 {
         return Ok(());
     }
@@ -292,14 +315,25 @@ pub async fn bot_peer_msg_fanout(
             body: Some(sync_push::Body::ChatMsg(msg)),
         })),
     };
-    nats.publish(user_app_subject_chat(owner_iid, chat_id), pb_encode(&res).into())
-        .await?;
+    nats.publish(
+        user_app_subject_chat(owner_iid, chat_id),
+        pb_encode(&res).into(),
+    )
+    .await?;
     Ok(())
 }
 
-pub async fn bot_peer_list(pool: &PgPool, caller_iid: i64, req: ReqBotPeerList) -> Result<ResBotPeerList> {
+pub async fn bot_peer_list(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqBotPeerList,
+) -> Result<ResBotPeerList> {
     bot_access_verify(pool, caller_iid, req.bot_iid).await?;
-    let limit = if req.limit <= 0 { 100 } else { req.limit.min(500) };
+    let limit = if req.limit <= 0 {
+        100
+    } else {
+        req.limit.min(500)
+    };
     let rows = sqlx::query(
         r#"
         SELECT id, kind, owner_iid, title, model, bot_iid, channel_id, peer_key, peer_name, peer_pic,
@@ -318,7 +352,11 @@ pub async fn bot_peer_list(pool: &PgPool, caller_iid: i64, req: ReqBotPeerList) 
     Ok(ResBotPeerList { chats })
 }
 
-pub async fn bot_peer_delete(pool: &PgPool, caller_iid: i64, req: ReqBotPeerDelete) -> Result<ResBotPeerDelete> {
+pub async fn bot_peer_delete(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqBotPeerDelete,
+) -> Result<ResBotPeerDelete> {
     let chat_id = req.chat_id;
     bot_peer_chat_verify(pool, caller_iid, chat_id).await?;
     sqlx::query(

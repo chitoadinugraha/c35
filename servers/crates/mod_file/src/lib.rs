@@ -22,6 +22,7 @@ mod inline_fit;
 mod optimize;
 pub mod pdf;
 pub mod pptx;
+pub mod report_table;
 mod s3;
 mod tool_artifact;
 
@@ -33,6 +34,7 @@ pub use docx::docx_doc_index;
 pub use inline_fit::cas_image_bytes_fit_inline;
 pub use pdf::{pdf_doc_index, pdf_page_embedded_jpeg};
 pub use pptx::pptx_doc_index;
+pub use report_table::{report_pdf, report_xlsx};
 pub use tool_artifact::{
     tool_artifact_evict_stale, tool_artifact_get, tool_artifact_insert, tool_artifact_list_by_req,
     ToolArtifactRow, TOOL_ARTIFACT_TTL_DAYS,

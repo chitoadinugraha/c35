@@ -13,7 +13,12 @@ fn proxy_url_from_keys(keys: &[&str]) -> Option<String> {
 }
 
 pub fn platform_proxy_url() -> Option<String> {
-    proxy_url_from_keys(&["ALIENAI_PROXY_CF_URL", "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"])
+    proxy_url_from_keys(&[
+        "ALIENAI_PROXY_CF_URL",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+    ])
 }
 
 /// Dedicated egress via GCP (or other) static IP — not Cloudflare WARP.
@@ -62,8 +67,13 @@ pub fn http_client(timeout: Duration) -> Client {
     match http_client_builder(timeout).and_then(|b| b.build().map_err(|e| e.to_string())) {
         Ok(c) => c,
         Err(e) => {
-            tracing::warn!("[egress_http] failed to build proxy client, falling back to default: {e}");
-            Client::builder().timeout(timeout).build().unwrap_or_default()
+            tracing::warn!(
+                "[egress_http] failed to build proxy client, falling back to default: {e}"
+            );
+            Client::builder()
+                .timeout(timeout)
+                .build()
+                .unwrap_or_default()
         }
     }
 }
@@ -81,7 +91,10 @@ mod tests {
 
         assert!(platform_proxy_url().is_none());
 
-        std::env::set_var("ALIENAI_PROXY_CF_URL", "http://cs-service-proxy-cf.cs.svc.cluster.local:8080");
+        std::env::set_var(
+            "ALIENAI_PROXY_CF_URL",
+            "http://cs-service-proxy-cf.cs.svc.cluster.local:8080",
+        );
         assert_eq!(
             platform_proxy_url(),
             Some("http://cs-service-proxy-cf.cs.svc.cluster.local:8080".to_string())

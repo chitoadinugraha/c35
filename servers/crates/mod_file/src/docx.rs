@@ -27,10 +27,7 @@ pub fn docx_doc_index(bytes: &[u8]) -> Result<DocIndex> {
 fn open_capped_zip(bytes: &[u8]) -> Result<ZipArchive<Cursor<&[u8]>>> {
     let mut archive = ZipArchive::new(Cursor::new(bytes)).context("open zip")?;
     if archive.len() > ZIP_MAX_ENTRIES {
-        bail!(
-            "zip has {} entries (max {ZIP_MAX_ENTRIES})",
-            archive.len()
-        );
+        bail!("zip has {} entries (max {ZIP_MAX_ENTRIES})", archive.len());
     }
     let mut total = 0u64;
     for i in 0..archive.len() {

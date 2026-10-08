@@ -1,0 +1,54 @@
+---
+description: Plain-language user guides in _/docs. English source, Indonesian rewrite, keep Link Download Upload in English.
+globs: _/docs/**/*.md
+alwaysApply: true
+---
+
+# User guides
+
+Write for a person using Alien AI. Short sentences. Everyday words. No system names (identity, webhook, RPC, inst, iid).
+
+Mirrored for Antigravity: [`.agents/rules/docs-guides.md`](../../.agents/rules/docs-guides.md).
+
+## Marketing headline (Indonesian)
+
+Encouraging and simple. Example for create-bot UI:
+
+**Cara membuat chat bot di bawah 5 menit**
+
+Do not add awkward lines like "same result either way." Lead with the outcome and time.
+
+## Outline samples
+
+Before publishing `en/` / `id/` articles, keep working outlines in [`_/docs/samples/`](../../_/docs/samples/README.md). Copy verified steps from the app; note `path: ui` or `path: prompt` at the top.
+
+## Files
+
+English is the source. Indonesian is the same steps, rewritten. Same file name under each language. Screenshots live in that language folder.
+
+```text
+_/docs/en/bots/create.md
+_/docs/id/bots/create.md
+```
+
+## Page
+
+- Headline: what you end up with (or marketing line above for ID landing copy).
+- One line: when you would do this.
+- Tag: `prompt`, `ui`, or `both`.
+- 3 to 5 steps when possible; wizard guides may use numbered substeps.
+- Each step says what to do, then what you should see.
+
+Indonesian uses **Anda**.
+
+## Indonesian words that stay English
+
+Use the word people already say. Leave these out: Tautan, Unduh, Unggah. Same for other textbook stand-ins (Sunting, Pranala, Berkas).
+
+| Use | Leave out |
+|---|---|
+| Link | Tautan |
+| Download | Unduh |
+| Upload | Unggah |
+
+The home page Docs button lists guides in the site theme. English on `/`, Indonesian on `/id/`.

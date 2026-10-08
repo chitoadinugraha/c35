@@ -50,7 +50,10 @@ impl SearchGeoContext {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.city.is_empty() && self.region.is_empty() && self.country.is_empty() && self.locale.is_empty()
+        self.city.is_empty()
+            && self.region.is_empty()
+            && self.country.is_empty()
+            && self.locale.is_empty()
     }
 }
 
@@ -115,7 +118,12 @@ pub async fn web_search_exec(
         url.push_str("&language=");
         url.push_str(&urlencoding::encode(&search_language));
     }
-    let res = match client.get(&url).timeout(Duration::from_secs(15)).send().await {
+    let res = match client
+        .get(&url)
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await
+    {
         Ok(r) => r,
         Err(e) => {
             return Ok(json!({

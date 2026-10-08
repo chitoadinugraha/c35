@@ -18,6 +18,7 @@ import 'package:alienai_c35/widgets/ai/ui_media_provider_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_media_provider_sheet.dart';
 import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_site_preview_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_stock_report_card.dart';
 import 'package:flutter/material.dart';
 
 typedef ConsumptionBlockSaved = void Function(int msgId, ChatBlock block);
@@ -175,6 +176,8 @@ class UiMsgBlocks extends StatelessWidget {
             attachments: [MsgAttachment(hash: hash, name: name, mime: mime, url: url)],
           ),
         );
+      case 'site.stock_report':
+        return UiStockReportCard(body: b.body);
       case 'presentation.deck':
       case 'slide.deck':
       case 'presentation':
