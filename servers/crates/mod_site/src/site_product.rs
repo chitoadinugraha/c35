@@ -10,6 +10,7 @@ use sqlx::PgPool;
 use tokio::sync::mpsc;
 
 use crate::grant::site_grant_check;
+use crate::product_icon::{product_icon_ensure, product_icon_ids};
 use crate::rows::product_from_row;
 use crate::sync_push::site_sync_push;
 use c35_proto::WsRes;
@@ -90,9 +91,16 @@ pub async fn site_product_list(
     .bind(req.site_iid)
     .fetch_all(pool)
     .await?;
-    Ok(ResSiteProductList {
-        products: rows.iter().map(product_from_row).collect(),
-    })
+    let mut products: Vec<SiteProduct> = rows.iter().map(product_from_row).collect();
+    let pairs: Vec<(String, String)> = products
+        .iter()
+        .map(|p| (p.pic.clone(), p.name.clone()))
+        .collect();
+    let icons = product_icon_ids(pool, &pairs).await;
+    for (product, icon) in products.iter_mut().zip(icons) {
+        product.icon = icon;
+    }
+    Ok(ResSiteProductList { products })
 }
 
 pub async fn site_product_put(
@@ -220,17 +228,24 @@ pub async fn site_product_put(
         product_embed_reconcile_tx(&mut tx, site_iid, product_id, &keep).await?;
     }
     tx.commit().await?;
+    let icon = if product.pic.trim().is_empty() && !product.name.is_empty() {
+        product_icon_ensure(pool, &product.name).await
+    } else {
+        String::new()
+    };
+    let mut synced = product;
+    synced.icon = icon.clone();
     if let Some(tx) = out_tx {
         site_sync_push(
             tx,
             sync_push::Body::SiteProduct(SiteProduct {
                 site_iid,
                 product_id,
-                ..product
+                ..synced
             }),
         );
     }
-    Ok(ResSiteProductPut { product_id })
+    Ok(ResSiteProductPut { product_id, icon })
 }
 
 pub async fn site_product_delete(

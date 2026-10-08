@@ -110,6 +110,7 @@ message SiteProduct {
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
   int64 deleted_ts_ms = 22;
+  string icon = 23; // iconify id when pic is empty; empty when pic is set
 }
 
 message SiteProductEmbed {
@@ -264,6 +265,7 @@ message ReqSiteProductPut {
 
 message ResSiteProductPut {
   int64 product_id = 1;
+  string icon = 2; // iconify id when pic is empty; empty when pic is set
 }
 
 message ReqSiteProductDelete {
@@ -526,6 +528,7 @@ message SiteGuestProductItem {
   int64 price = 4;
   string pic = 5;
   string category = 6;
+  string icon = 7; // iconify id when pic is empty; empty when pic is set
 }
 
 message ReqSiteGuestProductList {

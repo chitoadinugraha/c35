@@ -99,6 +99,7 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
             duration_value: 0,
             duration_unit: String::new(),
             reservation_unit_selection: String::new(),
+            icon: String::new(),
         }],
         &caps,
         None,

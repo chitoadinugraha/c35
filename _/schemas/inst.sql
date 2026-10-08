@@ -1269,6 +1269,46 @@ After success, reply briefly with site name and product name; offer to set price
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: menu photo / menu list batch catalog add (price scale lives here, not in Rust)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.catalog.add.menu',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.CATALOG.ADD.MENU] The user wants every product on a menu photo or menu list added to one site catalog. This overrides the confirmation step in SITE.CATALOG.ADD: do not ask for confirmation first. Call site.product_put now, once per sellable item, same turn, same site_iid. Do not call web.search. \
+SITE: use the mentioned site, or the single site in [SITE CONTEXTS]. If several sites and none is named, ask which site and do not write. Omit site_iid only when [SITE CONTEXTS] has exactly one site. \
+READ THE MENU: use the attached photo. If the message also lists items, use those. Skip section headers that are not a product. One row per drink or food, not per cup size, unless they asked for sizes as separate products. If there is no photo and no item list, ask for the menu photo. Do not invent items. \
+PRICE (IDR integer rupiah). Indonesian cafe and restaurant boards print thousands as a short number. Guess the real amount from the product name. \
+A cafe drink or food (coffee, latte, americano, cappuccino, macchiato, frappuccino, mocha, tea, pastry, cake, bottled water) is never Rp 10 or Rp 25. Printed 10, 15, 18, 25, 33, 42, 55 means 10000, 15000, 18000, 25000, 33000, 42000, 55000. \
+Any printed whole number below 1000 on that kind of product: multiply by 1000. 10k, 10rb, and 10 ribu also mean 10000. \
+If the number is already 1000 or more, keep it (3500 stays 3500, 42000 stays 42000). \
+If the price is missing or unreadable, still save the product and set a plausible price from the name (cafe coffee and frappuccino usually 20000 to 60000, water around 10000). Do not store 0. \
+After the writes, reply with a short count and the site name.',
+    ARRAY[
+        'foto menu', 'menu photo', 'photo menu', 'dari foto menu',
+        'product dari foto', 'produk dari foto', 'tambahkan product', 'tambahkan produk',
+        'products from menu', 'produk dari menu', 'product dari menu'
+    ],
+    ARRAY['tool_include:site.product_put', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.product_put'],
+    ARRAY['web.search', 'web.visit'],
+    145,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: referral code create / update via Home prompt
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts

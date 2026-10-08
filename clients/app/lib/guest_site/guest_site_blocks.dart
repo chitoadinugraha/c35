@@ -26,6 +26,7 @@ import 'package:alienai_c35/guest_site/guest_site_reservation_sheet.dart';
 import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_platform_icon.dart';
+import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -569,9 +570,9 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                         height: 56,
                         width: 56,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _productThumbPlaceholder(accent),
+                        errorBuilder: (_, __, ___) => _brokenPicPlaceholder(accent),
                       )
-                    : _productThumbPlaceholder(accent),
+                    : _productThumbPlaceholder(accent, p['icon']?.toString() ?? ''),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -625,7 +626,20 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     );
   }
 
-  Widget _productThumbPlaceholder(Color accent) => Container(
+  Widget _productThumbPlaceholder(Color accent, String icon) {
+    final id = icon.trim().isEmpty ? 'mdi:shopping' : icon.trim();
+    return Container(
+      height: 56,
+      width: 56,
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Center(child: UiIcon('iconify://$id', size: 22, color: accent)),
+    );
+  }
+
+  Widget _brokenPicPlaceholder(Color accent) => Container(
         height: 56,
         width: 56,
         decoration: BoxDecoration(

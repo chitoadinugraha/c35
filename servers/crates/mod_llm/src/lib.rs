@@ -1,3 +1,4 @@
+mod cheap_model;
 mod catalog_price;
 mod catalog_pricing;
 mod catalog_rank;
@@ -60,6 +61,11 @@ pub use runtime_config::{
     cf_gateway_ready, model_is_flash_lite, runtime_config_init, runtime_config_reload,
     runtime_config_watch, CfGatewayRuntime,
 };
+
+/// Housekeeping text model for work that is not the user's selected chat model.
+/// Compaction, memory extraction, speech-to-text, and later product-icon classify.
+/// Not configurable by env. Change this const to retarget every caller.
+pub const CHEAP_MODEL: &str = "gemini-3.1-flash-lite";
 
 pub const EMBED_TASK_DOCUMENT: &str = "retrieval_document";
 pub const EMBED_TASK_QUERY: &str = "retrieval_query";

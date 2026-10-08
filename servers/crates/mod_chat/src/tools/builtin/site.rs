@@ -1,9 +1,9 @@
 use anyhow::{anyhow, bail, Result};
 use c35_mod_site::{
-    site_capabilities_get, site_config_put, site_contact_upsert, site_grant_delete, site_grant_put,
-    site_grantee_resolve, site_granted_iids, site_handle_put, site_link_delete, site_link_upsert,
-    site_object_upsert, site_preview_token_issue, site_publish_from_draft, site_slug_ensure_unique,
-    site_slug_generate,
+    product_icon_ensure, site_capabilities_get, site_config_put, site_contact_upsert,
+    site_grant_delete, site_grant_put, site_grantee_resolve, site_granted_iids, site_handle_put,
+    site_link_delete, site_link_upsert, site_object_upsert, site_preview_token_issue,
+    site_publish_from_draft, site_slug_ensure_unique, site_slug_generate,
 };
 use c35_proto::{ReqSiteConfigPut, ReqSiteHandlePut, ReqSiteLinkDelete, SiteContact, SiteLink, SiteObject};
 use c35_store::snowflake_id;
@@ -259,7 +259,12 @@ pub async fn site_product_put_exec(ctx: &ToolContext, args: &Value) -> Result<Va
         product_embed_put_tx(&mut tx, site_iid, product_id, &embeds).await?;
     }
     tx.commit().await?;
-    Ok(json!({ "ok": true, "site_iid": site_iid, "product_id": product_id }))
+    let icon = if pic.trim().is_empty() {
+        product_icon_ensure(&ctx.pool, name).await
+    } else {
+        String::new()
+    };
+    Ok(json!({ "ok": true, "site_iid": site_iid, "product_id": product_id, "icon": icon }))
 }
 
 pub async fn site_contact_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
@@ -466,7 +471,7 @@ tool! {
     struct: SiteProductPutTool,
     name: "site.product_put",
     aliases: ["site_product_put"],
-    description: "Upsert a product row in site.product catalog (typed fields only — no checkout JSON).",
+    description: "Upsert a product row in site.product catalog (typed fields only — no checkout JSON). When pic is empty, the server assigns the shared default product icon from the product name.",
     topics: ["web.builder"],
     requires_kinds: ["site"],
     ui_calling_key: "tool.site.product_put.calling",
@@ -478,8 +483,8 @@ tool! {
         desc: (string, "Product description", optional),
         unit: (string, "Unit of measure", optional),
         sku: (string, "SKU", optional),
-        price: (integer, "Price in smallest currency unit", optional),
-        pic: (string, "Image URL or /fs/{hash}", optional),
+        price: (integer, "Price in IDR rupiah as an integer. 10000 means Rp 10.000. Pass the scaled amount, not a menu-board shorthand like 10.", optional),
+        pic: (string, "Image URL or /fs/{hash}. Omit to use the default product icon from the name.", optional),
         category: (string, "Category label", optional),
         can_sell: (boolean, "Available for sale", optional),
         track_stock: (boolean, "Track inventory", optional),

@@ -17,6 +17,19 @@ pub struct ProductRow {
     pub duration_value: i64,
     pub duration_unit: String,
     pub reservation_unit_selection: String,
+    pub icon: String,
+}
+
+fn guest_icon_svg(p: &ProductRow) -> &'static str {
+    if !p.pic.trim().is_empty() {
+        return "";
+    }
+    let svg = crate::product_icon_svg::product_icon_svg(&p.icon);
+    if svg.is_empty() {
+        crate::product_icon_svg::product_icon_svg("mdi:shopping")
+    } else {
+        svg
+    }
 }
 
 pub fn product_row_json(p: &ProductRow) -> Value {
@@ -26,6 +39,8 @@ pub fn product_row_json(p: &ProductRow) -> Value {
         "desc": p.desc,
         "price": p.price,
         "pic": pic_url(&p.pic),
+        "icon": p.icon,
+        "icon_svg": guest_icon_svg(p),
         "category": p.category,
         "can_reserve": p.can_reserve,
         "duration_value": p.duration_value,
@@ -110,6 +125,7 @@ fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
         duration_value,
         duration_unit,
         reservation_unit_selection,
+        icon: String::new(),
     }
 }
 
@@ -195,10 +211,20 @@ pub async fn guest_product_list(
     } else {
         String::new()
     };
+    let mut page = page;
+    fill_row_icons(pool, &mut page).await;
     Ok(GuestProductListResult {
         items: page,
         next_cursor,
     })
+}
+
+async fn fill_row_icons(pool: &PgPool, rows: &mut [ProductRow]) {
+    let pairs: Vec<(String, String)> = rows.iter().map(|p| (p.pic.clone(), p.name.clone())).collect();
+    let icons = crate::product_icon::product_icon_ids(pool, &pairs).await;
+    for (row, icon) in rows.iter_mut().zip(icons) {
+        row.icon = icon;
+    }
 }
 
 pub async fn product_rows_for_grid(
@@ -224,6 +250,7 @@ pub fn guest_product_list_to_proto(res: &GuestProductListResult) -> ResSiteGuest
                 price: p.price,
                 pic: pic_url(&p.pic),
                 category: p.category.clone(),
+                icon: p.icon.clone(),
             })
             .collect(),
         next_cursor: res.next_cursor.clone(),
@@ -372,10 +399,15 @@ pub async fn guest_product_get(
     .bind(product_id)
     .fetch_optional(pool)
     .await?;
-    Ok(row.map(|r| {
-        let row = product_row_from_pg(&r);
-        let can_reserve = row.can_reserve;
-        GuestProductDetail { row, can_reserve }
+    let Some(r) = row else {
+        return Ok(None);
+    };
+    let mut product = product_row_from_pg(&r);
+    fill_row_icons(pool, std::slice::from_mut(&mut product)).await;
+    let can_reserve = product.can_reserve;
+    Ok(Some(GuestProductDetail {
+        row: product,
+        can_reserve,
     }))
 }
 

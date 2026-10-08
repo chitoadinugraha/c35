@@ -1,4 +1,5 @@
 use anyhow::{bail, Result};
+use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use c35_mod_billing::image_tool_wholesale_usd;
 use c35_mod_file::{cas_bytes_get, cas_dir_default, cas_image_bytes_fit_inline, cas_put};
@@ -60,6 +61,31 @@ pub fn photo_hashes_from_attachments(attachments_json: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// Gemini inline parts for user-attached photos (menu boards, receipts). Mechanical only.
+pub async fn user_image_inline_parts(pool: &PgPool, attachments_json: &str) -> Vec<Value> {
+    const MAX_IMAGES: usize = 4;
+    let mut parts = Vec::new();
+    for hash in photo_hashes_from_attachments(attachments_json).into_iter().take(MAX_IMAGES) {
+        let Ok((bytes, mime)) = img_load_cas(pool, &hash).await else {
+            continue;
+        };
+        let (bytes, mime) = match cas_image_bytes_fit_inline(bytes, &mime) {
+            Ok(fitted) => fitted,
+            Err(_) => continue,
+        };
+        if bytes.is_empty() || !mime.starts_with("image/") {
+            continue;
+        }
+        parts.push(json!({
+            "inlineData": {
+                "mimeType": mime,
+                "data": STANDARD.encode(bytes),
+            }
+        }));
+    }
+    parts
 }
 
 pub async fn img_load_cas(pool: &PgPool, hash: &str) -> Result<(Vec<u8>, String)> {

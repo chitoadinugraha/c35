@@ -971,6 +971,7 @@ class SiteProduct extends $pb.GeneratedMessage {
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
+    $core.String? icon,
   }) {
     final result = SiteProduct._();
     if (siteIid != null) result.siteIid = siteIid;
@@ -994,6 +995,7 @@ class SiteProduct extends $pb.GeneratedMessage {
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
+    if (icon != null) result.icon = icon;
     return result;
   }
 
@@ -1031,6 +1033,7 @@ class SiteProduct extends $pb.GeneratedMessage {
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
+    ..aOS(23, _omitFieldNames ? '' : 'icon')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1243,6 +1246,15 @@ class SiteProduct extends $pb.GeneratedMessage {
   $core.bool hasDeletedTsMs() => $_has(20);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
+
+  @$pb.TagNumber(23)
+  $core.String get icon => $_getSZ(21);
+  @$pb.TagNumber(23)
+  set icon($core.String value) => $_setString(21, value);
+  @$pb.TagNumber(23)
+  $core.bool hasIcon() => $_has(21);
+  @$pb.TagNumber(23)
+  void clearIcon() => $_clearField(23);
 }
 
 class SiteProductEmbed extends $pb.GeneratedMessage {
@@ -3136,9 +3148,11 @@ class ReqSiteProductPut extends $pb.GeneratedMessage {
 class ResSiteProductPut extends $pb.GeneratedMessage {
   factory ResSiteProductPut({
     $fixnum.Int64? productId,
+    $core.String? icon,
   }) {
     final result = ResSiteProductPut._();
     if (productId != null) result.productId = productId;
+    if (icon != null) result.icon = icon;
     return result;
   }
 
@@ -3156,6 +3170,7 @@ class ResSiteProductPut extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: ResSiteProductPut.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'productId')
+    ..aOS(2, _omitFieldNames ? '' : 'icon')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3188,6 +3203,15 @@ class ResSiteProductPut extends $pb.GeneratedMessage {
   $core.bool hasProductId() => $_has(0);
   @$pb.TagNumber(1)
   void clearProductId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get icon => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set icon($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasIcon() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearIcon() => $_clearField(2);
 }
 
 class ReqSiteProductDelete extends $pb.GeneratedMessage {
@@ -6486,6 +6510,7 @@ class SiteGuestProductItem extends $pb.GeneratedMessage {
     $fixnum.Int64? price,
     $core.String? pic,
     $core.String? category,
+    $core.String? icon,
   }) {
     final result = SiteGuestProductItem._();
     if (productId != null) result.productId = productId;
@@ -6494,6 +6519,7 @@ class SiteGuestProductItem extends $pb.GeneratedMessage {
     if (price != null) result.price = price;
     if (pic != null) result.pic = pic;
     if (category != null) result.category = category;
+    if (icon != null) result.icon = icon;
     return result;
   }
 
@@ -6516,6 +6542,7 @@ class SiteGuestProductItem extends $pb.GeneratedMessage {
     ..aInt64(4, _omitFieldNames ? '' : 'price')
     ..aOS(5, _omitFieldNames ? '' : 'pic')
     ..aOS(6, _omitFieldNames ? '' : 'category')
+    ..aOS(7, _omitFieldNames ? '' : 'icon')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6594,6 +6621,15 @@ class SiteGuestProductItem extends $pb.GeneratedMessage {
   $core.bool hasCategory() => $_has(5);
   @$pb.TagNumber(6)
   void clearCategory() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get icon => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set icon($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasIcon() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearIcon() => $_clearField(7);
 }
 
 class ReqSiteGuestProductList extends $pb.GeneratedMessage {

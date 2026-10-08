@@ -223,7 +223,26 @@ fn gemini_stream_acc_content(acc: &mut Value, v: &Value) {
     let parts = acc["parts"].as_array_mut().expect("parts array");
     for part in new_parts {
         if part.get("functionCall").is_some() {
-            parts.retain(|p| p.get("functionCall").is_none());
+            // Parallel calls arrive as separate stream chunks. Keep each one.
+            // A repeated id is an update of the same call, not a new product.
+            let new_id = part
+                .get("functionCall")
+                .and_then(|fc| fc.get("id"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            if !new_id.is_empty() {
+                if let Some(last) = parts.last_mut() {
+                    let last_id = last
+                        .get("functionCall")
+                        .and_then(|fc| fc.get("id"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if last_id == new_id {
+                        *last = part.clone();
+                        continue;
+                    }
+                }
+            }
             parts.push(part.clone());
             continue;
         }
@@ -279,6 +298,47 @@ fn gemini_stream_finalize(last: &Value, acc_content: &Value, acc_text: &str, acc
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn stream_acc_keeps_parallel_function_calls() {
+        let mut acc = json!(null);
+        let first = json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{
+                        "functionCall": {
+                            "name": "site_product_put",
+                            "args": { "name": "Caffe Americano", "price": 33000 }
+                        }
+                    }]
+                }
+            }]
+        });
+        let second = json!({
+            "candidates": [{
+                "content": {
+                    "role": "model",
+                    "parts": [{
+                        "functionCall": {
+                            "name": "site_product_put",
+                            "args": { "name": "Mineral Water", "price": 10000 }
+                        },
+                        "thoughtSignature": "sig"
+                    }]
+                }
+            }]
+        });
+        gemini_stream_acc_content(&mut acc, &first);
+        gemini_stream_acc_content(&mut acc, &second);
+        let parts = acc["parts"].as_array().unwrap();
+        assert_eq!(parts.len(), 2);
+        assert_eq!(parts[0]["functionCall"]["args"]["name"], "Caffe Americano");
+        assert_eq!(parts[0]["functionCall"]["args"]["price"], 33000);
+        assert_eq!(parts[1]["functionCall"]["args"]["name"], "Mineral Water");
+        assert_eq!(parts[1]["functionCall"]["args"]["price"], 10000);
+        assert_eq!(parts[1]["thoughtSignature"], "sig");
+    }
 
     #[test]
     fn stream_emit_accumulates_text_before_empty_final_chunk() {

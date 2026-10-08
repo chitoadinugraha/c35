@@ -122,6 +122,14 @@ pub async fn prompt_cluster_turn(
         contents.push(json!({ "role": role, "parts": [{ "text": trimmed }] }));
     }
     contents.push(json!({ "role": "user", "parts": [{ "text": req.user }] }));
+    if let Some(ctx) = turn_ctx.as_ref() {
+        let image_parts = crate::tools::img::user_image_inline_parts(ctx.pool, ctx.attachments_json).await;
+        if !image_parts.is_empty() {
+            if let Some(parts) = contents.last_mut().and_then(|m| m.get_mut("parts")).and_then(|p| p.as_array_mut()) {
+                parts.extend(image_parts);
+            }
+        }
+    }
     let mut tokens_in = 0i32;
     let mut tokens_out = 0i32;
     let mut thought = String::new();

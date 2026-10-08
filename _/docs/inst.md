@@ -111,11 +111,12 @@ Applies when Home sends from the Talk surface (`ReqPrompt.talk = true`). `prompt
 | `inst.site.price_compare` | task | reasonable, kemahalan, harga pasaran, too expensive, my price, harga saya, compare to the web, bandingkan harga | `site.query.run` |
 | `inst.site.catalog.write` | task | ubah harga, ganti harga, change price, set price, update price, ubah stok, change stock | `site.product.patch` |
 | `inst.site.catalog.add` | task | tambah produk, add product, produk baru, … | `site.product_put`, `site.create` |
+| `inst.site.catalog.add.menu` | task | foto menu, tambahkan product, menu photo, … | `site.product_put` |
 
 Steering detail: [site-ai.md](site-ai.md).
 
 - Compare / report: when `[SITE CONTEXTS]` is present, pass those sites. When it is absent, omit `site_iids` so the server aggregates every granted site.
-- Catalog: `inst.site.catalog.stock` is stock lookup, `inst.site.catalog.price` is price lookup, `inst.site.price_compare` is store-vs-web price compare, `inst.site.catalog.write` patches price or stock, and `inst.site.catalog.add` adds a new catalog row via `site.product_put` (confirm site when one site; create site when none; ask which site when several). Inst does not pick a site and does not invent an `@site` mention. A price lookup checks `product.stock` before `web.search` and stops when the store has the product. A vs-market question (reasonable, kemahalan, harga pasaran) still runs `web.search` after the store price is known. Stock questions do not fall through to the web. `inst.web_search` still owns `harga` for callers with no site.
+- Catalog: `inst.site.catalog.stock` is stock lookup, `inst.site.catalog.price` is price lookup, `inst.site.price_compare` is store-vs-web price compare, `inst.site.catalog.write` patches price or stock, and `inst.site.catalog.add` adds a new catalog row via `site.product_put` (confirm site when one site; create site when none; ask which site when several). `inst.site.catalog.add.menu` adds every item from a menu photo or menu list in one turn (`site.product_put` once per item, no extra confirm when the site is named or there is exactly one site). Indonesian board prices are thousands: a printed 10 on a cafe drink is 10000, guessed from the product name. Inst does not pick a site and does not invent an `@site` mention. A price lookup checks `product.stock` before `web.search` and stops when the store has the product. A vs-market question (reasonable, kemahalan, harga pasaran) still runs `web.search` after the store price is known. Stock questions do not fall through to the web. `inst.web_search` still owns `harga` for callers with no site.
 
 ### Bot draft (`inst.bot.draft`)
 

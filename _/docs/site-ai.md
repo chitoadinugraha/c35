@@ -308,6 +308,14 @@ Reply: Sudah ditambahkan di Warung A. Mau set harga atau stok?
 
 **Follow-up “ya” without product phrases:** when the prior assistant message was a catalog-add confirm (contains `?` and `tambah` / `di situs`), a short affirmation (`ya`, `ok`, `setuju`, …) re-injects `site.product_put` and appends `[PENDING CATALOG ADD]` for that turn (`catalog_add_followup` in `prompt_turn`).
 
+### Menu photo batch (`inst.site.catalog.add.menu`)
+
+There is no separate batch RPC. One `site.product_put` writes one product. A menu is many of those calls in the same turn (parallel), all on the named site.
+
+When the user asks to add products from a menu photo (`foto menu`, `tambahkan product`, `menu photo`) and a site is mentioned, or exactly one site is in `[SITE CONTEXTS]`, write immediately. Do not ask for a second confirmation. Leave `pic` empty. The server assigns the shared default product icon from the product name (`product_icon_ensure`). A real photo still wins when `pic` is set.
+
+Price is an IDR integer. Indonesian boards print thousands as a short number, and the scale comes from the product name: a printed **10** on a cafe drink or pastry is **10000**, not 10. `10k` / `10rb` / `10 ribu` are 10000. A number already at or above 1000 stays as written. If the price is missing, estimate from the name (cafe coffee and frappuccino usually 20000–60000) and still save the row.
+
 Mentioned pair:
 
 ```text

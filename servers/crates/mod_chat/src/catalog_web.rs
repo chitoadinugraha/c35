@@ -9,7 +9,7 @@ pub enum CatalogWebPhase {
 
 pub fn catalog_web_phase(matched_ids: &[String], has_site: bool) -> CatalogWebPhase {
     let has = |id: &str| matched_ids.iter().any(|m| m == id);
-    if has("inst.site.catalog.write") {
+    if has("inst.site.catalog.add.menu") || has("inst.site.catalog.write") {
         CatalogWebPhase::Off
     } else if !has_site {
         CatalogWebPhase::Off
@@ -33,6 +33,7 @@ pub fn catalog_skip_web_prefetch(matched_ids: &[String], phase: CatalogWebPhase)
     phase != CatalogWebPhase::Off
         || matched_ids.iter().any(|id| {
             id == "inst.site.catalog.write"
+                || id == "inst.site.catalog.add.menu"
                 || id == "inst.site.builder"
                 || id == "inst.device.facts"
                 || id.starts_with("inst.mention.device_")
@@ -74,6 +75,17 @@ mod tests {
     fn catalog_web_write_skips_prefetch() {
         let ids = vec![
             "inst.site.catalog.write".into(),
+            "inst.site.catalog.price".into(),
+            "inst.web_search".into(),
+        ];
+        assert_eq!(catalog_web_phase(&ids, true), CatalogWebPhase::Off);
+        assert!(catalog_skip_web_prefetch(&ids, CatalogWebPhase::Off));
+    }
+
+    #[test]
+    fn catalog_web_menu_add_skips_prefetch() {
+        let ids = vec![
+            "inst.site.catalog.add.menu".into(),
             "inst.site.catalog.price".into(),
             "inst.web_search".into(),
         ];

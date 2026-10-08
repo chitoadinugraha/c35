@@ -224,6 +224,7 @@ fn block_product_grid_renders_products() {
             duration_value: 1,
             duration_unit: "day".into(),
             reservation_unit_selection: "system".into(),
+            icon: String::new(),
         },
         ProductRow {
             product_id: 102,
@@ -237,6 +238,7 @@ fn block_product_grid_renders_products() {
             duration_value: 1,
             duration_unit: "day".into(),
             reservation_unit_selection: "system".into(),
+            icon: "mdi:tea".into(),
         },
     ];
     let grid_ctx = ProductGridCtx {
@@ -292,6 +294,7 @@ fn sample_product(can_reserve: bool) -> ProductRow {
         duration_value: 1,
         duration_unit: "day".into(),
         reservation_unit_selection: "guest_picks".into(),
+        icon: String::new(),
     }
 }
 

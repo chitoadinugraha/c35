@@ -187,6 +187,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
         .unwrap_or_default();
 
         let mut max_ts = since_ms;
+        let start = res.site_products.len();
         for r in &rows {
             let updated = ts_ms(r.get("updated_ts"));
             max_ts = max_ts.max(updated);
@@ -212,7 +213,16 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
                 created_ts_ms: ts_ms(r.get("created_ts")),
                 updated_ts_ms: updated,
                 deleted_ts_ms: ts_ms_opt(r.get("deleted_ts")),
+                icon: String::new(),
             });
+        }
+        let pairs: Vec<(String, String)> = res.site_products[start..]
+            .iter()
+            .map(|p| (p.pic.clone(), p.name.clone()))
+            .collect();
+        let icons = crate::product_icon::product_icon_ids(pool, &pairs).await;
+        for (product, icon) in res.site_products[start..].iter_mut().zip(icons) {
+            product.icon = icon;
         }
         res.cursors.push(cursor("site_product", max_ts, rows.len(), limit as usize));
     }

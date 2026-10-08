@@ -255,6 +255,17 @@ CREATE INDEX IF NOT EXISTS idx_site_product_embed_product
     ON site.product_embed (site_iid, product_id)
     WHERE deleted_ts IS NULL;
 
+-- Global product-name to default Iconify id. Shared across sites.
+-- name_key is product_icon_name_key(name). icon is an id from the Rust kind catalog.
+CREATE TABLE IF NOT EXISTS site.product_icon (
+    name_key    TEXT PRIMARY KEY,
+    icon        TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    source      TEXT NOT NULL,
+    model       TEXT NOT NULL DEFAULT '',
+    created_ts  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ------------------------------------------------------------------------------
 -- Contact (CRM / tx subject)
 -- ------------------------------------------------------------------------------

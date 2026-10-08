@@ -12,6 +12,8 @@ mod commerce_boot;
 pub mod guest_design;
 mod guest_product;
 mod product_design;
+mod product_icon;
+mod product_icon_svg;
 pub mod render;
 mod rows;
 mod site_config;
@@ -77,6 +79,11 @@ pub use query::site_query_run;
 pub use site_product::{
     site_product_delete, site_product_list, site_product_put, site_product_reorder,
 };
+pub use product_icon::{
+    product_icon_ensure, product_icon_id, product_icon_ids, product_icon_kind_from_rules,
+    product_icon_kinds, product_icon_lookup, product_icon_name_key, ProductIconKind,
+};
+pub use product_icon_svg::product_icon_svg;
 pub use site_queue::{
     guest_queue_get, guest_queue_get_json, guest_queue_take, guest_queue_take_json,
     site_queue_advance_serving, site_queue_list, site_queue_put,

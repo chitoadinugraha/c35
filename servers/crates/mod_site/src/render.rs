@@ -13,6 +13,7 @@ use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
 use crate::guest_product::{
     guest_product_get, guest_product_list, guest_product_sell_ids, pic_url, product_grid_page_size,
 };
+use crate::product_icon_svg::product_icon_svg;
 use crate::site_link::site_link_boot_rows;
 use crate::site_post::{site_post_boot_summaries, site_post_get_storefront};
 
@@ -24,9 +25,19 @@ pub struct ProductGridCtx {
     pub next_cursor: String,
 }
 
+fn product_placeholder_html(icon: &str) -> String {
+    let svg = product_icon_svg(icon);
+    let svg = if svg.is_empty() {
+        product_icon_svg("mdi:shopping")
+    } else {
+        svg
+    };
+    format!(r#"<div class="product-ph" aria-hidden="true">{svg}</div>"#)
+}
+
 pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> String {
     let img = if p.pic.is_empty() {
-        String::new()
+        product_placeholder_html(&p.icon)
     } else {
         format!(
             r#"<img src="{}" alt="" loading="lazy"/>"#,
@@ -102,7 +113,7 @@ fn product_purchase_button(p: &ProductRow) -> String {
 /// Product detail article. Reservable products show Reservasi and omit + Pesan.
 pub fn product_detail_article_html(p: &ProductRow) -> String {
     let img = if p.pic.is_empty() {
-        String::new()
+        product_placeholder_html(&p.icon)
     } else {
         format!(
             r#"<img src="{}" alt="" loading="lazy" class="product-detail-pic"/>"#,
@@ -951,6 +962,8 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
 .product-grid .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}}
 .product-card{{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;flex-direction:column}}
 .product-card img{{width:100%;aspect-ratio:1;object-fit:cover;display:block}}
+.product-card .product-ph{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#f4f4f5}}
+.product-card .product-ph svg{{width:28%;height:28%}}
 .product-card .product-info{{padding:12px;display:flex;flex-direction:column;flex:1}}
 .product-card h3{{margin:0 0 6px;font-size:15px;font-weight:600}}
 .product-card p{{margin:0 0 10px;font-size:13px;color:#666;line-height:1.4;flex:1}}
@@ -1058,10 +1071,12 @@ pub async fn product_detail_html_render(
         Some(d) => d,
         None => return Ok(None),
     };
-    let body = product_detail_article_html(&detail.row);
+    let mut row = detail.row;
+    row.can_reserve = detail.can_reserve;
+    let body = product_detail_article_html(&row);
     let html = format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/><style>:root{{--accent:#2563eb}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa}}.wrap{{max-width:720px;margin:0 auto;padding:24px 16px}}</style></head><body><main class="wrap">{body}</main>{client_js}</body></html>"#,
-        esc(&detail.row.name),
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/><style>:root{{--accent:#2563eb}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa}}.wrap{{max-width:720px;margin:0 auto;padding:24px 16px}}.product-detail .product-ph{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#f4f4f5}}.product-detail .product-ph svg{{width:28%;height:28%}}</style></head><body><main class="wrap">{body}</main>{client_js}</body></html>"#,
+        esc(&row.name),
         esc(site_name),
         body = body,
         client_js = guest_client_script_tags(pool, site_iid, &json!([])).await

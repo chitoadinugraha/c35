@@ -38,6 +38,7 @@ pub fn product_from_row(r: &sqlx::postgres::PgRow) -> SiteProduct {
         created_ts_ms: ts_ms(Some(r.get("created_ts"))),
         updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),
+        icon: String::new(),
     }
 }
 

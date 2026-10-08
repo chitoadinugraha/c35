@@ -262,6 +262,7 @@ const SiteProduct$json = {
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
+    {'1': 'icon', '3': 23, '4': 1, '5': 9, '10': 'icon'},
   ],
 };
 
@@ -277,7 +278,7 @@ final $typed_data.Uint8List siteProductDescriptor = $convert.base64Decode(
     '9qc29uGBAgASgJUgtwcm9kdWN0SnNvbhIfCgtpc19hcmNoaXZlZBgRIAEoCFIKaXNBcmNoaXZl'
     'ZBIdCgpzb3J0X29yZGVyGBMgASgFUglzb3J0T3JkZXISIgoNY3JlYXRlZF90c19tcxgUIAEoA1'
     'ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1ILdXBkYXRlZFRzTXMSIgoNZGVs'
-    'ZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXM=');
+    'ZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXMSEgoEaWNvbhgXIAEoCVIEaWNvbg==');
 
 @$core.Deprecated('Use siteProductEmbedDescriptor instead')
 const SiteProductEmbed$json = {
@@ -684,12 +685,14 @@ const ResSiteProductPut$json = {
   '1': 'ResSiteProductPut',
   '2': [
     {'1': 'product_id', '3': 1, '4': 1, '5': 3, '10': 'productId'},
+    {'1': 'icon', '3': 2, '4': 1, '5': 9, '10': 'icon'},
   ],
 };
 
 /// Descriptor for `ResSiteProductPut`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resSiteProductPutDescriptor = $convert.base64Decode(
-    'ChFSZXNTaXRlUHJvZHVjdFB1dBIdCgpwcm9kdWN0X2lkGAEgASgDUglwcm9kdWN0SWQ=');
+    'ChFSZXNTaXRlUHJvZHVjdFB1dBIdCgpwcm9kdWN0X2lkGAEgASgDUglwcm9kdWN0SWQSEgoEaW'
+    'NvbhgCIAEoCVIEaWNvbg==');
 
 @$core.Deprecated('Use reqSiteProductDeleteDescriptor instead')
 const ReqSiteProductDelete$json = {
@@ -1490,6 +1493,7 @@ const SiteGuestProductItem$json = {
     {'1': 'price', '3': 4, '4': 1, '5': 3, '10': 'price'},
     {'1': 'pic', '3': 5, '4': 1, '5': 9, '10': 'pic'},
     {'1': 'category', '3': 6, '4': 1, '5': 9, '10': 'category'},
+    {'1': 'icon', '3': 7, '4': 1, '5': 9, '10': 'icon'},
   ],
 };
 
@@ -1497,7 +1501,8 @@ const SiteGuestProductItem$json = {
 final $typed_data.Uint8List siteGuestProductItemDescriptor = $convert.base64Decode(
     'ChRTaXRlR3Vlc3RQcm9kdWN0SXRlbRIdCgpwcm9kdWN0X2lkGAEgASgDUglwcm9kdWN0SWQSEg'
     'oEbmFtZRgCIAEoCVIEbmFtZRISCgRkZXNjGAMgASgJUgRkZXNjEhQKBXByaWNlGAQgASgDUgVw'
-    'cmljZRIQCgNwaWMYBSABKAlSA3BpYxIaCghjYXRlZ29yeRgGIAEoCVIIY2F0ZWdvcnk=');
+    'cmljZRIQCgNwaWMYBSABKAlSA3BpYxIaCghjYXRlZ29yeRgGIAEoCVIIY2F0ZWdvcnkSEgoEaW'
+    'NvbhgHIAEoCVIEaWNvbg==');
 
 @$core.Deprecated('Use reqSiteGuestProductListDescriptor instead')
 const ReqSiteGuestProductList$json = {
