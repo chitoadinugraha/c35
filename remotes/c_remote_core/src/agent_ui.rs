@@ -228,7 +228,7 @@ pub fn drive_storage_limit_bytes() -> Option<i64> {
 pub fn drive_storage_label() -> Option<String> {
     let used = drive_storage_used_bytes()?;
     let limit = drive_storage_limit_bytes()?;
-    Some(format_storage_pair(used, limit))
+    Some(format_storage_pair_compact(used, limit))
 }
 
 /// Fraction in `[0, 1]` for progress UI; `None` when limit is missing or zero.
@@ -241,13 +241,26 @@ pub fn drive_storage_usage_fraction() -> Option<f64> {
     Some((used as f64 / limit as f64).clamp(0.0, 1.0))
 }
 
-fn format_storage_pair(used: i64, limit: i64) -> String {
+/// Agent status row: one decimal for KB+ (e.g. `0.0 GB / 15.0 GB`).
+fn format_storage_pair_compact(used: i64, limit: i64) -> String {
     let scale = storage_unit_index(limit.max(0));
     format!(
         "{} / {}",
-        format_bytes_at_scale(used, scale),
-        format_bytes_at_scale(limit, scale)
+        format_bytes_compact(used, scale),
+        format_bytes_compact(limit, scale)
     )
+}
+
+fn format_bytes_compact(bytes: i64, unit_index: u32) -> String {
+    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
+    let bytes = bytes.max(0);
+    let unit = UNITS[unit_index.min(4) as usize];
+    if unit_index == 0 {
+        return format!("{} {}", format_integer_grouped(bytes), unit);
+    }
+    let divisor = 1024u64.pow(unit_index) as f64;
+    let value = bytes as f64 / divisor;
+    format!("{:.1} {}", value, unit)
 }
 
 fn storage_unit_index(limit_bytes: i64) -> u32 {
@@ -258,33 +271,6 @@ fn storage_unit_index(limit_bytes: i64) -> u32 {
         idx += 1;
     }
     idx
-}
-
-fn format_bytes_at_scale(bytes: i64, unit_index: u32) -> String {
-    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
-    let bytes = bytes.max(0);
-    let unit = UNITS[unit_index.min(4) as usize];
-    if unit_index == 0 {
-        return format!("{} {}", format_integer_grouped(bytes), unit);
-    }
-    let divisor = 1024u64.pow(unit_index) as f64;
-    let value = bytes as f64 / divisor;
-    let decimals = storage_decimal_places(value, unit_index);
-    format!("{} {}", format_decimal_grouped(value, decimals), unit)
-}
-
-fn storage_decimal_places(value: f64, unit_index: u32) -> u32 {
-    if value >= 100.0 {
-        0
-    } else if value >= 10.0 {
-        1
-    } else if value >= 1.0 {
-        1
-    } else if value > 0.0 && value < 0.01 && unit_index >= 2 {
-        4
-    } else {
-        2
-    }
 }
 
 fn format_integer_grouped(n: i64) -> String {
@@ -303,19 +289,6 @@ fn format_integer_grouped(n: i64) -> String {
     }
 }
 
-fn format_decimal_grouped(value: f64, decimals: u32) -> String {
-    let sign = if value < 0.0 { "-" } else { "" };
-    let scale = 10u64.pow(decimals.min(12));
-    let rounded = (value.abs() * scale as f64).round() as u64;
-    let int_part = (rounded / scale) as i64;
-    let frac_part = rounded % scale;
-    if decimals == 0 {
-        return format!("{sign}{}", format_integer_grouped(int_part));
-    }
-    let frac_s = format!("{:0width$}", frac_part, width = decimals as usize);
-    format!("{sign}{}.{}", format_integer_grouped(int_part), frac_s)
-}
-
 #[cfg(test)]
 mod drive_storage_format_tests {
     use super::*;
@@ -323,7 +296,7 @@ mod drive_storage_format_tests {
     #[test]
     fn pair_uses_limit_unit() {
         let limit = 15 * 1024 * 1024 * 1024;
-        let label = format_storage_pair(26_241, limit);
+        let label = format_storage_pair_compact(26_241, limit);
         assert!(label.contains("GB"));
         assert!(label.contains("/"));
         assert!(!label.contains("GiB"));
@@ -331,8 +304,17 @@ mod drive_storage_format_tests {
     }
 
     #[test]
+    fn compact_pair_one_decimal_gb() {
+        let limit = 15 * 1024 * 1024 * 1024;
+        let label = format_storage_pair_compact(26_241, limit);
+        assert!(label.contains("0.0 GB"));
+        assert!(label.contains("15.0 GB"));
+        assert!(!label.contains("0.000"));
+    }
+
+    #[test]
     fn grouping_on_bytes() {
-        let s = format_bytes_at_scale(1_234_567, 0);
+        let s = format_bytes_compact(1_234_567, 0);
         assert_eq!(s, "1,234,567 B");
     }
 }

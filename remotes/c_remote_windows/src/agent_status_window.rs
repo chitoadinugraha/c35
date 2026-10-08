@@ -28,7 +28,6 @@ struct StatusCopy {
     account: String,
     version: String,
     cloud_on: bool,
-    user_app_subtitle: String,
     user_app_connected: usize,
     webrtc_connecting: bool,
     control_allowed: bool,
@@ -63,7 +62,6 @@ fn status_copy() -> StatusCopy {
         account,
         version: c_remote_core::version::agent_version_tray_label(),
         cloud_on: snap.ws_connected,
-        user_app_subtitle: c_remote_core::agent_ui::user_app_subtitle(snap.webrtc_connecting),
         user_app_connected: snap.user_app_lines.len(),
         webrtc_connecting: snap.webrtc_connecting,
         control_allowed: snap.control_allowed,
@@ -95,7 +93,7 @@ pub fn run(
         BeginPaint, CreateFontW, CreatePen, CreateSolidBrush, DeleteObject, DrawTextW, Ellipse,
         EndPaint, FillRect, InvalidateRect, RoundRect, SelectObject, SetBkMode,
         SetTextColor, DEFAULT_CHARSET, DRAW_TEXT_FORMAT, DT_CENTER, DT_LEFT, DT_SINGLELINE,
-        DT_VCENTER, FW_NORMAL, FW_SEMIBOLD, HDC, HFONT, HGDIOBJ,
+        DT_RIGHT, DT_VCENTER, FW_NORMAL, FW_SEMIBOLD, HDC, HFONT, HGDIOBJ,
         OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, TRANSPARENT,
         CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE,
     };
@@ -109,9 +107,9 @@ pub fn run(
         HWND_TOP, ICON_BIG, ICON_SMALL, IDC_ARROW, IsWindowVisible, SM_CXSCREEN, SM_CYSCREEN,
         SW_HIDE, SW_SHOW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
         WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND,
-        WM_GETMINMAXINFO, WM_NCCALCSIZE,
+        WM_GETMINMAXINFO, WM_NCACTIVATE, WM_NCCALCSIZE,
         WM_LBUTTONDOWN, WM_MOUSEMOVE, WM_NCHITTEST, WM_PAINT, WM_SETICON, WM_SIZE, WM_TIMER,
-        WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP, WS_THICKFRAME,
+        WM_USER, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_POPUP,
         HTCAPTION, HTCLIENT, HTLEFT, HTRIGHT, HTTOP, HTBOTTOM, HTTOPLEFT, HTTOPRIGHT,
         HTBOTTOMLEFT, HTBOTTOMRIGHT, IsZoomed, MINMAXINFO, NCCALCSIZE_PARAMS,
         SM_CXPADDEDBORDER, SM_CXFRAME, SM_CYFRAME,
@@ -142,10 +140,10 @@ pub fn run(
     const CLR_DRIVE_BAR_OK: u32 = 0x0099D334;
     const CLR_DRIVE_BAR_HIGH: u32 = 0x004444EF;
 
-    const WIN_W: i32 = 360;
-    const WIN_H: i32 = 300;
-    const WIN_MIN_W: i32 = 300;
-    const WIN_MIN_H: i32 = 240;
+    const WIN_W: i32 = 400;
+    const WIN_H: i32 = 360;
+    const WIN_MIN_W: i32 = 320;
+    const WIN_MIN_H: i32 = 280;
     const TAB_STATUS: u8 = 0;
     const TAB_LOGS: u8 = 1;
 
@@ -471,11 +469,33 @@ pub fn run(
         if on { CLR_DOT_ON } else { CLR_DOT_OFF }
     }
 
+    fn status_card_h(scale: &UiScale) -> i32 {
+        scale.px(40)
+    }
+
+    fn status_info_line_count(snap: &StatusCopy) -> i32 {
+        let mut n = 6i32;
+        if snap.update_staged.is_some() {
+            n += 1;
+        }
+        if !snap.update_check_msg.is_empty() {
+            n += 1;
+        }
+        n
+    }
+
+    fn status_drive_top(scale: &UiScale, snap: &StatusCopy) -> i32 {
+        let ct = content_top(scale);
+        let card_y = ct + scale.px(8);
+        let info_y = card_y + status_card_h(scale) + scale.px(10);
+        info_y + status_info_line_count(snap) * scale.px(15) + scale.px(6)
+    }
+
     fn drive_row(scale: &UiScale, rc: &RECT, top: i32) -> (RECT, RECT) {
         let margin = scale.px(16);
         let switch_w = scale.px(44);
         let switch_h = scale.px(22);
-        let row_h = scale.px(50);
+        let row_h = scale.px(30);
         let switch = RECT {
             left: rc.right - margin - switch_w,
             top: top + (row_h - switch_h) / 2,
@@ -538,19 +558,7 @@ pub fn run(
     }
 
     fn status_drive_switch_rect(scale: &UiScale, rc: &RECT, snap: &StatusCopy) -> RECT {
-        let ct = content_top(scale);
-        let card_y = ct + scale.px(10);
-        let card_h = scale.px(72);
-        let info_y = card_y + card_h + scale.px(12);
-        let mut info_count = 6i32;
-        if snap.update_staged.is_some() {
-            info_count += 1;
-        }
-        if !snap.update_check_msg.is_empty() {
-            info_count += 1;
-        }
-        let drive_top = info_y + info_count * scale.px(17) + scale.px(8);
-        drive_row(scale, rc, drive_top).1
+        drive_row(scale, rc, status_drive_top(scale, snap)).1
     }
 
     unsafe fn paint(hwnd: HWND) {
@@ -733,8 +741,8 @@ pub fn run(
         let margin = scale.px(16);
 
         if ctx.active_tab == TAB_STATUS {
-        let card_y = ct + scale.px(10);
-        let card_h = scale.px(72);
+        let card_y = ct + scale.px(8);
+        let card_h = status_card_h(scale);
         let card_w = (rc.right - margin * 3) / 2;
         let cards = [
             RECT {
@@ -770,61 +778,34 @@ pub fn run(
             let _ = DeleteObject(HGDIOBJ(brush.0));
             let _ = DeleteObject(HGDIOBJ(pen.0));
 
-            let dot_cx = card.left + scale.px(20);
+            let dot_cx = card.left + scale.px(16);
             let dot_cy = card.top + card_h / 2;
-            let (title, sub, dot) = if i == 0 {
-                (
-                    "Alien AI Cloud",
-                    if snap.cloud_on {
-                        "Connected".to_string()
-                    } else {
-                        "Offline".to_string()
-                    },
-                    cloud_dot_color(snap.cloud_on),
-                )
+            let (title, dot) = if i == 0 {
+                ("Alien AI Cloud", cloud_dot_color(snap.cloud_on))
             } else {
                 (
                     "App",
-                    snap.user_app_subtitle.clone(),
                     user_app_dot_color(snap.user_app_connected, snap.webrtc_connecting),
                 )
             };
-            draw_dot(hdc, dot_cx, dot_cy, scale.px(6), dot);
+            draw_dot(hdc, dot_cx, dot_cy, scale.px(5), dot);
             let text_rc = RECT {
-                left: card.left + scale.px(36),
-                top: card.top + scale.px(14),
-                right: card.right - scale.px(8),
-                bottom: card.bottom - scale.px(8),
+                left: card.left + scale.px(28),
+                top: card.top,
+                right: card.right - scale.px(6),
+                bottom: card.bottom,
             };
             draw_text(
                 hdc,
                 ctx.fonts.body,
                 CLR_TEXT,
                 title,
-                RECT {
-                    left: text_rc.left,
-                    top: text_rc.top,
-                    right: text_rc.right,
-                    bottom: text_rc.top + scale.px(20),
-                },
-                DT_LEFT | DT_SINGLELINE | DT_VCENTER,
-            );
-            draw_text(
-                hdc,
-                ctx.fonts.small,
-                CLR_MUTED,
-                sub.as_str(),
-                RECT {
-                    left: text_rc.left,
-                    top: text_rc.top + scale.px(22),
-                    right: text_rc.right,
-                    bottom: text_rc.bottom,
-                },
+                text_rc,
                 DT_LEFT | DT_SINGLELINE | DT_VCENTER,
             );
         }
 
-            let info_y = card_y + card_h + scale.px(12);
+            let info_y = card_y + card_h + scale.px(10);
             let mut info_lines = vec![
                 format!("Device: {}", snap.device),
                 format!("Account: {}", snap.account),
@@ -846,38 +827,42 @@ pub fn run(
             for (i, line) in info_lines.iter().enumerate() {
                 let line_rc = RECT {
                     left: margin,
-                    top: info_y + (i as i32) * scale.px(17),
+                    top: info_y + (i as i32) * scale.px(15),
                     right: rc.right - margin,
-                    bottom: info_y + (i as i32 + 1) * scale.px(17),
+                    bottom: info_y + (i as i32 + 1) * scale.px(15),
                 };
                 draw_text(hdc, ctx.fonts.small, CLR_MUTED, line, line_rc, DT_LEFT | DT_SINGLELINE);
             }
 
-            let drive_top = info_y + (info_lines.len() as i32) * scale.px(17) + scale.px(8);
+            let drive_top = status_drive_top(scale, &snap);
             let (drive_row, drive_switch) = drive_row(scale, &rc, drive_top);
+            let row_mid_y = (drive_row.top + drive_row.bottom) / 2;
+            let label_w = scale.px(100);
+            let storage_text_w = scale.px(96);
+            let gap = scale.px(6);
+            let mid_right = drive_switch.left - gap;
             draw_text(
                 hdc,
-                ctx.fonts.body,
+                ctx.fonts.small,
                 CLR_TEXT,
                 "Alien AI Drive",
                 RECT {
                     left: drive_row.left,
-                    top: drive_row.top + scale.px(2),
-                    right: drive_switch.left - scale.px(8),
-                    bottom: drive_row.top + scale.px(22),
+                    top: drive_row.top,
+                    right: drive_row.left + label_w,
+                    bottom: drive_row.bottom,
                 },
                 DT_LEFT | DT_SINGLELINE | DT_VCENTER,
             );
-            let bar_left = drive_row.left;
-            let bar_right = drive_switch.left - scale.px(8);
+            let bar_left = drive_row.left + label_w + gap;
+            let bar_right = mid_right - storage_text_w - gap;
             if bar_right > bar_left {
-                let bar_top = drive_row.top + scale.px(20);
-                let bar_h = scale.px(6);
+                let bar_h = scale.px(5);
                 let bar_rc = RECT {
                     left: bar_left,
-                    top: bar_top,
+                    top: row_mid_y - bar_h / 2,
                     right: bar_right,
-                    bottom: bar_top + bar_h,
+                    bottom: row_mid_y + bar_h / 2,
                 };
                 if let Some(frac) = c_remote_core::agent_ui::drive_storage_usage_fraction() {
                     let used = c_remote_core::agent_ui::drive_storage_used_bytes().unwrap_or(0);
@@ -893,12 +878,12 @@ pub fn run(
                     CLR_MUTED,
                     label,
                     RECT {
-                        left: drive_row.left,
-                        top: drive_row.top + scale.px(30),
-                        right: drive_switch.left - scale.px(8),
+                        left: mid_right - storage_text_w,
+                        top: drive_row.top,
+                        right: mid_right,
                         bottom: drive_row.bottom,
                     },
-                    DT_LEFT | DT_SINGLELINE | DT_VCENTER,
+                    DT_RIGHT | DT_SINGLELINE | DT_VCENTER,
                 );
             }
             draw_toggle(hdc, scale, &drive_switch, snap.drive_enabled, ctx.drive_toggle_hover);
@@ -1206,22 +1191,29 @@ pub fn run(
                 }
                 LRESULT(DefWindowProcW(hwnd, msg, wparam, lparam).0)
             }
+            WM_NCACTIVATE => {
+                // Skip default non-client activate paint (white frame flash on focus change).
+                LRESULT(1)
+            }
             WM_NCCALCSIZE => {
-                // WS_THICKFRAME keeps a non-client caption. On Windows 11 that
-                // strip is painted white above this custom title bar.
                 if wparam.0 == 0 {
                     return DefWindowProcW(hwnd, msg, wparam, lparam);
                 }
                 let params = lparam.0 as *mut NCCALCSIZE_PARAMS;
-                if !params.is_null() && IsZoomed(hwnd).as_bool() {
-                    let pad = GetSystemMetrics(SM_CXPADDEDBORDER);
-                    let fx = GetSystemMetrics(SM_CXFRAME) + pad;
-                    let fy = GetSystemMetrics(SM_CYFRAME) + pad;
-                    let r = &mut (*params).rgrc[0];
-                    r.left += fx;
-                    r.right -= fx;
-                    r.top += fy;
-                    r.bottom -= fy;
+                let _ = DefWindowProcW(hwnd, msg, wparam, lparam);
+                if !params.is_null() {
+                    if IsZoomed(hwnd).as_bool() {
+                        let pad = GetSystemMetrics(SM_CXPADDEDBORDER);
+                        let fx = GetSystemMetrics(SM_CXFRAME) + pad;
+                        let fy = GetSystemMetrics(SM_CYFRAME) + pad;
+                        let r = &mut (*params).rgrc[0];
+                        r.left += fx;
+                        r.right -= fx;
+                        r.top += fy;
+                        r.bottom -= fy;
+                    } else {
+                        (*params).rgrc[0] = (*params).rgrc[2];
+                    }
                 }
                 LRESULT(0)
             }
@@ -1266,12 +1258,11 @@ pub fn run(
             &caption as *const u32 as *const std::ffi::c_void,
             4,
         );
-        // DWMWA_COLOR_NONE: do not paint the light frame above the client area.
-        let none: u32 = 0xFFFF_FFFE;
+        let border: u32 = CLR_BG;
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_BORDER_COLOR,
-            &none as *const u32 as *const std::ffi::c_void,
+            &border as *const u32 as *const std::ffi::c_void,
             4,
         );
     }
@@ -1299,7 +1290,7 @@ pub fn run(
             WS_EX_APPWINDOW,
             class_name,
             w!("Alien AI Agent"),
-            WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX,
+            WS_POPUP | WS_MINIMIZEBOX,
             (cw - WIN_W) / 2,
             (ch - WIN_H) / 2,
             WIN_W,
