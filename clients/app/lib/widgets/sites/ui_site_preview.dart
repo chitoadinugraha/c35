@@ -26,6 +26,7 @@ class UiSitePreview extends StatefulWidget {
     this.mode = SitePreviewMode.draft,
     this.reloadNonce = 0,
     this.embedded = false,
+    this.showVisitOverlay = true,
   });
 
   final SiteRow row;
@@ -33,6 +34,7 @@ class UiSitePreview extends StatefulWidget {
   final SitePreviewMode mode;
   final int reloadNonce;
   final bool embedded;
+  final bool showVisitOverlay;
 
   @override
   State<UiSitePreview> createState() => _UiSitePreviewState();
@@ -153,19 +155,20 @@ class _UiSitePreviewState extends State<UiSitePreview> {
   Widget _embeddedPreview({required Widget child}) => Stack(
         children: [
           Positioned.fill(child: SingleChildScrollView(child: child)),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Material(
-              color: const Color(0xCC18181B),
-              borderRadius: BorderRadius.circular(6),
-              child: uiIconButton(
-                tooltip: 'Open in browser',
-                onPressed: _openExternal,
-                icon: const Icon(Icons.open_in_new, size: 16, color: _muted),
+          if (widget.showVisitOverlay)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Material(
+                color: const Color(0xCC18181B),
+                borderRadius: BorderRadius.circular(6),
+                child: uiIconButton(
+                  tooltip: 'Open in browser',
+                  onPressed: _openExternal,
+                  icon: const Icon(Icons.open_in_new, size: 16, color: _muted),
+                ),
               ),
             ),
-          ),
         ],
       );
 

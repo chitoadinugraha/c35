@@ -3066,9 +3066,18 @@ enum WsReq_Body {
   siteQueueList,
   siteQueuePut,
   siteQueueAdvance,
+  siteWorkShiftList,
+  siteWorkShiftPut,
+  siteTransferOwnership,
+  siteMemberFaceList,
+  siteMemberFacePut,
+  siteMemberFaceDel,
+  sitePresenceLocationList,
+  sitePresenceLocationPut,
   siteDomainSearch,
   siteDomainCheck,
   siteDomainBuy,
+  imgGenerate,
   notSet
 }
 
@@ -3213,9 +3222,18 @@ class WsReq extends $pb.GeneratedMessage {
     $17.ReqSiteQueueList? siteQueueList,
     $17.ReqSiteQueuePut? siteQueuePut,
     $17.ReqSiteQueueAdvance? siteQueueAdvance,
+    $17.ReqSiteWorkShiftList? siteWorkShiftList,
+    $17.ReqSiteWorkShiftPut? siteWorkShiftPut,
+    $17.ReqSiteTransferOwnership? siteTransferOwnership,
+    $17.ReqSiteMemberFaceList? siteMemberFaceList,
+    $17.ReqSiteMemberFacePut? siteMemberFacePut,
+    $17.ReqSiteMemberFaceDel? siteMemberFaceDel,
+    $17.ReqSitePresenceLocationList? sitePresenceLocationList,
+    $17.ReqSitePresenceLocationPut? sitePresenceLocationPut,
     $17.ReqSiteDomainSearch? siteDomainSearch,
     $17.ReqSiteDomainCheck? siteDomainCheck,
     $17.ReqSiteDomainBuy? siteDomainBuy,
+    $15.ReqImgGenerate? imgGenerate,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3378,9 +3396,22 @@ class WsReq extends $pb.GeneratedMessage {
     if (siteQueueList != null) result.siteQueueList = siteQueueList;
     if (siteQueuePut != null) result.siteQueuePut = siteQueuePut;
     if (siteQueueAdvance != null) result.siteQueueAdvance = siteQueueAdvance;
+    if (siteWorkShiftList != null) result.siteWorkShiftList = siteWorkShiftList;
+    if (siteWorkShiftPut != null) result.siteWorkShiftPut = siteWorkShiftPut;
+    if (siteTransferOwnership != null)
+      result.siteTransferOwnership = siteTransferOwnership;
+    if (siteMemberFaceList != null)
+      result.siteMemberFaceList = siteMemberFaceList;
+    if (siteMemberFacePut != null) result.siteMemberFacePut = siteMemberFacePut;
+    if (siteMemberFaceDel != null) result.siteMemberFaceDel = siteMemberFaceDel;
+    if (sitePresenceLocationList != null)
+      result.sitePresenceLocationList = sitePresenceLocationList;
+    if (sitePresenceLocationPut != null)
+      result.sitePresenceLocationPut = sitePresenceLocationPut;
     if (siteDomainSearch != null) result.siteDomainSearch = siteDomainSearch;
     if (siteDomainCheck != null) result.siteDomainCheck = siteDomainCheck;
     if (siteDomainBuy != null) result.siteDomainBuy = siteDomainBuy;
+    if (imgGenerate != null) result.imgGenerate = imgGenerate;
     return result;
   }
 
@@ -3531,9 +3562,18 @@ class WsReq extends $pb.GeneratedMessage {
     195: WsReq_Body.siteQueueList,
     196: WsReq_Body.siteQueuePut,
     197: WsReq_Body.siteQueueAdvance,
+    198: WsReq_Body.siteWorkShiftList,
+    199: WsReq_Body.siteWorkShiftPut,
+    200: WsReq_Body.siteTransferOwnership,
+    201: WsReq_Body.siteMemberFaceList,
+    202: WsReq_Body.siteMemberFacePut,
+    203: WsReq_Body.siteMemberFaceDel,
+    204: WsReq_Body.sitePresenceLocationList,
+    205: WsReq_Body.sitePresenceLocationPut,
     206: WsReq_Body.siteDomainSearch,
     207: WsReq_Body.siteDomainCheck,
     208: WsReq_Body.siteDomainBuy,
+    209: WsReq_Body.imgGenerate,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3678,9 +3718,18 @@ class WsReq extends $pb.GeneratedMessage {
       195,
       196,
       197,
+      198,
+      199,
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
       206,
       207,
-      208
+      208,
+      209
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3994,6 +4043,30 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$17.ReqSiteQueueAdvance>(
         197, _omitFieldNames ? '' : 'siteQueueAdvance',
         subBuilder: $17.ReqSiteQueueAdvance.$_createMessage)
+    ..aOM<$17.ReqSiteWorkShiftList>(
+        198, _omitFieldNames ? '' : 'siteWorkShiftList',
+        subBuilder: $17.ReqSiteWorkShiftList.$_createMessage)
+    ..aOM<$17.ReqSiteWorkShiftPut>(
+        199, _omitFieldNames ? '' : 'siteWorkShiftPut',
+        subBuilder: $17.ReqSiteWorkShiftPut.$_createMessage)
+    ..aOM<$17.ReqSiteTransferOwnership>(
+        200, _omitFieldNames ? '' : 'siteTransferOwnership',
+        subBuilder: $17.ReqSiteTransferOwnership.$_createMessage)
+    ..aOM<$17.ReqSiteMemberFaceList>(
+        201, _omitFieldNames ? '' : 'siteMemberFaceList',
+        subBuilder: $17.ReqSiteMemberFaceList.$_createMessage)
+    ..aOM<$17.ReqSiteMemberFacePut>(
+        202, _omitFieldNames ? '' : 'siteMemberFacePut',
+        subBuilder: $17.ReqSiteMemberFacePut.$_createMessage)
+    ..aOM<$17.ReqSiteMemberFaceDel>(
+        203, _omitFieldNames ? '' : 'siteMemberFaceDel',
+        subBuilder: $17.ReqSiteMemberFaceDel.$_createMessage)
+    ..aOM<$17.ReqSitePresenceLocationList>(
+        204, _omitFieldNames ? '' : 'sitePresenceLocationList',
+        subBuilder: $17.ReqSitePresenceLocationList.$_createMessage)
+    ..aOM<$17.ReqSitePresenceLocationPut>(
+        205, _omitFieldNames ? '' : 'sitePresenceLocationPut',
+        subBuilder: $17.ReqSitePresenceLocationPut.$_createMessage)
     ..aOM<$17.ReqSiteDomainSearch>(
         206, _omitFieldNames ? '' : 'siteDomainSearch',
         subBuilder: $17.ReqSiteDomainSearch.$_createMessage)
@@ -4001,6 +4074,8 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $17.ReqSiteDomainCheck.$_createMessage)
     ..aOM<$17.ReqSiteDomainBuy>(208, _omitFieldNames ? '' : 'siteDomainBuy',
         subBuilder: $17.ReqSiteDomainBuy.$_createMessage)
+    ..aOM<$15.ReqImgGenerate>(209, _omitFieldNames ? '' : 'imgGenerate',
+        subBuilder: $15.ReqImgGenerate.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4160,9 +4235,18 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(198)
+  @$pb.TagNumber(199)
+  @$pb.TagNumber(200)
+  @$pb.TagNumber(201)
+  @$pb.TagNumber(202)
+  @$pb.TagNumber(203)
+  @$pb.TagNumber(204)
+  @$pb.TagNumber(205)
   @$pb.TagNumber(206)
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
+  @$pb.TagNumber(209)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4301,9 +4385,18 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(198)
+  @$pb.TagNumber(199)
+  @$pb.TagNumber(200)
+  @$pb.TagNumber(201)
+  @$pb.TagNumber(202)
+  @$pb.TagNumber(203)
+  @$pb.TagNumber(204)
+  @$pb.TagNumber(205)
   @$pb.TagNumber(206)
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
+  @$pb.TagNumber(209)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5855,38 +5948,146 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(197)
   $17.ReqSiteQueueAdvance ensureSiteQueueAdvance() => $_ensure(137);
 
+  @$pb.TagNumber(198)
+  $17.ReqSiteWorkShiftList get siteWorkShiftList => $_getN(138);
+  @$pb.TagNumber(198)
+  set siteWorkShiftList($17.ReqSiteWorkShiftList value) =>
+      $_setField(198, value);
+  @$pb.TagNumber(198)
+  $core.bool hasSiteWorkShiftList() => $_has(138);
+  @$pb.TagNumber(198)
+  void clearSiteWorkShiftList() => $_clearField(198);
+  @$pb.TagNumber(198)
+  $17.ReqSiteWorkShiftList ensureSiteWorkShiftList() => $_ensure(138);
+
+  @$pb.TagNumber(199)
+  $17.ReqSiteWorkShiftPut get siteWorkShiftPut => $_getN(139);
+  @$pb.TagNumber(199)
+  set siteWorkShiftPut($17.ReqSiteWorkShiftPut value) => $_setField(199, value);
+  @$pb.TagNumber(199)
+  $core.bool hasSiteWorkShiftPut() => $_has(139);
+  @$pb.TagNumber(199)
+  void clearSiteWorkShiftPut() => $_clearField(199);
+  @$pb.TagNumber(199)
+  $17.ReqSiteWorkShiftPut ensureSiteWorkShiftPut() => $_ensure(139);
+
+  @$pb.TagNumber(200)
+  $17.ReqSiteTransferOwnership get siteTransferOwnership => $_getN(140);
+  @$pb.TagNumber(200)
+  set siteTransferOwnership($17.ReqSiteTransferOwnership value) =>
+      $_setField(200, value);
+  @$pb.TagNumber(200)
+  $core.bool hasSiteTransferOwnership() => $_has(140);
+  @$pb.TagNumber(200)
+  void clearSiteTransferOwnership() => $_clearField(200);
+  @$pb.TagNumber(200)
+  $17.ReqSiteTransferOwnership ensureSiteTransferOwnership() => $_ensure(140);
+
+  @$pb.TagNumber(201)
+  $17.ReqSiteMemberFaceList get siteMemberFaceList => $_getN(141);
+  @$pb.TagNumber(201)
+  set siteMemberFaceList($17.ReqSiteMemberFaceList value) =>
+      $_setField(201, value);
+  @$pb.TagNumber(201)
+  $core.bool hasSiteMemberFaceList() => $_has(141);
+  @$pb.TagNumber(201)
+  void clearSiteMemberFaceList() => $_clearField(201);
+  @$pb.TagNumber(201)
+  $17.ReqSiteMemberFaceList ensureSiteMemberFaceList() => $_ensure(141);
+
+  @$pb.TagNumber(202)
+  $17.ReqSiteMemberFacePut get siteMemberFacePut => $_getN(142);
+  @$pb.TagNumber(202)
+  set siteMemberFacePut($17.ReqSiteMemberFacePut value) =>
+      $_setField(202, value);
+  @$pb.TagNumber(202)
+  $core.bool hasSiteMemberFacePut() => $_has(142);
+  @$pb.TagNumber(202)
+  void clearSiteMemberFacePut() => $_clearField(202);
+  @$pb.TagNumber(202)
+  $17.ReqSiteMemberFacePut ensureSiteMemberFacePut() => $_ensure(142);
+
+  @$pb.TagNumber(203)
+  $17.ReqSiteMemberFaceDel get siteMemberFaceDel => $_getN(143);
+  @$pb.TagNumber(203)
+  set siteMemberFaceDel($17.ReqSiteMemberFaceDel value) =>
+      $_setField(203, value);
+  @$pb.TagNumber(203)
+  $core.bool hasSiteMemberFaceDel() => $_has(143);
+  @$pb.TagNumber(203)
+  void clearSiteMemberFaceDel() => $_clearField(203);
+  @$pb.TagNumber(203)
+  $17.ReqSiteMemberFaceDel ensureSiteMemberFaceDel() => $_ensure(143);
+
+  @$pb.TagNumber(204)
+  $17.ReqSitePresenceLocationList get sitePresenceLocationList => $_getN(144);
+  @$pb.TagNumber(204)
+  set sitePresenceLocationList($17.ReqSitePresenceLocationList value) =>
+      $_setField(204, value);
+  @$pb.TagNumber(204)
+  $core.bool hasSitePresenceLocationList() => $_has(144);
+  @$pb.TagNumber(204)
+  void clearSitePresenceLocationList() => $_clearField(204);
+  @$pb.TagNumber(204)
+  $17.ReqSitePresenceLocationList ensureSitePresenceLocationList() =>
+      $_ensure(144);
+
+  @$pb.TagNumber(205)
+  $17.ReqSitePresenceLocationPut get sitePresenceLocationPut => $_getN(145);
+  @$pb.TagNumber(205)
+  set sitePresenceLocationPut($17.ReqSitePresenceLocationPut value) =>
+      $_setField(205, value);
+  @$pb.TagNumber(205)
+  $core.bool hasSitePresenceLocationPut() => $_has(145);
+  @$pb.TagNumber(205)
+  void clearSitePresenceLocationPut() => $_clearField(205);
+  @$pb.TagNumber(205)
+  $17.ReqSitePresenceLocationPut ensureSitePresenceLocationPut() =>
+      $_ensure(145);
+
   @$pb.TagNumber(206)
-  $17.ReqSiteDomainSearch get siteDomainSearch => $_getN(138);
+  $17.ReqSiteDomainSearch get siteDomainSearch => $_getN(146);
   @$pb.TagNumber(206)
   set siteDomainSearch($17.ReqSiteDomainSearch value) => $_setField(206, value);
   @$pb.TagNumber(206)
-  $core.bool hasSiteDomainSearch() => $_has(138);
+  $core.bool hasSiteDomainSearch() => $_has(146);
   @$pb.TagNumber(206)
   void clearSiteDomainSearch() => $_clearField(206);
   @$pb.TagNumber(206)
-  $17.ReqSiteDomainSearch ensureSiteDomainSearch() => $_ensure(138);
+  $17.ReqSiteDomainSearch ensureSiteDomainSearch() => $_ensure(146);
 
   @$pb.TagNumber(207)
-  $17.ReqSiteDomainCheck get siteDomainCheck => $_getN(139);
+  $17.ReqSiteDomainCheck get siteDomainCheck => $_getN(147);
   @$pb.TagNumber(207)
   set siteDomainCheck($17.ReqSiteDomainCheck value) => $_setField(207, value);
   @$pb.TagNumber(207)
-  $core.bool hasSiteDomainCheck() => $_has(139);
+  $core.bool hasSiteDomainCheck() => $_has(147);
   @$pb.TagNumber(207)
   void clearSiteDomainCheck() => $_clearField(207);
   @$pb.TagNumber(207)
-  $17.ReqSiteDomainCheck ensureSiteDomainCheck() => $_ensure(139);
+  $17.ReqSiteDomainCheck ensureSiteDomainCheck() => $_ensure(147);
 
   @$pb.TagNumber(208)
-  $17.ReqSiteDomainBuy get siteDomainBuy => $_getN(140);
+  $17.ReqSiteDomainBuy get siteDomainBuy => $_getN(148);
   @$pb.TagNumber(208)
   set siteDomainBuy($17.ReqSiteDomainBuy value) => $_setField(208, value);
   @$pb.TagNumber(208)
-  $core.bool hasSiteDomainBuy() => $_has(140);
+  $core.bool hasSiteDomainBuy() => $_has(148);
   @$pb.TagNumber(208)
   void clearSiteDomainBuy() => $_clearField(208);
   @$pb.TagNumber(208)
-  $17.ReqSiteDomainBuy ensureSiteDomainBuy() => $_ensure(140);
+  $17.ReqSiteDomainBuy ensureSiteDomainBuy() => $_ensure(148);
+
+  @$pb.TagNumber(209)
+  $15.ReqImgGenerate get imgGenerate => $_getN(149);
+  @$pb.TagNumber(209)
+  set imgGenerate($15.ReqImgGenerate value) => $_setField(209, value);
+  @$pb.TagNumber(209)
+  $core.bool hasImgGenerate() => $_has(149);
+  @$pb.TagNumber(209)
+  void clearImgGenerate() => $_clearField(209);
+  @$pb.TagNumber(209)
+  $15.ReqImgGenerate ensureImgGenerate() => $_ensure(149);
 }
 
 enum WsRes_Body {
@@ -6038,9 +6239,18 @@ enum WsRes_Body {
   siteQueueList,
   siteQueuePut,
   siteQueueAdvance,
+  siteWorkShiftList,
+  siteWorkShiftPut,
+  siteTransferOwnership,
+  siteMemberFaceList,
+  siteMemberFacePut,
+  siteMemberFaceDel,
+  sitePresenceLocationList,
+  sitePresenceLocationPut,
   siteDomainSearch,
   siteDomainCheck,
   siteDomainBuy,
+  imgGenerate,
   notSet
 }
 
@@ -6196,9 +6406,18 @@ class WsRes extends $pb.GeneratedMessage {
     $17.ResSiteQueueList? siteQueueList,
     $17.ResSiteQueuePut? siteQueuePut,
     $17.ResSiteQueueAdvance? siteQueueAdvance,
+    $17.ResSiteWorkShiftList? siteWorkShiftList,
+    $17.ResSiteWorkShiftPut? siteWorkShiftPut,
+    $17.ResSiteTransferOwnership? siteTransferOwnership,
+    $17.ResSiteMemberFaceList? siteMemberFaceList,
+    $17.ResSiteMemberFacePut? siteMemberFacePut,
+    $17.ResSiteMemberFaceDel? siteMemberFaceDel,
+    $17.ResSitePresenceLocationList? sitePresenceLocationList,
+    $17.ResSitePresenceLocationPut? sitePresenceLocationPut,
     $17.ResSiteDomainSearch? siteDomainSearch,
     $17.ResSiteDomainCheck? siteDomainCheck,
     $17.ResSiteDomainBuy? siteDomainBuy,
+    $15.ResImgGenerate? imgGenerate,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -6374,9 +6593,22 @@ class WsRes extends $pb.GeneratedMessage {
     if (siteQueueList != null) result.siteQueueList = siteQueueList;
     if (siteQueuePut != null) result.siteQueuePut = siteQueuePut;
     if (siteQueueAdvance != null) result.siteQueueAdvance = siteQueueAdvance;
+    if (siteWorkShiftList != null) result.siteWorkShiftList = siteWorkShiftList;
+    if (siteWorkShiftPut != null) result.siteWorkShiftPut = siteWorkShiftPut;
+    if (siteTransferOwnership != null)
+      result.siteTransferOwnership = siteTransferOwnership;
+    if (siteMemberFaceList != null)
+      result.siteMemberFaceList = siteMemberFaceList;
+    if (siteMemberFacePut != null) result.siteMemberFacePut = siteMemberFacePut;
+    if (siteMemberFaceDel != null) result.siteMemberFaceDel = siteMemberFaceDel;
+    if (sitePresenceLocationList != null)
+      result.sitePresenceLocationList = sitePresenceLocationList;
+    if (sitePresenceLocationPut != null)
+      result.sitePresenceLocationPut = sitePresenceLocationPut;
     if (siteDomainSearch != null) result.siteDomainSearch = siteDomainSearch;
     if (siteDomainCheck != null) result.siteDomainCheck = siteDomainCheck;
     if (siteDomainBuy != null) result.siteDomainBuy = siteDomainBuy;
+    if (imgGenerate != null) result.imgGenerate = imgGenerate;
     return result;
   }
 
@@ -6538,9 +6770,18 @@ class WsRes extends $pb.GeneratedMessage {
     195: WsRes_Body.siteQueueList,
     196: WsRes_Body.siteQueuePut,
     197: WsRes_Body.siteQueueAdvance,
+    198: WsRes_Body.siteWorkShiftList,
+    199: WsRes_Body.siteWorkShiftPut,
+    200: WsRes_Body.siteTransferOwnership,
+    201: WsRes_Body.siteMemberFaceList,
+    202: WsRes_Body.siteMemberFacePut,
+    203: WsRes_Body.siteMemberFaceDel,
+    204: WsRes_Body.sitePresenceLocationList,
+    205: WsRes_Body.sitePresenceLocationPut,
     206: WsRes_Body.siteDomainSearch,
     207: WsRes_Body.siteDomainCheck,
     208: WsRes_Body.siteDomainBuy,
+    209: WsRes_Body.imgGenerate,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -6696,9 +6937,18 @@ class WsRes extends $pb.GeneratedMessage {
       195,
       196,
       197,
+      198,
+      199,
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
       206,
       207,
-      208
+      208,
+      209
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -7036,6 +7286,30 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$17.ResSiteQueueAdvance>(
         197, _omitFieldNames ? '' : 'siteQueueAdvance',
         subBuilder: $17.ResSiteQueueAdvance.$_createMessage)
+    ..aOM<$17.ResSiteWorkShiftList>(
+        198, _omitFieldNames ? '' : 'siteWorkShiftList',
+        subBuilder: $17.ResSiteWorkShiftList.$_createMessage)
+    ..aOM<$17.ResSiteWorkShiftPut>(
+        199, _omitFieldNames ? '' : 'siteWorkShiftPut',
+        subBuilder: $17.ResSiteWorkShiftPut.$_createMessage)
+    ..aOM<$17.ResSiteTransferOwnership>(
+        200, _omitFieldNames ? '' : 'siteTransferOwnership',
+        subBuilder: $17.ResSiteTransferOwnership.$_createMessage)
+    ..aOM<$17.ResSiteMemberFaceList>(
+        201, _omitFieldNames ? '' : 'siteMemberFaceList',
+        subBuilder: $17.ResSiteMemberFaceList.$_createMessage)
+    ..aOM<$17.ResSiteMemberFacePut>(
+        202, _omitFieldNames ? '' : 'siteMemberFacePut',
+        subBuilder: $17.ResSiteMemberFacePut.$_createMessage)
+    ..aOM<$17.ResSiteMemberFaceDel>(
+        203, _omitFieldNames ? '' : 'siteMemberFaceDel',
+        subBuilder: $17.ResSiteMemberFaceDel.$_createMessage)
+    ..aOM<$17.ResSitePresenceLocationList>(
+        204, _omitFieldNames ? '' : 'sitePresenceLocationList',
+        subBuilder: $17.ResSitePresenceLocationList.$_createMessage)
+    ..aOM<$17.ResSitePresenceLocationPut>(
+        205, _omitFieldNames ? '' : 'sitePresenceLocationPut',
+        subBuilder: $17.ResSitePresenceLocationPut.$_createMessage)
     ..aOM<$17.ResSiteDomainSearch>(
         206, _omitFieldNames ? '' : 'siteDomainSearch',
         subBuilder: $17.ResSiteDomainSearch.$_createMessage)
@@ -7043,6 +7317,8 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $17.ResSiteDomainCheck.$_createMessage)
     ..aOM<$17.ResSiteDomainBuy>(208, _omitFieldNames ? '' : 'siteDomainBuy',
         subBuilder: $17.ResSiteDomainBuy.$_createMessage)
+    ..aOM<$15.ResImgGenerate>(209, _omitFieldNames ? '' : 'imgGenerate',
+        subBuilder: $15.ResImgGenerate.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7213,9 +7489,18 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(198)
+  @$pb.TagNumber(199)
+  @$pb.TagNumber(200)
+  @$pb.TagNumber(201)
+  @$pb.TagNumber(202)
+  @$pb.TagNumber(203)
+  @$pb.TagNumber(204)
+  @$pb.TagNumber(205)
   @$pb.TagNumber(206)
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
+  @$pb.TagNumber(209)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -7365,9 +7650,18 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(195)
   @$pb.TagNumber(196)
   @$pb.TagNumber(197)
+  @$pb.TagNumber(198)
+  @$pb.TagNumber(199)
+  @$pb.TagNumber(200)
+  @$pb.TagNumber(201)
+  @$pb.TagNumber(202)
+  @$pb.TagNumber(203)
+  @$pb.TagNumber(204)
+  @$pb.TagNumber(205)
   @$pb.TagNumber(206)
   @$pb.TagNumber(207)
   @$pb.TagNumber(208)
+  @$pb.TagNumber(209)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -9039,38 +9333,146 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(197)
   $17.ResSiteQueueAdvance ensureSiteQueueAdvance() => $_ensure(148);
 
+  @$pb.TagNumber(198)
+  $17.ResSiteWorkShiftList get siteWorkShiftList => $_getN(149);
+  @$pb.TagNumber(198)
+  set siteWorkShiftList($17.ResSiteWorkShiftList value) =>
+      $_setField(198, value);
+  @$pb.TagNumber(198)
+  $core.bool hasSiteWorkShiftList() => $_has(149);
+  @$pb.TagNumber(198)
+  void clearSiteWorkShiftList() => $_clearField(198);
+  @$pb.TagNumber(198)
+  $17.ResSiteWorkShiftList ensureSiteWorkShiftList() => $_ensure(149);
+
+  @$pb.TagNumber(199)
+  $17.ResSiteWorkShiftPut get siteWorkShiftPut => $_getN(150);
+  @$pb.TagNumber(199)
+  set siteWorkShiftPut($17.ResSiteWorkShiftPut value) => $_setField(199, value);
+  @$pb.TagNumber(199)
+  $core.bool hasSiteWorkShiftPut() => $_has(150);
+  @$pb.TagNumber(199)
+  void clearSiteWorkShiftPut() => $_clearField(199);
+  @$pb.TagNumber(199)
+  $17.ResSiteWorkShiftPut ensureSiteWorkShiftPut() => $_ensure(150);
+
+  @$pb.TagNumber(200)
+  $17.ResSiteTransferOwnership get siteTransferOwnership => $_getN(151);
+  @$pb.TagNumber(200)
+  set siteTransferOwnership($17.ResSiteTransferOwnership value) =>
+      $_setField(200, value);
+  @$pb.TagNumber(200)
+  $core.bool hasSiteTransferOwnership() => $_has(151);
+  @$pb.TagNumber(200)
+  void clearSiteTransferOwnership() => $_clearField(200);
+  @$pb.TagNumber(200)
+  $17.ResSiteTransferOwnership ensureSiteTransferOwnership() => $_ensure(151);
+
+  @$pb.TagNumber(201)
+  $17.ResSiteMemberFaceList get siteMemberFaceList => $_getN(152);
+  @$pb.TagNumber(201)
+  set siteMemberFaceList($17.ResSiteMemberFaceList value) =>
+      $_setField(201, value);
+  @$pb.TagNumber(201)
+  $core.bool hasSiteMemberFaceList() => $_has(152);
+  @$pb.TagNumber(201)
+  void clearSiteMemberFaceList() => $_clearField(201);
+  @$pb.TagNumber(201)
+  $17.ResSiteMemberFaceList ensureSiteMemberFaceList() => $_ensure(152);
+
+  @$pb.TagNumber(202)
+  $17.ResSiteMemberFacePut get siteMemberFacePut => $_getN(153);
+  @$pb.TagNumber(202)
+  set siteMemberFacePut($17.ResSiteMemberFacePut value) =>
+      $_setField(202, value);
+  @$pb.TagNumber(202)
+  $core.bool hasSiteMemberFacePut() => $_has(153);
+  @$pb.TagNumber(202)
+  void clearSiteMemberFacePut() => $_clearField(202);
+  @$pb.TagNumber(202)
+  $17.ResSiteMemberFacePut ensureSiteMemberFacePut() => $_ensure(153);
+
+  @$pb.TagNumber(203)
+  $17.ResSiteMemberFaceDel get siteMemberFaceDel => $_getN(154);
+  @$pb.TagNumber(203)
+  set siteMemberFaceDel($17.ResSiteMemberFaceDel value) =>
+      $_setField(203, value);
+  @$pb.TagNumber(203)
+  $core.bool hasSiteMemberFaceDel() => $_has(154);
+  @$pb.TagNumber(203)
+  void clearSiteMemberFaceDel() => $_clearField(203);
+  @$pb.TagNumber(203)
+  $17.ResSiteMemberFaceDel ensureSiteMemberFaceDel() => $_ensure(154);
+
+  @$pb.TagNumber(204)
+  $17.ResSitePresenceLocationList get sitePresenceLocationList => $_getN(155);
+  @$pb.TagNumber(204)
+  set sitePresenceLocationList($17.ResSitePresenceLocationList value) =>
+      $_setField(204, value);
+  @$pb.TagNumber(204)
+  $core.bool hasSitePresenceLocationList() => $_has(155);
+  @$pb.TagNumber(204)
+  void clearSitePresenceLocationList() => $_clearField(204);
+  @$pb.TagNumber(204)
+  $17.ResSitePresenceLocationList ensureSitePresenceLocationList() =>
+      $_ensure(155);
+
+  @$pb.TagNumber(205)
+  $17.ResSitePresenceLocationPut get sitePresenceLocationPut => $_getN(156);
+  @$pb.TagNumber(205)
+  set sitePresenceLocationPut($17.ResSitePresenceLocationPut value) =>
+      $_setField(205, value);
+  @$pb.TagNumber(205)
+  $core.bool hasSitePresenceLocationPut() => $_has(156);
+  @$pb.TagNumber(205)
+  void clearSitePresenceLocationPut() => $_clearField(205);
+  @$pb.TagNumber(205)
+  $17.ResSitePresenceLocationPut ensureSitePresenceLocationPut() =>
+      $_ensure(156);
+
   @$pb.TagNumber(206)
-  $17.ResSiteDomainSearch get siteDomainSearch => $_getN(149);
+  $17.ResSiteDomainSearch get siteDomainSearch => $_getN(157);
   @$pb.TagNumber(206)
   set siteDomainSearch($17.ResSiteDomainSearch value) => $_setField(206, value);
   @$pb.TagNumber(206)
-  $core.bool hasSiteDomainSearch() => $_has(149);
+  $core.bool hasSiteDomainSearch() => $_has(157);
   @$pb.TagNumber(206)
   void clearSiteDomainSearch() => $_clearField(206);
   @$pb.TagNumber(206)
-  $17.ResSiteDomainSearch ensureSiteDomainSearch() => $_ensure(149);
+  $17.ResSiteDomainSearch ensureSiteDomainSearch() => $_ensure(157);
 
   @$pb.TagNumber(207)
-  $17.ResSiteDomainCheck get siteDomainCheck => $_getN(150);
+  $17.ResSiteDomainCheck get siteDomainCheck => $_getN(158);
   @$pb.TagNumber(207)
   set siteDomainCheck($17.ResSiteDomainCheck value) => $_setField(207, value);
   @$pb.TagNumber(207)
-  $core.bool hasSiteDomainCheck() => $_has(150);
+  $core.bool hasSiteDomainCheck() => $_has(158);
   @$pb.TagNumber(207)
   void clearSiteDomainCheck() => $_clearField(207);
   @$pb.TagNumber(207)
-  $17.ResSiteDomainCheck ensureSiteDomainCheck() => $_ensure(150);
+  $17.ResSiteDomainCheck ensureSiteDomainCheck() => $_ensure(158);
 
   @$pb.TagNumber(208)
-  $17.ResSiteDomainBuy get siteDomainBuy => $_getN(151);
+  $17.ResSiteDomainBuy get siteDomainBuy => $_getN(159);
   @$pb.TagNumber(208)
   set siteDomainBuy($17.ResSiteDomainBuy value) => $_setField(208, value);
   @$pb.TagNumber(208)
-  $core.bool hasSiteDomainBuy() => $_has(151);
+  $core.bool hasSiteDomainBuy() => $_has(159);
   @$pb.TagNumber(208)
   void clearSiteDomainBuy() => $_clearField(208);
   @$pb.TagNumber(208)
-  $17.ResSiteDomainBuy ensureSiteDomainBuy() => $_ensure(151);
+  $17.ResSiteDomainBuy ensureSiteDomainBuy() => $_ensure(159);
+
+  @$pb.TagNumber(209)
+  $15.ResImgGenerate get imgGenerate => $_getN(160);
+  @$pb.TagNumber(209)
+  set imgGenerate($15.ResImgGenerate value) => $_setField(209, value);
+  @$pb.TagNumber(209)
+  $core.bool hasImgGenerate() => $_has(160);
+  @$pb.TagNumber(209)
+  void clearImgGenerate() => $_clearField(209);
+  @$pb.TagNumber(209)
+  $15.ResImgGenerate ensureImgGenerate() => $_ensure(160);
 }
 
 const $core.bool _omitFieldNames =

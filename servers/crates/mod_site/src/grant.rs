@@ -1,21 +1,23 @@
 use anyhow::{anyhow, Result};
 use sqlx::{PgPool, Row};
 
-/// Role rank for site ACL: owner > manage > staff.
+/// Role rank for site ACL: owner > manage > staff > guest.
 pub fn site_role_rank(role: &str) -> i32 {
     match role {
-        "owner" => 3,
-        "manage" => 2,
-        "staff" => 1,
+        "owner" => 4,
+        "manage" => 3,
+        "staff" => 2,
+        "guest" => 1,
         _ => 0,
     }
 }
 
+/// Write requires manage+; read allows guest+ (guest is read-only).
 pub fn site_role_allows(role: &str, write: bool) -> bool {
     if write {
         site_role_rank(role) >= site_role_rank("manage")
     } else {
-        site_role_rank(role) >= site_role_rank("staff")
+        site_role_rank(role) >= site_role_rank("guest")
     }
 }
 

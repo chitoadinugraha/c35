@@ -1,14 +1,24 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:alienai_c35/c/cas/cas_client.dart';
+import 'package:alienai_c35/c/files/file_path.dart';
+import 'package:alienai_c35/c/media/ask_media.dart';
+import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_object_batch.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/io/in_site_product.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_object_batch_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
+import 'package:alienai_c35/widgets/ui/ui_img.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -16,11 +26,22 @@ const _text = Color(0xFFF4F4F5);
 const _fieldBorder = Color(0xFF3F3F46);
 const _accent = Color(0xFF34D399);
 
-IconData _objectKindIcon(String kind) => switch (kind) {
-      siteObjectKindTable => Icons.table_restaurant_outlined,
-      siteObjectKindRoom => Icons.meeting_room_outlined,
-      _ => Icons.category_outlined,
-    };
+Future<void> showSiteObjectEditDialog(
+  BuildContext context, {
+  required SiteApi api,
+  required int siteIid,
+  required SiteObject object,
+  required List<SiteProduct> reservableProducts,
+}) =>
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => _SiteObjectEditDialog(
+        api: api,
+        siteIid: siteIid,
+        object: object,
+        reservableProducts: reservableProducts,
+      ),
+    );
 
 class UiSiteObjectsEditor extends StatefulWidget {
   const UiSiteObjectsEditor({
@@ -51,6 +72,7 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
   String? _selectedId;
   final _byId = <String, SiteObject>{};
   final _debounceTimers = <String, Timer>{};
+  List<SiteProduct> _products = const [];
 
   @override
   void initState() {
@@ -73,6 +95,28 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
     if (oldWidget.siteIid != widget.siteIid) unawaited(_load());
     if (oldWidget.masterDetail != widget.masterDetail) _pickDefault();
     if (_selectedId != null && _byId[_selectedId] == null) _pickDefault();
+  }
+
+  List<SiteProduct> get _reservable => _products.where((p) => p.canReserve).toList(growable: false);
+
+  SiteProduct? _productFor(SiteObject o) {
+    final id = o.productId.toInt();
+    if (id == 0) return null;
+    for (final p in _products) {
+      if (p.productId.toInt() == id) return p;
+    }
+    return null;
+  }
+
+  String _rowPic(SiteObject o) {
+    if (o.pic.isNotEmpty) return o.pic;
+    return _productFor(o)?.pic ?? '';
+  }
+
+  String _productSubtitle(SiteObject o) {
+    final p = _productFor(o);
+    if (p == null) return '';
+    return p.name.isNotEmpty ? p.name : 'Product ${p.productId}';
   }
 
   List<SiteObject> get _ordered {
@@ -118,9 +162,16 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
     });
     try {
       final items = await widget.api.objectList(widget.siteIid);
+      List<SiteProduct> products = _products;
+      try {
+        products = await widget.api.productList(widget.siteIid);
+      } catch (e) {
+        _error = uiFriendlyError(e);
+      }
       _byId
         ..clear()
         ..addEntries(items.map((o) => MapEntry('${o.id}', o)));
+      _products = products;
       _pickDefault();
     } catch (e) {
       _error = uiFriendlyError(e);
@@ -143,6 +194,34 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _addMany() async {
+    if (_busy || !mounted) return;
+    var products = _products;
+    if (products.isEmpty) {
+      try {
+        products = await widget.api.productList(widget.siteIid);
+        if (mounted) setState(() => _products = products);
+      } catch (e) {
+        if (mounted) setState(() => _error = uiFriendlyError(e));
+        return;
+      }
+    }
+    if (!mounted) return;
+    final picked = await inSiteProductPick(
+      context,
+      products: {for (final p in products) '${p.productId}': p},
+      reservableOnly: true,
+    );
+    if (picked == null || !mounted) return;
+    final count = await showSiteObjectBatchDialog(
+      context,
+      api: widget.api,
+      siteIid: widget.siteIid,
+      product: picked,
+    );
+    if (count != null && count > 0 && mounted) await _load();
   }
 
   void _debouncedPut(String id, SiteObject draft) {
@@ -184,8 +263,25 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
         .where((o) =>
             o.name.toLowerCase().contains(q) ||
             o.code.toLowerCase().contains(q) ||
-            o.kind.toLowerCase().contains(q))
+            o.kind.toLowerCase().contains(q) ||
+            _productSubtitle(o).toLowerCase().contains(q))
         .toList(growable: false);
+  }
+
+  Widget _thumb(SiteObject o, {required bool active}) {
+    final pic = _rowPic(o);
+    final icon = Icon(siteObjectKindIcon(o.kind), size: 18, color: active ? _accent : _muted);
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: active ? const Color(0xFF27272A) : const Color(0xFF18181B),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _fieldBorder.withValues(alpha: 0.7)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: pic.isEmpty ? icon : UiImg(src: pic, width: 36, height: 36, fit: BoxFit.cover, fallback: icon),
+    );
   }
 
   Widget _listPane({required String? selectedId}) {
@@ -197,8 +293,21 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
           searchController: _searchCtrl,
           hintText: 'Search objects',
           onSearchChanged: (v) => setState(() => _search = v),
-          onAdd: _add,
+          addTooltip: 'Add',
           addBusy: _busy,
+          menuItems: [
+            SiteCatalogMenuItem(value: 'add', label: 'Add', leading: const Icon(Icons.add, size: 18), enabled: !_busy),
+            SiteCatalogMenuItem(
+              value: 'add-many',
+              label: 'Add many',
+              leading: const Icon(Icons.library_add_outlined, size: 18),
+              enabled: !_busy,
+            ),
+          ],
+          onMenuAction: (action) {
+            if (action == 'add') unawaited(_add());
+            if (action == 'add-many') unawaited(_addMany());
+          },
         ),
         Expanded(
           child: filtered.isEmpty
@@ -209,7 +318,7 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
                     final o = filtered[i];
                     final id = '${o.id}';
                     final active = selectedId == id;
-                    final subtitle = [if (o.code.isNotEmpty) o.code, if (o.kind.isNotEmpty) siteObjectKindLabel(o.kind)].join(' · ');
+                    final subtitle = _productSubtitle(o);
                     return Material(
                       color: active ? const Color(0xFF1F2937) : Colors.transparent,
                       child: InkWell(
@@ -224,16 +333,7 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
                           ),
                           child: Row(
                             children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: active ? const Color(0xFF27272A) : const Color(0xFF18181B),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: _fieldBorder.withValues(alpha: 0.7)),
-                                ),
-                                child: Icon(_objectKindIcon(o.kind), size: 18, color: active ? _accent : _muted),
-                              ),
+                              _thumb(o, active: active),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
@@ -254,6 +354,11 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
                                   ],
                                 ),
                               ),
+                              if (o.canBeReserved)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 6),
+                                  child: Icon(Icons.event_available_outlined, size: 16, color: _accent),
+                                ),
                               if (!o.isActive)
                                 const Padding(
                                   padding: EdgeInsets.only(left: 6),
@@ -276,7 +381,13 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
     if (object == null) {
       return const Center(child: Text('Object not found', style: TextStyle(color: _muted)));
     }
-    return _UiSiteObjectDetailForm(objectId: id, object: object, onPatch: _patch);
+    return _SiteObjectDetailForm(
+      key: ValueKey(id),
+      objectId: id,
+      object: object,
+      reservableProducts: _reservable,
+      onPatch: (fn) => _patch(id, fn),
+    );
   }
 
   @override
@@ -330,29 +441,128 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
   }
 }
 
-class _UiSiteObjectDetailForm extends StatefulWidget {
-  const _UiSiteObjectDetailForm({required this.objectId, required this.object, required this.onPatch});
+class _SiteObjectEditDialog extends StatefulWidget {
+  const _SiteObjectEditDialog({
+    required this.api,
+    required this.siteIid,
+    required this.object,
+    required this.reservableProducts,
+  });
+
+  final SiteApi api;
+  final int siteIid;
+  final SiteObject object;
+  final List<SiteProduct> reservableProducts;
+
+  @override
+  State<_SiteObjectEditDialog> createState() => _SiteObjectEditDialogState();
+}
+
+class _SiteObjectEditDialogState extends State<_SiteObjectEditDialog> {
+  late SiteObject _draft = widget.object.clone();
+  var _saving = false;
+  var _error = '';
+
+  void _patch(void Function(SiteObject o) fn) {
+    final next = _draft.clone();
+    fn(next);
+    setState(() => _draft = next);
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = '';
+    });
+    try {
+      await widget.api.objectPut(widget.siteIid, _draft);
+      if (!mounted) return;
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = uiFriendlyError(e);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxH = math.min(560.0, MediaQuery.sizeOf(context).height * 0.7);
+    return AlertDialog(
+      backgroundColor: const Color(0xFF18181B),
+      title: Text(_draft.name.isEmpty ? 'Edit object' : _draft.name, style: const TextStyle(color: _text, fontSize: 16)),
+      contentPadding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      content: SizedBox(
+        width: 480,
+        height: maxH,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _SiteObjectDetailForm(
+                objectId: '${_draft.id}',
+                object: _draft,
+                reservableProducts: widget.reservableProducts,
+                busy: _saving,
+                onPatch: _patch,
+              ),
+            ),
+            if (_error.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(_error, style: const TextStyle(color: Color(0xFFF87171), fontSize: 12)),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: _saving ? null : _save,
+          style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+          child: _saving
+              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+              : const Text('Save'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SiteObjectDetailForm extends StatefulWidget {
+  const _SiteObjectDetailForm({
+    super.key,
+    required this.objectId,
+    required this.object,
+    required this.reservableProducts,
+    required this.onPatch,
+    this.busy = false,
+  });
 
   final String objectId;
   final SiteObject object;
-  final void Function(String id, void Function(SiteObject o) fn) onPatch;
+  final List<SiteProduct> reservableProducts;
+  final void Function(void Function(SiteObject o) fn) onPatch;
+  final bool busy;
 
   @override
-  State<_UiSiteObjectDetailForm> createState() => _UiSiteObjectDetailFormState();
+  State<_SiteObjectDetailForm> createState() => _SiteObjectDetailFormState();
 }
 
-class _UiSiteObjectDetailFormState extends State<_UiSiteObjectDetailForm> {
+class _SiteObjectDetailFormState extends State<_SiteObjectDetailForm> {
   late final _nameCtrl = TextEditingController(text: widget.object.name);
-  late final _codeCtrl = TextEditingController(text: widget.object.code);
   late final _descCtrl = TextEditingController(text: widget.object.desc);
   late String _kind = widget.object.kind.isEmpty ? siteObjectKindTable : widget.object.kind;
+  var _uploading = false;
 
   @override
-  void didUpdateWidget(covariant _UiSiteObjectDetailForm oldWidget) {
+  void didUpdateWidget(covariant _SiteObjectDetailForm oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.objectId != widget.objectId) {
       _nameCtrl.text = widget.object.name;
-      _codeCtrl.text = widget.object.code;
       _descCtrl.text = widget.object.desc;
       _kind = widget.object.kind.isEmpty ? siteObjectKindTable : widget.object.kind;
     }
@@ -361,47 +571,133 @@ class _UiSiteObjectDetailFormState extends State<_UiSiteObjectDetailForm> {
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _codeCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _copyCode() async {
+    await Clipboard.setData(ClipboardData(text: widget.object.code));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied')));
+  }
+
+  Future<void> _pickPic() async {
+    if (_uploading || widget.busy) return;
+    final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false, maxCount: 1);
+    if (staged == null || staged.isEmpty || !mounted) return;
+    setState(() => _uploading = true);
+    try {
+      final file = staged.first;
+      final up = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
+      if (up == null || up.hash.isEmpty) throw 'upload failed';
+      final pic = fileStoragePath(up.hash);
+      widget.onPatch((o) => o.pic = pic);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  List<DropdownMenuItem<int>> _productItems() {
+    final selected = widget.object.productId.toInt();
+    final items = <DropdownMenuItem<int>>[const DropdownMenuItem(value: 0, child: Text('None'))];
+    final seen = <int>{0};
+    if (selected > 0 && !widget.reservableProducts.any((p) => p.productId.toInt() == selected)) {
+      items.add(DropdownMenuItem(value: selected, child: Text('Product $selected')));
+      seen.add(selected);
+    }
+    for (final p in widget.reservableProducts) {
+      final id = p.productId.toInt();
+      if (id <= 0 || !seen.add(id)) continue;
+      items.add(DropdownMenuItem(
+        value: id,
+        child: Text(p.name.isNotEmpty ? p.name : 'Product $id', overflow: TextOverflow.ellipsis),
+      ));
+    }
+    return items;
   }
 
   Widget _field(String label, TextEditingController ctrl, void Function(String v) onChanged, {int maxLines = 1}) => UiSiteEditorLabeledField(
         label: label,
         child: TextField(
           controller: ctrl,
-          onChanged: onChanged,
+          onChanged: widget.busy ? null : onChanged,
+          readOnly: widget.busy,
           maxLines: maxLines,
           style: const TextStyle(fontSize: 13, color: _text),
           decoration: siteEditorInputDecoration(),
         ),
       );
 
+  Widget _picTile() {
+    final pic = widget.object.pic;
+    final locked = widget.busy || _uploading;
+    return Material(
+      color: siteEditorFieldFill,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: siteEditorFieldBorder.withValues(alpha: 0.9)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: locked ? null : _pickPic,
+        child: SizedBox(
+          width: 72,
+          height: 72,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (_uploading)
+                const Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
+              else if (pic.isEmpty)
+                Center(child: Icon(siteObjectKindIcon(widget.object.kind), color: _muted, size: 28))
+              else
+                UiImg(src: pic, fit: BoxFit.cover, fallback: Icon(siteObjectKindIcon(widget.object.kind), color: _muted)),
+              const Positioned(
+                right: 4,
+                bottom: 4,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(color: Color(0x8C000000), borderRadius: BorderRadius.all(Radius.circular(6))),
+                  child: Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.photo_camera_outlined, size: 14, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final id = widget.objectId;
     final o = widget.object;
+    final kind = siteObjectKindValues.contains(_kind) ? _kind : siteObjectKindOther;
+    final productId = o.productId.toInt() < 0 ? 0 : o.productId.toInt();
     return UiSiteEditorFormScroll(
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _fieldBorder),
-              ),
-              child: Icon(_objectKindIcon(o.kind), color: _accent, size: 22),
-            ),
+            _picTile(),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(o.name.isEmpty ? 'Object' : o.name, style: const TextStyle(color: _text, fontSize: 17, fontWeight: FontWeight.w600)),
-                  Text('ID $id', style: const TextStyle(color: _muted, fontSize: 11)),
+                  Text('ID ${widget.objectId}', style: const TextStyle(color: _muted, fontSize: 11)),
+                  if (o.pic.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton(
+                        onPressed: widget.busy ? null : () => widget.onPatch((obj) => obj.pic = ''),
+                        child: const Text('Clear'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -411,34 +707,96 @@ class _UiSiteObjectDetailFormState extends State<_UiSiteObjectDetailForm> {
         UiSiteEditorFormSection(
           title: 'Identity',
           children: [
-            _field('Name', _nameCtrl, (v) => widget.onPatch(id, (o) => o.name = v)),
-            _field('Code', _codeCtrl, (v) => widget.onPatch(id, (o) => o.code = v)),
+            _field('Name', _nameCtrl, (v) => widget.onPatch((obj) => obj.name = v)),
+            UiSiteEditorLabeledField(
+              label: 'Code',
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: _text,
+                    backgroundColor: const Color(0xFF18181B),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: const BorderSide(color: _fieldBorder),
+                    ),
+                  ),
+                  onPressed: _copyCode,
+                  icon: const Icon(Icons.copy_outlined, size: 16, color: _muted),
+                  label: Text(o.code.isEmpty ? 'Copy code' : o.code, style: const TextStyle(fontSize: 13, color: _text)),
+                ),
+              ),
+            ),
             UiSiteEditorLabeledField(
               label: 'Kind',
               child: DropdownButtonFormField<String>(
-                initialValue: siteObjectKindValues.contains(_kind) ? _kind : siteObjectKindOther,
+                key: ValueKey('kind-${widget.objectId}'),
+                initialValue: kind,
                 decoration: siteEditorInputDecoration(),
                 dropdownColor: const Color(0xFF18181B),
                 style: const TextStyle(fontSize: 13, color: _text),
-                items: siteObjectKindValues
-                    .map((k) => DropdownMenuItem(value: k, child: Text(siteObjectKindLabel(k))))
-                    .toList(growable: false),
-                onChanged: (v) {
-                  if (v == null) return;
-                  setState(() => _kind = v);
-                  widget.onPatch(id, (o) => o.kind = v);
-                },
+                items: [
+                  for (final k in siteObjectKindValues)
+                    DropdownMenuItem(
+                      value: k,
+                      child: Row(
+                        children: [
+                          Icon(siteObjectKindIcon(k), size: 18, color: _muted),
+                          const SizedBox(width: 8),
+                          Text(siteObjectKindLabel(k)),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: widget.busy
+                    ? null
+                    : (v) {
+                        if (v == null) return;
+                        setState(() => _kind = v);
+                        widget.onPatch((obj) => obj.kind = v);
+                      },
               ),
             ),
-            _field('Description', _descCtrl, (v) => widget.onPatch(id, (o) => o.desc = v), maxLines: 3),
+            UiSiteEditorLabeledField(
+              label: 'Product',
+              child: DropdownButtonFormField<int>(
+                key: ValueKey('product-${widget.objectId}-$productId'),
+                initialValue: productId,
+                isExpanded: true,
+                decoration: siteEditorInputDecoration(),
+                dropdownColor: const Color(0xFF18181B),
+                style: const TextStyle(fontSize: 13, color: _text),
+                items: _productItems(),
+                onChanged: widget.busy
+                    ? null
+                    : (v) {
+                        if (v == null) return;
+                        widget.onPatch((obj) => obj.productId = Int64(v));
+                      },
+              ),
+            ),
+            _field('Description', _descCtrl, (v) => widget.onPatch((obj) => obj.desc = v), maxLines: 3),
           ],
         ),
         UiSiteEditorFormSection(
           title: 'Capabilities',
           children: [
-            UiSiteEditorSwitchRow(label: 'Can order', value: o.canOrder, onChanged: (v) => widget.onPatch(id, (o) => o.canOrder = v)),
-            UiSiteEditorSwitchRow(label: 'Can be reserved', value: o.canBeReserved, onChanged: (v) => widget.onPatch(id, (o) => o.canBeReserved = v)),
-            UiSiteEditorSwitchRow(label: 'Active', value: o.isActive, onChanged: (v) => widget.onPatch(id, (o) => o.isActive = v)),
+            UiSiteEditorSwitchRow(
+              label: 'Can order',
+              value: o.canOrder,
+              onChanged: widget.busy ? null : (v) => widget.onPatch((obj) => obj.canOrder = v),
+            ),
+            UiSiteEditorSwitchRow(
+              label: 'Can be reserved',
+              value: o.canBeReserved,
+              onChanged: widget.busy ? null : (v) => widget.onPatch((obj) => obj.canBeReserved = v),
+            ),
+            UiSiteEditorSwitchRow(
+              label: 'Active',
+              value: o.isActive,
+              onChanged: widget.busy ? null : (v) => widget.onPatch((obj) => obj.isActive = v),
+            ),
           ],
         ),
       ],

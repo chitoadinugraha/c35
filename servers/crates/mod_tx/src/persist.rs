@@ -237,9 +237,9 @@ pub async fn tx_children_put(conn: &mut PgConnection, tx: &mut Tx) -> Result<()>
             sqlx::query(
                 r#"
                 INSERT INTO site.tx_item_reservation (
-                    site_iid, tx_id, item_id, res_id, product_id, qty, duration_qty, note,
+                    site_iid, tx_id, item_id, res_id, product_id, site_object_id, qty, duration_qty, note,
                     start_ts, end_ts, state, is_no_show, is_unavailable, created_ts, updated_ts
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW())
                 "#,
             )
             .bind(site_iid)
@@ -247,6 +247,7 @@ pub async fn tx_children_put(conn: &mut PgConnection, tx: &mut Tx) -> Result<()>
             .bind(item.item_id)
             .bind(res_id)
             .bind(res.product_id)
+            .bind(res.site_object_id)
             .bind(res.qty)
             .bind(res.duration_qty)
             .bind(&res.note)

@@ -1535,3 +1535,33 @@ final $typed_data.Uint8List resMediaRegenerateDescriptor = $convert.base64Decode
     'IpChBnZW5lcmF0aW9uX3ZpZGVvGAUgASgJUg9nZW5lcmF0aW9uVmlkZW8SKQoQZ2VuZXJhdGlv'
     'bl9tdXNpYxgGIAEoCVIPZ2VuZXJhdGlvbk11c2ljEhUKBnJlcV9pZBgHIAEoCVIFcmVxSWQSFQ'
     'oGbXNnX2lkGAggASgDUgVtc2dJZA==');
+
+@$core.Deprecated('Use reqImgGenerateDescriptor instead')
+const ReqImgGenerate$json = {
+  '1': 'ReqImgGenerate',
+  '2': [
+    {'1': 'prompt', '3': 1, '4': 1, '5': 9, '10': 'prompt'},
+    {'1': 'provider', '3': 2, '4': 1, '5': 9, '10': 'provider'},
+  ],
+};
+
+/// Descriptor for `ReqImgGenerate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqImgGenerateDescriptor = $convert.base64Decode(
+    'Cg5SZXFJbWdHZW5lcmF0ZRIWCgZwcm9tcHQYASABKAlSBnByb21wdBIaCghwcm92aWRlchgCIA'
+    'EoCVIIcHJvdmlkZXI=');
+
+@$core.Deprecated('Use resImgGenerateDescriptor instead')
+const ResImgGenerate$json = {
+  '1': 'ResImgGenerate',
+  '2': [
+    {'1': 'hash', '3': 1, '4': 1, '5': 9, '10': 'hash'},
+    {'1': 'url', '3': 2, '4': 1, '5': 9, '10': 'url'},
+    {'1': 'mime', '3': 3, '4': 1, '5': 9, '10': 'mime'},
+    {'1': 'error', '3': 4, '4': 1, '5': 9, '10': 'error'},
+  ],
+};
+
+/// Descriptor for `ResImgGenerate`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resImgGenerateDescriptor = $convert.base64Decode(
+    'Cg5SZXNJbWdHZW5lcmF0ZRISCgRoYXNoGAEgASgJUgRoYXNoEhAKA3VybBgCIAEoCVIDdXJsEh'
+    'IKBG1pbWUYAyABKAlSBG1pbWUSFAoFZXJyb3IYBCABKAlSBWVycm9y');

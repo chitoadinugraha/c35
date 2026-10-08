@@ -1,6 +1,10 @@
 import 'dart:io';
 
+import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/media/image_generate_prompt.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
+import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
+import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +17,10 @@ const _imagePickExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'bmp'
 
 bool get _mobileCameraGallery =>
     !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+
+enum _AskImageChoice { camera, gallery, generate }
+
+enum _AskDesktopImageChoice { files, generate }
 
 /// Read picked file bytes without Binder `withData` on mobile (TransactionTooLarge / OOM).
 Future<Uint8List?> platformFileBytes(PlatformFile file) async {
@@ -28,7 +36,11 @@ Future<Uint8List?> platformFileBytes(PlatformFile file) async {
   return File(path).readAsBytes();
 }
 
-Future<ImageSource?> _askImageSource(BuildContext context) => showModalBottomSheet<ImageSource>(
+Color _sheetIconColor(BuildContext context) =>
+    IconTheme.of(context).color ?? Theme.of(context).colorScheme.onSurface;
+
+Future<_AskImageChoice?> _askImageSource(BuildContext context, {bool includeGenerate = false}) =>
+    showModalBottomSheet<_AskImageChoice>(
       context: context,
       showDragHandle: true,
       useSafeArea: true,
@@ -39,18 +51,72 @@ Future<ImageSource?> _askImageSource(BuildContext context) => showModalBottomShe
             ListTile(
               leading: const Icon(Icons.photo_camera_outlined),
               title: const Text('Camera'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              onTap: () => Navigator.pop(ctx, _AskImageChoice.camera),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
               title: const Text('Gallery'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () => Navigator.pop(ctx, _AskImageChoice.gallery),
+            ),
+            if (includeGenerate)
+              ListTile(
+                leading: UiAlienIcon(size: 24, color: _sheetIconColor(ctx)),
+                title: const Text('Generate'),
+                onTap: () => Navigator.pop(ctx, _AskImageChoice.generate),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+Future<_AskDesktopImageChoice?> _askDesktopImageSource(BuildContext context) =>
+    showModalBottomSheet<_AskDesktopImageChoice>(
+      context: context,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: const Text('Files'),
+              onTap: () => Navigator.pop(ctx, _AskDesktopImageChoice.files),
+            ),
+            ListTile(
+              leading: UiAlienIcon(size: 24, color: _sheetIconColor(ctx)),
+              title: const Text('Generate'),
+              onTap: () => Navigator.pop(ctx, _AskDesktopImageChoice.generate),
             ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
+
+List<StagedMedia> _stagedFromGenerated(GeneratedImage result) => [
+      StagedMedia(
+        name: 'generated.png',
+        bytes: Uint8List(0),
+        mime: 'image/png',
+        type: MediaType.image,
+        size: 0,
+        hash: result.hash,
+      ),
+    ];
+
+Future<List<StagedMedia>?> _generateStaged(
+  BuildContext context, {
+  required ChatConn conn,
+  required ImageGenerateSlot slot,
+  required String name,
+  required String desc,
+}) async {
+  final result = await askImageGenerate(context, conn: conn, slot: slot, name: name, desc: desc);
+  if (result == null) return null;
+  return _stagedFromGenerated(result);
+}
 
 Future<List<StagedMedia>> _stagedFromXFiles(List<XFile> files, {required int maxCount, required int maxBytesPerFile}) async {
   final staged = <StagedMedia>[];
@@ -70,11 +136,21 @@ Future<List<StagedMedia>?> _pickImagesMobile({
   required bool allowMultiple,
   required int maxCount,
   required int maxBytesPerFile,
+  bool canGenerate = false,
+  ChatConn? conn,
+  ImageGenerateSlot generateSlot = ImageGenerateSlot.productExtra,
+  String generateName = '',
+  String generateDesc = '',
 }) async {
   final picker = ImagePicker();
   if (_mobileCameraGallery && context != null && context.mounted) {
-    final source = await _askImageSource(context);
-    if (source == null) return null;
+    final choice = await _askImageSource(context, includeGenerate: canGenerate);
+    if (choice == null) return null;
+    if (choice == _AskImageChoice.generate) {
+      if (!context.mounted || conn == null) return null;
+      return _generateStaged(context, conn: conn, slot: generateSlot, name: generateName, desc: generateDesc);
+    }
+    final source = choice == _AskImageChoice.camera ? ImageSource.camera : ImageSource.gallery;
     if (allowMultiple && source == ImageSource.gallery) {
       final files = await picker.pickMultiImage(imageQuality: 88);
       if (files.isEmpty) return null;
@@ -97,6 +173,14 @@ Future<List<StagedMedia>?> _pickImagesMobile({
     if (file == null) return null;
     final staged = await _stagedFromXFiles([file], maxCount: maxCount, maxBytesPerFile: maxBytesPerFile);
     return staged.isEmpty ? null : staged;
+  }
+  if (canGenerate && context != null && context.mounted && conn != null) {
+    final choice = await _askDesktopImageSource(context);
+    if (choice == null) return null;
+    if (choice == _AskDesktopImageChoice.generate) {
+      if (!context.mounted) return null;
+      return _generateStaged(context, conn: conn, slot: generateSlot, name: generateName, desc: generateDesc);
+    }
   }
   return _pickFiles(
     pickType: FileType.custom,
@@ -139,12 +223,28 @@ Future<List<StagedMedia>?> askMedia({
   bool allowMultiple = true,
   int maxCount = defaultMaxMediaFiles,
   int maxBytesPerFile = defaultMaxFileBytes,
+  bool allowGenerate = false,
+  ChatConn? conn,
+  ImageGenerateSlot generateSlot = ImageGenerateSlot.productExtra,
+  String generateName = '',
+  String generateDesc = '',
 }) async {
   try {
     final onlyImages = types.length == 1 && types.first == MediaType.image;
     final onlyDocs = types.length == 1 && types.first == MediaType.document;
+    final canGenerate = allowGenerate && conn != null && context != null && context.mounted && onlyImages;
     if (onlyImages) {
-      return await _pickImagesMobile(context: context, allowMultiple: allowMultiple, maxCount: maxCount, maxBytesPerFile: maxBytesPerFile);
+      return await _pickImagesMobile(
+        context: context,
+        allowMultiple: allowMultiple,
+        maxCount: maxCount,
+        maxBytesPerFile: maxBytesPerFile,
+        canGenerate: canGenerate,
+        conn: conn,
+        generateSlot: generateSlot,
+        generateName: generateName,
+        generateDesc: generateDesc,
+      );
     }
     FileType pickType = FileType.any;
     List<String>? allowedExtensions;

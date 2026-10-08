@@ -182,6 +182,7 @@ mod tests {
             requires_kinds: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
             ui_keys: None,
         }
     }

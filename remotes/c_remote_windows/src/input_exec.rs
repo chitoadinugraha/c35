@@ -180,17 +180,38 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             info!(event_type = other, "unhandled remote input event");
         }
     }
-    if matches!(
-        evt.event_type.as_str(),
-        "mouse_move"
-            | "mouse_down"
-            | "mouse_up"
-            | "mouse_click"
-            | "double_click"
-            | "right_click"
-            | "middle_click"
-            | "wheel"
-    ) {
+static LAST_PROBE_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn should_probe_cursor(evt_type: &str) -> bool {
+    if evt_type != "mouse_move" {
+        return true;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let last = LAST_PROBE_MS.load(std::sync::atomic::Ordering::Relaxed);
+    if now.saturating_sub(last) >= 100 {
+        LAST_PROBE_MS.store(now, std::sync::atomic::Ordering::Relaxed);
+        true
+    } else {
+        false
+    }
+}
+
+    if should_probe_cursor(&evt.event_type)
+        && matches!(
+            evt.event_type.as_str(),
+            "mouse_move"
+                | "mouse_down"
+                | "mouse_up"
+                | "mouse_click"
+                | "double_click"
+                | "right_click"
+                | "middle_click"
+                | "wheel"
+        )
+    {
         c_remote_core::webrtc::input_cursor_publish(crate::cursor_shape::probe());
     }
     crate::screen_capture::mark_screen_dirty();

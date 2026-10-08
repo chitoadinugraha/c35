@@ -346,8 +346,105 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                   ),
                 ],
               ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 18, color: _muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _catalogProductRow(SiteProduct p, int inCartQty) {
+    final isFree = p.price <= Int64.ZERO;
+    final priceLabel = isFree ? 'Gratis' : moneyFmtIdr(p.price.toInt());
+    final desc = p.desc.trim();
+    final subtitle = desc.isNotEmpty ? desc : (p.trackStock ? 'Stok: ${p.stockQty}' : '');
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _addProduct(p),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              UiSiteProductThumb(product: p, size: 52),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            p.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        if (p.canReserve) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.blueAccent.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'Reservasi',
+                              style: TextStyle(color: Colors.lightBlueAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: p.trackStock && desc.isEmpty && p.stockQty <= 5 ? Colors.orangeAccent : _muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    priceLabel,
+                    style: TextStyle(
+                      color: isFree ? _accent : _text,
+                      fontSize: isFree ? 15 : 13.5,
+                      fontWeight: isFree ? FontWeight.w700 : FontWeight.w600,
+                      height: 1.1,
+                    ),
+                  ),
+                  if (inCartQty > 0) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.shopping_cart_outlined, size: 14, color: _accent.withValues(alpha: 0.9)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$inCartQty',
+                          style: TextStyle(color: _accent.withValues(alpha: 0.9), fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -414,7 +511,7 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                   onSubmitted: _submitBarcode,
                   decoration: InputDecoration(
                     isDense: true,
-                    hintText: 'Cari produk / scan barcode (Enter)…',
+                    hintText: 'Cari produk / scan barcode',
                     hintStyle: const TextStyle(color: _muted, fontSize: 13),
                     prefixIcon: const Icon(Icons.qr_code_scanner_outlined, size: 18, color: _accent),
                     suffixIcon: _searchQuery.isNotEmpty
@@ -479,66 +576,10 @@ class _SectionTxItemsState extends State<SectionTxItems> {
               Expanded(
                 child: filtered.isEmpty
                     ? const Center(child: Text('Tidak ada produk yang cocok', style: TextStyle(color: _muted)))
-                    : ListView.separated(
+                    : ListView.builder(
                         padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, color: _border),
-                        itemBuilder: (_, i) {
-                          final p = filtered[i];
-                          final inCartQty = _productQtyInCart(p.productId);
-                          return ListTile(
-                            dense: true,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            leading: UiSiteProductThumb(product: p, size: 44),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(p.name, style: const TextStyle(color: _text, fontSize: 13.5, fontWeight: FontWeight.w500)),
-                                ),
-                                if (p.canReserve)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    margin: const EdgeInsets.only(left: 6),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blueAccent.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: const Text('Reservasi', style: TextStyle(color: Colors.lightBlueAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                                  ),
-                              ],
-                            ),
-                            subtitle: Row(
-                              children: [
-                                Text(
-                                  p.price > Int64.ZERO ? moneyFmtIdr(p.price.toInt()) : 'Gratis',
-                                  style: const TextStyle(color: _muted, fontSize: 12),
-                                ),
-                                if (inCartQty > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '· $inCartQty in cart',
-                                    style: TextStyle(color: _accent.withValues(alpha: 0.85), fontSize: 11, fontWeight: FontWeight.w500),
-                                  ),
-                                ],
-                                if (p.trackStock) ...[
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Stok: ${p.stockQty}',
-                                    style: TextStyle(
-                                      color: p.stockQty <= 5 ? Colors.orangeAccent : _muted,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.add, color: _muted, size: 22),
-                              onPressed: () => _addProduct(p),
-                            ),
-                            onTap: () => _addProduct(p),
-                          );
-                        },
+                        itemBuilder: (_, i) => _catalogProductRow(filtered[i], _productQtyInCart(filtered[i].productId)),
                       ),
               ),
             ],
@@ -558,15 +599,16 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        const Text('Keranjang', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                        const Spacer(),
-                        Text('${widget.items.length} item', style: const TextStyle(color: _muted, fontSize: 12)),
-                      ],
-                    ),
+                    if (!widget.posShell)
+                      Row(
+                        children: [
+                          const Text('Keranjang', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          Text('${widget.items.length} item', style: const TextStyle(color: _muted, fontSize: 12)),
+                        ],
+                      ),
                     if (widget.posShell && widget.onContactChanged != null) ...[
-                      const SizedBox(height: 6),
+                      if (!widget.posShell) const SizedBox(height: 6),
                       InSiteContact(
                         value: widget.selectedContact == null ? '' : '${widget.selectedContact!.contactId}',
                         contacts: {for (final c in widget.contacts) '${c.contactId}': c},
@@ -617,6 +659,7 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                         finalTotal: finalTotal,
                         paid: widget.payments.fold(Int64.ZERO, (s, p) => s + p.amount),
                         payments: widget.payments,
+                        lineCount: widget.items.length,
                         onCartDiscount: widget.items.isEmpty ? null : (widget.onCartDiscount ?? _editCartDiscount),
                         onRemovePayment: widget.onRemovePayment ?? (_) {},
                         onCheckout: widget.items.isEmpty ? null : widget.onCheckout,
@@ -628,7 +671,10 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text('Subtotal Produk', style: TextStyle(color: _muted, fontSize: 12)),
+                              Text(
+                                'Subtotal (${moneyFmtIdrGrouped(widget.items.length)}) produk',
+                                style: const TextStyle(color: _muted, fontSize: 12),
+                              ),
                               Text(moneyFmtIdr(grossSubtotal.toInt()), style: const TextStyle(color: _text, fontSize: 12)),
                             ],
                           ),
@@ -649,15 +695,33 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              InkWell(
-                                onTap: widget.items.isEmpty ? null : _editCartDiscount,
-                                child: Text(
-                                  cartDiscountTotal > Int64.ZERO ? 'Diskon Transaksi' : 'Tambah Diskon',
-                                  style: TextStyle(
-                                    color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
-                                    fontSize: 12,
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    'Diskon',
+                                    style: TextStyle(
+                                      color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
+                                  if (widget.items.isNotEmpty) ...[
+                                    const SizedBox(width: 2),
+                                    InkWell(
+                                      onTap: _editCartDiscount,
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(2),
+                                        child: Icon(
+                                          Icons.add,
+                                          size: 16,
+                                          color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
                               Text(
                                 cartDiscountTotal > Int64.ZERO ? '- ${moneyFmtIdr(cartDiscountTotal.toInt())}' : 'Rp 0',

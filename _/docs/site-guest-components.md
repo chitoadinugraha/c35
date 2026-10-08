@@ -27,7 +27,8 @@ Maps c35 **SiteDoc** block types ([site.md](site.md)) to CSA **guest_ui** compon
 | Concern | CSA component | c35 source |
 |---------|---------------|------------|
 | Cart bar | `cart` | Commerce capability + guest JS / Flutter state |
-| Checkout | `checkout` | `mod_site_tx` guest order RPCs |
+| Checkout | `checkout` | `POST /v1/site/guest-order/put` |
+| Reservation sheet | `reservation` | Flutter `guest_site_reservation_sheet.dart`; web `site-guest.v1.js` (`data-guest="reservation"`). Gate: `booking`. Reservable product detail shows **Reservasi** (`guest-reserve-btn`) and does not also show `+ Pesan`. |
 | Order status | `order` | `ReqSiteGuestOrderGet` / tx get |
 | Featured contacts | `contacts` | `site.contact` rows (future hub block) |
 | Social posts | `social_post` | Not in c35 v1 SiteDoc (CSA hub); add block type later |
@@ -43,7 +44,22 @@ Flutter and preview use the same payload shape (v1 string `boot_json`):
 | `pages` | Block tree (`id`, `type`, `props`) |
 | `capabilities` | From `site.config.capabilities_json` |
 | `product_preload` | Map block id -> product rows for each `product_grid` |
+| `commerce_boot.products[]` | `can_reserve`, `duration_value` (default 1), `duration_unit` (default `day`), `reservation_unit_selection` (`guest_picks` or `system`) from `site.product.product_json` |
+| `commerce_boot.objects[]` | Reservable `site.object` rows `{id, name, code, pic, kind, product_id}` when `booking` is on; `[]` when booking is off |
 | `mode` | `draft` \| `published` |
+
+## Reservation sheet
+
+Same behavior on the Flutter preview and the published page (`window.c35ReservationMath` / `site_reservation_math.dart`).
+
+| `duration_unit` | Picker |
+|-----------------|--------|
+| empty or `day` | Date only (local midnight) |
+| `second`, `minute`, `hour`, `week`, `month`, `year` | Date and time (`YYYY-MM-DDTHH:mm`, no timezone suffix) |
+
+Billable quantity is units times duration slices on a half-open window `[start, end)`. The line total is that quantity times the product price per duration unit.
+
+`guest_picks` lets the guest tap a unit. The chosen id is `site_object_id` on `tx.items[].reservations` (`0` means the system assigns any free unit). `POST /v1/site/guest-reservation/availability` fills “units left” and which tiles are free. `guest-order/put` runs the same check again and rejects a double book. Cancelled transactions do not count. The unpaid order is the hold.
 
 ## Capability gates
 
@@ -52,7 +68,7 @@ From `site.config.capabilities_json` ([site.md](site.md)):
 | Capability | Blocks / tools |
 |------------|----------------|
 | `commerce` | `product_grid`, cart, checkout, POS tools |
-| `booking` | reservation sub-flows on product detail |
+| `booking` | Objects tab, reservation sheet, `commerce_boot.objects[]` |
 | `queue` | `queue` block + queue RPCs |
 | `attendance` | Staff-only; not guest blocks |
 

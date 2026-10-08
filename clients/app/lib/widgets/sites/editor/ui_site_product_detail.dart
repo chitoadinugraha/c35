@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/files/file_path.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
+import 'package:alienai_c35/c/media/image_generate_prompt.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
@@ -12,12 +13,17 @@ import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
+import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/io/in_media_list.dart';
 import 'package:alienai_c35/widgets/io/in_money_idr.dart';
+import 'package:alienai_c35/widgets/io/in_site_product_category.dart';
 import 'package:alienai_c35/widgets/io/in_string_list.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_object_batch_dialog.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_objects_editor.dart';
+import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
@@ -26,12 +32,24 @@ const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
 
+const _reservationDurationUnits = ['second', 'minute', 'hour', 'day', 'week', 'month', 'year'];
+
+String _reservationDurationLabel(String unit) =>
+    unit.isEmpty ? unit : '${unit[0].toUpperCase()}${unit.substring(1)}';
+
+IconData _reservationKindIcon(String kind) => switch (kind) {
+      siteObjectKindTable => Icons.table_restaurant_outlined,
+      siteObjectKindRoom => Icons.meeting_room_outlined,
+      _ => Icons.category_outlined,
+    };
+
 class UiSiteProductDetail extends StatefulWidget {
   const UiSiteProductDetail({
     super.key,
     required this.api,
     required this.siteIid,
     required this.product,
+    this.booking = true,
     required this.def,
     required this.productsById,
     required this.embeds,
@@ -45,6 +63,7 @@ class UiSiteProductDetail extends StatefulWidget {
   final SiteApi api;
   final int siteIid;
   final SiteProduct product;
+  final bool booking;
   final TableDef def;
   final Map<String, SiteProduct> productsById;
   final List<SiteProductEmbed> embeds;
@@ -61,11 +80,14 @@ class UiSiteProductDetail extends StatefulWidget {
 class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   final _debounceTimers = <String, Timer>{};
   var _linkedObjects = <SiteObject>[];
+  var _textSaveActive = false;
+  SiteProduct? _pendingTextDraft;
+  late SiteProductExtras _extras = siteProductExtrasRead(widget.product);
   late final _nameCtrl = TextEditingController(text: widget.product.name);
+  late final _durationCtrl = TextEditingController(text: '${_extras.durationValue}');
   late final _descCtrl = TextEditingController(text: widget.product.desc);
   late final _skuCtrl = TextEditingController(text: widget.product.sku);
   late final _unitCtrl = TextEditingController(text: widget.product.unit);
-  late final _categoryCtrl = TextEditingController(text: widget.product.category);
   late final _priceCtrl = TextEditingController(text: _priceDisplay(widget.product));
 
   static String _priceDisplay(SiteProduct p) =>
@@ -83,10 +105,6 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     if (oldWidget.product.productId != widget.product.productId) {
       _syncCtrlsFromProduct();
       unawaited(_loadObjects());
-      return;
-    }
-    if (oldWidget.product.price != widget.product.price) {
-      _priceCtrl.text = _priceDisplay(widget.product);
     }
   }
 
@@ -96,8 +114,9 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     _descCtrl.text = p.desc;
     _skuCtrl.text = p.sku;
     _unitCtrl.text = p.unit;
-    _categoryCtrl.text = p.category;
     _priceCtrl.text = _priceDisplay(p);
+    _extras = siteProductExtrasRead(p);
+    _durationCtrl.text = '${_extras.durationValue}';
   }
 
   List<String> _altNames() => widget.embeds
@@ -115,8 +134,8 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     _descCtrl.dispose();
     _skuCtrl.dispose();
     _unitCtrl.dispose();
-    _categoryCtrl.dispose();
     _priceCtrl.dispose();
+    _durationCtrl.dispose();
     super.dispose();
   }
 
@@ -143,7 +162,57 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   bool _parseBool(String value) =>
       value.toLowerCase() == 'yes' || value == '1' || value.toLowerCase() == 'true';
 
+  /// Autosave without [UiSiteProductDetail.busy]. Toggling `enabled` on a
+  /// [TextField] unfocuses it, so typing must not disable the field.
+  /// A newer draft typed during the request replaces the in-flight one.
   Future<void> _saveProduct(SiteProduct draft) async {
+    _pendingTextDraft = draft;
+    if (_textSaveActive) return;
+    _textSaveActive = true;
+    if (mounted) setState(() {});
+    try {
+      while (mounted && _pendingTextDraft != null) {
+        final next = _withLiveText(_pendingTextDraft!);
+        _pendingTextDraft = null;
+        try {
+          final updated = await widget.api.productPut(widget.siteIid, next);
+          if (!mounted) return;
+          if (_pendingTextDraft == null) widget.onProductUpdated(updated);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
+          }
+          break;
+        }
+      }
+    } finally {
+      _textSaveActive = false;
+    }
+    if (!mounted) return;
+    final leftover = _pendingTextDraft;
+    if (leftover != null) {
+      unawaited(_saveProduct(leftover));
+      return;
+    }
+    setState(() {});
+  }
+
+  SiteProduct _withLiveText(SiteProduct draft) {
+    final price = moneyParseIdrInt(_priceCtrl.text) ?? 0;
+    return draft.clone()
+      ..name = _nameCtrl.text
+      ..desc = _descCtrl.text
+      ..sku = _skuCtrl.text
+      ..unit = _unitCtrl.text
+      ..price = Int64(price);
+  }
+
+  void _debouncedDraft(String key, SiteProduct draft) => _debouncedSave(key, () => _saveProduct(draft));
+
+  /// Reads controllers when the timer fires so the payload matches what is on screen.
+  void _scheduleTextSave() => _debouncedSave('text', () => _saveProduct(widget.product));
+
+  Future<void> _putProduct(SiteProduct draft) async {
     if (widget.busy) return;
     widget.onBusy(true);
     try {
@@ -158,11 +227,23 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     }
   }
 
-  void _debouncedDraft(String key, SiteProduct draft) => _debouncedSave(key, () => _saveProduct(draft));
+  Future<void> _setTrackStock(SiteProduct product, bool value) async {
+    final draft = product.clone()
+      ..trackStock = value
+      ..canReserve = value ? false : product.canReserve;
+    await _putProduct(draft);
+  }
 
-  Future<void> _commitBool(ColDef col, bool value) async {
-    final cells = siteProductCells(widget.product);
-    await _commitField(widget.product, col, value ? 'yes' : 'no', cells);
+  void _persistExtras(SiteProductExtras extras) {
+    setState(() => _extras = extras);
+    _debouncedSave('extras', () => _saveProduct(siteProductApplyExtras(widget.product, _extras)));
+  }
+
+  void _onDurationEdited(String raw) {
+    final n = int.tryParse(raw.trim());
+    if (n == null || n < 1) return;
+    if (n == _extras.durationValue) return;
+    _persistExtras(_extras.copyWith(durationValue: n));
   }
 
   Future<void> _commitField(SiteProduct base, ColDef col, String value, [Map<String, String>? cells]) async {
@@ -183,6 +264,7 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   Future<void> _commitProductField(SiteProduct product, ColDef col, String value) async {
     if (col.key == 'can_reserve') {
       final enabling = _parseBool(value);
+      var addUnits = false;
       if (enabling && !product.canReserve && _linkedObjects.isEmpty) {
         final add = await showDialog<bool>(
           context: context,
@@ -203,10 +285,14 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
             ],
           ),
         );
-        await _commitField(product, col, value, siteProductCells(product));
-        if (add == true && mounted) await _openBatchDialog(product);
-        return;
+        addUnits = add == true;
       }
+      final draft = product.clone()
+        ..canReserve = enabling
+        ..trackStock = enabling ? false : product.trackStock;
+      await _putProduct(draft);
+      if (addUnits && mounted) await _openBatchDialog(draft, ignoreBusy: true);
+      return;
     }
     if (col.type == ColType.COL_TYPE_BOOL) {
       await _commitField(product, col, value, siteProductCells(product));
@@ -220,20 +306,35 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     _debounceTimers[key] = Timer(const Duration(milliseconds: 450), () => action());
   }
 
-  Future<void> _openBatchDialog(SiteProduct product) async {
-    if (widget.busy) return;
+  Future<void> _openBatchDialog(SiteProduct product, {bool ignoreBusy = false}) async {
+    if (widget.busy && !ignoreBusy) return;
     final n = await showSiteObjectBatchDialog(context, api: widget.api, siteIid: widget.siteIid, product: product);
     if (n != null && n > 0) await _loadObjects();
   }
 
   Future<void> _pickExtraPics(SiteProduct product) async {
     if (widget.busy) return;
-    final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: true, maxCount: 8);
+    final staged = await askMedia(
+      context: context,
+      types: const [MediaType.image],
+      allowMultiple: true,
+      maxCount: 8,
+      allowGenerate: true,
+      conn: widget.api.conn,
+      generateSlot: ImageGenerateSlot.productExtra,
+      generateName: _nameCtrl.text,
+      generateDesc: _descCtrl.text,
+    );
     if (staged == null || staged.isEmpty) return;
     widget.onBusy(true);
     try {
       final paths = [...siteProductPicsRead(product)];
       for (final file in staged) {
+        final generated = file.hash;
+        if (generated != null && generated.isNotEmpty) {
+          paths.add(fileStoragePath(generated));
+          continue;
+        }
         final up = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
         if (up == null || up.hash.isEmpty) continue;
         paths.add(fileStoragePath(up.hash));
@@ -269,6 +370,28 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     try {
       await widget.api.productPut(widget.siteIid, product, embeds: next);
       widget.onEmbedsChanged();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
+    } finally {
+      widget.onBusy(false);
+    }
+  }
+
+  Future<void> _generatePic(SiteProduct product) async {
+    if (widget.busy) return;
+    final image = await askImageGenerate(
+      context,
+      conn: widget.api.conn,
+      slot: ImageGenerateSlot.product,
+      name: _nameCtrl.text,
+      desc: _descCtrl.text,
+    );
+    if (image == null || image.hash.isEmpty || !mounted) return;
+    widget.onBusy(true);
+    try {
+      final pic = fileStoragePath(image.hash);
+      final updated = await widget.api.productPut(widget.siteIid, product.clone()..pic = pic);
+      widget.onProductUpdated(updated);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
     } finally {
@@ -324,70 +447,215 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     }
   }
 
-  ColDef? _col(String key) => widget.def.columns.where((c) => c.key == key).firstOrNull;
+  Future<void> _editLinkedObject(SiteObject object) async {
+    final reservable = widget.productsById.values.where((p) => p.canReserve).toList(growable: false);
+    await showSiteObjectEditDialog(
+      context,
+      api: widget.api,
+      siteIid: widget.siteIid,
+      object: object,
+      reservableProducts: reservable,
+    );
+    if (mounted) await _loadObjects();
+  }
 
-  Widget _reservationUnitsSection(SiteProduct product) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_linkedObjects.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8),
-              child: Text(
-                'No units linked to this product. Add rooms, tables, or other bookable units.',
-                style: TextStyle(color: _muted, fontSize: 12),
-              ),
-            )
-          else
-            ..._linkedObjects.map(
-              (o) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(o.name.isEmpty ? o.code : o.name, style: const TextStyle(color: _text, fontSize: 13)),
+  Widget _reservationUnitsSection(SiteProduct product) {
+    final groups = siteObjectsGroupByKindPrefix(_linkedObjects);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_linkedObjects.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: Text(
+              'No units linked to this product. Add rooms, tables, or other bookable units.',
+              style: TextStyle(color: _muted, fontSize: 12),
+            ),
+          )
+        else
+          for (final group in groups)
+            for (final bucket in group.prefixes)
+              ExpansionTile(
+                key: ValueKey('res-units-${group.kind}-${bucket.prefix}'),
+                initiallyExpanded: true,
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(bottom: 8),
+                iconColor: _muted,
+                collapsedIconColor: _muted,
+                textColor: _text,
+                collapsedTextColor: _text,
+                backgroundColor: Colors.transparent,
+                collapsedBackgroundColor: Colors.transparent,
+                title: Text(bucket.prefix, style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
+                subtitle: Text(siteObjectKindLabel(group.kind), style: const TextStyle(color: _muted, fontSize: 11)),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final o in bucket.objs) _reservationUnitTile(product, o),
+                      ],
                     ),
-                    if (o.kind.isNotEmpty)
-                      Text(siteObjectKindLabel(o.kind), style: const TextStyle(color: _muted, fontSize: 11)),
-                  ],
+                  ),
+                ],
+              ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: widget.busy ? null : () => unawaited(_openBatchDialog(product)),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add units'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _reservationUnitTile(SiteProduct product, SiteObject object) {
+    final pic = object.pic.isNotEmpty ? object.pic : product.pic;
+    final name = object.name.isEmpty ? object.code : object.name;
+    return SizedBox(
+      width: 80,
+      child: InkWell(
+        onTap: widget.busy ? null : () => unawaited(_editLinkedObject(object)),
+        borderRadius: BorderRadius.circular(8),
+        child: Column(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: SizedBox(
+                width: 80,
+                height: 80,
+                child: pic.isEmpty
+                    ? ColoredBox(
+                        color: siteEditorFieldFill,
+                        child: Icon(_reservationKindIcon(object.kind), color: _muted, size: 28),
+                      )
+                    : UiImg(
+                        src: pic,
+                        fit: BoxFit.cover,
+                        fallback: Icon(_reservationKindIcon(object.kind), color: _muted, size: 28),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _text, fontSize: 11, height: 1.2),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reservationSection(SiteProduct product) {
+    final unit = _reservationDurationUnits.contains(_extras.durationUnit) ? _extras.durationUnit : 'day';
+    return UiSiteEditorFormSection(
+      title: 'Reservation',
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: UiSiteEditorLabeledField(
+                label: 'Duration',
+                child: TextField(
+                  key: ValueKey('site-product-duration-${product.productId}'),
+                  controller: _durationCtrl,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(color: _text, fontSize: 13),
+                  decoration: siteEditorInputDecoration(hintText: '1'),
+                  onChanged: _onDurationEdited,
+                  onEditingComplete: () {
+                    final n = int.tryParse(_durationCtrl.text.trim());
+                    if (n == null || n < 1) {
+                      _durationCtrl.text = '1';
+                      _onDurationEdited('1');
+                    }
+                  },
                 ),
               ),
             ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: widget.busy ? null : () => unawaited(_openBatchDialog(product)),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add units'),
+            const SizedBox(width: 12),
+            Expanded(
+              child: UiSiteEditorLabeledField(
+                label: 'Unit',
+                child: DropdownButtonFormField<String>(
+                  key: ValueKey('site-product-duration-unit-${product.productId}-$unit'),
+                  initialValue: unit,
+                  isExpanded: true,
+                  dropdownColor: const Color(0xFF18181B),
+                  style: const TextStyle(color: _text, fontSize: 13),
+                  decoration: siteEditorInputDecoration(),
+                  items: [
+                    for (final u in _reservationDurationUnits)
+                      DropdownMenuItem(value: u, child: Text(_reservationDurationLabel(u))),
+                  ],
+                  onChanged: widget.busy
+                      ? null
+                      : (v) {
+                          if (v == null || v == _extras.durationUnit) return;
+                          final n = int.tryParse(_durationCtrl.text.trim());
+                          final duration = n == null || n < 1 ? 1 : n;
+                          _persistExtras(_extras.copyWith(durationUnit: v, durationValue: duration));
+                        },
+                ),
+              ),
             ),
-          ),
-        ],
-      );
+          ],
+        ),
+        UiSiteEditorSwitchRow(
+          label: 'Guest picks a unit',
+          value: _extras.reservationGuestPicks,
+          onChanged: widget.busy
+              ? null
+              : (v) {
+                  if (v == _extras.reservationGuestPicks) return;
+                  _persistExtras(_extras.copyWith(reservationGuestPicks: v));
+                },
+        ),
+        _reservationUnitsSection(product),
+      ],
+    );
+  }
 
   Widget _heroRow(SiteProduct product) => Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ProductPicTile(pic: product.pic, busy: widget.busy, onTap: () => _pickPic(product)),
+          _ProductPicTile(
+            pic: product.pic,
+            icon: product.icon,
+            busy: widget.busy,
+            onTap: () => _pickPic(product),
+            onGenerate: () => unawaited(_generatePic(product)),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 TextField(
+                  key: const ValueKey('site-product-name'),
                   controller: _nameCtrl,
-                  enabled: !widget.busy,
                   style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600),
                   decoration: siteEditorInputDecoration(hintText: 'Product name'),
-                  onChanged: (v) => _debouncedDraft('name', product.clone()..name = v),
+                  onChanged: (_) => _scheduleTextSave(),
                 ),
                 const SizedBox(height: 10),
                 TextField(
+                  key: const ValueKey('site-product-desc'),
                   controller: _descCtrl,
-                  enabled: !widget.busy,
                   minLines: 3,
                   maxLines: 6,
                   style: const TextStyle(color: _text, fontSize: 13, height: 1.35),
                   decoration: siteEditorInputDecoration(hintText: 'Description'),
-                  onChanged: (v) => _debouncedDraft('desc', product.clone()..desc = v),
+                  onChanged: (_) => _scheduleTextSave(),
                 ),
               ],
             ),
@@ -442,8 +710,8 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
                   child: UiSiteEditorLabeledField(
                     label: 'Price',
                     child: TextField(
+                      key: const ValueKey('site-product-price'),
                       controller: _priceCtrl,
-                      enabled: !widget.busy,
                       keyboardType: TextInputType.number,
                       inputFormatters: moneyIdrInputFormatters,
                       style: const TextStyle(color: _text, fontSize: 13),
@@ -451,10 +719,7 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
                         suffixText: 'IDR',
                         suffixStyle: const TextStyle(color: siteEditorFormMuted, fontSize: 12),
                       ),
-                      onChanged: (v) {
-                        final n = moneyParseIdrInt(v) ?? 0;
-                        _debouncedDraft('price', product.clone()..price = Int64(n));
-                      },
+                      onChanged: (_) => _scheduleTextSave(),
                     ),
                   ),
                 ),
@@ -464,11 +729,11 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
                   child: UiSiteEditorLabeledField(
                     label: 'Unit',
                     child: TextField(
+                      key: const ValueKey('site-product-unit'),
                       controller: _unitCtrl,
-                      enabled: !widget.busy,
                       style: const TextStyle(color: _text, fontSize: 13),
                       decoration: siteEditorInputDecoration(hintText: 'pcs, plate…'),
-                      onChanged: (v) => _debouncedDraft('unit', product.clone()..unit = v),
+                      onChanged: (_) => _scheduleTextSave(),
                     ),
                   ),
                 ),
@@ -476,12 +741,11 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
             ),
             UiSiteEditorLabeledField(
               label: 'Category',
-              child: TextField(
-                controller: _categoryCtrl,
+              child: InSiteProductCategory(
+                value: product.category,
+                categories: siteProductCategoryLabels(widget.productsById.values.map((p) => p.category)),
                 enabled: !widget.busy,
-                style: const TextStyle(color: _text, fontSize: 13),
-                decoration: siteEditorInputDecoration(hintText: 'Optional category'),
-                onChanged: (v) => _debouncedDraft('category', product.clone()..category = v),
+                onCommit: (v) => _saveProduct(product.clone()..category = v),
               ),
             ),
           ],
@@ -492,18 +756,18 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
             UiSiteEditorLabeledField(
               label: 'SKU',
               child: TextField(
+                key: const ValueKey('site-product-sku'),
                 controller: _skuCtrl,
-                enabled: !widget.busy,
                 style: const TextStyle(color: _text, fontSize: 13),
                 decoration: siteEditorInputDecoration(hintText: 'Internal code'),
-                onChanged: (v) => _debouncedDraft('sku', product.clone()..sku = v),
+                onChanged: (_) => _scheduleTextSave(),
               ),
             ),
             UiSiteEditorLabeledField(
               label: 'Barcodes',
               child: InStringList(
+                key: ValueKey('site-product-barcodes-$productId'),
                 values: siteProductBarcodesRead(product),
-                enabled: !widget.busy,
                 hintText: 'Scan / EAN',
                 monospace: true,
                 onChanged: (codes) => _debouncedDraft('barcodes', siteProductApplyBarcodes(product, codes)),
@@ -515,8 +779,8 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
           title: 'Alternative names',
           children: [
             InStringList(
+              key: ValueKey('site-product-alt-$productId'),
               values: _altNames(),
-              enabled: !widget.busy,
               hintText: 'Another name guests may search',
               onChanged: (names) => _debouncedSave('alt_names', () => _saveAltNames(product, names)),
             ),
@@ -528,12 +792,7 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
             UiSiteEditorSwitchRow(
               label: 'Track stock',
               value: product.trackStock,
-              onChanged: widget.busy
-                  ? null
-                  : (v) {
-                      final col = _col('track_stock');
-                      if (col != null) unawaited(_commitBool(col, v));
-                    },
+              onChanged: widget.busy ? null : (v) => unawaited(_setTrackStock(product, v)),
             ),
             if (product.trackStock) ...[
               const SizedBox(height: 4),
@@ -557,28 +816,30 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
             title: 'Catalog options',
             children: [
               for (final col in boolCols)
-                if (col.key != 'track_stock')
+                if (col.key != 'track_stock' && (col.key != 'can_reserve' || widget.booking))
                   UiSiteEditorSwitchRow(
-                    label: col.label,
+                    label: col.key == 'can_reserve' ? 'Can reserve' : col.label,
                     value: _parseBool(cells[col.key] ?? ''),
                     onChanged: widget.busy ? null : (v) => _commitProductField(product, col, v ? 'yes' : 'no'),
                   ),
             ],
           ),
-        if (product.canReserve)
-          UiSiteEditorFormSection(title: 'Reservation units', children: [_reservationUnitsSection(product)]),
-        if (widget.busy) const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator(minHeight: 2, color: _accent)),
+        if (widget.booking && product.canReserve) _reservationSection(product),
+        if (widget.busy || _textSaveActive)
+          const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator(minHeight: 2, color: _accent)),
       ],
     );
   }
 }
 
 class _ProductPicTile extends StatelessWidget {
-  const _ProductPicTile({required this.pic, required this.busy, required this.onTap});
+  const _ProductPicTile({required this.pic, required this.icon, required this.busy, required this.onTap, required this.onGenerate});
 
   final String pic;
+  final String icon;
   final bool busy;
   final VoidCallback onTap;
+  final VoidCallback onGenerate;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -597,17 +858,27 @@ class _ProductPicTile extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 if (pic.isEmpty)
-                  const Center(child: Icon(Icons.add_photo_alternate_outlined, color: _muted, size: 28))
+                  Center(
+                    child: UiIcon(
+                      'iconify://${icon.trim().isEmpty ? 'mdi:shopping' : icon.trim()}',
+                      size: 36,
+                      color: _muted,
+                    ),
+                  )
                 else
                   UiImg(src: pic, fit: BoxFit.cover, fallback: const Icon(Icons.broken_image_outlined, color: _muted)),
                 Positioned(
                   right: 4,
                   bottom: 4,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(6)),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(Icons.photo_camera_outlined, size: 14, color: Colors.white),
+                  child: InkWell(
+                    onTap: busy ? null : onGenerate,
+                    borderRadius: BorderRadius.circular(6),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(6)),
+                      child: const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: UiAlienIcon(size: 14, color: Colors.white),
+                      ),
                     ),
                   ),
                 ),

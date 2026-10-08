@@ -434,6 +434,121 @@ pub fn ring_deduct_pair(
     (used_5h + take, used_week + take, take, overflow)
 }
 
+/// Same 5h / weekly reset `billing_profile_deduct_rings` applies before it charges a ring.
+fn roll_profile_ring_windows(rings: &mut ProfileRingRow, now: chrono::DateTime<Utc>) {
+    if now - rings.window_5h_start >= Duration::hours(5) {
+        rings.alien_allow_5h_used = 0.0;
+        rings.frontier_allow_5h_used = 0.0;
+        rings.window_5h_start = now;
+    }
+    if now - rings.window_weekly_start >= Duration::days(7) {
+        rings.alien_allow_weekly_used = 0.0;
+        rings.frontier_allow_weekly_used = 0.0;
+        rings.window_weekly_start = now;
+    }
+}
+
+/// Frontier cover after the shared window roll.
+/// `None` when `ring_deduct_pair` overflow is positive (frontier remaining cannot pay `cost_usd`).
+/// Alien used is not part of the decision. The SQL commit in `billing_frontier_try_deduct`
+/// is not integration-tested; this helper is the pure short-vs-enough check.
+struct FrontierCover {
+    frontier_5h_used: f64,
+    frontier_weekly_used: f64,
+    window_5h_start: chrono::DateTime<Utc>,
+    window_weekly_start: chrono::DateTime<Utc>,
+}
+
+fn frontier_cover_after_roll(
+    rings: &ProfileRingRow,
+    now: chrono::DateTime<Utc>,
+    cost_usd: f64,
+) -> Option<FrontierCover> {
+    let mut rolled = rings.clone();
+    roll_profile_ring_windows(&mut rolled, now);
+    let (new_5h, new_week) = if cost_usd <= 0.0 {
+        (rolled.frontier_allow_5h_used, rolled.frontier_allow_weekly_used)
+    } else {
+        let (new_5h, new_week, _, overflow) = ring_deduct_pair(
+            rolled.frontier_allow_5h_used,
+            rolled.frontier_allow_5h_limit,
+            rolled.frontier_allow_weekly_used,
+            rolled.frontier_allow_weekly_limit,
+            cost_usd,
+        );
+        if overflow > 0.0 {
+            return None;
+        }
+        (new_5h, new_week)
+    };
+    Some(FrontierCover {
+        frontier_5h_used: new_5h,
+        frontier_weekly_used: new_week,
+        window_5h_start: rolled.window_5h_start,
+        window_weekly_start: rolled.window_weekly_start,
+    })
+}
+
+/// Frontier ring only. Ok(true) when remaining USD >= cost and the deduct committed.
+/// Ok(false) when frontier remaining is short. Does not touch alien rings or wallet.
+///
+/// `cost_usd <= 0` returns `Ok(true)` without a write. Remaining is the frontier half of
+/// `profile_ring_remaining_usd` after the same 5h/weekly window roll as
+/// `billing_profile_deduct_rings`. Deduct uses `ring_deduct_pair` on the frontier pair only.
+/// Overflow rolls the transaction back and returns `Ok(false)` instead of charging the wallet.
+///
+/// The async SQL path is not integration-tested. `frontier_cover_after_roll` covers the pure
+/// decision (short vs enough) without a database.
+pub async fn billing_frontier_try_deduct(
+    pool: &PgPool,
+    owner_iid: i64,
+    cost_usd: f64,
+) -> Result<bool> {
+    if cost_usd <= 0.0 {
+        return Ok(true);
+    }
+    let _ = billing_profile_repair_rings_v4(pool, owner_iid).await;
+    let mut tx = pool.begin().await?;
+    let row = sqlx::query(&format!(
+        "SELECT {PROFILE_RING_SELECT} FROM ai.billing_profile WHERE owner_iid = $1 AND deleted_ts IS NULL LIMIT 1 FOR UPDATE"
+    ))
+    .bind(owner_iid)
+    .fetch_optional(&mut *tx)
+    .await?;
+    let Some(row) = row else {
+        tx.rollback().await?;
+        return Ok(false);
+    };
+    let profile = profile_from_row(row);
+    let now = Utc::now();
+    let Some(cover) = frontier_cover_after_roll(&profile.rings, now, cost_usd) else {
+        tx.rollback().await?;
+        return Ok(false);
+    };
+    // Frontier used and the shared window clock only. alien_allow_* is never written.
+    // Wallet is not touched; a short frontier ring rolls this transaction back above.
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_profile
+        SET frontier_allow_5h_used = $2,
+            frontier_allow_weekly_used = $3,
+            window_5h_start = $4,
+            window_weekly_start = $5,
+            updated_ts = NOW()
+        WHERE id = $1
+        "#,
+    )
+    .bind(profile.id)
+    .bind(cover.frontier_5h_used)
+    .bind(cover.frontier_weekly_used)
+    .bind(cover.window_5h_start)
+    .bind(cover.window_weekly_start)
+    .execute(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(true)
+}
+
 /// Deduct retail `cost_usd` from profile rings. Returns wallet overflow USD (0 when fully covered).
 pub async fn billing_profile_deduct_rings(
     pool: &PgPool,
@@ -460,17 +575,7 @@ pub async fn billing_profile_deduct_rings(
         return Ok(None);
     }
     let now = Utc::now();
-    let r = &mut profile.rings;
-    if now - r.window_5h_start >= Duration::hours(5) {
-        r.alien_allow_5h_used = 0.0;
-        r.frontier_allow_5h_used = 0.0;
-        r.window_5h_start = now;
-    }
-    if now - r.window_weekly_start >= Duration::days(7) {
-        r.alien_allow_weekly_used = 0.0;
-        r.frontier_allow_weekly_used = 0.0;
-        r.window_weekly_start = now;
-    }
+    roll_profile_ring_windows(&mut profile.rings, now);
     let use_alien = model_uses_alien_pool(model);
     let r = &mut profile.rings;
     let (new_5h, new_week, _, overflow) = if use_alien {
@@ -586,6 +691,80 @@ mod tests {
         assert!((aw - 0.25).abs() < 1e-9);
         assert!((f5 - 0.0025).abs() < 1e-9);
         assert!((fw - 0.05).abs() < 1e-9);
+    }
+
+    fn frontier_rings_for(
+        used_5h: f64,
+        limit_5h: f64,
+        used_week: f64,
+        limit_week: f64,
+        now: chrono::DateTime<Utc>,
+        age_5h: Duration,
+        age_week: Duration,
+    ) -> ProfileRingRow {
+        ProfileRingRow {
+            alien_allow_5h_used: 0.4,
+            alien_allow_5h_limit: 4.0,
+            alien_allow_weekly_used: 1.0,
+            alien_allow_weekly_limit: 80.0,
+            frontier_allow_5h_used: used_5h,
+            frontier_allow_5h_limit: limit_5h,
+            frontier_allow_weekly_used: used_week,
+            frontier_allow_weekly_limit: limit_week,
+            window_5h_start: now - age_5h,
+            window_weekly_start: now - age_week,
+        }
+    }
+
+    /// Pure decision only. `billing_frontier_try_deduct`'s SQL commit is not integration-tested.
+    #[test]
+    fn frontier_try_deduct_short_of_five_cents_not_deducted() {
+        let now = Utc::now();
+        let rings = frontier_rings_for(0.04, 0.05, 0.0, 1.0, now, Duration::zero(), Duration::zero());
+        let (_, frontier_rem) = profile_ring_remaining_usd(&rings);
+        assert!(frontier_rem < 0.05);
+        assert!(frontier_cover_after_roll(&rings, now, 0.05).is_none());
+        assert!((rings.alien_allow_5h_used - 0.4).abs() < 1e-9);
+        assert!((rings.alien_allow_weekly_used - 1.0).abs() < 1e-9);
+    }
+
+    /// Pure decision only. `billing_frontier_try_deduct`'s SQL commit is not integration-tested.
+    #[test]
+    fn frontier_try_deduct_with_room_increases_frontier_used_only() {
+        let now = Utc::now();
+        let rings = frontier_rings_for(0.01, 0.20, 0.10, 1.0, now, Duration::zero(), Duration::zero());
+        let (_, frontier_rem) = profile_ring_remaining_usd(&rings);
+        assert!(frontier_rem >= 0.05);
+        let cover = frontier_cover_after_roll(&rings, now, 0.05).expect("covered");
+        assert_eq!(cover.window_5h_start, rings.window_5h_start);
+        assert_eq!(cover.window_weekly_start, rings.window_weekly_start);
+        assert!((cover.frontier_5h_used - 0.06).abs() < 1e-9);
+        assert!((cover.frontier_weekly_used - 0.15).abs() < 1e-9);
+        assert!((rings.alien_allow_5h_used - 0.4).abs() < 1e-9);
+        assert!((rings.alien_allow_weekly_used - 1.0).abs() < 1e-9);
+        assert!((rings.frontier_allow_5h_used - 0.01).abs() < 1e-9);
+    }
+
+    /// Expired windows restore frontier room before the 0.05 check. SQL commit is not integration-tested.
+    #[test]
+    fn frontier_try_deduct_window_roll_restores_five_cents() {
+        let now = Utc::now();
+        let rings = frontier_rings_for(
+            0.05,
+            0.05,
+            0.05,
+            0.05,
+            now,
+            Duration::hours(6),
+            Duration::days(8),
+        );
+        let (_, before) = profile_ring_remaining_usd(&rings);
+        assert!(before < 0.05);
+        let cover = frontier_cover_after_roll(&rings, now, 0.05).expect("rolled cover");
+        assert!((cover.frontier_5h_used - 0.05).abs() < 1e-9);
+        assert!((cover.frontier_weekly_used - 0.05).abs() < 1e-9);
+        assert_eq!(cover.window_5h_start, now);
+        assert_eq!(cover.window_weekly_start, now);
     }
 
     #[test]

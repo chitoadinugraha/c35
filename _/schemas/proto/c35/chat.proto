@@ -546,3 +546,15 @@ message ResMediaRegenerate {
   string req_id = 7;
   int64 msg_id = 8;
 }
+
+message ReqImgGenerate {
+  string prompt = 1;
+  string provider = 2;
+}
+
+message ResImgGenerate {
+  string hash = 1;
+  string url = 2;
+  string mime = 3;
+  string error = 4;
+}

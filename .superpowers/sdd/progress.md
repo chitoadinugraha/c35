@@ -1,30 +1,22 @@
-# SDD Progress — bot-add-channels-deploy-log
+# SDD Progress — product default icon
 
-Plan: _/docs/plans/2026-09-21-bot-add-channels-deploy-log.md
-Base: 9a6cdb0fb9335cc1e7bd2d857ee60541c48eac6d
+Plan: _/docs/plans/2026-10-08-product-default-icon.md
+Base: af9ec59
 Branch: main
+Commits: skipped unless the user asks
 
-## Wave 1 — restarted (inherit only; no *-fast)
+## Wave 1
 
-| Track | Scope | Status | Notes |
-|-------|-------|--------|-------|
-| 0 | Proto + regen | complete | [Proto](275cfbc8-04d7-4a6b-8a4e-d834f557d09b) |
-| 1 | Flutter UI | complete | [Flutter UI](3cad1031-f51b-4b7c-9c55-dadc798659bc) |
-| 2A | mod_log | complete | [mod_log](f77ffb31-bc43-48bf-b14c-1adb4621aa9f) — `log_put` + NATS |
-| 4.1 | Deploy docs | complete | [Deploy docs](ba749b69-283d-4c81-8e6c-8578ea745a13) |
+| Task | Scope | Status |
+|------|-------|--------|
+| 1 | CHEAP_MODEL const + docs + retarget callers | complete |
+| 2 | Kind catalog, name key, keyword rules | complete |
 
-## Wave 2 — complete
+## Later
 
-- Track 2B: **complete** ([identity_put](63386480-fb02-4f19-8823-1dc3c21e283d))
-- Track 2C: **complete** ([channel pair](ef213bdd-ed15-4650-81ba-8e54376cf70e))
-- Track 3: **complete** ([WA logs](b6f8790d-db6c-4f30-b2c1-13cbd08ffe46))
-- Fix: worker accepts `provider=linked_device` (identity.md) + legacy slug
-
-## Wave 3
-
-- Track 5: Flutter API wiring — **complete** ([Flutter API](3e7b68e5-59e0-4616-a77b-95f84689ef3e))
-
-## Wave 4
-
-- Track 4.2–4.3: deploy + smoke — **complete** ([Deploy](bddb300e-a2b7-4add-9e35-ba6cdf55611f))
-- Track 6: E2E verify — **automated complete** ([E2E verify](e0b7069b-d54f-40a8-8653-88bc5b26e7f0)); manual QR pair pending user
+| Task | Scope | Status |
+|------|-------|--------|
+| 3 | site.product_icon + cheap-model fill on put | complete |
+| 4 | Proto icon, guest JSON, inline SVG HTML | complete |
+| 5 | Editor, guest app, POS thumb | complete |
+| 5 | Editor, guest app, POS thumb | pending |

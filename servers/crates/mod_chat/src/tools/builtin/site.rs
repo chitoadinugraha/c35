@@ -368,12 +368,25 @@ fn grantee_iid_from_args(args: &Value) -> i64 {
     }
 }
 
+fn work_shift_ids_from_args(args: &Value) -> Option<Vec<String>> {
+    let v = args.get("work_shift_ids")?;
+    Some(match v {
+        Value::Array(arr) => arr
+            .iter()
+            .filter_map(|x| x.as_str().map(str::to_string))
+            .collect(),
+        Value::String(s) => serde_json::from_str::<Vec<String>>(s).unwrap_or_else(|_| vec![s.clone()]),
+        _ => vec![],
+    })
+}
+
 pub async fn site_grant_put_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let site_iid = site_iid_resolve(ctx, args)?;
     let grantee_iid = site_grantee_resolve(
         &ctx.pool,
         grantee_iid_from_args(args),
         args.get("grantee_alien_id").and_then(|v| v.as_str()).unwrap_or(""),
+        args.get("grantee_email").and_then(|v| v.as_str()).unwrap_or(""),
     )
     .await?;
     let role = args
@@ -381,8 +394,18 @@ pub async fn site_grant_put_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
         .and_then(|v| v.as_str())
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| anyhow!("role is required (staff or manage)"))?;
-    site_grant_put(&ctx.pool, ctx.owner_iid, site_iid, grantee_iid, role).await?;
+        .ok_or_else(|| anyhow!("role is required (staff, manage, or guest)"))?;
+    // Only sync shifts when the tool args include the work_shift_ids key (empty array clears).
+    let work_shift_ids = work_shift_ids_from_args(args);
+    site_grant_put(
+        &ctx.pool,
+        ctx.owner_iid,
+        site_iid,
+        grantee_iid,
+        role,
+        work_shift_ids.as_deref(),
+    )
+    .await?;
     Ok(json!({
         "ok": true,
         "site_iid": site_iid,
@@ -398,6 +421,7 @@ pub async fn site_grant_delete_exec(ctx: &ToolContext, args: &Value) -> Result<V
         &ctx.pool,
         grantee_iid_from_args(args),
         args.get("grantee_alien_id").and_then(|v| v.as_str()).unwrap_or(""),
+        args.get("grantee_email").and_then(|v| v.as_str()).unwrap_or(""),
     )
     .await?;
     site_grant_delete(&ctx.pool, ctx.owner_iid, site_iid, grantee_iid).await?;
@@ -595,9 +619,13 @@ tool! {
     struct: SiteGrantPutTool,
     name: "site.grant.put",
     aliases: ["site_grant_put", "site.staff.grant"],
-    description: "Grant or update site staff access (identity_grant on site_iid). Roles: staff (read/edit data) or manage (includes staff management). Caller must be site owner or manage.",
+    description: "Grant or update site access (identity_grant on site_iid). Roles: staff, manage, or guest (read-only). Resolve grantee by iid, alien_id, or grantee_email. Caller must be site owner or manage.",
     topics: ["web.builder"],
-    rag_phrases: ["add staff", "invite staff", "site staff", "grant manage", "tambah staff", "akses staff"],
+    rag_phrases: [
+        "add staff", "invite staff", "site staff", "grant manage",
+        "invite by email", "invite staff email", "add staff email", "staff by email",
+        "tambah staff", "tambah staff email", "akses staff", "undang staff",
+    ],
     requires_kinds: ["site"],
     ui_calling_key: "tool.site.grant.put.calling",
     ui_done_key: "tool.site.grant.put.done",
@@ -605,7 +633,9 @@ tool! {
         site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
         grantee_iid: (integer, "User identity ID to grant", optional),
         grantee_alien_id: (string, "User alien_id or numeric id when grantee_iid omitted", optional),
-        role: (string, "staff or manage", required),
+        grantee_email: (string, "User email when iid/alien_id omitted (identity_provider kind=email)", optional),
+        role: (string, "staff, manage, or guest", required),
+        work_shift_ids: (array, "Replace assigned work shift ids (empty clears); omit to leave assignments unchanged", optional),
     },
     execute: |args, ctx| {
         site_grant_put_exec(ctx, &args).await
@@ -616,9 +646,9 @@ tool! {
     struct: SiteGrantDeleteTool,
     name: "site.grant.delete",
     aliases: ["site_grant_delete"],
-    description: "Revoke site staff access for a user (soft-delete identity_grant). Caller must be site owner or manage. Cannot remove the site owner.",
+    description: "Revoke site staff access for a user (soft-delete identity_grant). Resolve grantee by iid, alien_id, or grantee_email. Caller must be site owner or manage. Cannot remove the site owner.",
     topics: ["web.builder"],
-    rag_phrases: ["remove staff", "revoke access", "hapus staff", "cabut akses"],
+    rag_phrases: ["remove staff", "revoke access", "hapus staff", "cabut akses", "remove staff email"],
     requires_kinds: ["site"],
     ui_calling_key: "tool.site.grant.delete.calling",
     ui_done_key: "tool.site.grant.delete.done",
@@ -626,6 +656,7 @@ tool! {
         site_iid: (integer, "Site identity ID (resolved from @alien_id when omitted)", optional),
         grantee_iid: (integer, "User identity ID to revoke", optional),
         grantee_alien_id: (string, "User alien_id or numeric id when grantee_iid omitted", optional),
+        grantee_email: (string, "User email when iid/alien_id omitted", optional),
     },
     execute: |args, ctx| {
         site_grant_delete_exec(ctx, &args).await

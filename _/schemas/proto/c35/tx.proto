@@ -199,6 +199,7 @@ message TxItemReservation {
   int32 qty = 10;
   int32 duration_qty = 11;
   string note = 12;
+  int64 site_object_id = 13;
   int64 start_ts_ms = 20;
   int64 end_ts_ms = 21;
   string state = 30;

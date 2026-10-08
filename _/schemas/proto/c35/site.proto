@@ -552,6 +552,10 @@ message SiteGrant {
   string grantee_alien_id = 3;
   string grantee_name = 4;
   string role = 5;
+  string grantee_email = 6;
+  string grantee_avatar_url = 7;
+  repeated string work_shift_ids = 8;
+  bool is_owner = 9;            // synthetic owner row or role == owner
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
@@ -570,6 +574,10 @@ message ReqSiteGrantPut {
   int64 grantee_iid = 2;
   string grantee_alien_id = 3;
   string role = 4;
+  string grantee_email = 5;             // resolve via identity_provider when set
+  // prost3 repeated always present on wire: RPC put always replaces member_shift (empty = clear).
+  // Chat tool site.grant.put only syncs when args contain the work_shift_ids key.
+  repeated string work_shift_ids = 6;
 }
 
 message ResSiteGrantPut {
@@ -585,6 +593,137 @@ message ReqSiteGrantDelete {
 message ResSiteGrantDelete {
   int64 grantee_iid = 1;
   bool ok = 2;
+}
+
+// ================================= Work shifts (site.work_shift / work_shift_slot)
+
+message SiteWorkShiftSlot {
+  string id = 1;
+  int32 start_day = 2;          // 0=Sun .. 6=Sat (or site tz week start)
+  int32 start_min = 3;          // minutes from midnight
+  int32 end_day = 4;
+  int32 end_min = 5;
+}
+
+message SiteWorkShift {
+  int64 site_iid = 1;
+  string id = 2;                // shift_id (string / ULID)
+  string name = 3;
+  string attendance_method = 4; // e.g. none | geo | face | geo_face
+  repeated SiteWorkShiftSlot slots = 5;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message ReqSiteWorkShiftList {
+  int64 site_iid = 1;
+}
+
+message ResSiteWorkShiftList {
+  repeated SiteWorkShift shifts = 1;
+}
+
+message ReqSiteWorkShiftPut {
+  int64 site_iid = 1;
+  repeated SiteWorkShift shifts = 2;
+}
+
+message ResSiteWorkShiftPut {
+  bool ok = 1;
+}
+
+// ================================= Transfer ownership
+
+message ReqSiteTransferOwnership {
+  int64 site_iid = 1;
+  int64 target_iid = 2;         // existing grant grantee → new owner
+}
+
+message ResSiteTransferOwnership {
+  int64 new_owner_iid = 1;
+  bool ok = 2;
+}
+
+// ================================= Member face enroll (site.member_face; attendance-gated)
+
+message SiteMemberFacePhoto {
+  string id = 1;                // face_id
+  string url = 2;
+  repeated float embedding = 3;
+  string file_hash = 4;
+  string pose = 5;
+  int64 grantee_iid = 6;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message ReqSiteMemberFaceList {
+  int64 site_iid = 1;
+  int64 grantee_iid = 2;
+}
+
+message ResSiteMemberFaceList {
+  repeated SiteMemberFacePhoto faces = 1;
+}
+
+message ReqSiteMemberFacePut {
+  int64 site_iid = 1;
+  int64 grantee_iid = 2;
+  string file_hash = 3;         // existing file CAS hash
+  string pose = 4;
+}
+
+message ResSiteMemberFacePut {
+  SiteMemberFacePhoto face = 1;
+}
+
+message ReqSiteMemberFaceDel {
+  int64 site_iid = 1;
+  int64 grantee_iid = 2;
+  string face_id = 3;
+}
+
+message ResSiteMemberFaceDel {
+  bool ok = 1;
+}
+
+// ================================= Presence locations (site.presence_location; Attendance later)
+
+message SitePresenceLatLng {
+  double lat = 1;
+  double lng = 2;
+}
+
+message SitePresenceLocation {
+  int64 site_iid = 1;
+  string id = 2;
+  string name = 3;
+  repeated SitePresenceLatLng polygon = 4;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message ReqSitePresenceLocationList {
+  int64 site_iid = 1;
+}
+
+message ResSitePresenceLocationList {
+  repeated SitePresenceLocation locations = 1;
+}
+
+message ReqSitePresenceLocationPut {
+  int64 site_iid = 1;
+  repeated SitePresenceLocation locations = 2;
+}
+
+message ResSitePresenceLocationPut {
+  bool ok = 1;
 }
 
 // ================================= Queue admin (site.queue)

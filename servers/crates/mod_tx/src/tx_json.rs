@@ -53,6 +53,7 @@ fn tx_item_from_json(v: &Value) -> TxItem {
                     qty: i32_field(r, "qty"),
                     duration_qty: i32_field(r, "duration_qty"),
                     note: str_field(r, "note"),
+                    site_object_id: i64_field(r, "site_object_id"),
                     start_ts_ms: i64_field(r, "start_ts_ms"),
                     end_ts_ms: i64_field(r, "end_ts_ms"),
                     state: str_field(r, "state"),
@@ -136,6 +137,7 @@ fn tx_item_to_json(i: &TxItem) -> Value {
             "qty": r.qty,
             "duration_qty": r.duration_qty,
             "note": r.note,
+            "site_object_id": r.site_object_id,
             "start_ts_ms": r.start_ts_ms,
             "end_ts_ms": r.end_ts_ms,
             "state": r.state,
@@ -572,4 +574,34 @@ pub fn tx_result_json(tx: &Tx) -> Value {
         "state": tx_state_str(tx_state(tx.state)),
         "tx": tx_to_json(tx),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{tx_from_json, tx_to_json};
+    use serde_json::json;
+
+    #[test]
+    fn reservation_site_object_id_parses() {
+        let tx = tx_from_json(&json!({
+            "items": [{
+                "reservations": [
+                    {"site_object_id": 101, "qty": 1},
+                    {"qty": 1}
+                ]
+            }]
+        }))
+        .expect("tx json");
+        assert_eq!(tx.items[0].reservations[0].site_object_id, 101);
+        assert_eq!(tx.items[0].reservations[1].site_object_id, 0);
+        let out = tx_to_json(&tx);
+        assert_eq!(
+            out["items"][0]["reservations"][0]["site_object_id"].as_i64(),
+            Some(101)
+        );
+        assert_eq!(
+            out["items"][0]["reservations"][1]["site_object_id"].as_i64(),
+            Some(0)
+        );
+    }
 }

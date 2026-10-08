@@ -71,6 +71,7 @@ const ReferralTreeNode$json = {
     {'1': 'is_root', '3': 8, '4': 1, '5': 8, '10': 'isRoot'},
     {'1': 'is_banned', '3': 9, '4': 1, '5': 8, '10': 'isBanned'},
     {'1': 'global_roles', '3': 10, '4': 3, '5': 9, '10': 'globalRoles'},
+    {'1': 'mailbox_count', '3': 11, '4': 1, '5': 5, '10': 'mailboxCount'},
   ],
 };
 
@@ -81,7 +82,8 @@ final $typed_data.Uint8List referralTreeNodeDescriptor = $convert.base64Decode(
     'KAlSCWF2YXRhclVybBIWCgZoYW5kbGUYBSABKAlSBmhhbmRsZRIfCgtyZWZlcnJlZF9ieRgGIA'
     'EoA1IKcmVmZXJyZWRCeRIfCgtjaGlsZF9jb3VudBgHIAEoBVIKY2hpbGRDb3VudBIXCgdpc19y'
     'b290GAggASgIUgZpc1Jvb3QSGwoJaXNfYmFubmVkGAkgASgIUghpc0Jhbm5lZBIhCgxnbG9iYW'
-    'xfcm9sZXMYCiADKAlSC2dsb2JhbFJvbGVz');
+    'xfcm9sZXMYCiADKAlSC2dsb2JhbFJvbGVzEiMKDW1haWxib3hfY291bnQYCyABKAVSDG1haWxi'
+    'b3hDb3VudA==');
 
 @$core.Deprecated('Use referralTreeSliceDescriptor instead')
 const ReferralTreeSlice$json = {
@@ -103,6 +105,13 @@ const ReferralTreeSlice$json = {
       '6': '.c35.ReferralShareDoc',
       '10': 'branchShares'
     },
+    {
+      '1': 'platform_user_count',
+      '3': 3,
+      '4': 1,
+      '5': 3,
+      '10': 'platformUserCount'
+    },
   ],
 };
 
@@ -110,7 +119,8 @@ const ReferralTreeSlice$json = {
 final $typed_data.Uint8List referralTreeSliceDescriptor = $convert.base64Decode(
     'ChFSZWZlcnJhbFRyZWVTbGljZRIrCgVub2RlcxgBIAMoCzIVLmMzNS5SZWZlcnJhbFRyZWVOb2'
     'RlUgVub2RlcxI6Cg1icmFuY2hfc2hhcmVzGAIgAygLMhUuYzM1LlJlZmVycmFsU2hhcmVEb2NS'
-    'DGJyYW5jaFNoYXJlcw==');
+    'DGJyYW5jaFNoYXJlcxIuChNwbGF0Zm9ybV91c2VyX2NvdW50GAMgASgDUhFwbGF0Zm9ybVVzZX'
+    'JDb3VudA==');
 
 @$core.Deprecated('Use reqReferralShareSetDescriptor instead')
 const ReqReferralShareSet$json = {

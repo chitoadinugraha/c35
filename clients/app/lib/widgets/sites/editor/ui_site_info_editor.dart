@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/cas/cas_client.dart';
+import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/files/file_path.dart';
+import 'package:alienai_c35/c/geo/geo_geocode.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
+import 'package:alienai_c35/c/media/image_generate_prompt.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
@@ -10,19 +13,25 @@ import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_info_sync.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/widgets/io/in_site_location.dart';
+import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
+import 'package:alienai_c35/widgets/io/in_geo_point.dart';
 import 'package:alienai_c35/widgets/io/in_site_schedule.dart';
+import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
-import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/widgets/sites/io_site_handle_claim_dialog.dart';
+import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
 const _taglineMax = 120;
+const _sheetBg = Color(0xFF18181B);
+
+enum _AvatarChoice { upload, generate }
 
 class UiSiteInfoEditor extends StatefulWidget {
   const UiSiteInfoEditor({
@@ -46,25 +55,24 @@ class UiSiteInfoEditor extends StatefulWidget {
 
 class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   late final _nameCtrl = TextEditingController(text: widget.row.name);
-  late final _handleCtrl = TextEditingController(text: widget.row.alienId);
   late final _taglineCtrl = TextEditingController();
-  late final _locationCtrl = TextEditingController();
   var _loading = true;
   var _taglinePick = 0;
   var _pic = '';
+  var _locationLabel = '';
   double? _lat;
   double? _lng;
   List<SiteScheduleSlot> _hours = [];
   Timer? _saveTimer;
   var _suppressSave = false;
 
+  String get _geoBaseUrl => C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
+
   @override
   void initState() {
     super.initState();
     _nameCtrl.addListener(_scheduleSave);
-    _handleCtrl.addListener(_scheduleSave);
     _taglineCtrl.addListener(_scheduleSave);
-    _locationCtrl.addListener(_scheduleSave);
     unawaited(_load());
   }
 
@@ -73,13 +81,11 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.row.siteIid != widget.row.siteIid) {
       _nameCtrl.text = widget.row.name;
-      _handleCtrl.text = widget.row.alienId;
       _pic = widget.row.pic;
       unawaited(_load());
     } else if (oldWidget.row.name != widget.row.name || oldWidget.row.alienId != widget.row.alienId || oldWidget.row.pic != widget.row.pic) {
       _suppressSave = true;
       _nameCtrl.text = widget.row.name;
-      _handleCtrl.text = widget.row.alienId;
       _pic = widget.row.pic;
       _suppressSave = false;
     }
@@ -89,9 +95,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   void dispose() {
     _saveTimer?.cancel();
     _nameCtrl.dispose();
-    _handleCtrl.dispose();
     _taglineCtrl.dispose();
-    _locationCtrl.dispose();
     super.dispose();
   }
 
@@ -103,7 +107,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       _taglineCtrl.text = siteMetaTaglineRead(meta);
       _hours = siteScheduleSlotsFromMetaJson(meta);
       siteMetaLocationRead(meta, (label, href, lat, lng) {
-        _locationCtrl.text = label;
+        _locationLabel = label;
         _lat = lat;
         _lng = lng;
       });
@@ -127,24 +131,20 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     _scheduleSave();
   }
 
-  SiteInfoSnapshot _snapshot() {
-    final label = _locationCtrl.text.trim();
-    return SiteInfoSnapshot(
-      name: _nameCtrl.text.trim(),
-      tagline: _taglineCtrl.text.trim(),
-      pic: _pic,
-      locationLabel: label,
-      locationHref: siteLocationHrefBuild(label: label, lat: _lat, lng: _lng),
-      latitude: _lat,
-      longitude: _lng,
-      openHours: _hours,
-    );
-  }
+  SiteInfoSnapshot _snapshot() => SiteInfoSnapshot(
+        name: _nameCtrl.text.trim(),
+        tagline: _taglineCtrl.text.trim(),
+        pic: _pic,
+        locationLabel: _locationLabel.trim(),
+        locationHref: siteLocationHrefBuild(label: _locationLabel.trim(), lat: _lat, lng: _lng),
+        latitude: _lat,
+        longitude: _lng,
+        openHours: _hours,
+      );
 
   Future<void> _save() async {
     await SiteEditorSaveScope.run(context, () async {
       final name = _nameCtrl.text.trim();
-      final handle = siteAlienIdSlug(_handleCtrl.text);
       if (name.isNotEmpty && name != widget.row.name) {
         final res = await widget.api.conn.identityPut(ReqIdentityPut(
           iid: widget.row.siteIid,
@@ -154,16 +154,8 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
           alienId: widget.row.alienId,
         ));
         if (res.hasRow()) {
-          final next = widget.row.clone()..name = res.row.identity.name;
-          widget.onRowChanged(next);
+          widget.onRowChanged(widget.row.clone()..name = res.row.identity.name);
         }
-      }
-      if (handle.isNotEmpty && handle != widget.row.alienId) {
-        final err = siteHandleFormatError(handle);
-        if (err != null) throw err;
-        final res = await widget.api.handlePut(widget.siteIid, handle);
-        final next = widget.row.clone()..alienId = res.alienId;
-        widget.onRowChanged(next);
       }
       final draft = await widget.api.draftGet(widget.siteIid);
       final next = draft.clone();
@@ -173,14 +165,60 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     });
   }
 
-  Future<void> _pickAvatar() async {
-    final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false, maxCount: 1);
-    if (staged == null || staged.isEmpty) return;
-    final file = staged.first;
-    final up = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
-    if (up == null || up.hash.isEmpty) return;
-    if (!mounted) return;
-    final pic = fileStoragePath(up.hash);
+  Future<void> _changeHandle() async {
+    final hasHandle = widget.row.alienId.trim().isNotEmpty;
+    final picked = await ioSiteHandleClaimDialogOpen(
+      context,
+      siteName: _nameCtrl.text.trim().isEmpty ? widget.row.name : _nameCtrl.text.trim(),
+      initialHandle: hasHandle ? widget.row.alienId : siteAlienIdSlug(_nameCtrl.text),
+      isChange: hasHandle,
+    );
+    if (picked == null || picked.isEmpty || picked == widget.row.alienId) return;
+    await SiteEditorSaveScope.run(context, () async {
+      final res = await widget.api.handlePut(widget.siteIid, picked);
+      widget.onRowChanged(widget.row.clone()..alienId = res.alienId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Handle updated: @$siteUrlPrefix${res.alienId}'), behavior: SnackBarBehavior.floating),
+      );
+    });
+  }
+
+  Future<void> _chooseAvatar() async {
+    final choice = await showModalBottomSheet<_AvatarChoice>(
+      context: context,
+      backgroundColor: _sheetBg,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.upload_outlined, color: _text),
+              title: const Text('Upload', style: TextStyle(color: _text)),
+              onTap: () => Navigator.pop(ctx, _AvatarChoice.upload),
+            ),
+            ListTile(
+              leading: const UiAlienIcon(size: 24, color: _text),
+              title: const Text('Generate', style: TextStyle(color: _text)),
+              onTap: () => Navigator.pop(ctx, _AvatarChoice.generate),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case _AvatarChoice.upload:
+        await _pickAvatar();
+      case _AvatarChoice.generate:
+        await _generateAvatar();
+    }
+  }
+
+  Future<void> _commitPic(String pic) async {
     await SiteEditorSaveScope.run(context, () async {
       final res = await widget.api.conn.identityPut(ReqIdentityPut(
         iid: widget.row.siteIid,
@@ -199,6 +237,37 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
         widget.onDraftSaved?.call();
       }
     });
+  }
+
+  Future<void> _pickAvatar() async {
+    final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false, maxCount: 1);
+    if (staged == null || staged.isEmpty) return;
+    final file = staged.first;
+    final up = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
+    if (up == null || up.hash.isEmpty) return;
+    if (!mounted) return;
+    await _commitPic(fileStoragePath(up.hash));
+  }
+
+  Future<void> _generateAvatar() async {
+    final result = await askImageGenerate(
+      context,
+      conn: widget.api.conn,
+      slot: ImageGenerateSlot.siteIcon,
+      name: _nameCtrl.text,
+      desc: _taglineCtrl.text,
+    );
+    if (result == null || result.hash.isEmpty || !mounted) return;
+    await _commitPic(fileStoragePath(result.hash));
+  }
+
+  void _onLocationChanged(GeoPointValue v) {
+    setState(() {
+      _locationLabel = v.label;
+      _lat = v.latitude;
+      _lng = v.longitude;
+    });
+    _scheduleSave();
   }
 
   InputDecoration _fieldDecoration(String label, {Widget? suffixIcon}) => InputDecoration(
@@ -227,6 +296,8 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       );
     }
     final picUrl = _pic.isNotEmpty ? guestSitePicUrl(_pic) : '';
+    final handle = widget.row.alienId.trim();
+    final handlePreview = handle.isNotEmpty ? '$siteUrlPrefix$handle' : 'Tap to claim your site link';
     return UiSiteEditorFormScroll(
       children: [
         const Text('Site info', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
@@ -237,7 +308,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
-              onTap: _pickAvatar,
+              onTap: () => unawaited(_chooseAvatar()),
               customBorder: const CircleBorder(),
               child: CircleAvatar(
                 radius: 32,
@@ -252,20 +323,29 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
                 children: [
                   TextField(controller: _nameCtrl, style: const TextStyle(color: _text, fontSize: 14), decoration: _fieldDecoration('Site name')),
                   const SizedBox(height: 12),
-                  TextField(
-                    controller: _handleCtrl,
-                    style: const TextStyle(color: _text, fontSize: 14),
-                    decoration: _fieldDecoration('Alien ID', suffixIcon: const Padding(padding: EdgeInsets.only(top: 12), child: Text('@', style: TextStyle(color: _muted)))),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_-]')),
-                      TextInputFormatter.withFunction((old, neu) => neu.copyWith(text: neu.text.toLowerCase())),
-                    ],
-                  ),
-                  if (_handleCtrl.text.trim().isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text('$siteUrlPrefix${siteAlienIdSlug(_handleCtrl.text)}', style: const TextStyle(color: _muted, fontSize: 11)),
+                  InkWell(
+                    onTap: () => unawaited(_changeHandle()),
+                    borderRadius: BorderRadius.circular(UiInputDecoration.kRadius),
+                    child: InputDecorator(
+                      decoration: UiInputDecoration.of(context, labelText: 'Site link'),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              handlePreview,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: handle.isNotEmpty ? _text : _muted,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.chevron_right, size: 20, color: _muted.withValues(alpha: 0.7)),
+                        ],
+                      ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -287,14 +367,12 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
           ),
         ),
         const SizedBox(height: 12),
-        InSiteLocation(
-          controller: _locationCtrl,
-          onChanged: _scheduleSave,
-          onDevicePick: (lat, lng, label) {
-            _lat = lat;
-            _lng = lng;
-            _scheduleSave();
-          },
+        InGeoPoint(
+          baseUrl: _geoBaseUrl,
+          locationLabel: _locationLabel,
+          latitude: _lat,
+          longitude: _lng,
+          onChanged: _onLocationChanged,
         ),
         const SizedBox(height: 16),
         InSiteSchedule(

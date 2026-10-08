@@ -21,6 +21,8 @@ const _enFallback = <String, String>{
   'tool.web.research.done': 'Researched {{query}}',
   'tool.img.generate.calling': 'Generating image…',
   'tool.img.generate.done': 'Generated image',
+  'tool.site.pic.generate.calling': 'Generating site image…',
+  'tool.site.pic.generate.done': 'Updated site image',
   'tool.img.edit.calling': 'Editing image…',
   'tool.img.edit.done': 'Edited image',
   'chat.image.upgrade_hd': 'Upgrade to HD',

@@ -37,6 +37,7 @@ class _PageReferralTreeState extends State<PageReferralTree> {
   String? _error;
   List<ReferralTreeNode> _nodes = [];
   Map<String, int> _percentages = {};
+  int _platformUserCount = 0;
   var _expandingId = 0;
   late var _rootId = _initialRootId;
   var _focusId = 0;
@@ -50,11 +51,14 @@ class _PageReferralTreeState extends State<PageReferralTree> {
 
   bool get _wideAccess => referralTreeWideAccess(viewerId: widget.viewerId, nodes: _nodes);
 
+  int get _forestLoadDepth => referralTreeWideAccess(viewerId: widget.viewerId, nodes: const []) ? 1 : 2;
+
   void _applySlice(ReferralTreeSlice slice) {
     final shareResult = referralSharesFromBranchList(slice.nodes, slice.branchShares);
     setState(() {
       _nodes = List<ReferralTreeNode>.from(slice.nodes);
       _percentages = shareResult.shares;
+      if (slice.platformUserCount > 0) _platformUserCount = slice.platformUserCount.toInt();
     });
   }
 
@@ -73,14 +77,15 @@ class _PageReferralTreeState extends State<PageReferralTree> {
     setState(() {
       _nodes = List<ReferralTreeNode>.from(merged.nodes);
       _percentages = shareResult.shares;
+      if (incoming.platformUserCount > 0) _platformUserCount = incoming.platformUserCount.toInt();
     });
   }
 
-  Future<ReferralTreeSlice> _treeGet({required int rootId, int depth = 2}) async {
+  Future<ReferralTreeSlice> _treeGet({required int rootId, int? depth}) async {
     final res = await widget.conn.invoke(
       InvokeReq(
         reqId: const Uuid().v4(),
-        referralTreeGet: ReqReferralTreeGet(rootId: Int64(rootId), depth: depth),
+        referralTreeGet: ReqReferralTreeGet(rootId: Int64(rootId), depth: depth ?? _forestLoadDepth),
       ),
       timeout: const Duration(seconds: 8),
     );
@@ -293,7 +298,7 @@ class _PageReferralTreeState extends State<PageReferralTree> {
       }
     });
     try {
-      final slice = await _treeGet(rootId: loadRoot, depth: 2);
+      final slice = await _treeGet(rootId: loadRoot);
       if (!mounted) return;
       _applySlice(slice);
       setState(() {
@@ -359,9 +364,20 @@ class _PageReferralTreeState extends State<PageReferralTree> {
     }
   }
 
+  String _treeTitle() {
+    if (_platformUserCount <= 0) return 'Referral tree';
+    final s = _platformUserCount.toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      if (i > 0 && (s.length - i) % 3 == 0) buf.write(',');
+      buf.write(s[i]);
+    }
+    return 'Referral tree · ${buf.toString()} users';
+  }
+
   @override
   Widget build(BuildContext context) => UiPage(
-        title: 'Referral tree',
+        title: _searchOpen ? 'Referral tree' : _treeTitle(),
         onBack: () => Navigator.pop(context),
         titleWidget: _searchOpen ? _searchTitle() : null,
         trailing: _pageTrailing(context),

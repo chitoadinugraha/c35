@@ -55,11 +55,17 @@ pub fn spawn_image_optimize(
         }
         let sem = image_optimize_sem();
         let Ok(_permit) = sem.acquire().await else {
-            image_optimize_inflight().lock().await.remove(&canonical_hash);
+            image_optimize_inflight()
+                .lock()
+                .await
+                .remove(&canonical_hash);
             return;
         };
         let run = image_optimize_run(&pool, &cas_dir, &secret, &canonical_hash, &mime_type).await;
-        image_optimize_inflight().lock().await.remove(&canonical_hash);
+        image_optimize_inflight()
+            .lock()
+            .await
+            .remove(&canonical_hash);
         if let Err(e) = run {
             tracing::warn!("image optimize {canonical_hash}: {e}");
         }
@@ -91,11 +97,10 @@ async fn image_optimize_run(
 
     let need_thumb = variants.get("thumb").is_none();
     let need_small = variants.get("small").is_none();
-    let encoded = tokio::task::spawn_blocking(move || {
-        image_optimize_encode(&bytes, need_thumb, need_small)
-    })
-    .await
-    .map_err(|e| e.to_string())??;
+    let encoded =
+        tokio::task::spawn_blocking(move || image_optimize_encode(&bytes, need_thumb, need_small))
+            .await
+            .map_err(|e| e.to_string())??;
 
     if let Some(body) = encoded.thumb {
         let put = cas_put(pool, cas_dir, secret, &body, "image/webp")

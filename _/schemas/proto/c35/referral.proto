@@ -34,11 +34,15 @@ message ReferralTreeNode {
   bool is_root = 8;
   bool is_banned = 9;
   repeated string global_roles = 10;
+  // Mailboxes the user can access (mail.mailbox_member), same basis as mail.mailbox.list.
+  int32 mailbox_count = 11;
 }
 
 message ReferralTreeSlice {
   repeated ReferralTreeNode nodes = 1;
   repeated ReferralShareDoc branch_shares = 2;
+  // Active user rows (kind=user, not deleted). Set on wide forest loads; cached server-side ~2m.
+  int64 platform_user_count = 3;
 }
 
 message ReqReferralShareSet {

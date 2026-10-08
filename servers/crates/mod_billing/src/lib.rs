@@ -60,8 +60,9 @@ pub use billing_pool::{
     POOL_FRONTIER, SIGNUP_TRIAL_ALIEN_IDR, SIGNUP_TRIAL_FRONTIER_IDR,
 };
 pub use billing_profile::{
-    billing_plan_pool_template, billing_profile_apply_plan_pools, billing_profile_apply_plan_rings,
-    billing_profile_deduct_rings, billing_profile_deduct_turn, billing_profile_ensure,
+    billing_frontier_try_deduct, billing_plan_pool_template, billing_profile_apply_plan_pools,
+    billing_profile_apply_plan_rings, billing_profile_deduct_rings, billing_profile_deduct_turn,
+    billing_profile_ensure,
     billing_profile_fetch, billing_profile_windows_roll, billing_signup_trial_autoclaim,
     frontier_rings_from_alien, model_uses_alien_pool, normalize_billing_period, profile_has_pools,
     profile_has_rings, profile_pool_remaining, profile_ring_remaining_usd, ring_deduct_pair,

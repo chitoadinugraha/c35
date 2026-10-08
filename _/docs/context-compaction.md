@@ -93,7 +93,7 @@ Canonical DDL: extend [`../schemas/chat.sql`](../schemas/chat.sql).
 | `CONTEXT_COMPACT_THRESHOLD_RATIO` | `0.70` | Compact when the **full unsummarized** estimate is >= this fraction of the selected window |
 | `CONTEXT_RECENT_MSG_MIN` | `8` | Always keep at least this many recent msgs verbatim |
 | `CONTEXT_RECENT_MSG_MAX` | `12` | Cap verbatim tail after packing |
-| `CONTEXT_COMPACT_MODEL` | `gemini-2.0-flash` | Cheap model for summarize + extract |
+| `CONTEXT_COMPACT_MODEL` | `c35_mod_llm::CHEAP_MODEL` (`gemini-3.1-flash-lite`) | Cheap model for summarize + extract |
 | `CONTEXT_IDLE_MINUTES` | `45` | Idle backfill after last message. **Disabled** unless `C35_CONTEXT_IDLE_COMPACT=1` (fetcher does not register the task). Per-turn memory extract stays on |
 | `CONTEXT_IDLE_MIN_MSGS` | `4` | Minimum msgs before idle extract |
 | `MEMORY_EXTRACT_MAX_PER_TURN` | `2` | Cap writes per turn |
@@ -214,7 +214,7 @@ Dedup & Embedding: `memory_put` uses `content_hash` (blake3 of `key:content`) â€
 
 ### Model & Billing
 
-- Extractor model: `gemini_model("gemini-3.1-flash-lite")` (Alien AI default light model).
+- Extractor and compact both call `c35_mod_llm::CHEAP_MODEL` (`gemini-3.1-flash-lite`).
 - Billing cost computed using the actual resolved model name via `billing_cost_usd(&resolved_model, in_tok, out_tok)`.
 
 ### Extractor v2 Actions

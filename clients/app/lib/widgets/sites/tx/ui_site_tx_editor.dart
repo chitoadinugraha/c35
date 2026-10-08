@@ -429,86 +429,16 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
 
   Future<void> _holdOrder() async {
     if (_tx.items.isEmpty) return;
-    final count = TxParkedOrders.instance.count(widget.siteIid);
-    final defaultNote = 'Order #${count + 1}';
-    final noteCtrl = TextEditingController();
-    final note = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: _border),
-        ),
-        title: const Text('Hold Order', style: TextStyle(color: _text)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Hold current cart to serve another customer.',
-              style: TextStyle(color: _muted, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: noteCtrl,
-              autofocus: true,
-              style: const TextStyle(color: _text),
-              decoration: InputDecoration(
-                labelText: 'Note (optional)',
-                labelStyle: const TextStyle(color: _muted),
-                hintText: defaultNote,
-                hintStyle: TextStyle(color: _muted.withValues(alpha: 0.6)),
-                filled: true,
-                fillColor: const Color(0xFF27272A).withValues(alpha: 0.5),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: _border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: _border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: _accent),
-                ),
-              ),
-              onSubmitted: (val) =>
-                  Navigator.of(ctx).pop(val.trim().isNotEmpty ? val.trim() : defaultNote),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: const Text('Cancel', style: TextStyle(color: _muted)),
-          ),
-          FilledButton(
-            onPressed: () {
-              final text = noteCtrl.text.trim();
-              Navigator.of(ctx).pop(text.isNotEmpty ? text : defaultNote);
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFF59E0B),
-              foregroundColor: Colors.black,
-            ),
-            child: const Text('Hold'),
-          ),
-        ],
-      ),
-    );
-    if (note == null || !mounted) return;
-
-    TxParkedOrders.instance.add(widget.siteIid, _tx, note: note);
+    final parked = TxParkedOrders.instance.add(widget.siteIid, _tx);
     setState(() {
       _tx = _txApi.newSale(widget.siteIid);
     });
     await _refreshPreview();
     if (mounted) {
+      final customer = parkedTxCustomerLabel(parked.tx);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Order "$note" held'),
+          content: Text('Held $customer · ${parked.note}'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -519,6 +449,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
     final recalled = await showTransaksiParkedDialog(
       context: context,
       siteIid: widget.siteIid,
+      products: _products,
     );
     if (recalled == null || !mounted) return;
 

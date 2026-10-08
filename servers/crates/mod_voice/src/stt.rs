@@ -133,7 +133,7 @@ pub async fn gemini_stt(client: &reqwest::Client, audio: &[u8], mime: &str, _lan
     } else {
         mime.split(';').next().unwrap_or(mime).trim()
     };
-    let model = "gemini-3.1-flash-lite";
+    let model = c35_mod_llm::CHEAP_MODEL;
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
     );

@@ -29,24 +29,23 @@ pub async fn resolve_inbound_attachments_cas(
             None
         };
         if let Some((bytes, dl_mime)) = fetched {
-            if !crate::policy::inbound_bytes_allowed(bytes.len()) {
-                warn!(
-                    "[c35:channel] inbound attachment too large media_id={} bytes={}",
-                    item.media_id,
-                    bytes.len()
-                );
-                continue;
-            }
             let mime = if item.mime.is_empty() || item.mime == "application/octet-stream" {
                 dl_mime
             } else {
                 item.mime.clone()
             };
+            if !crate::policy::inbound_attachment_allowed(&mime, &item.name, bytes.len()) {
+                warn!(
+                    "[c35:channel] inbound attachment rejected media_id={} bytes={} mime={}",
+                    item.media_id,
+                    bytes.len(),
+                    mime
+                );
+                continue;
+            }
             if let Ok(put) = c35_mod_file::cas_put(&state.pool, &state.cas_dir, &state.cas_secret, &bytes, &mime).await {
-                if crate::policy::inbound_attachment_allowed(&mime) {
-                    item.hash = put.hash;
-                    item.mime = mime;
-                }
+                item.hash = put.hash;
+                item.mime = mime;
             }
         }
     }

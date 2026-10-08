@@ -14,6 +14,7 @@ sqlx = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
 c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
+c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
 c35_mod_log = { path = "../mod_log", package = "c35_mod_log" }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_store = { path = "../store", package = "c35_store" }

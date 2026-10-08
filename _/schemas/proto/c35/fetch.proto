@@ -15,3 +15,9 @@ message FetchLlmCatalogPush {
   int64 sync_ts_ms = 1;
   int32 model_count = 2;
 }
+
+// Published by c35-fetcher on c35.fetch.platform.stats (~1m); also stored in JetStream KV c35_stats platform/user_count.
+message FetchPlatformStatsPush {
+  int64 platform_user_count = 1;
+  int64 ts_ms = 2;
+}

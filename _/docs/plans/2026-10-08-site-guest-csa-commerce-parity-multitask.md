@@ -297,7 +297,7 @@ flutter test test/guest_site_view_test.dart test/guest_site_cart_test.dart
 | Item | Reason |
 |------|--------|
 | CSA Alpine bundle / `site.js` as-is | c35 locked to vanilla `site-guest.v1.js` |
-| Full HR (`site_member`, payroll, face enroll) | [`site.md`](../site.md) deferred; staff via `identity_grant` in app |
+| Full HR (`site_member`, payroll, face enroll) | **Superseded for Team editor** by [`2026-10-08-site-team-editor-csa-parity-multitask.md`](2026-10-08-site-team-editor-csa-parity-multitask.md): ACL stays `identity_grant` (no `site_member`); Team ships shifts / face enroll storage / transfer. Attendance **clock-in**, payroll, POS face matching still deferred — see [`site.md`](../site.md) **Team** |
 | CSA MQTT `site/{id}/notify` | Replace with NATS app lane |
 | Guest SSE subscribe | v1.1 after poll ship |
 | Pixel-perfect Flutter ≡ web | Dual renderer allows similar, not identical |

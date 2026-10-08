@@ -66,13 +66,14 @@ When `identity.meta.active` is **false**, `channel_inbound_handle` still resolve
 
 ---
 
-## 4. Media Pipeline (Images only)
+## 4. Media Pipeline (Images, PDF, Word, and PowerPoint)
 
 ### Inbound
 - **1:1 only** — ignore WhatsApp Status (`status@broadcast`), groups, newsletters, broadcast lists, and Meta Cloud reactions; Telegram non-`private` chats and channel posts.
-- **Images only** (`image/*`), max **5 MiB** per file (`CHANNEL_INBOUND_IMAGE_MAX_BYTES`).
-- Voice, video, documents, stickers: not downloaded for LLM; unsupported-only messages get `CHANNEL_UNSUPPORTED_REPLY`.
-- **CAS Resolution**: `resolve_inbound_attachments_cas` downloads raw bytes from Telegram or WhatsApp and saves into Content Addressable Storage (`cas_put`), setting `item.hash`. The multimodal LLM turn receives the CAS hash for vision/multimodal processing.
+- **Images**: `image/*` up to **5 MiB** per file (`CHANNEL_INBOUND_IMAGE_MAX_BYTES`).
+- **Documents**: `application/pdf`; `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (`.docx`); `application/vnd.openxmlformats-officedocument.presentationml.presentation` (`.pptx`). Extension fallback: `.pdf`, `.docx`, `.pptx`. Each document is at most **8 MiB** (`CHANNEL_DOC_MAX_BYTES`).
+- Still dropped: voice notes, zip, exe, xlsx, and legacy `.doc` / `.ppt`. Voice, video, and stickers are not downloaded for the LLM; unsupported-only messages get `CHANNEL_UNSUPPORTED_REPLY`.
+- **CAS Resolution**: `resolve_inbound_attachments_cas` downloads raw bytes from Telegram or WhatsApp and saves into Content Addressable Storage (`cas_put`), setting `item.hash`. Allowed documents are stored in CAS like images. The multimodal LLM turn receives the CAS hash for vision/multimodal processing of images. The channel prompt gets an outline fence only (untrusted attached data, not instructions). Body text is via tool `doc.extract`. OCR cost, if any, rides the existing channel `billing_usage_report` `extra_cost_usd`. No second charge id.
 
 ### Outbound
 - **Telegram**:

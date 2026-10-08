@@ -77,6 +77,21 @@ Env:
 
 Pre-flight: `image_tier_retail_usd(&tier)` before API call. Post-charge: `wholesale_usd` from tool result × 1.5 retail markup.
 
+Chat `img.generate` still uses `billing_can_afford_tool` (frontier ring, alien ring, then wallet).
+
+Editor and site-asset generation use `asset_image_generate` (`servers/crates/mod_chat/src/tools/asset_image.rs`). That path calls `billing_frontier_try_deduct` **before** the provider. A short frontier ring returns the error `Not enough frontier quota` and does not call the image API and does not charge the alien ring or the wallet.
+
+The Flutter dialog is `askImageGenerate` (`clients/app/lib/widgets/media/ui_ask_image_generate.dart`). Slots:
+
+| Slot | Default prompt |
+|------|----------------|
+| `product`, `productExtra` | Photorealistic product photo of {name}, studio lighting, centered, plain background, no text, no logo, no watermark |
+| `siteIcon` | Simple app icon of {name}, flat graphic mark, centered, plain background, no text, no letters, no watermark |
+
+A non-empty description is inserted after the name. The textarea stays editable. The dialog caption is `This uses your frontier API quota.` Provider choices are `auto`, `gemini`, and `grok`, starting from the user's image generation setting. Regenerate appends another result. Use image returns the selected one.
+
+`askMedia(..., allowGenerate: false)` is the default. Only callers that pass `allowGenerate: true` (product extra photos) offer Generate. Consumption pickers do not.
+
 ---
 
 ## Related

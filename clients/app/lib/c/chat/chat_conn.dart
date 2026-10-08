@@ -1036,6 +1036,12 @@ class ChatConn {
         (res) => res.siteProductPut,
       );
 
+  Future<ResImgGenerate> imgGenerate({required String prompt, required String provider}) =>
+      _rpc<ResImgGenerate>(
+        WsReq(imgGenerate: ReqImgGenerate(prompt: prompt, provider: provider)),
+        (res) => res.imgGenerate,
+      );
+
   Future<ResSiteProductDelete> siteProductDelete(int siteIid, int productId) => _rpc<ResSiteProductDelete>(
         WsReq(siteProductDelete: ReqSiteProductDelete(siteIid: Int64(siteIid), productId: Int64(productId))),
         (res) => res.siteProductDelete,
@@ -1087,14 +1093,23 @@ class ChatConn {
         (res) => res.siteGrantList,
       );
 
-  Future<ResSiteGrantPut> siteGrantPut(int siteIid, {Int64 granteeIid = Int64.ZERO, String granteeAlienId = '', required String role}) =>
+  Future<ResSiteGrantPut> siteGrantPut(
+    int siteIid, {
+    Int64 granteeIid = Int64.ZERO,
+    String granteeAlienId = '',
+    String granteeEmail = '',
+    required String role,
+    List<String> workShiftIds = const [],
+  }) =>
       _rpc<ResSiteGrantPut>(
         WsReq(
           siteGrantPut: ReqSiteGrantPut(
             siteIid: Int64(siteIid),
             granteeIid: granteeIid,
             granteeAlienId: granteeAlienId,
+            granteeEmail: granteeEmail,
             role: role,
+            workShiftIds: workShiftIds,
           ),
         ),
         (res) => res.siteGrantPut,
@@ -1103,6 +1118,68 @@ class ChatConn {
   Future<ResSiteGrantDelete> siteGrantDelete(int siteIid, int granteeIid) => _rpc<ResSiteGrantDelete>(
         WsReq(siteGrantDelete: ReqSiteGrantDelete(siteIid: Int64(siteIid), granteeIid: Int64(granteeIid))),
         (res) => res.siteGrantDelete,
+      );
+
+  Future<ResSiteWorkShiftList> siteWorkShiftList(int siteIid) => _rpc<ResSiteWorkShiftList>(
+        WsReq(siteWorkShiftList: ReqSiteWorkShiftList(siteIid: Int64(siteIid))),
+        (res) => res.siteWorkShiftList,
+      );
+
+  Future<ResSiteWorkShiftPut> siteWorkShiftPut(int siteIid, List<SiteWorkShift> shifts) => _rpc<ResSiteWorkShiftPut>(
+        WsReq(siteWorkShiftPut: ReqSiteWorkShiftPut(siteIid: Int64(siteIid), shifts: shifts)),
+        (res) => res.siteWorkShiftPut,
+      );
+
+  Future<ResSiteTransferOwnership> siteTransferOwnership(int siteIid, int targetIid) =>
+      _rpc<ResSiteTransferOwnership>(
+        WsReq(siteTransferOwnership: ReqSiteTransferOwnership(siteIid: Int64(siteIid), targetIid: Int64(targetIid))),
+        (res) => res.siteTransferOwnership,
+      );
+
+  Future<ResSiteMemberFaceList> siteMemberFaceList(int siteIid, int granteeIid) => _rpc<ResSiteMemberFaceList>(
+        WsReq(siteMemberFaceList: ReqSiteMemberFaceList(siteIid: Int64(siteIid), granteeIid: Int64(granteeIid))),
+        (res) => res.siteMemberFaceList,
+      );
+
+  Future<ResSiteMemberFacePut> siteMemberFacePut(
+    int siteIid,
+    int granteeIid, {
+    required String fileHash,
+    String pose = '',
+  }) =>
+      _rpc<ResSiteMemberFacePut>(
+        WsReq(
+          siteMemberFacePut: ReqSiteMemberFacePut(
+            siteIid: Int64(siteIid),
+            granteeIid: Int64(granteeIid),
+            fileHash: fileHash,
+            pose: pose,
+          ),
+        ),
+        (res) => res.siteMemberFacePut,
+      );
+
+  Future<ResSiteMemberFaceDel> siteMemberFaceDel(int siteIid, int granteeIid, String faceId) =>
+      _rpc<ResSiteMemberFaceDel>(
+        WsReq(
+          siteMemberFaceDel: ReqSiteMemberFaceDel(
+            siteIid: Int64(siteIid),
+            granteeIid: Int64(granteeIid),
+            faceId: faceId,
+          ),
+        ),
+        (res) => res.siteMemberFaceDel,
+      );
+
+  Future<ResSitePresenceLocationList> sitePresenceLocationList(int siteIid) => _rpc<ResSitePresenceLocationList>(
+        WsReq(sitePresenceLocationList: ReqSitePresenceLocationList(siteIid: Int64(siteIid))),
+        (res) => res.sitePresenceLocationList,
+      );
+
+  Future<ResSitePresenceLocationPut> sitePresenceLocationPut(int siteIid, List<SitePresenceLocation> locations) =>
+      _rpc<ResSitePresenceLocationPut>(
+        WsReq(sitePresenceLocationPut: ReqSitePresenceLocationPut(siteIid: Int64(siteIid), locations: locations)),
+        (res) => res.sitePresenceLocationPut,
       );
 
   Future<ResSiteQueueList> siteQueueList(int siteIid) => _rpc<ResSiteQueueList>(

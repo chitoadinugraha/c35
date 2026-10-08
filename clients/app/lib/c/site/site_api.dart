@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/site/collection_def.dart';
@@ -224,6 +225,13 @@ class SiteApi {
     } else if (out.productId <= Int64.ZERO) {
       throw 'product put failed';
     }
+    // Empty pic => icon id from the put response. A photo clears it.
+    final returnedIcon = res.icon.trim();
+    if (returnedIcon.isNotEmpty) {
+      out.icon = returnedIcon;
+    } else if (out.pic.trim().isNotEmpty) {
+      out.icon = '';
+    }
     return out;
   }
 
@@ -327,14 +335,74 @@ class SiteApi {
     return res.grants;
   }
 
-  Future<void> grantPut(int siteIid, {Int64 granteeIid = Int64.ZERO, String granteeAlienId = '', required String role}) async {
-    final res = await conn.siteGrantPut(siteIid, granteeIid: granteeIid, granteeAlienId: granteeAlienId, role: role);
+  Future<void> grantPut(
+    int siteIid, {
+    Int64 granteeIid = Int64.ZERO,
+    String granteeAlienId = '',
+    String granteeEmail = '',
+    required String role,
+    List<String> workShiftIds = const [],
+  }) async {
+    final res = await conn.siteGrantPut(
+      siteIid,
+      granteeIid: granteeIid,
+      granteeAlienId: granteeAlienId,
+      granteeEmail: granteeEmail,
+      role: role,
+      workShiftIds: workShiftIds,
+    );
     if (!res.ok) throw 'grant put failed';
   }
 
   Future<void> grantDelete(int siteIid, int granteeIid) async {
     final res = await conn.siteGrantDelete(siteIid, granteeIid);
     if (!res.ok) throw 'grant delete failed';
+  }
+
+  Future<List<SiteMemberFacePhoto>> memberFaceList(int siteIid, int granteeIid) async {
+    final res = await conn.siteMemberFaceList(siteIid, granteeIid);
+    return res.faces;
+  }
+
+  Future<SiteMemberFacePhoto> memberFacePut(
+    int siteIid,
+    int granteeIid, {
+    required String fileHash,
+    String pose = '',
+  }) async {
+    final res = await conn.siteMemberFacePut(siteIid, granteeIid, fileHash: fileHash, pose: pose);
+    if (!res.hasFace()) throw 'member face put failed';
+    return res.face;
+  }
+
+  Future<void> memberFaceDel(int siteIid, int granteeIid, String faceId) async {
+    final res = await conn.siteMemberFaceDel(siteIid, granteeIid, faceId);
+    if (!res.ok) throw 'member face del failed';
+  }
+
+  Future<List<SitePresenceLocation>> presenceLocationList(int siteIid) async {
+    final res = await conn.sitePresenceLocationList(siteIid);
+    return res.locations;
+  }
+
+  Future<void> presenceLocationPut(int siteIid, List<SitePresenceLocation> locations) async {
+    final res = await conn.sitePresenceLocationPut(siteIid, locations);
+    if (!res.ok) throw 'presence location put failed';
+  }
+
+  Future<void> transferOwnership(int siteIid, int targetIid) async {
+    final res = await conn.siteTransferOwnership(siteIid, targetIid);
+    if (!res.ok) throw 'transfer ownership failed';
+  }
+
+  Future<List<SiteWorkShift>> workShiftList(int siteIid) async {
+    final res = await conn.siteWorkShiftList(siteIid);
+    return res.shifts;
+  }
+
+  Future<void> workShiftPut(int siteIid, List<SiteWorkShift> shifts) async {
+    final res = await conn.siteWorkShiftPut(siteIid, shifts);
+    if (!res.ok) throw 'work shift put failed';
   }
 
   Future<List<SiteQueue>> queueList(int siteIid) async {

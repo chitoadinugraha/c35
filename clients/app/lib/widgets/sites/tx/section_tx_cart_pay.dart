@@ -23,6 +23,7 @@ class SectionTxCartPay extends StatelessWidget {
     required this.onCheckout,
     this.onPrintUnpaid,
     this.cartDiscountEnabled = true,
+    this.lineCount = 0,
   });
 
   final Int64 grossSubtotal;
@@ -36,6 +37,7 @@ class SectionTxCartPay extends StatelessWidget {
   final VoidCallback? onCheckout;
   final VoidCallback? onPrintUnpaid;
   final bool cartDiscountEnabled;
+  final int lineCount;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +50,10 @@ class SectionTxCartPay extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Subtotal Produk', style: TextStyle(color: _muted, fontSize: 12)),
+            Text(
+              'Subtotal (${moneyFmtIdrGrouped(lineCount)}) produk',
+              style: const TextStyle(color: _muted, fontSize: 12),
+            ),
             Text(moneyFmtIdr(grossSubtotal.toInt()), style: const TextStyle(color: _text, fontSize: 12)),
           ],
         ),
@@ -70,31 +75,35 @@ class SectionTxCartPay extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              InkWell(
-                onTap: onCartDiscount,
-                borderRadius: BorderRadius.circular(4),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.local_offer_outlined,
-                        size: 13,
-                        color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        cartDiscountTotal > Int64.ZERO ? 'Diskon Transaksi' : 'Tambah Diskon',
-                        style: TextStyle(
-                          color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.local_offer_outlined,
+                    size: 13,
+                    color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
                   ),
-                ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Diskon',
+                    style: TextStyle(
+                      color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (onCartDiscount != null) ...[
+                    const SizedBox(width: 2),
+                    InkWell(
+                      onTap: onCartDiscount,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: Icon(Icons.add, size: 16, color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               if (cartDiscountTotal > Int64.ZERO)
                 Text(

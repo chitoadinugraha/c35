@@ -255,13 +255,13 @@ CREATE INDEX IF NOT EXISTS idx_site_product_embed_product
     ON site.product_embed (site_iid, product_id)
     WHERE deleted_ts IS NULL;
 
--- Global product-name to default Iconify id. Shared across sites.
+-- Global product-name → default Iconify id. Shared across sites.
 -- name_key is product_icon_name_key(name). icon is an id from the Rust kind catalog.
 CREATE TABLE IF NOT EXISTS site.product_icon (
     name_key    TEXT PRIMARY KEY,
     icon        TEXT NOT NULL,
     kind        TEXT NOT NULL,
-    source      TEXT NOT NULL,
+    source      TEXT NOT NULL,          -- rule | llm
     model       TEXT NOT NULL DEFAULT '',
     created_ts  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -467,3 +467,108 @@ CREATE TABLE IF NOT EXISTS site.queue_ticket (
 CREATE INDEX IF NOT EXISTS idx_site_queue_ticket_queue
     ON site.queue_ticket (site_iid, queue_id, ticket_no DESC)
     WHERE deleted_ts IS NULL;
+
+-- ------------------------------------------------------------------------------
+-- HR — work shifts, geo presence, face enrollment (CSA parity; ACL stays in ai.identity_grant)
+-- Attendance events / payroll → later modules. No site_member table.
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS site.work_shift (
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    shift_id            TEXT NOT NULL,
+    name                TEXT NOT NULL DEFAULT '',
+    attendance_method   VARCHAR(32) NOT NULL DEFAULT 'button',
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order          INT NOT NULL DEFAULT 0,
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ,
+
+    PRIMARY KEY (site_iid, shift_id),
+    CONSTRAINT chk_site_work_shift_id_nonempty CHECK (btrim(shift_id) <> ''),
+    CONSTRAINT chk_site_work_shift_attendance_method CHECK (
+        attendance_method IN ('button', 'gps', 'gps_selfie', 'gps_selfie_face', 'cctv_walkby')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_work_shift_site_active
+    ON site.work_shift (site_iid, sort_order)
+    WHERE deleted_ts IS NULL AND is_active = TRUE;
+
+CREATE TABLE IF NOT EXISTS site.work_shift_slot (
+    site_iid            BIGINT NOT NULL,
+    shift_id            TEXT NOT NULL,
+    slot_id             TEXT NOT NULL,
+    start_day           INT NOT NULL,
+    start_min           INT NOT NULL,
+    end_day             INT NOT NULL,
+    end_min             INT NOT NULL,
+
+    PRIMARY KEY (site_iid, shift_id, slot_id),
+    FOREIGN KEY (site_iid, shift_id) REFERENCES site.work_shift (site_iid, shift_id) ON DELETE CASCADE,
+    CONSTRAINT chk_site_work_shift_slot_id_nonempty CHECK (btrim(slot_id) <> ''),
+    CONSTRAINT chk_site_work_shift_slot_start_day CHECK (start_day BETWEEN 0 AND 6),
+    CONSTRAINT chk_site_work_shift_slot_start_min CHECK (start_min BETWEEN 0 AND 1439),
+    CONSTRAINT chk_site_work_shift_slot_end_day CHECK (end_day BETWEEN 0 AND 6),
+    CONSTRAINT chk_site_work_shift_slot_end_min CHECK (end_min BETWEEN 0 AND 1439)
+);
+
+-- Member-shift assignment (grantee is logical identity; no FK to identity_grant / site_member)
+CREATE TABLE IF NOT EXISTS site.member_shift (
+    site_iid            BIGINT NOT NULL,
+    grantee_iid         BIGINT NOT NULL REFERENCES ai.identity(id),
+    shift_id            TEXT NOT NULL,
+
+    PRIMARY KEY (site_iid, grantee_iid, shift_id),
+    FOREIGN KEY (site_iid, shift_id) REFERENCES site.work_shift (site_iid, shift_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_member_shift_grantee
+    ON site.member_shift (site_iid, grantee_iid);
+
+CREATE TABLE IF NOT EXISTS site.presence_location (
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    location_id         TEXT NOT NULL,
+    name                TEXT NOT NULL DEFAULT '',
+    polygon             JSONB NOT NULL DEFAULT '[]',
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order          INT NOT NULL DEFAULT 0,
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ,
+
+    PRIMARY KEY (site_iid, location_id),
+    CONSTRAINT chk_site_presence_location_id_nonempty CHECK (btrim(location_id) <> '')
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_presence_location_site_active
+    ON site.presence_location (site_iid, sort_order)
+    WHERE deleted_ts IS NULL AND is_active = TRUE;
+
+-- Face enrollment photos (file hash via ai.file CAS). Empty embedding allowed until FaceNet ships.
+CREATE TABLE IF NOT EXISTS site.member_face (
+    face_id             BIGINT PRIMARY KEY,
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    grantee_iid         BIGINT NOT NULL REFERENCES ai.identity(id),
+    file_hash           TEXT NOT NULL,
+    embedding           REAL[] NOT NULL DEFAULT '{}',
+    model_version       TEXT NOT NULL DEFAULT 'none',
+    pose                TEXT NOT NULL DEFAULT '',
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order          INT NOT NULL DEFAULT 0,
+    created_by_iid      BIGINT REFERENCES ai.identity(id),
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_member_face_grantee_active
+    ON site.member_face (site_iid, grantee_iid, sort_order)
+    WHERE deleted_ts IS NULL AND is_active = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_site_member_face_site_active
+    ON site.member_face (site_iid)
+    WHERE deleted_ts IS NULL AND is_active = TRUE;

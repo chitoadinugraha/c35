@@ -5,15 +5,138 @@ import 'package:alienai_c35/c/site/guest_order_api.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+class GuestReservationSlot {
+  const GuestReservationSlot({
+    required this.start,
+    required this.end,
+    required this.units,
+    required this.durationQty,
+    this.siteObjectId = 0,
+    this.objectName = '',
+  });
+
+  final DateTime start;
+  final DateTime end;
+  final int units;
+  final int durationQty;
+  final int siteObjectId;
+  final String objectName;
+
+  Map<String, dynamic> toStoredJson() => {
+        'start_ts_ms': start.millisecondsSinceEpoch,
+        'end_ts_ms': end.millisecondsSinceEpoch,
+        'units': units,
+        'duration_qty': durationQty,
+        'site_object_id': siteObjectId,
+        'object_name': objectName,
+      };
+
+  static GuestReservationSlot? fromStoredJson(Object? raw) {
+    if (raw is! Map) return null;
+    final startMs = (raw['start_ts_ms'] as num?)?.toInt();
+    final endMs = (raw['end_ts_ms'] as num?)?.toInt();
+    if (startMs == null || endMs == null) return null;
+    return GuestReservationSlot(
+      start: DateTime.fromMillisecondsSinceEpoch(startMs),
+      end: DateTime.fromMillisecondsSinceEpoch(endMs),
+      units: (raw['units'] as num?)?.toInt() ?? 1,
+      durationQty: (raw['duration_qty'] as num?)?.toInt() ?? 1,
+      siteObjectId: (raw['site_object_id'] as num?)?.toInt() ?? 0,
+      objectName: raw['object_name']?.toString() ?? '',
+    );
+  }
+}
+
+int guestReservationLineQty(List<GuestReservationSlot> slots) {
+  var sum = 0;
+  for (final slot in slots) {
+    final duration = slot.durationQty < 1 ? 1 : slot.durationQty;
+    if (slot.units < 1) continue;
+    sum += slot.units * duration;
+  }
+  return sum;
+}
+
 class GuestSiteCartLine {
-  const GuestSiteCartLine({required this.productId, required this.name, required this.price, this.qty = 1});
+  GuestSiteCartLine({
+    required this.productId,
+    required this.name,
+    required this.price,
+    int qty = 1,
+    List<GuestReservationSlot> slots = const [],
+  })  : slots = List<GuestReservationSlot>.unmodifiable(slots),
+        qty = slots.isEmpty ? qty : guestReservationLineQty(slots);
 
   final int productId;
   final String name;
   final int price;
   final int qty;
+  final List<GuestReservationSlot> slots;
 
   int get lineTotal => price * qty;
+
+  List<Map<String, dynamic>> reservationJson() => [
+        for (final slot in slots)
+          {
+            'product_id': productId,
+            'qty': slot.units,
+            'duration_qty': slot.durationQty < 1 ? 1 : slot.durationQty,
+            'start_ts_ms': slot.start.millisecondsSinceEpoch,
+            'end_ts_ms': slot.end.millisecondsSinceEpoch,
+            'site_object_id': slot.siteObjectId,
+            'state': 'pending',
+          },
+      ];
+
+  Map<String, dynamic> orderItemJson() => {
+        'product_id': productId,
+        'qty': qty,
+        if (slots.isNotEmpty) 'reservations': reservationJson(),
+      };
+
+  Object toStoredJson() {
+    if (slots.isEmpty) return qty;
+    return {
+      'name': name,
+      'price': price,
+      'qty': qty,
+      'slots': [for (final slot in slots) slot.toStoredJson()],
+    };
+  }
+}
+
+Map<int, GuestSiteCartLine> guestCartLinesFromJsonMap(Map<dynamic, dynamic> map) {
+  final lines = <int, GuestSiteCartLine>{};
+  for (final entry in map.entries) {
+    final pid = int.tryParse(entry.key.toString());
+    if (pid == null) continue;
+    final value = entry.value;
+    if (value is num) {
+      final qty = value.toInt();
+      if (qty <= 0) continue;
+      lines[pid] = GuestSiteCartLine(productId: pid, name: 'Product $pid', price: 0, qty: qty);
+      continue;
+    }
+    if (value is! Map) continue;
+    final slots = <GuestReservationSlot>[];
+    final rawSlots = value['slots'];
+    if (rawSlots is List) {
+      for (final raw in rawSlots) {
+        final slot = GuestReservationSlot.fromStoredJson(raw);
+        if (slot != null) slots.add(slot);
+      }
+    }
+    final name = value['name']?.toString() ?? 'Product $pid';
+    final price = (value['price'] as num?)?.toInt() ?? 0;
+    if (slots.isEmpty) {
+      final qty = (value['qty'] as num?)?.toInt() ?? 0;
+      if (qty <= 0) continue;
+      lines[pid] = GuestSiteCartLine(productId: pid, name: name, price: price, qty: qty);
+      continue;
+    }
+    lines[pid] = GuestSiteCartLine(productId: pid, name: name, price: price, slots: slots);
+  }
+  return lines;
 }
 
 class GuestSiteCartController extends ChangeNotifier {
@@ -37,13 +160,9 @@ class GuestSiteCartController extends ChangeNotifier {
     try {
       final map = jsonDecode(raw);
       if (map is! Map) return;
-      _lines.clear();
-      for (final e in map.entries) {
-        final pid = int.tryParse(e.key.toString());
-        final qty = e.value is num ? e.value.toInt() : 0;
-        if (pid == null || qty <= 0) continue;
-        _lines[pid] = GuestSiteCartLine(productId: pid, name: 'Product $pid', price: 0, qty: qty);
-      }
+      _lines
+        ..clear()
+        ..addAll(guestCartLinesFromJsonMap(map));
       notifyListeners();
     } catch (_) {}
   }
@@ -52,12 +171,13 @@ class GuestSiteCartController extends ChangeNotifier {
     final p = await SharedPreferences.getInstance();
     await p.setString(
       'c35.guest.cart.v1.$siteIid',
-      jsonEncode({for (final l in _lines.values) '${l.productId}': l.qty}),
+      jsonEncode({for (final l in _lines.values) '${l.productId}': l.toStoredJson()}),
     );
   }
 
   void addProduct({required int productId, required String name, required int price}) {
     final prev = _lines[productId];
+    if (prev != null && prev.slots.isNotEmpty) return;
     _lines[productId] = GuestSiteCartLine(
       productId: productId,
       name: name,
@@ -68,12 +188,26 @@ class GuestSiteCartController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void replaceReservation({
+    required int productId,
+    required String name,
+    required int price,
+    required List<GuestReservationSlot> slots,
+  }) {
+    if (productId <= 0 || slots.isEmpty) return;
+    _lines[productId] = GuestSiteCartLine(productId: productId, name: name, price: price, slots: slots);
+    unawaited(_persist());
+    notifyListeners();
+  }
+
   void setQty(int productId, int qty) {
-    if (qty <= 0) {
+    final prev = _lines[productId];
+    if (prev == null) return;
+    if (prev.slots.isNotEmpty) {
+      if (qty <= 0) _lines.remove(productId);
+    } else if (qty <= 0) {
       _lines.remove(productId);
     } else {
-      final prev = _lines[productId];
-      if (prev == null) return;
       _lines[productId] = GuestSiteCartLine(productId: productId, name: prev.name, price: prev.price, qty: qty);
     }
     unawaited(_persist());
@@ -96,12 +230,14 @@ class GuestSiteCartController extends ChangeNotifier {
     _busy = true;
     notifyListeners();
     try {
+      final lines = _lines.values.toList(growable: false);
       final res = await GuestOrderApi.orderPut(
         siteIid: siteIid,
         customerName: customerName.trim(),
         customerPhone: phone.trim(),
         note: note.trim(),
-        items: _lines.values.map((l) => {'product_id': l.productId, 'qty': l.qty}).toList(),
+        items: [for (final l in lines) l.orderItemJson()],
+        reservations: [for (final l in lines) ...l.reservationJson()],
       );
       final tx = res['tx'];
       final txId = tx is Map ? (tx['tx_id'] as num?)?.toInt() : null;
@@ -252,20 +388,31 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
                           dense: true,
                           title: Text(l.name, style: const TextStyle(color: Colors.white, fontSize: 13)),
                           subtitle: Text('Rp ${l.lineTotal}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.remove, size: 18, color: Colors.white70),
-                                onPressed: () => widget.controller.setQty(l.productId, l.qty - 1),
-                              ),
-                              Text('${l.qty}', style: const TextStyle(color: Colors.white)),
-                              IconButton(
-                                icon: const Icon(Icons.add, size: 18, color: Colors.white70),
-                                onPressed: () => widget.controller.setQty(l.productId, l.qty + 1),
-                              ),
-                            ],
-                          ),
+                          trailing: l.slots.isEmpty
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.remove, size: 18, color: Colors.white70),
+                                      onPressed: () => widget.controller.setQty(l.productId, l.qty - 1),
+                                    ),
+                                    Text('${l.qty}', style: const TextStyle(color: Colors.white)),
+                                    IconButton(
+                                      icon: const Icon(Icons.add, size: 18, color: Colors.white70),
+                                      onPressed: () => widget.controller.setQty(l.productId, l.qty + 1),
+                                    ),
+                                  ],
+                                )
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('${l.qty}', style: const TextStyle(color: Colors.white)),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 18, color: Colors.white70),
+                                      onPressed: () => widget.controller.setQty(l.productId, 0),
+                                    ),
+                                  ],
+                                ),
                         ),
                       TextField(controller: _name, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Nama')),
                       TextField(controller: _phone, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'HP / WhatsApp')),

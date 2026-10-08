@@ -582,6 +582,16 @@ pub fn path_resolve(raw: &str) -> Result<PathBuf, String> {
             }
         }
 
+        let lower_trimmed = trimmed.to_ascii_lowercase();
+        if lower_trimmed == "__staging__" {
+            return Ok(std::env::temp_dir().join("AlienAI").join("Staging"));
+        }
+        if lower_trimmed.starts_with("__staging__\\") || lower_trimmed.starts_with("__staging__/") {
+            let staging_dir = std::env::temp_dir().join("AlienAI").join("Staging");
+            let sub = &trimmed[12..];
+            return Ok(staging_dir.join(sub));
+        }
+
         let home_opt = std::env::var("USERPROFILE")
             .or_else(|_| std::env::var("HOME"))
             .ok()

@@ -1,17 +1,53 @@
+use std::sync::OnceLock;
 use windows::core::PCWSTR;
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetCursorInfo, LoadCursorW, CURSORINFO, CURSOR_SHOWING, IDC_APPSTARTING, IDC_ARROW, IDC_CROSS,
-    IDC_HAND, IDC_HELP, IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS, IDC_SIZENWSE,
-    IDC_SIZEWE, IDC_UPARROW, IDC_WAIT,
+    GetCursorInfo, LoadCursorW, CURSORINFO, CURSOR_SHOWING, HCURSOR, IDC_APPSTARTING, IDC_ARROW,
+    IDC_CROSS, IDC_HAND, IDC_HELP, IDC_IBEAM, IDC_NO, IDC_SIZEALL, IDC_SIZENESW, IDC_SIZENS,
+    IDC_SIZENWSE, IDC_SIZEWE, IDC_UPARROW, IDC_WAIT,
 };
 
-fn same_cursor(a: windows::Win32::UI::WindowsAndMessaging::HCURSOR, id: PCWSTR) -> bool {
-    unsafe {
-        let Ok(sys) = LoadCursorW(None, id) else {
-            return false;
-        };
-        a == sys
-    }
+struct SystemCursors {
+    ibeam: Option<HCURSOR>,
+    hand: Option<HCURSOR>,
+    wait: Option<HCURSOR>,
+    appstarting: Option<HCURSOR>,
+    help: Option<HCURSOR>,
+    no: Option<HCURSOR>,
+    sizeall: Option<HCURSOR>,
+    cross: Option<HCURSOR>,
+    sizens: Option<HCURSOR>,
+    sizewe: Option<HCURSOR>,
+    sizenwse: Option<HCURSOR>,
+    sizenesw: Option<HCURSOR>,
+    uparrow: Option<HCURSOR>,
+    arrow: Option<HCURSOR>,
+}
+
+unsafe impl Send for SystemCursors {}
+unsafe impl Sync for SystemCursors {}
+
+fn load(id: PCWSTR) -> Option<HCURSOR> {
+    unsafe { LoadCursorW(None, id).ok() }
+}
+
+fn system_cursors() -> &'static SystemCursors {
+    static CURSORS: OnceLock<SystemCursors> = OnceLock::new();
+    CURSORS.get_or_init(|| SystemCursors {
+        ibeam: load(IDC_IBEAM),
+        hand: load(IDC_HAND),
+        wait: load(IDC_WAIT),
+        appstarting: load(IDC_APPSTARTING),
+        help: load(IDC_HELP),
+        no: load(IDC_NO),
+        sizeall: load(IDC_SIZEALL),
+        cross: load(IDC_CROSS),
+        sizens: load(IDC_SIZENS),
+        sizewe: load(IDC_SIZEWE),
+        sizenwse: load(IDC_SIZENWSE),
+        sizenesw: load(IDC_SIZENESW),
+        uparrow: load(IDC_UPARROW),
+        arrow: load(IDC_ARROW),
+    })
 }
 
 pub fn probe() -> &'static str {
@@ -26,43 +62,44 @@ pub fn probe() -> &'static str {
             return "arrow";
         }
         let h = info.hCursor;
-        if same_cursor(h, IDC_IBEAM) {
+        let c = system_cursors();
+        if Some(h) == c.ibeam {
             return "text";
         }
-        if same_cursor(h, IDC_HAND) {
+        if Some(h) == c.hand {
             return "click";
         }
-        if same_cursor(h, IDC_WAIT) {
+        if Some(h) == c.wait {
             return "wait";
         }
-        if same_cursor(h, IDC_APPSTARTING) {
+        if Some(h) == c.appstarting {
             return "progress";
         }
-        if same_cursor(h, IDC_HELP) {
+        if Some(h) == c.help {
             return "help";
         }
-        if same_cursor(h, IDC_NO) {
+        if Some(h) == c.no {
             return "forbidden";
         }
-        if same_cursor(h, IDC_SIZEALL) {
+        if Some(h) == c.sizeall {
             return "move";
         }
-        if same_cursor(h, IDC_CROSS) {
+        if Some(h) == c.cross {
             return "precise";
         }
-        if same_cursor(h, IDC_SIZENS) {
+        if Some(h) == c.sizens {
             return "resize_ns";
         }
-        if same_cursor(h, IDC_SIZEWE) {
+        if Some(h) == c.sizewe {
             return "resize_ew";
         }
-        if same_cursor(h, IDC_SIZENWSE) {
+        if Some(h) == c.sizenwse {
             return "resize_nwse";
         }
-        if same_cursor(h, IDC_SIZENESW) {
+        if Some(h) == c.sizenesw {
             return "resize_nesw";
         }
-        if same_cursor(h, IDC_UPARROW) || same_cursor(h, IDC_ARROW) {
+        if Some(h) == c.uparrow || Some(h) == c.arrow {
             return "arrow";
         }
         "arrow"

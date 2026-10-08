@@ -6374,6 +6374,168 @@ class ResMediaRegenerate extends $pb.GeneratedMessage {
   void clearMsgId() => $_clearField(8);
 }
 
+class ReqImgGenerate extends $pb.GeneratedMessage {
+  factory ReqImgGenerate({
+    $core.String? prompt,
+    $core.String? provider,
+  }) {
+    final result = ReqImgGenerate._();
+    if (prompt != null) result.prompt = prompt;
+    if (provider != null) result.provider = provider;
+    return result;
+  }
+
+  ReqImgGenerate._();
+
+  factory ReqImgGenerate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqImgGenerate()..mergeFromBuffer(data, registry);
+  factory ReqImgGenerate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqImgGenerate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqImgGenerate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqImgGenerate.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'prompt')
+    ..aOS(2, _omitFieldNames ? '' : 'provider')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqImgGenerate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqImgGenerate copyWith(void Function(ReqImgGenerate) updates) =>
+      super.copyWith((message) => updates(message as ReqImgGenerate))
+          as ReqImgGenerate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqImgGenerate() / ReqImgGenerate.new instead')
+  static ReqImgGenerate create() => ReqImgGenerate._();
+  static $pb.GeneratedMessage $_createMessage() => ReqImgGenerate._();
+  @$core.override
+  ReqImgGenerate createEmptyInstance() => ReqImgGenerate._();
+  @$core.pragma('dart2js:noInline')
+  static ReqImgGenerate getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqImgGenerate>(
+          ReqImgGenerate.$_createMessage);
+  static ReqImgGenerate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get prompt => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set prompt($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPrompt() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPrompt() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get provider => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set provider($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasProvider() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearProvider() => $_clearField(2);
+}
+
+class ResImgGenerate extends $pb.GeneratedMessage {
+  factory ResImgGenerate({
+    $core.String? hash,
+    $core.String? url,
+    $core.String? mime,
+    $core.String? error,
+  }) {
+    final result = ResImgGenerate._();
+    if (hash != null) result.hash = hash;
+    if (url != null) result.url = url;
+    if (mime != null) result.mime = mime;
+    if (error != null) result.error = error;
+    return result;
+  }
+
+  ResImgGenerate._();
+
+  factory ResImgGenerate.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResImgGenerate()..mergeFromBuffer(data, registry);
+  factory ResImgGenerate.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResImgGenerate()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResImgGenerate',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResImgGenerate.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'hash')
+    ..aOS(2, _omitFieldNames ? '' : 'url')
+    ..aOS(3, _omitFieldNames ? '' : 'mime')
+    ..aOS(4, _omitFieldNames ? '' : 'error')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResImgGenerate clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResImgGenerate copyWith(void Function(ResImgGenerate) updates) =>
+      super.copyWith((message) => updates(message as ResImgGenerate))
+          as ResImgGenerate;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResImgGenerate() / ResImgGenerate.new instead')
+  static ResImgGenerate create() => ResImgGenerate._();
+  static $pb.GeneratedMessage $_createMessage() => ResImgGenerate._();
+  @$core.override
+  ResImgGenerate createEmptyInstance() => ResImgGenerate._();
+  @$core.pragma('dart2js:noInline')
+  static ResImgGenerate getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResImgGenerate>(
+          ResImgGenerate.$_createMessage);
+  static ResImgGenerate? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get hash => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set hash($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasHash() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearHash() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get url => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set url($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUrl() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUrl() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get mime => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set mime($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMime() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMime() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get error => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set error($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasError() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearError() => $_clearField(4);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

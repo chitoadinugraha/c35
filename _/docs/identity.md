@@ -111,13 +111,15 @@ Adding a member: insert grant `(team, user, member)`.
 
 #### Site staff = grant on site identity
 
-(replaces csa `site_member`)
+(replaces csa `site_member` — **never** reintroduce a `site_member` table)
 
 ```
 resource_iid = site.iid
 grantee_iid  = user.iid
 role         = owner | manage | staff | guest
 ```
+
+Roles include **`guest`** (read-only, rank below `staff`). Sites → **Team** UI invites by email or alien_id, maps CSA labels `employee`→`staff` / `manager`→`manage`, and stores work shifts / face / presence under **`site.*`** HR tables — ACL stays grants only. See [`site.md`](site.md) **Team**.
 
 Staff extras (`role_tags`, payroll) → `meta` JSONB.
 

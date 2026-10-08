@@ -202,9 +202,12 @@ Set<int> referralForestDescendantIds(ReferralForestData forest, int rootId) {
   return out;
 }
 
+bool referralNodeShowsRoleBadges(ReferralTreeNode node) =>
+    node.mailboxCount > 0 || referralNodeIsRoot(node) || node.globalRoles.isNotEmpty;
+
 double referralNodeLayoutHeight(ReferralTreeNode node, {bool canExpand = false}) {
   var h = referralNodeMinHeight;
-  if (referralNodeIsRoot(node) || node.globalRoles.isNotEmpty) h += referralNodeBadgeHeight - referralNodeMinHeight;
+  if (referralNodeShowsRoleBadges(node)) h += referralNodeBadgeHeight - referralNodeMinHeight;
   if (canExpand) h += referralNodeExpandHeight;
   return h;
 }
@@ -355,5 +358,9 @@ ReferralTreeSlice referralTreeSliceMerge(ReferralTreeSlice base, ReferralTreeSli
   for (final share in incoming.branchShares) {
     if (shareSeen.add('${share.parentUid.toInt()}:${share.childUid.toInt()}')) shares.add(share);
   }
-  return ReferralTreeSlice(nodes: nodes, branchShares: shares);
+  return ReferralTreeSlice(
+    nodes: nodes,
+    branchShares: shares,
+    platformUserCount: incoming.platformUserCount > 0 ? incoming.platformUserCount : base.platformUserCount,
+  );
 }

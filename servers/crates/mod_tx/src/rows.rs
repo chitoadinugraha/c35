@@ -106,6 +106,7 @@ pub fn tx_item_reservation_from_row(r: &sqlx::postgres::PgRow) -> TxItemReservat
     TxItemReservation {
         res_id: r.get("res_id"),
         product_id: r.get("product_id"),
+        site_object_id: r.get("site_object_id"),
         qty: r.get("qty"),
         duration_qty: r.get("duration_qty"),
         note: r.get("note"),

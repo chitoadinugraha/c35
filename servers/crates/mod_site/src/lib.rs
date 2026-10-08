@@ -11,6 +11,7 @@ mod http;
 mod commerce_boot;
 pub mod guest_design;
 mod guest_product;
+mod guest_reservation;
 mod product_design;
 mod product_icon;
 mod product_icon_svg;
@@ -24,6 +25,7 @@ mod dns_verify;
 mod site_domain;
 mod site_domain_buy;
 mod site_grant;
+mod site_hr;
 mod site_draft;
 mod site_boot;
 mod site_handle;
@@ -69,8 +71,14 @@ pub use site_draft::{site_draft_get, site_draft_put};
 pub use site_handle::{site_handle_normalize, site_handle_put};
 pub use grant::site_granted_iids;
 pub use site_grant::{
-    site_grant_delete, site_grant_delete_rpc, site_grant_list, site_grant_put, site_grant_put_rpc,
-    site_grant_role_staff_manage, site_grantee_resolve,
+    site_grant_delete, site_grant_delete_rpc, site_grant_list, site_grant_list_ensure_owner,
+    site_grant_put, site_grant_put_rpc, site_grant_role_staff_manage, site_grant_role_writable,
+    site_grantee_resolve, site_transfer_ownership, site_transfer_ownership_rpc,
+};
+pub use site_hr::{
+    site_member_face_del, site_member_face_list, site_member_face_put, site_member_hr_cleanup,
+    site_member_shift_ids_normalize, site_member_shift_sync, site_presence_location_list,
+    site_presence_location_put, site_work_shift_list, site_work_shift_put,
 };
 pub use site_list::site_list;
 pub use site_object::{site_object_list, site_object_put, site_object_upsert};
@@ -95,6 +103,10 @@ pub use guest_product::{
     guest_product_list, guest_product_list_to_proto, product_cursor_decode, product_cursor_encode,
     product_grid_page_size, product_row_json, product_rows_for_grid, GuestProductListResult,
     ProductRow,
+};
+pub use guest_reservation::{
+    availability_ok, guest_reservation_availability, reservation_windows_overlap, units_left,
+    Availability, FreeObject,
 };
 pub use guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
 pub use render::{block_html_render, guest_shell_html, product_card_html, ProductGridCtx};

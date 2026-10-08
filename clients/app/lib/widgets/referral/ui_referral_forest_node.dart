@@ -72,12 +72,13 @@ class UiReferralForestNode extends StatelessWidget {
                         style: const TextStyle(color: _accent, fontSize: 11),
                       ),
                     ],
-                    if (referralNodeIsRoot(node) || node.globalRoles.isNotEmpty) ...[
+                    if (referralNodeShowsRoleBadges(node)) ...[
                       const SizedBox(height: 4),
                       Wrap(
                         spacing: 4,
                         runSpacing: 4,
                         children: [
+                          if (node.mailboxCount > 0) _MailCountBadge(count: node.mailboxCount),
                           if (referralNodeIsRoot(node)) const _RoleBadge(label: 'Root'),
                           ...node.globalRoles.where((role) => role != 'root').map((role) => _RoleBadge(label: referralGlobalRoleLabel(role))),
                         ],
@@ -121,6 +122,26 @@ class _RoleBadge extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(999)),
         child: Text(label, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 10, fontWeight: FontWeight.w600)),
+      );
+}
+
+class _MailCountBadge extends StatelessWidget {
+  const _MailCountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(999)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.mail_outline_rounded, size: 11, color: Color(0xFFA1A1AA)),
+            const SizedBox(width: 3),
+            Text('$count', style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 10, fontWeight: FontWeight.w600)),
+          ],
+        ),
       );
 }
 

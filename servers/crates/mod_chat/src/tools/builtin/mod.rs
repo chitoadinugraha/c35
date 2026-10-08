@@ -4,6 +4,7 @@ mod bot_inbox;
 mod browser;
 mod chat_history;
 mod consumption;
+mod doc_extract;
 mod expense;
 mod delegate;
 mod device;
@@ -16,6 +17,7 @@ mod referral;
 mod staff;
 mod staff_debug;
 mod site;
+mod site_pic;
 mod site_query;
 mod site_tx;
 mod drive;
@@ -47,6 +49,7 @@ pub use browser::{
     BrowserTaskRunTool,
 };
 pub use consumption::{ConsumptionAddTool, ConsumptionDeleteTool, ConsumptionTodayTool, ConsumptionUpdateTool};
+pub use doc_extract::DocExtractTool;
 pub use expense::{ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool};
 pub use delegate::{
     delegate_child_row, delegate_result_json, ComputerUseDelegateTool, DelegateRunTool,
@@ -85,6 +88,7 @@ pub use site::{
     SiteProductDeleteTool, SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool,
     SitePublishTool,
 };
+pub use site_pic::SitePicGenerateTool;
 pub use site_query::SiteQueryRunTool;
 pub use site_tx::{
     SiteOrderStatusTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,

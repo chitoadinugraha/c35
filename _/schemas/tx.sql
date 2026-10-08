@@ -208,6 +208,7 @@ CREATE TABLE IF NOT EXISTS site.tx_item_reservation (
     res_id              BIGINT NOT NULL,
 
     product_id          BIGINT NOT NULL DEFAULT 0,
+    site_object_id      BIGINT NOT NULL DEFAULT 0,
     qty                 INT NOT NULL DEFAULT 0,
     duration_qty        INT NOT NULL DEFAULT 0,
     note                TEXT NOT NULL DEFAULT '',

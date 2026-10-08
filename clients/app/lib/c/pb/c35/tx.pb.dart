@@ -1128,6 +1128,7 @@ class TxItemReservation extends $pb.GeneratedMessage {
     $core.int? qty,
     $core.int? durationQty,
     $core.String? note,
+    $fixnum.Int64? siteObjectId,
     $fixnum.Int64? startTsMs,
     $fixnum.Int64? endTsMs,
     $core.String? state,
@@ -1140,6 +1141,7 @@ class TxItemReservation extends $pb.GeneratedMessage {
     if (qty != null) result.qty = qty;
     if (durationQty != null) result.durationQty = durationQty;
     if (note != null) result.note = note;
+    if (siteObjectId != null) result.siteObjectId = siteObjectId;
     if (startTsMs != null) result.startTsMs = startTsMs;
     if (endTsMs != null) result.endTsMs = endTsMs;
     if (state != null) result.state = state;
@@ -1166,6 +1168,7 @@ class TxItemReservation extends $pb.GeneratedMessage {
     ..aI(10, _omitFieldNames ? '' : 'qty')
     ..aI(11, _omitFieldNames ? '' : 'durationQty')
     ..aOS(12, _omitFieldNames ? '' : 'note')
+    ..aInt64(13, _omitFieldNames ? '' : 'siteObjectId')
     ..aInt64(20, _omitFieldNames ? '' : 'startTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'endTsMs')
     ..aOS(30, _omitFieldNames ? '' : 'state')
@@ -1240,48 +1243,57 @@ class TxItemReservation extends $pb.GeneratedMessage {
   @$pb.TagNumber(12)
   void clearNote() => $_clearField(12);
 
+  @$pb.TagNumber(13)
+  $fixnum.Int64 get siteObjectId => $_getI64(5);
+  @$pb.TagNumber(13)
+  set siteObjectId($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(13)
+  $core.bool hasSiteObjectId() => $_has(5);
+  @$pb.TagNumber(13)
+  void clearSiteObjectId() => $_clearField(13);
+
   @$pb.TagNumber(20)
-  $fixnum.Int64 get startTsMs => $_getI64(5);
+  $fixnum.Int64 get startTsMs => $_getI64(6);
   @$pb.TagNumber(20)
-  set startTsMs($fixnum.Int64 value) => $_setInt64(5, value);
+  set startTsMs($fixnum.Int64 value) => $_setInt64(6, value);
   @$pb.TagNumber(20)
-  $core.bool hasStartTsMs() => $_has(5);
+  $core.bool hasStartTsMs() => $_has(6);
   @$pb.TagNumber(20)
   void clearStartTsMs() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $fixnum.Int64 get endTsMs => $_getI64(6);
+  $fixnum.Int64 get endTsMs => $_getI64(7);
   @$pb.TagNumber(21)
-  set endTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  set endTsMs($fixnum.Int64 value) => $_setInt64(7, value);
   @$pb.TagNumber(21)
-  $core.bool hasEndTsMs() => $_has(6);
+  $core.bool hasEndTsMs() => $_has(7);
   @$pb.TagNumber(21)
   void clearEndTsMs() => $_clearField(21);
 
   @$pb.TagNumber(30)
-  $core.String get state => $_getSZ(7);
+  $core.String get state => $_getSZ(8);
   @$pb.TagNumber(30)
-  set state($core.String value) => $_setString(7, value);
+  set state($core.String value) => $_setString(8, value);
   @$pb.TagNumber(30)
-  $core.bool hasState() => $_has(7);
+  $core.bool hasState() => $_has(8);
   @$pb.TagNumber(30)
   void clearState() => $_clearField(30);
 
   @$pb.TagNumber(31)
-  $core.bool get isNoShow => $_getBF(8);
+  $core.bool get isNoShow => $_getBF(9);
   @$pb.TagNumber(31)
-  set isNoShow($core.bool value) => $_setBool(8, value);
+  set isNoShow($core.bool value) => $_setBool(9, value);
   @$pb.TagNumber(31)
-  $core.bool hasIsNoShow() => $_has(8);
+  $core.bool hasIsNoShow() => $_has(9);
   @$pb.TagNumber(31)
   void clearIsNoShow() => $_clearField(31);
 
   @$pb.TagNumber(32)
-  $core.bool get isUnavailable => $_getBF(9);
+  $core.bool get isUnavailable => $_getBF(10);
   @$pb.TagNumber(32)
-  set isUnavailable($core.bool value) => $_setBool(9, value);
+  set isUnavailable($core.bool value) => $_setBool(10, value);
   @$pb.TagNumber(32)
-  $core.bool hasIsUnavailable() => $_has(9);
+  $core.bool hasIsUnavailable() => $_has(10);
   @$pb.TagNumber(32)
   void clearIsUnavailable() => $_clearField(32);
 }

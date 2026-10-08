@@ -15,11 +15,22 @@ pub use commission_withdraw::commission_withdraw;
 pub use referral_ledger::referral_ledger_list;
 pub use stats::referral_user_stats;
 
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
 use c35_mod_admin::require_admin;
 use c35_proto::{
     ReferralCodeDoc, ReferralShareDoc, ReferralTreeNode, ReferralTreeSlice,
 };
 use sqlx::{PgPool, Row};
+
+struct UserCountCache {
+    at: Instant,
+    count: i64,
+}
+
+static PLATFORM_USER_COUNT_CACHE: Mutex<Option<UserCountCache>> = Mutex::new(None);
+const PLATFORM_USER_COUNT_TTL: Duration = Duration::from_secs(120);
 
 const REFERRAL_TREE_SELECT: &str = r#"
         SELECT DISTINCT ON (t.id) t.id, t.name, t.alien_id, t.pic,
@@ -200,7 +211,52 @@ async fn referral_tree_shares(pool: &PgPool, ids: &[i64]) -> Vec<ReferralShareDo
     .collect()
 }
 
-fn referral_tree_node_from_row(r: sqlx::postgres::PgRow) -> ReferralTreeNode {
+async fn platform_user_count_cached(pool: &PgPool) -> i64 {
+    if let Ok(guard) = PLATFORM_USER_COUNT_CACHE.lock() {
+        if let Some(c) = guard.as_ref() {
+            if c.at.elapsed() < PLATFORM_USER_COUNT_TTL {
+                return c.count;
+            }
+        }
+    }
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*)::bigint FROM ai.identity WHERE kind = 'user' AND deleted_ts IS NULL",
+    )
+    .fetch_one(pool)
+    .await
+    .unwrap_or(0);
+    if let Ok(mut guard) = PLATFORM_USER_COUNT_CACHE.lock() {
+        *guard = Some(UserCountCache {
+            at: Instant::now(),
+            count,
+        });
+    }
+    count
+}
+
+async fn referral_tree_mailbox_counts(pool: &PgPool, ids: &[i64]) -> std::collections::HashMap<i64, i32> {
+    if ids.is_empty() {
+        return std::collections::HashMap::new();
+    }
+    sqlx::query(
+        r#"
+        SELECT mm.member_iid AS iid, COUNT(DISTINCT m.id)::bigint AS n
+        FROM mail.mailbox m
+        INNER JOIN mail.mailbox_member mm ON mm.mailbox_id = m.id
+        WHERE m.deleted_ts IS NULL AND mm.member_iid = ANY($1)
+        GROUP BY mm.member_iid
+        "#,
+    )
+    .bind(ids)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default()
+    .into_iter()
+    .map(|r| (r.get::<i64, _>("iid"), r.get::<i64, _>("n") as i32))
+    .collect()
+}
+
+fn referral_tree_node_from_row(r: sqlx::postgres::PgRow, mailbox_count: i32) -> ReferralTreeNode {
     let meta: serde_json::Value = r.try_get("meta").unwrap_or(serde_json::json!({}));
     let is_root = meta_is_root(&meta);
     let roles = meta
@@ -224,6 +280,7 @@ fn referral_tree_node_from_row(r: sqlx::postgres::PgRow) -> ReferralTreeNode {
         is_root,
         is_banned: !active,
         global_roles: roles,
+        mailbox_count,
     }
 }
 
@@ -250,12 +307,26 @@ pub async fn referral_tree_get(
         }
         referral_tree_rows_from_id(pool, start, depth).await
     };
-    let nodes: Vec<ReferralTreeNode> = rows.into_iter().map(referral_tree_node_from_row).collect();
-    let ids: Vec<i64> = nodes.iter().map(|n| n.identity_id).collect();
+    let ids: Vec<i64> = rows.iter().map(|r| r.get::<i64, _>("id")).collect();
+    let mailbox_by_iid = referral_tree_mailbox_counts(pool, &ids).await;
+    let nodes: Vec<ReferralTreeNode> = rows
+        .into_iter()
+        .map(|r| {
+            let id = r.get::<i64, _>("id");
+            let mailbox_count = mailbox_by_iid.get(&id).copied().unwrap_or(0);
+            referral_tree_node_from_row(r, mailbox_count)
+        })
+        .collect();
     let shares = referral_tree_shares(pool, &ids).await;
+    let platform_user_count = if forest {
+        platform_user_count_cached(pool).await
+    } else {
+        0
+    };
     ReferralTreeSlice {
         nodes,
         branch_shares: shares,
+        platform_user_count,
     }
 }
 

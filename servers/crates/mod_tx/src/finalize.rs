@@ -1,6 +1,6 @@
 use c35_proto::{
-    Tx, TxAcc, TxAccSide, TxDiscount, TxInstallment, TxPayment, TxPaymentMethod, TxStock, TxTax,
-    TxType,
+    Tx, TxAcc, TxAccSide, TxDiscount, TxInstallment, TxItemReservation, TxPayment, TxPaymentMethod,
+    TxStock, TxTax, TxType,
 };
 use chrono::Utc;
 use std::collections::HashMap;
@@ -99,19 +99,34 @@ fn tx_time_ms(tx: &Tx) -> i64 {
     Utc::now().timestamp_millis()
 }
 
+/// Sum of `qty * max(duration_qty, 1)` across reservation lines.
+pub(crate) fn reservation_billable_qty(reservations: &[TxItemReservation]) -> i64 {
+    reservations
+        .iter()
+        .map(|r| i64::from(r.qty.max(0)) * i64::from(r.duration_qty.max(1)))
+        .sum()
+}
+
 fn tx_compute_items(tx: &mut Tx) {
     for item in &mut tx.items {
-        let duration_multiplier: i64 = if !item.reservations.is_empty() {
-            item.reservations
-                .iter()
-                .map(|r| r.duration_qty.max(1) as i64)
-                .sum::<i64>()
-                .max(1)
+        let line_qty = if item.reservations.is_empty() {
+            i64::from(item.qty)
         } else {
-            1
+            let billable = reservation_billable_qty(&item.reservations);
+            if billable > 0 {
+                billable
+            } else {
+                let duration_multiplier = item
+                    .reservations
+                    .iter()
+                    .map(|r| i64::from(r.duration_qty.max(1)))
+                    .sum::<i64>()
+                    .max(1);
+                i64::from(item.qty) * duration_multiplier
+            }
         };
-        let gross = item.price * (item.qty as i64) * duration_multiplier;
-        item.total_qty = item.qty * (duration_multiplier as i32);
+        let gross = item.price * line_qty;
+        item.total_qty = line_qty as i32;
         item.total_price = gross;
         if item.total_discount == 0 && item.total_tax == 0 {
             item.total_net = gross;
@@ -730,4 +745,30 @@ pub fn tx_finalize_test_sale() -> Tx {
     };
     tx_finalize(&mut tx);
     tx
+}
+
+#[cfg(test)]
+mod reservation_qty_tests {
+    use c35_proto::{Tx, TxItem, TxItemReservation};
+
+    #[test]
+    fn billable_reservation_qty_is_priced_once() {
+        let mut tx = Tx {
+            items: vec![TxItem {
+                price: 1000,
+                qty: 4,
+                reservations: vec![TxItemReservation {
+                    qty: 2,
+                    duration_qty: 2,
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        super::tx_finalize(&mut tx);
+        assert_eq!(tx.items[0].qty, 4);
+        assert_eq!(tx.items[0].total_qty, 4);
+        assert_eq!(tx.items[0].total_price, 4000);
+    }
 }

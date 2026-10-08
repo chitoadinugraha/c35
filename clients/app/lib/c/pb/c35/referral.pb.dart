@@ -275,6 +275,7 @@ class ReferralTreeNode extends $pb.GeneratedMessage {
     $core.bool? isRoot,
     $core.bool? isBanned,
     $core.Iterable<$core.String>? globalRoles,
+    $core.int? mailboxCount,
   }) {
     final result = ReferralTreeNode._();
     if (identityId != null) result.identityId = identityId;
@@ -287,6 +288,7 @@ class ReferralTreeNode extends $pb.GeneratedMessage {
     if (isRoot != null) result.isRoot = isRoot;
     if (isBanned != null) result.isBanned = isBanned;
     if (globalRoles != null) result.globalRoles.addAll(globalRoles);
+    if (mailboxCount != null) result.mailboxCount = mailboxCount;
     return result;
   }
 
@@ -313,6 +315,7 @@ class ReferralTreeNode extends $pb.GeneratedMessage {
     ..aOB(8, _omitFieldNames ? '' : 'isRoot')
     ..aOB(9, _omitFieldNames ? '' : 'isBanned')
     ..pPS(10, _omitFieldNames ? '' : 'globalRoles')
+    ..aI(11, _omitFieldNames ? '' : 'mailboxCount')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -420,16 +423,28 @@ class ReferralTreeNode extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(10)
   $pb.PbList<$core.String> get globalRoles => $_getList(9);
+
+  /// Mailboxes the user can access (mail.mailbox_member), same basis as mail.mailbox.list.
+  @$pb.TagNumber(11)
+  $core.int get mailboxCount => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set mailboxCount($core.int value) => $_setSignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasMailboxCount() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearMailboxCount() => $_clearField(11);
 }
 
 class ReferralTreeSlice extends $pb.GeneratedMessage {
   factory ReferralTreeSlice({
     $core.Iterable<ReferralTreeNode>? nodes,
     $core.Iterable<ReferralShareDoc>? branchShares,
+    $fixnum.Int64? platformUserCount,
   }) {
     final result = ReferralTreeSlice._();
     if (nodes != null) result.nodes.addAll(nodes);
     if (branchShares != null) result.branchShares.addAll(branchShares);
+    if (platformUserCount != null) result.platformUserCount = platformUserCount;
     return result;
   }
 
@@ -450,6 +465,7 @@ class ReferralTreeSlice extends $pb.GeneratedMessage {
         subBuilder: ReferralTreeNode.$_createMessage)
     ..pPM<ReferralShareDoc>(2, _omitFieldNames ? '' : 'branchShares',
         subBuilder: ReferralShareDoc.$_createMessage)
+    ..aInt64(3, _omitFieldNames ? '' : 'platformUserCount')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -479,6 +495,16 @@ class ReferralTreeSlice extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(2)
   $pb.PbList<ReferralShareDoc> get branchShares => $_getList(1);
+
+  /// Active user rows (kind=user, not deleted). Set on wide forest loads; cached server-side ~2m.
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get platformUserCount => $_getI64(2);
+  @$pb.TagNumber(3)
+  set platformUserCount($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPlatformUserCount() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPlatformUserCount() => $_clearField(3);
 }
 
 class ReqReferralShareSet extends $pb.GeneratedMessage {

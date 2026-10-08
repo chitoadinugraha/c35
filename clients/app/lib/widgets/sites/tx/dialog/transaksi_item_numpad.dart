@@ -36,6 +36,7 @@ class _DialogItemNumpad extends StatefulWidget {
 
 class _DialogItemNumpadState extends State<_DialogItemNumpad> {
   late int _qty = widget.item.qty > 0 ? widget.item.qty : 1;
+  var _qtyReplaceNext = true;
   late final TextEditingController _noteCtrl = TextEditingController(text: widget.item.note);
 
   int get _price => widget.item.price.toInt();
@@ -50,12 +51,19 @@ class _DialogItemNumpadState extends State<_DialogItemNumpad> {
     setState(() {
       if (key == 'C') {
         _qty = 0;
+        _qtyReplaceNext = true;
       } else if (key == '⌫') {
         final s = _qty.toString();
         _qty = s.length > 1 ? int.parse(s.substring(0, s.length - 1)) : 0;
+        _qtyReplaceNext = _qty == 0;
       } else {
-        final s = _qty == 0 ? key : '$_qty$key';
-        _qty = (int.tryParse(s) ?? _qty).clamp(0, 9999);
+        if (_qtyReplaceNext) {
+          _qty = (int.tryParse(key) ?? _qty).clamp(0, 9999);
+          _qtyReplaceNext = false;
+        } else {
+          final s = _qty == 0 ? key : '$_qty$key';
+          _qty = (int.tryParse(s) ?? _qty).clamp(0, 9999);
+        }
       }
     });
   }
@@ -63,6 +71,7 @@ class _DialogItemNumpadState extends State<_DialogItemNumpad> {
   void _addQty(int delta) {
     setState(() {
       _qty = (_qty + delta).clamp(0, 9999);
+      _qtyReplaceNext = false;
     });
   }
 

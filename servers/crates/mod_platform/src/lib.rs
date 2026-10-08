@@ -1,4 +1,5 @@
 mod fetch;
+mod fetch_platform_stats;
 mod fetch_vendor;
 mod fx_usd;
 mod period;
@@ -17,6 +18,7 @@ pub use fetch::{
     wasabi_utilization_storage_gb, CfVendorSource, GcpBillingConfig, GcpBqRow, GcpVendorSource,
     OciConfig, OciVendorSource, WasabiConfig, WasabiVendorSource,
 };
+pub use fetch_platform_stats::{PlatformUserCountFetchTask, PLATFORM_STATS_SUBJECT};
 pub use fetch_vendor::{env_enabled, parse_finalize_days, VendorBillFetchTask, VendorBillSource};
 pub use fx_usd::amount_to_usd;
 pub use period::{

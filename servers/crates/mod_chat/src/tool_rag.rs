@@ -242,6 +242,7 @@ mod tests {
                 rag_phrases: vec!["film bioskop".into(), "apa yang tayang".into()],
                 requires_capability: None,
                 requires_global_roles: vec![],
+                requires_platform_mail: false,
             },
             ToolDef {
                 name: "web.visit".into(),
@@ -255,6 +256,7 @@ mod tests {
                 rag_phrases: vec![],
                 requires_capability: None,
                 requires_global_roles: vec![],
+                requires_platform_mail: false,
             },
             ToolDef {
                 name: "expense.add".into(),
@@ -268,6 +270,7 @@ mod tests {
                 rag_phrases: vec![],
                 requires_capability: None,
                 requires_global_roles: vec![],
+                requires_platform_mail: false,
             },
         ];
         let ranked = tool_find_lexical(

@@ -22,7 +22,7 @@ Prompt-built websites and business storefronts.
 
 ```
 ai.identity(kind=site)     name, alien_id, pic, owner_iid
-ai.identity_grant          staff | manage | owner on site_iid
+ai.identity_grant          staff | manage | guest | owner on site_iid
 
 site.config                capabilities, tz, costing
 site.draft                 SiteDoc JSON (presentation)
@@ -33,6 +33,12 @@ site.product               catalog (+ site.product_embed sub-rows)
 site.contact               CRM / tx subject
 site.object                tables, rooms, units
 site.parent_link           hub → child tenant
+
+site.work_shift            named shifts (Team / Attendance)
+site.work_shift_slot       slots within a shift
+site.member_shift          grantee ↔ shift (via site_iid + grantee_iid)
+site.member_face           face enroll photos (attendance-gated)
+site.presence_location     geo points for Attendance later
 
 site.tx … site.tx_*        POS (id.alienai model — see tx.md)
 ```
@@ -75,8 +81,6 @@ After a bought hostname verifies, mail is onboarded (see [mail.md](mail.md)). BY
 - Certificates are issued on the **origin** via **cert-manager** (per-hostname Ingress → `c35-server`). Private keys and PEM live in **Kubernetes Secrets only**.
 - **Never store TLS PEM or private keys in Yugabyte.** `site.domain` holds **`tls_status`**, **`verify_error`**, **`tls_error`**, **`last_verify_ts`** — status and errors for the app UI, not secret material.
 - `tls_status`: `pending` | `ready` | `failed` | `disabled` (synced from cluster when TLS sync runs).
-
-Mail on the customer zone (`@example.com`) is a **separate** stack (`mail.*`, Cloudflare zone onboard) — not the same as HTTP CNAME verify (see [`plans/2026-09-26-site-domain-mail-multitask.md`](plans/2026-09-26-site-domain-mail-multitask.md) Track D1).
 
 ### Server env (`c35-server`)
 
@@ -156,10 +160,139 @@ See [`../schemas/site.sql`](../schemas/site.sql).
 | `site.domain` | yes | Settings | DNS + TLS status |
 | `site.product` | yes | Products | + embed subtable |
 | `site.product_embed` | yes | (subtable) | alt labels |
+| `site.product_icon` | no | — | global name_key → iconify id for empty product photos. Not per site. Not `site.product_embed`. |
 | `site.contact` | yes | Contacts | tx subject |
 | `site.object` | yes | Objects | rooms / tables |
+| `site.work_shift` | yes | Team | named shifts |
+| `site.work_shift_slot` | yes | (sub) | slots within a shift |
+| `site.member_shift` | yes | Team | grantee ↔ shift |
+| `site.member_face` | yes | Team | attendance-gated face photos |
+| `site.presence_location` | yes | — | geo for Attendance later |
 
-Staff: `identity_grant(resource_iid=site_iid, role=staff|manage|owner)`.
+Staff ACL: `identity_grant(resource_iid=site_iid, role=staff|manage|guest|owner)` — see **Team** below. Never a `site_member` table.
+
+## Default product icon
+
+When `site.product.pic` is empty, the product still needs a picture in the editor, the guest app, and the public HTML page. That picture is an Iconify icon chosen from the product name. A real photo always wins. A failed photo URL stays a broken-image fallback and does not pretend to be a drink.
+
+Plan: [`plans/2026-10-08-product-default-icon.md`](plans/2026-10-08-product-default-icon.md).
+
+### How a name becomes an icon
+
+`product_icon_name_key` in `servers/crates/mod_site/src/product_icon.rs` builds the lookup key:
+
+1. Trim and lowercase. Any character that is not a letter becomes a space, so sizes like `500ml` split apart.
+2. Drop size, temperature, and filler tokens: `es`, `ice`, `iced`, `hot`, `panas`, `dingin`, `cold`, `warm`, `large`, `small`, `medium`, `regular`, `jumbo`, `big`, `pcs`, `pc`, `ml`, `gr`, `gram`, `kg`, `oz`, `liter`, `l`, `spesial`, `special`, `original`, `new`, and tokens that are only digits.
+3. Join the remaining words with a single space.
+
+`Es Kopi Susu` and `Kopi Susu Panas` both become `kopi susu`. `Large Iced Latte 500ml` becomes `latte`.
+
+The key is then matched against a closed kind list in that file. A keyword matches only when its words appear as a contiguous run of tokens, so `tea` does not match inside `steak`. The first kind in the table wins. Unknown kinds, and names that match nothing, use `mdi:shopping`. The model is not allowed to invent an Iconify id. There is no embedding and no full-text index for this. The key is exact.
+
+| Kind | Iconify id | Keywords |
+|---|---|---|
+| coffee | `mdi:coffee` | kopi, coffee, latte, espresso, americano, cappuccino, mocha, macchiato |
+| tea | `mdi:tea` | teh, tea, matcha |
+| juice | `mdi:fruit-citrus` | jus, juice, jeruk, smoothie |
+| beer | `mdi:beer` | beer, bir |
+| wine | `mdi:glass-wine` | wine |
+| cocktail | `mdi:glass-cocktail` | cocktail, mojito, mocktail |
+| water | `mdi:cup-water` | air mineral, mineral water |
+| burger | `mdi:hamburger` | burger, hamburger |
+| pizza | `mdi:pizza` | pizza |
+| fries | `mdi:french-fries` | fries, kentang goreng |
+| rice | `mdi:rice` | nasi, rice |
+| noodles | `mdi:noodles` | mie, noodle, ramen, pasta, spaghetti, bakmi, kwetiau |
+| bread | `mdi:bread-slice` | roti, bread, toast, sandwich |
+| cake | `mdi:cake-variant` | kue, cake, pastry, donat, doughnut, croissant |
+| ice_cream | `mdi:ice-cream` | es krim, ice cream, gelato, krim |
+| chicken | `mdi:food-drumstick` | ayam, chicken |
+| meat | `mdi:food-steak` | steak, daging, sapi, beef |
+| fish | `mdi:fish` | ikan, fish, seafood, udang, shrimp |
+| soup | `mdi:bowl` | soup, soto, bakso |
+| egg | `mdi:egg` | telur, egg, omelet, omelette |
+| drink | `mdi:cup` | minuman, drink, soda, milkshake, float, lemonade |
+| generic | `mdi:shopping` | no keywords; fallback |
+
+Coffee is before drink, so `kopi susu` is coffee. Non-food names such as `kursi kayu` miss the list and stay on the shopping icon.
+
+A miss that is not a keyword is classified once by `CHEAP_MODEL` (`gemini-3.1-flash-lite`, see [billing.md](billing.md)) into one of the kind ids above, then stored. That call is platform cost. It does not bill the site owner. The same normalized name is never sent to the model again.
+
+The store for that is the global table `site.product_icon` (`name_key`, `icon`, `kind`, `source` `rule` or `llm`). It is shared across sites. It is not `site.product_embed` (that table is search aliases).
+
+### What is implemented
+
+| Piece | State |
+|---|---|
+| `CHEAP_MODEL` in `c35_mod_llm`, used by compaction, memory extraction, and Gemini speech-to-text | In code. Documented in [billing.md](billing.md). |
+| Kind catalog, `product_icon_name_key`, `product_icon_kind_from_rules`, `product_icon_id` | In `mod_site`. Tests: `servers/crates/mod_site/tests/product_icon_test.rs` (5 passing). |
+| `site.product_icon` table and `product_icon_ensure` on save when `pic` is empty | In code. Called from `site_product_put`. |
+| Wire `icon` and public HTML card | In code. Empty `pic` inlines an SVG. A photo keeps `<img>`. |
+| Editor tile, guest app row, and POS thumb | In code. Empty `pic` uses `UiIcon`. A broken photo URL keeps the old fallback. |
+
+An empty photo shows the icon from this catalog in the editor tile, the guest product row, the POS thumb, and the public HTML card. A real photo still wins. A broken photo URL keeps the old broken-image or shopping-bag fallback.
+
+## Team
+
+Sites → **Team** is the CSA-parity staff editor (list, invite, roles, detail, shifts, transfer, remove). Plan: [`plans/2026-10-08-site-team-editor-csa-parity-multitask.md`](plans/2026-10-08-site-team-editor-csa-parity-multitask.md).
+
+### ACL (locked)
+
+- **Only** `ai.identity_grant` on `resource_iid = site_iid`. **Do not** reintroduce CSA `site_member`.
+- Roles on the wire: `staff` | `manage` | `guest` | `owner`.
+- Rank: **owner > manage > staff > guest**. Guest is read-only (cannot write site data).
+- Grantable via put: `staff`, `manage`, `guest` — not `owner` (ownership only via transfer).
+- Owner row is always shown in the Team list (synthetic from `site.config.owner_iid` / `ai.identity.owner_iid` if no grant row). Owner cannot be removed or have role changed except via **transfer**.
+
+### Role mapping (CSA UI ↔ c35 grant)
+
+| CSA UI `role` | `identity_grant.role` | Label |
+|---------------|------------------------|-------|
+| `employee` | `staff` | Staff |
+| `manager` | `manage` | Manager |
+| `guest` | `guest` | Guest |
+| `owner` | `owner` | Owner |
+
+### Invite
+
+- Single field accepts **email** or **alien_id** (optional `@`).
+- Server resolves: contains `@` → email via `ai.identity_provider` (`kind='email'`) with `meta->>'email'` fallback; otherwise alien_id / iid.
+- Unknown email → hard error `user not found`. **No** pending-invite table in v1.
+- Chat tool `site.grant.put` accepts `grantee_email` as well as alien_id / iid.
+
+### HR tables under `site.*`
+
+Work-shift assignment, face enroll, and presence locations live in the **`site`** schema (not `ai`, not a member table):
+
+| Table | Purpose |
+|-------|---------|
+| `site.work_shift` | Named shift templates per site |
+| `site.work_shift_slot` | Time slots within a shift |
+| `site.member_shift` | Assignment keyed by `site_iid` + `grantee_iid` + `shift_id` (no FK to `site_member`) |
+| `site.member_face` | Face enroll photos when capabilities include attendance |
+| `site.presence_location` | Geo points; schema ships with shifts; full Attendance UX is a separate plan |
+
+Team UI consumes shifts (and face when attendance is on). Full Attendance nav (clock-in, geo editor) is out of the Team editor plan.
+
+### Transfer ownership
+
+RPC `site.transfer_ownership`:
+
+1. Caller must be current owner.
+2. Target must already have a non-deleted grant (member).
+3. Updates `ai.identity.owner_iid` for the site.
+4. Demotes previous owner grant to `manage`; promotes target grant to `owner`.
+
+### Deferred / out of scope for Team editor
+
+| Item | Notes |
+|------|-------|
+| Pending email invites | Users who do not exist yet — not in v1 |
+| `membersLimit` hard seat cap | Show member **count only** until site billing quota exists |
+| Full Attendance nav | Clock-in / geo editor UX — separate plan (schema may land with Team) |
+| Payroll / face matching at POS | Still deferred |
+
+**Supersedes** the guest-commerce plan’s blanket “Full HR deferred” for the **Team editor** path (shifts, face enroll storage, transfer). Attendance **clock-in** and payroll remain deferred. See [`plans/2026-10-08-site-guest-csa-commerce-parity-multitask.md`](plans/2026-10-08-site-guest-csa-commerce-parity-multitask.md) Out of scope.
 
 ## UITable (generic admin grids)
 
@@ -190,9 +323,12 @@ Topic **`web.builder`** on Home assistant when user mentions a site (`@alien_id`
 | `site.draft_put` | SiteDoc blocks + theme |
 | `site.publish` | compile → `site.render` + activate `site.publish` |
 | `site.product_put` | catalog rows (prefer UITable for bulk) |
+| `site.pic.generate` | Generate a picture and store `/fs/{hash}` on the site icon (`ai.identity.pic`), the product photo (`site.product.pic`), or an extra photo (`product_json.pics`). Frontier quota only. Inst: `inst.task.site_pic_generate` (excludes `img.generate`). |
 | `site.contact_put` / `site.object_put` | data rows |
 
 Instruction seed: [`../schemas/inst.sql`](../schemas/inst.sql) → `inst.web.builder`.
+
+Editor entry points for `askImageGenerate`: the product hero alien badge (slot `product`), More photos (`askMedia` with `allowGenerate: true`), and Site Info avatar Generate (slot `siteIcon`).
 
 Layout changes → prompt. Bulk catalog edits → UITable. Money/stock → **tx API only** (never free-form LLM JSON).
 
@@ -263,7 +399,8 @@ Sync collections: `site_draft`, `site_product`, `site_product_embed`, `site_cont
 Sites page = **Devices pattern** (see [`ui.md`](ui.md)):
 
 - Nav: site list (pin, rename, alien_id)
-- Detail tabs: **Preview** | **Products** | **Contacts** | **Objects** | **Settings** | **Orders** (Phase 9)
+- Detail tabs: **Preview** | **Products** | **Contacts** | **Objects** | **Team** | **Settings** | **Orders** (Phase 9)
+- Team = CSA-parity staff editor (see **Team** above); not a draft autosave bag
 - No CSA-style visual hub editor
 
 ## Embeddings
@@ -276,5 +413,5 @@ Sites page = **Devices pattern** (see [`ui.md`](ui.md)):
 
 - Normalized `site.page` / `site.block` tables (UITable for layout structure)
 - `render_hash` → `file` schema CAS
-- Site subscription billing
-- HR / payroll / presence modules
+- Site subscription billing / member seat hard limits
+- Attendance clock-in UX, payroll, POS face matching (Team editor HR tables + transfer are **in scope** — see **Team**)

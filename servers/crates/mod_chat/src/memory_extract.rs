@@ -12,7 +12,7 @@ use crate::prompt::thought::thinking_level;
 
 pub const MEMORY_EXTRACT_MAX_PER_TURN: usize = 3;
 pub const MEMORY_EXTRACT_CONFIDENCE_MIN: f64 = 0.85;
-const MEMORY_EXTRACT_MODEL: &str = "gemini-3.1-flash-lite";
+const MEMORY_EXTRACT_MODEL: &str = c35_mod_llm::CHEAP_MODEL;
 
 const EXTRACT_SYSTEM: &str = r#"You are the memory manager for Alien AI.
 Your job is to identify durable facts about the user and durable preferences, or explicit retractions.

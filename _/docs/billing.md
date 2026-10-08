@@ -1,6 +1,6 @@
 # Billing (LOCKED)
 
-Status: **locked** 2026-09-21 (revised 2026-10-08 - domain purchase) (revised — multi-wallet)
+Status: **locked** 2026-09-21 (revised 2026-10-08 - domain purchase)
 
 ## Overview
 
@@ -242,6 +242,8 @@ Target: commission credit per `(owner_iid, currency)` wallet or ledger entry —
 
 Context compaction and memory-extraction LLM calls are **metered** like any other LLM usage. Token packing and screenshot prune are **free** (no LLM).
 
+Document OCR is another metered extra on the same parent turn. A cache hit adds nothing.
+
 See [context-compaction.md](context-compaction.md) for full behavior.
 
 ### Deduct rules
@@ -251,8 +253,24 @@ See [context-compaction.md](context-compaction.md) for full behavior.
 | User prompt turn | turn `req_id` | `billing_gate_with_hold` | `billing_usage_report` |
 | Compact on threshold (same turn) | **parent** turn `req_id` | Already held | `extra_cost_usd` on parent `billing_usage_report` |
 | Per-turn memory extract | **parent** turn `req_id` | Already held | `extra_cost_usd` on parent report |
+| Document OCR inside a Home or channel turn | parent turn `req_id` | Already held | `extra_cost_usd` via `doc_ocr_cost_usd` |
+| Document parse / `doc_index` cache hit | — | — | Not billed |
 | Idle compact / extract | `compact-{chat_id}-{snowflake}` | **None** | `billing_usage_report` if affordable; **skip** job if not |
 | Memory retrieve (embed) | — | — | **Not billed** (platform COGS) |
+
+### Document OCR
+
+Document OCR is a metered extra on the parent turn, same hold and deduct path as compaction. The parent turn `req_id` is already held. Retail cost is added as `extra_cost_usd` via `doc_ocr_cost_usd`. No second `req_id`.
+
+The model is `CHEAP_MODEL` (`gemini-3.1-flash-lite`) in `servers/crates/mod_llm`. Retail cost is `billing_cost_usd(CHEAP_MODEL, tokens_in, tokens_out)`, which already includes the 1.50 markup.
+
+Parent-turn log meta keys: `doc_ocr_cost_usd`, `doc_ocr_tokens_in`, `doc_ocr_tokens_out`, `doc_ocr_pages`.
+
+OCR runs only when a PDF page has no text layer and an embedded image. Max 4 pages per extract call. If `billing_gate` or the turn `BillingContext` fails, OCR is skipped and the page stays empty (not free).
+
+Home charges the signed-in user. A channel turn charges the same payer as that channel turn (existing `TurnBillingCtx` on that `req_id`).
+
+A document parse / `doc_index` cache hit adds nothing.
 
 ### Allowance → on-demand
 
@@ -276,9 +294,21 @@ Parent turn log row may include:
 
 `ai.chat_compact_log` stores per-compaction detail for support and margin analysis.
 
-### Model
+### Cheap model
 
-Compaction and extraction use **`gemini-2.0-flash`** (or current `CONTEXT_COMPACT_MODEL` in [context-compaction.md](context-compaction.md)) — cheap housekeeping, not the user's selected chat model.
+Housekeeping text calls use `CHEAP_MODEL` (`gemini-3.1-flash-lite`), defined in `servers/crates/mod_llm/src/lib.rs`. There is no env override. Change the const to retarget every caller.
+
+| Caller | Const alias | Billed to the user |
+|---|---|---|
+| Context compaction, including idle compact | `CONTEXT_COMPACT_MODEL` | Yes, see the table above |
+| Memory extraction | `MEMORY_EXTRACT_MODEL` | Yes, rolled into the parent turn or the idle compact report |
+| Document OCR | `CHEAP_MODEL` | Yes, rolled into the parent turn `extra_cost_usd` |
+| Speech-to-text Gemini fallback | `CHEAP_MODEL` in `gemini_stt` | Voice billing, not this const's concern |
+| Product default icon classify | `CHEAP_MODEL` | No. Platform COGS |
+
+`CHEAP_MODEL` is not the image model. Draft images stay `gemini-3.1-flash-lite-image` (`C35_IMAGE_DEFAULT_TIER`, `ai.config` key `image.default_tier`).
+
+Alien AI chat routing stays `ai.config` key `llm.alien_chain`. That chain prefers flash-lite models and is independent of `CHEAP_MODEL`.
 
 ---
 

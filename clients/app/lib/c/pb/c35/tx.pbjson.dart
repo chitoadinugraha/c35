@@ -476,6 +476,7 @@ const TxItemReservation$json = {
     {'1': 'qty', '3': 10, '4': 1, '5': 5, '10': 'qty'},
     {'1': 'duration_qty', '3': 11, '4': 1, '5': 5, '10': 'durationQty'},
     {'1': 'note', '3': 12, '4': 1, '5': 9, '10': 'note'},
+    {'1': 'site_object_id', '3': 13, '4': 1, '5': 3, '10': 'siteObjectId'},
     {'1': 'start_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'startTsMs'},
     {'1': 'end_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'endTsMs'},
     {'1': 'state', '3': 30, '4': 1, '5': 9, '10': 'state'},
@@ -488,10 +489,11 @@ const TxItemReservation$json = {
 final $typed_data.Uint8List txItemReservationDescriptor = $convert.base64Decode(
     'ChFUeEl0ZW1SZXNlcnZhdGlvbhIVCgZyZXNfaWQYBCABKANSBXJlc0lkEh0KCnByb2R1Y3RfaW'
     'QYBSABKANSCXByb2R1Y3RJZBIQCgNxdHkYCiABKAVSA3F0eRIhCgxkdXJhdGlvbl9xdHkYCyAB'
-    'KAVSC2R1cmF0aW9uUXR5EhIKBG5vdGUYDCABKAlSBG5vdGUSHgoLc3RhcnRfdHNfbXMYFCABKA'
-    'NSCXN0YXJ0VHNNcxIaCgllbmRfdHNfbXMYFSABKANSB2VuZFRzTXMSFAoFc3RhdGUYHiABKAlS'
-    'BXN0YXRlEhwKCmlzX25vX3Nob3cYHyABKAhSCGlzTm9TaG93EiUKDmlzX3VuYXZhaWxhYmxlGC'
-    'AgASgIUg1pc1VuYXZhaWxhYmxl');
+    'KAVSC2R1cmF0aW9uUXR5EhIKBG5vdGUYDCABKAlSBG5vdGUSJAoOc2l0ZV9vYmplY3RfaWQYDS'
+    'ABKANSDHNpdGVPYmplY3RJZBIeCgtzdGFydF90c19tcxgUIAEoA1IJc3RhcnRUc01zEhoKCWVu'
+    'ZF90c19tcxgVIAEoA1IHZW5kVHNNcxIUCgVzdGF0ZRgeIAEoCVIFc3RhdGUSHAoKaXNfbm9fc2'
+    'hvdxgfIAEoCFIIaXNOb1Nob3cSJQoOaXNfdW5hdmFpbGFibGUYICABKAhSDWlzVW5hdmFpbGFi'
+    'bGU=');
 
 @$core.Deprecated('Use txItemSourceDescriptor instead')
 const TxItemSource$json = {

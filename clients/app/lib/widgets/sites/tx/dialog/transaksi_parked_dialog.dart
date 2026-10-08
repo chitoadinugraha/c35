@@ -1,5 +1,10 @@
+import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_parked_orders.dart';
+import 'package:alienai_c35/widgets/sites/tx/ui_site_product_thumb.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -14,6 +19,7 @@ const _amber = Color(0xFFF59E0B);
 Future<ParkedTx?> showTransaksiParkedDialog({
   required BuildContext context,
   required int siteIid,
+  List<SiteProduct> products = const [],
 }) =>
     showModalBottomSheet<ParkedTx>(
       context: context,
@@ -24,7 +30,7 @@ Future<ParkedTx?> showTransaksiParkedDialog({
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         side: BorderSide(color: _border),
       ),
-      builder: (ctx) => _SheetParkedOrders(siteIid: siteIid),
+      builder: (ctx) => _SheetParkedOrders(siteIid: siteIid, products: products),
     );
 
 String formatTimeAgo(DateTime dateTime) {
@@ -44,9 +50,10 @@ String formatTimeAgo(DateTime dateTime) {
 }
 
 class _SheetParkedOrders extends StatelessWidget {
-  const _SheetParkedOrders({required this.siteIid});
+  const _SheetParkedOrders({required this.siteIid, required this.products});
 
   final int siteIid;
+  final List<SiteProduct> products;
 
   Future<void> _confirmClearAll(BuildContext context) async {
     final ok = await showDialog<bool>(
@@ -188,6 +195,7 @@ class _SheetParkedOrders extends StatelessWidget {
                           final order = orders[index];
                           return _ParkedOrderTile(
                             order: order,
+                            productById: {for (final p in products) p.productId: p},
                             onRecall: () {
                               final recalled = TxParkedOrders.instance.remove(siteIid, order.id);
                               Navigator.of(context).pop(recalled ?? order);
@@ -219,20 +227,26 @@ class _SheetParkedOrders extends StatelessWidget {
 class _ParkedOrderTile extends StatelessWidget {
   const _ParkedOrderTile({
     required this.order,
+    required this.productById,
     required this.onRecall,
     required this.onDelete,
   });
 
   final ParkedTx order;
+  final Map<Int64, SiteProduct> productById;
   final VoidCallback onRecall;
   final VoidCallback onDelete;
 
+  String _itemLabel(TxItem item) {
+    final product = productById[item.productId];
+    if (product != null && product.name.isNotEmpty) return product.name;
+    if (item.note.trim().isNotEmpty) return item.note.trim();
+    return 'Item #${item.productId}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final itemsSummary = order.tx.items
-        .map((i) => '${i.qty > 0 ? i.qty.toInt() : 1}x ${i.note.isNotEmpty ? i.note : "Item #${i.productId}"}')
-        .take(3)
-        .join(', ');
+    final customer = parkedTxCustomerLabel(order.tx, walkInLabel: 'site.pos.walkIn'.tr());
 
     return Dismissible(
       key: ValueKey(order.id),
@@ -271,26 +285,32 @@ class _ParkedOrderTile extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _amber.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.receipt_long_outlined, size: 20, color: _amber),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Icon(Icons.person_outline, size: 14, color: _muted),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              customer,
+                              style: const TextStyle(
+                                color: _text,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
                       Text(
                         order.note,
-                        style: const TextStyle(
-                          color: _text,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: _muted.withValues(alpha: 0.85), fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -301,27 +321,83 @@ class _ParkedOrderTile extends StatelessWidget {
                           const SizedBox(width: 4),
                           Text(
                             formatTimeAgo(order.timestamp),
-                            style: const TextStyle(color: _muted, fontSize: 12),
+                            style: const TextStyle(color: _muted, fontSize: 11),
                           ),
-                          const Text(' • ', style: TextStyle(color: _muted, fontSize: 12)),
-                          const Icon(Icons.shopping_bag_outlined, size: 12, color: _muted),
-                          const SizedBox(width: 4),
+                          const Text(' • ', style: TextStyle(color: _muted, fontSize: 11)),
                           Text(
                             '${order.itemCount} item${order.itemCount == 1 ? '' : 's'}',
-                            style: const TextStyle(color: _muted, fontSize: 12),
+                            style: const TextStyle(color: _muted, fontSize: 11),
                           ),
                         ],
                       ),
-                      if (itemsSummary.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          itemsSummary,
-                          style: TextStyle(
-                            color: _muted.withValues(alpha: 0.7),
-                            fontSize: 11,
+                      if (order.tx.items.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 56,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: order.tx.items.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 10),
+                            itemBuilder: (_, i) {
+                              final item = order.tx.items[i];
+                              final product = productById[item.productId];
+                              final qty = item.qty > 0 ? item.qty.toInt() : 1;
+                              final label = _itemLabel(item);
+                              return SizedBox(
+                                width: 52,
+                                child: Column(
+                                  children: [
+                                    Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        if (product != null)
+                                          UiSiteProductThumb(product: product, size: 32)
+                                        else
+                                          Container(
+                                            width: 32,
+                                            height: 32,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF27272A),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: _border),
+                                            ),
+                                            child: const Icon(Icons.shopping_bag_outlined, size: 16, color: _muted),
+                                          ),
+                                        if (qty > 1)
+                                          Positioned(
+                                            right: -4,
+                                            top: -4,
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: _amber,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                '$qty',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      label,
+                                      style: const TextStyle(color: _muted, fontSize: 10, height: 1.1),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ],

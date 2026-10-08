@@ -16,6 +16,22 @@ pub fn stats_kv_key_volume(node_name: &str, namespace: &str, pvc_name: &str) -> 
     format!("vol/{node_name}/{namespace}/{pvc_name}")
 }
 
+pub fn stats_kv_key_platform_user_count() -> &'static str {
+    "platform/user_count"
+}
+
+pub async fn stats_kv_put_bytes(store: &Store, key: &str, bytes: &[u8]) -> anyhow::Result<()> {
+    store.put(key, bytes.to_vec().into()).await?;
+    Ok(())
+}
+
+pub async fn stats_kv_get_bytes(store: &Store, key: &str) -> Option<Vec<u8>> {
+    let Ok(Some(bytes)) = store.get(key).await else {
+        return None;
+    };
+    Some(bytes.to_vec())
+}
+
 pub async fn stats_kv_ensure(client: &Client) -> anyhow::Result<Store> {
     let js = jetstream::new(client.clone());
     match js.get_key_value(KV_BUCKET).await {

@@ -7,28 +7,39 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:fixnum/fixnum.dart';
 
-const _capabilityKeys = ['commerce', 'booking', 'queue'];
+const _capabilityKeys = ['commerce', 'booking', 'queue', 'attendance'];
+
+/// Defaults: commerce/booking/queue on; attendance off when key absent (create/settings).
+const siteCapabilityDefaults = <String, bool>{
+  'commerce': true,
+  'booking': true,
+  'queue': true,
+  'attendance': false,
+};
+
+bool siteCapabilityDefault(String key) => siteCapabilityDefaults[key] ?? true;
 
 Map<String, bool> siteCapabilitiesParse(String raw) {
-  if (raw.trim().isEmpty) return {for (final k in _capabilityKeys) k: true};
+  if (raw.trim().isEmpty) return Map<String, bool>.from(siteCapabilityDefaults);
   try {
     final decoded = jsonDecode(raw);
-    if (decoded is! Map) return {for (final k in _capabilityKeys) k: true};
+    if (decoded is! Map) return Map<String, bool>.from(siteCapabilityDefaults);
     return {
       for (final k in _capabilityKeys)
-        k: decoded[k] is bool ? decoded[k] as bool : true,
+        k: decoded[k] is bool ? decoded[k] as bool : siteCapabilityDefault(k),
     };
   } catch (_) {
-    return {for (final k in _capabilityKeys) k: true};
+    return Map<String, bool>.from(siteCapabilityDefaults);
   }
 }
 
 class SiteEditorCaps {
-  const SiteEditorCaps({this.commerce = true, this.booking = true, this.queue = true});
+  const SiteEditorCaps({this.commerce = true, this.booking = true, this.queue = true, this.attendance = false});
 
   final bool commerce;
   final bool booking;
   final bool queue;
+  final bool attendance;
 
   factory SiteEditorCaps.parse(String capabilitiesJson) {
     final m = siteCapabilitiesParse(capabilitiesJson);
@@ -36,12 +47,13 @@ class SiteEditorCaps {
       commerce: m['commerce'] ?? true,
       booking: m['booking'] ?? true,
       queue: m['queue'] ?? true,
+      attendance: m['attendance'] ?? false,
     );
   }
 }
 
 String siteCapabilitiesEncode(Map<String, bool> caps) =>
-    jsonEncode({for (final k in _capabilityKeys) k: caps[k] ?? true});
+    jsonEncode({for (final k in _capabilityKeys) k: caps[k] ?? siteCapabilityDefault(k)});
 
 String siteRowKey(TableDef def, Map<String, String> cells) {
   final keys = def.primaryKey.split(',').map((k) => k.trim()).where((k) => k.isNotEmpty);

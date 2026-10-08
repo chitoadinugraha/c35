@@ -11,8 +11,9 @@ pub use hydrate::{
     HYDRATE_LOCK_K1, HYDRATE_LOCK_K2,
 };
 pub use stats_kv::{
-    stats_kv_ensure, stats_kv_get, stats_kv_key_node, stats_kv_key_volume, stats_kv_list_pushes,
-    stats_kv_put, KV_BUCKET,
+    stats_kv_ensure, stats_kv_get, stats_kv_get_bytes, stats_kv_key_node,
+    stats_kv_key_platform_user_count, stats_kv_key_volume, stats_kv_list_pushes, stats_kv_put,
+    stats_kv_put_bytes, KV_BUCKET,
 };
 pub use streams::jetstream_streams_ensure;
 pub use user_app::{

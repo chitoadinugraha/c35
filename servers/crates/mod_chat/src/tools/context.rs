@@ -3,6 +3,9 @@ use std::sync::{Arc, Mutex};
 use reqwest::Client;
 use sqlx::PgPool;
 
+use c35_mod_billing::BillingContext;
+
+use crate::context_billing::ContextBillingExtra;
 use crate::mention_context::MentionContext;
 
 /// Context passed to every tool execution.
@@ -28,6 +31,10 @@ pub struct ToolContext {
     /// Set for `/v1/mcp/agent` tool_exec (skips freemium block on operator device tools).
     pub mcp_agent: bool,
     title_slot: Option<Arc<Mutex<Option<String>>>>,
+    /// OCR charges for this turn. One Arc shared with `TurnCtx`; MCP uses a fresh one.
+    pub doc_ocr: Arc<Mutex<ContextBillingExtra>>,
+    /// Payer for `doc.extract` OCR. Empty on MCP `tool_exec`.
+    pub billing: Option<BillingContext>,
 }
 
 impl ToolContext {
@@ -67,7 +74,19 @@ impl ToolContext {
             http_client,
             mcp_agent: false,
             title_slot: None,
+            doc_ocr: Arc::new(Mutex::new(ContextBillingExtra::default())),
+            billing: None,
         }
+    }
+
+    pub fn with_doc_ocr(mut self, doc_ocr: Arc<Mutex<ContextBillingExtra>>) -> Self {
+        self.doc_ocr = doc_ocr;
+        self
+    }
+
+    pub fn with_billing(mut self, billing: Option<BillingContext>) -> Self {
+        self.billing = billing;
+        self
     }
 
     pub fn with_mcp_agent(mut self, mcp_agent: bool) -> Self {

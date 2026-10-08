@@ -290,17 +290,28 @@ Toolbar menu: **Pan (view only)** · **Mouse** · **Trackpad**. Implementation: 
 Parity target: **Microsoft Remote Desktop mobile trackpad** — visible remote cursor, not VirtualBox absolute trackpad.
 
 - **Surface:** the full remote video area; no separate trackpad strip.
-- **Devices:** **touch** on mobile/tablet; on **Windows**, **mouse** works too (hover does not move the remote pointer). While dragging on the **remote surface**, the local cursor is hidden only over that widget (`MouseRegion`); the rest of the app keeps a normal cursor. Mouse wheel scrolls at the virtual pointer; double-click uses the same timing as touch double-tap.
-- **Local canvas cursor:** always basic arrow. **Overlay** reflects agent `remoteCursorShape` (I-beam, hand, resize, …).
-- **Virtual pointer** moves only while **one finger is down and dragging** (relative deltas). Hover / finger in the air does nothing.
+- **Devices:** **touch** on mobile/tablet; on **Windows/Desktop**, **mouse/physical trackpad** works too (hover does not move the remote pointer). While dragging on the remote surface, the local cursor is hidden (`SystemMouseCursors.none`). Mouse wheel scrolls at the virtual pointer.
+- **Local canvas cursor:** basic arrow when idle. **Overlay** reflects agent `remoteCursorShape` (I-beam, hand, resize, etc.).
+- **Virtual pointer** moves only while **contact is down and dragging** (relative deltas).
 - **Gestures** (at virtual pointer position):
-  - Single tap → left click (short delay to allow double-tap)
-  - Double tap → double click
-  - One-finger drag → move pointer; press-drag-release selects/drags on Windows
-  - Two-finger tap (minimal movement) → right click
-  - Two-finger vertical drag → mouse wheel
-  - Two-finger pinch → **local** view zoom only (not sent to Windows)
-- **Zoomed view:** when local scale &gt; 1, **edge auto-pan** follows the **virtual pointer** near the viewport edge; speed increases closer to the edge (quadratic ramp). Ctrl+drag and middle-click pan are disabled in trackpad mode.
+  - **Single tap** → Left click (short 220ms grace window to detect double-tap).
+  - **Double tap without slide** (< 5px) → Double click (`mouse_down` + `mouse_up` × 2).
+  - **Double tap + slide** (> 5px) → **Drag lock** (`mouse_down` engaged; pointer moves to drag objects/selection; releasing finger/mouse sends `mouse_up`).
+  - **Long press to drag** (≥ 380ms hold + light haptic feedback) → Engages **drag lock** (`mouse_down`) without requiring a double-tap.
+  - **Two-finger tap** → Right click (`right_click`).
+  - **Two-finger vertical slide** → Mouse wheel scroll (`wheel`).
+  - **Two-finger pinch** (> 16px spread change) → Local canvas zoom (1.0× to 4.0×) only (not sent to remote OS).
+  - **Three-finger tap** → Middle click (`middle_click`).
+- **Drag Trackpad OS Cursor Confinement (`ClipCursor` on Windows):**
+  - When dragging in Trackpad mode with a physical mouse/trackpad, the OS mouse cursor is confined to the exact screen bounding rectangle of the remote canvas (`surfaceSize * devicePixelRatio`) via Win32 `ClipCursor`.
+  - **Why not `SetCursorPos`:** Calling `SetCursorPos` in Windows triggers synthetic `WM_MOUSEMOVE` reverse deltas in Flutter's event queue, creating a violent feedback loop that snaps the pointer back to the starting point. `ClipCursor` prevents the cursor from escaping the surface canvas or window borders without generating any synthetic events (zero jumping, zero drag truncation).
+  - Confinement is safely released (`ClipCursor(nullptr)`) on button release, gesture cancel, interact mode change, window blur/unfocus, widget disposal, or pressing `Escape`.
+- **Zoomed view:** when local scale > 1, **edge auto-pan** follows the **virtual pointer** near the viewport edge; speed increases closer to the edge (quadratic ramp). Ctrl+drag and middle-click pan are disabled in trackpad mode.
+- **High-FPS performance pipeline:**
+  - 60Hz move coalescing and throttling (`_sendPointerNormThrottled`) prevents flooding the WebRTC SCTP data channel.
+  - Button down/up/click events flush pending moves immediately so clicks land at the exact target coordinate.
+  - `ValueNotifier<Offset>` isolates virtual cursor rendering, preventing 60–120Hz widget tree rebuild thrashing.
+  - Remote agent GDI cursor shape probes throttled to ≤ 10Hz with cached `HCURSOR` handles.
 - **Mouse mode** is unchanged when trackpad is not selected.
 
 Cursor shape wire: agent publishes shape on the remote-input channel; Flutter maps shapes in [`remote_cursor.dart`](../clients/app/lib/c/remote/remote_cursor.dart), overlay in [`remote_virtual_cursor.dart`](../clients/app/lib/c/remote/remote_virtual_cursor.dart).
@@ -449,7 +460,11 @@ Single **tree-grid** explorer (sortable columns) + optional **preview** pane on 
 
 **Client upload sources (desktop):** file picker (`+`), drag-drop (`desktop_drop`), **Explorer Ctrl+C → Files Ctrl+V** (`pasteboard` file list). Upload jobs: `RemoteFsTransfer` (`c/remote/remote_fs_transfer.dart`); progress in Devices master column + Files FAB.
 
-**In-app clipboard:** Copy stores remote **file** paths only (not folders). Paste prefers OS file clipboard, then falls back to remote duplicate.
+**Clipboard & File Transfer Model (Efficiency & Safeguards):**
+- **Strict On-Demand Execution:** Copying a file on the local desktop (`Ctrl+C`) NEVER streams file data live or pre-fetches it to the remote host. File reading and network transmission happen **strictly when the user presses `Ctrl+V` or clicks Paste**.
+- **Large File Safety:** Files are never loaded wholly into memory. Transferred in sequential **256 KB chunks** over the `remote-fs` WebRTC SCTP data channel (`RemoteFsWriteReq`), with client-side concurrency gating and backpressure handling.
+- **Files Tab Scope:** In the **Files tab**, pasting with files on the OS clipboard uploads them directly to the currently browsed remote directory. If the OS clipboard has no files, it falls back to in-app remote copy/duplicate.
+- **Remote Desktop Screen Scope:** In the **Remote control canvas** (`UiRemoteDevice`), pressing `Ctrl+V` currently forwards the keyboard shortcut to the remote OS; files copied on local Windows do not automatically appear in remote Explorer unless transferred via Files tab or staged upload.
 
 **Preview limits (client):** text-like extensions + images, **256 KB** cap per open preview. Unsupported types → no inline preview yet.
 

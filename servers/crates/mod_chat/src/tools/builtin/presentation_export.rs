@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::path::Path;
-use crate::pdf_cas::{pdf_extract_for_hash, pdf_structure_for_hash, PDF_EXTRACT_DEFAULT_MAX_CHARS as EXTRACT_DEFAULT_MAX};
+use crate::pdf_cas::{pdf_structure_for_hash, PDF_EXTRACT_DEFAULT_MAX_CHARS as EXTRACT_DEFAULT_MAX};
 use c35_mod_youtube::{video_extract_json, video_structure_json, EXTRACT_DEFAULT_MAX_CHARS as VIDEO_EXTRACT_DEFAULT};
 use crate::tool;
 
@@ -376,10 +376,18 @@ tool! {
         if hash.is_empty() {
             bail!("file_hash required");
         }
-        let page_from = args["page_from"].as_u64().unwrap_or(1) as u32;
-        let page_to = args["page_to"].as_u64().unwrap_or(page_from as u64) as u32;
-        let max_chars = args["max_chars"].as_u64().unwrap_or(EXTRACT_DEFAULT_MAX as u64) as usize;
-        Ok(pdf_extract_for_hash(&ctx.pool, hash, page_from, page_to, max_chars).await?)
+        let page_from = args["page_from"].as_i64().unwrap_or(1);
+        let page_to = args["page_to"].as_i64().unwrap_or(page_from);
+        let max_chars = args["max_chars"].as_i64().unwrap_or(EXTRACT_DEFAULT_MAX as i64);
+        let extracted = super::doc_extract::doc_extract_for_hash(
+            &ctx.pool,
+            hash,
+            page_from,
+            page_to,
+            max_chars,
+        )
+        .await?;
+        Ok(super::doc_extract::presentation_source_extract_json(&extracted))
     }
 }
 

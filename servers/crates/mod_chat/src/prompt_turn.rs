@@ -351,7 +351,12 @@ where
     } else {
         req.model.clone()
     };
-    let user = attach_prompt(&user_content, &req.attachments_json);
+    let user = crate::doc_prompt::append_doc_outlines(
+        pool,
+        &attach_prompt(&user_content, &req.attachments_json),
+        &req.attachments_json,
+    )
+    .await;
     let is_simple_time = user_asks_time(&req.text) && req.mention_ids.is_empty() && !user_wants_search(&req.text);
     let http = http_client(std::time::Duration::from_secs(30));
     let mention_ids: Vec<String> = req.mention_ids.clone();
@@ -599,6 +604,8 @@ where
         run_kind,
         checkpoint: Some(&mut checkpoint),
         title_slot: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        doc_ocr: std::sync::Arc::new(std::sync::Mutex::new(ContextBillingExtra::default())),
+        billing: Some(bctx.clone()),
     };
     let res = match prompt_cluster_turn(
         &chat_req,
@@ -642,6 +649,9 @@ where
             return Err(e);
         }
     };
+    if let Ok(extra) = turn_ctx.doc_ocr.lock() {
+        context_billing.merge(&extra);
+    }
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     let assistant_msg_id = snowflake_id();
     let blocks_json = if res.blocks_json.is_empty() { "[]" } else { res.blocks_json.as_str() };

@@ -53,6 +53,8 @@ mod context_idle;
 pub mod context_pack;
 mod memory_extract;
 pub mod prompt;
+mod doc_ocr;
+mod doc_prompt;
 mod prompt_turn;
 mod topic;
 mod tool_index;

@@ -85,7 +85,7 @@ pub async fn tx_children_attach(
         }
         let reservations = sqlx::query(
             r#"
-            SELECT site_iid, tx_id, item_id, res_id, product_id, qty, duration_qty, note,
+            SELECT site_iid, tx_id, item_id, res_id, product_id, site_object_id, qty, duration_qty, note,
                    start_ts, end_ts, state, is_no_show, is_unavailable
             FROM site.tx_item_reservation
             WHERE site_iid = $1 AND tx_id = $2 AND deleted_ts IS NULL

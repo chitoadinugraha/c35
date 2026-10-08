@@ -32,6 +32,7 @@ class UiSiteProductsEditor extends StatefulWidget {
     required this.siteIid,
     required this.masterDetail,
     required this.pane,
+    this.booking = true,
     this.onPaneChanged,
     this.detailId,
     this.onDetailIdChanged,
@@ -40,6 +41,7 @@ class UiSiteProductsEditor extends StatefulWidget {
   final SiteApi api;
   final int siteIid;
   final bool masterDetail;
+  final bool booking;
   final SiteProductsPane pane;
   final ValueChanged<SiteProductsPane>? onPaneChanged;
   final String? detailId;
@@ -306,6 +308,7 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
       api: widget.api,
       siteIid: widget.siteIid,
       product: product,
+      booking: widget.booking,
       def: def,
       productsById: _productsById,
       embeds: _embeds,
@@ -369,28 +372,8 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
         ],
       );
     } else if (widget.pane != SiteProductsPane.list) {
-      body = Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (widget.onPaneChanged != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF34D399),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  ),
-                  onPressed: () => _setPane(SiteProductsPane.list),
-                  icon: const Icon(Icons.arrow_back, size: 18),
-                  label: const Text('Products'),
-                ),
-              ),
-            ),
-          Expanded(child: _paneBody(selectedId: detailId)),
-        ],
-      );
+      // Narrow: shell chrome back returns to product list. Wide: chrome pops the editor.
+      body = _paneBody(selectedId: detailId);
     } else {
       body = _paneBody(selectedId: detailId);
     }

@@ -324,9 +324,18 @@ message WsReq {
     ReqSiteQueueList site_queue_list = 195;
     ReqSiteQueuePut site_queue_put = 196;
     ReqSiteQueueAdvance site_queue_advance = 197;
+    ReqSiteWorkShiftList site_work_shift_list = 198;
+    ReqSiteWorkShiftPut site_work_shift_put = 199;
+    ReqSiteTransferOwnership site_transfer_ownership = 200;
+    ReqSiteMemberFaceList site_member_face_list = 201;
+    ReqSiteMemberFacePut site_member_face_put = 202;
+    ReqSiteMemberFaceDel site_member_face_del = 203;
+    ReqSitePresenceLocationList site_presence_location_list = 204;
+    ReqSitePresenceLocationPut site_presence_location_put = 205;
     ReqSiteDomainSearch site_domain_search = 206;
     ReqSiteDomainCheck site_domain_check = 207;
     ReqSiteDomainBuy site_domain_buy = 208;
+    ReqImgGenerate img_generate = 209;
   }
 }
 
@@ -501,8 +510,17 @@ message WsRes {
     ResSiteQueueList site_queue_list = 195;
     ResSiteQueuePut site_queue_put = 196;
     ResSiteQueueAdvance site_queue_advance = 197;
+    ResSiteWorkShiftList site_work_shift_list = 198;
+    ResSiteWorkShiftPut site_work_shift_put = 199;
+    ResSiteTransferOwnership site_transfer_ownership = 200;
+    ResSiteMemberFaceList site_member_face_list = 201;
+    ResSiteMemberFacePut site_member_face_put = 202;
+    ResSiteMemberFaceDel site_member_face_del = 203;
+    ResSitePresenceLocationList site_presence_location_list = 204;
+    ResSitePresenceLocationPut site_presence_location_put = 205;
     ResSiteDomainSearch site_domain_search = 206;
     ResSiteDomainCheck site_domain_check = 207;
     ResSiteDomainBuy site_domain_buy = 208;
+    ResImgGenerate img_generate = 209;
   }
 }

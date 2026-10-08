@@ -24,6 +24,9 @@ pub use context::ToolContext;
 pub use definition::{Tool, ToolDefinition, ToolUiKeys};
 pub use dispatcher::{tool_topic_eligible, ToolDispatcher};
 
+use c35_mod_billing::BillingContext;
+
+use crate::context_billing::ContextBillingExtra;
 use crate::mention_context::MentionContext;
 
 use builtin::{
@@ -38,7 +41,7 @@ use builtin::{
     DriveReadTool, GsheetAppendTool,
     GsheetReadTool, GsheetUpdateTool, ComputerUseDelegateTool, ConsumptionAddTool,
     ConsumptionDeleteTool, ConsumptionTodayTool,
-    ConsumptionUpdateTool, DelegateRunTool,     DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
+    ConsumptionUpdateTool, DelegateRunTool, DocExtractTool, DeviceFsListTool, DeviceFsReadTool, ShellRunTool,
     DeviceInputTool, DevicePairTool, DeviceScreenshotTool,
     ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool, ImgEditTool, ImgGenerateTool, MusicGenerateTool,
     VidGenerateTool,
@@ -58,6 +61,7 @@ use builtin::{
     SiteDomainVerifyTool, SiteDraftGetTool, SiteGrantDeleteTool, SiteGrantPutTool, SiteDraftPutTool,
     SiteHandleUpdateTool, SiteObjectDeleteTool, SiteObjectPutTool, SiteOrderStatusTool, SitePatchTool,
     SiteProductDeleteTool, SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool,
+    SitePicGenerateTool,
     SitePublishTool, SiteQueryRunTool,
     SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool, TaskRunCancelDeviceTool,
     TaskRunCancelTool, TaskRunStartTool, TaskRunStatusTool, WebResearchTool, WebSearchTool,
@@ -134,6 +138,8 @@ pub struct TurnCtx<'a> {
     pub run_kind: &'a str,
     pub checkpoint: Option<&'a mut serde_json::Value>,
     pub title_slot: Arc<Mutex<Option<String>>>,
+    pub doc_ocr: Arc<Mutex<ContextBillingExtra>>,
+    pub billing: Option<BillingContext>,
 }
 
 fn build_default_dispatcher() -> ToolDispatcher {
@@ -149,6 +155,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(WebVisitTool));
     dispatcher.register(Arc::new(WebResearchTool));
     dispatcher.register(Arc::new(ImgGenerateTool));
+    dispatcher.register(Arc::new(SitePicGenerateTool));
     dispatcher.register(Arc::new(ImgEditTool));
     dispatcher.register(Arc::new(VidGenerateTool));
     dispatcher.register(Arc::new(MusicGenerateTool));
@@ -157,6 +164,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(PresentationExportTool));
     dispatcher.register(Arc::new(PresentationSourceStructureTool));
     dispatcher.register(Arc::new(PresentationSourceExtractTool));
+    dispatcher.register(Arc::new(DocExtractTool));
     dispatcher.register(Arc::new(PresentationVideoStructureTool));
     dispatcher.register(Arc::new(PresentationVideoExtractTool));
     dispatcher.register(Arc::new(ConsumptionAddTool));
@@ -329,6 +337,8 @@ fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
         client,
     )
     .with_title_slot(turn.title_slot.clone())
+    .with_doc_ocr(turn.doc_ocr.clone())
+    .with_billing(turn.billing.clone())
 }
 
 pub async fn cluster_tool_exec(

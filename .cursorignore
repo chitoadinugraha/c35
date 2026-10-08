@@ -1,2 +1,25 @@
-﻿.cache/
+# =============================================================================
+# Cursor indexing / Agent context -- gitignore-style patterns (repo root only).
+# Cursor also honors .gitignore; entries here are extra (tracked generated code,
+# belt-and-suspenders secrets, local scratch).
+# =============================================================================
+
+# Rust / Cargo (see .cursor/rules/rust-cache.mdc) -- also in .gitignore
+.cache/
 **/target/
+
+# Dart protobuf -- generated from _/schemas/proto (regen: .\_\scripts\protoc.ps1).
+# Edit proto + run protoc; do not hand-edit *.pb.dart. Rust prost is build-time only.
+clients/app/lib/c/pb/
+
+# Local proto / index scratch (not app source)
+tmp_idx/
+tmp_pb_backup/
+
+# Secrets & credentials -- also in .gitignore; keep out of semantic index
+**/.env.local
+**/.env.*.local
+_/certs/
+clients/app/android/key.properties
+clients/app/android/app/upload_keystore.jks
+clients/app/android/app/google-services.json

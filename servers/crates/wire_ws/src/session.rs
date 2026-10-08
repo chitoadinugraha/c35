@@ -14,8 +14,8 @@ use c35_nats::{user_app_fanout_decode, user_app_subscribe_subject};
 use c35_proto::{
     pb_decode, pb_encode, PromptRunJob, ReqChannelDisconnect, ReqChannelWhatsappPairAbort,
     ReqChannelWhatsappPairStart, ReqChannelWhatsappPairWatch, ReqIdentityDelete, ReqPromptAbort,
-    ResChannelWhatsappPair, ResChatStop, ResPromptDelta, ResPromptEnd, ResPromptFail, ResPromptStart,
-    WsReq, WsRes, ws_req, ws_res,
+    ResChannelWhatsappPair, ResChatStop, ResImgGenerate, ResPromptDelta, ResPromptEnd, ResPromptFail,
+    ResPromptStart, WsReq, WsRes, ws_req, ws_res,
 };
 use c35_wire::WireErr;
 use futures_util::StreamExt;
@@ -472,6 +472,44 @@ async fn dispatch(
                     body: Some(ws_res::Body::MediaRegenerate(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("media_regenerate_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ImgGenerate(r)) => {
+            let http = c35_mod_chat::tools::http_client(std::time::Duration::from_secs(180));
+            match c35_mod_chat::tools::asset_image::asset_image_generate(
+                &state.pool,
+                ctx.caller_iid,
+                &http,
+                &r.prompt,
+                &r.provider,
+            )
+            .await
+            {
+                Ok(img) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ImgGenerate(ResImgGenerate {
+                        hash: img.hash,
+                        url: img.url,
+                        mime: img.mime,
+                        error: String::new(),
+                    })),
+                },
+                Err(e) => {
+                    let msg = e.to_string();
+                    if msg.contains("Not enough frontier quota") {
+                        WsRes {
+                            req_id,
+                            body: Some(ws_res::Body::ImgGenerate(ResImgGenerate {
+                                hash: String::new(),
+                                url: String::new(),
+                                mime: String::new(),
+                                error: "Not enough frontier quota".to_string(),
+                            })),
+                        }
+                    } else {
+                        err_res(req_id, WireErr::client("img_generate_failed", msg))
+                    }
+                }
             }
         }
         Some(ws_req::Body::LiveStart(r)) => WsRes {
@@ -1323,6 +1361,87 @@ async fn dispatch(
                     body: Some(ws_res::Body::SiteGrantDelete(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("site_grant_delete_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteWorkShiftList(r)) => {
+            match c35_mod_site::site_work_shift_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteWorkShiftList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_work_shift_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteWorkShiftPut(r)) => {
+            match c35_mod_site::site_work_shift_put(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteWorkShiftPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_work_shift_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteTransferOwnership(r)) => {
+            match c35_mod_site::site_transfer_ownership_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteTransferOwnership(body)),
+                },
+                Err(e) => err_res(
+                    req_id,
+                    WireErr::client("site_transfer_ownership_failed", e.to_string()),
+                ),
+            }
+        }
+        Some(ws_req::Body::SiteMemberFaceList(r)) => {
+            match c35_mod_site::site_member_face_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteMemberFaceList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_member_face_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteMemberFacePut(r)) => {
+            match c35_mod_site::site_member_face_put(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteMemberFacePut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_member_face_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteMemberFaceDel(r)) => {
+            match c35_mod_site::site_member_face_del(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteMemberFaceDel(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_member_face_del_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePresenceLocationList(r)) => {
+            match c35_mod_site::site_presence_location_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePresenceLocationList(body)),
+                },
+                Err(e) => err_res(
+                    req_id,
+                    WireErr::client("site_presence_location_list_failed", e.to_string()),
+                ),
+            }
+        }
+        Some(ws_req::Body::SitePresenceLocationPut(r)) => {
+            match c35_mod_site::site_presence_location_put(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePresenceLocationPut(body)),
+                },
+                Err(e) => err_res(
+                    req_id,
+                    WireErr::client("site_presence_location_put_failed", e.to_string()),
+                ),
             }
         }
         Some(ws_req::Body::SiteQueueList(r)) => {

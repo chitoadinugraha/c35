@@ -33,6 +33,15 @@ void main() {
       expect(list.first.id, parked.id);
     });
 
+    test('parkedTxCustomerLabel uses subject name or walk-in', () {
+      final walkIn = Tx(siteIid: Int64(siteIid));
+      expect(parkedTxCustomerLabel(walkIn), 'Walk-In');
+      expect(
+        parkedTxCustomerLabel(walkIn.clone()..subjectName = 'Budi'),
+        'Budi',
+      );
+    });
+
     test('default note is generated when note is omitted or empty', () {
       final tx = Tx(siteIid: Int64(siteIid));
       final p1 = store.add(siteIid, tx);

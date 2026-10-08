@@ -12,6 +12,12 @@ const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
 const _dialogW = 420.0;
 
+IconData siteObjectKindIcon(String kind) => switch (kind) {
+      siteObjectKindTable => Icons.table_restaurant_outlined,
+      siteObjectKindRoom => Icons.meeting_room_outlined,
+      _ => Icons.category_outlined,
+    };
+
 Future<int?> showSiteObjectBatchDialog(
   BuildContext context, {
   required SiteApi api,
@@ -40,7 +46,7 @@ class _UiSiteObjectBatchDialogState extends State<_UiSiteObjectBatchDialog> {
   );
   late final _startCtrl = TextEditingController(text: '1');
   late final _endCtrl = TextEditingController(text: '10');
-  late final _digitsCtrl = TextEditingController(text: '2');
+  late final _digitsCtrl = TextEditingController(text: '3');
   var _kind = siteObjectKindRoom;
   var _saving = false;
   var _error = '';
@@ -140,14 +146,23 @@ class _UiSiteObjectBatchDialogState extends State<_UiSiteObjectBatchDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _kind,
+                    initialValue: _kind,
                     isExpanded: true,
                     dropdownColor: const Color(0xFF27272A),
                     style: const TextStyle(color: _text, fontSize: 13),
                     decoration: _fieldDecoration('Kind'),
                     items: [
                       for (final k in siteObjectKindValues)
-                        DropdownMenuItem(value: k, child: Text(siteObjectKindLabel(k))),
+                        DropdownMenuItem(
+                          value: k,
+                          child: Row(
+                            children: [
+                              Icon(siteObjectKindIcon(k), size: 18, color: _muted),
+                              const SizedBox(width: 8),
+                              Flexible(child: Text(siteObjectKindLabel(k), overflow: TextOverflow.ellipsis)),
+                            ],
+                          ),
+                        ),
                     ],
                     onChanged: (v) {
                       if (v == null) return;
@@ -246,12 +261,6 @@ class _PreviewTile extends StatelessWidget {
   final String name;
   final String kind;
 
-  IconData get _kindIcon => switch (kind) {
-        siteObjectKindTable => Icons.table_restaurant_outlined,
-        siteObjectKindRoom => Icons.meeting_room_outlined,
-        _ => Icons.category_outlined,
-      };
-
   @override
   Widget build(BuildContext context) => DecoratedBox(
         decoration: BoxDecoration(
@@ -268,8 +277,14 @@ class _PreviewTile extends StatelessWidget {
                 child: ColoredBox(
                   color: const Color(0xFF3F3F46),
                   child: pic.isEmpty
-                      ? Center(child: Icon(_kindIcon, color: _muted, size: 28))
-                      : UiImg(src: pic, fit: BoxFit.cover, width: double.infinity, height: double.infinity, fallback: Icon(_kindIcon, color: _muted, size: 28)),
+                      ? Center(child: Icon(siteObjectKindIcon(kind), color: _muted, size: 28))
+                      : UiImg(
+                          src: pic,
+                          fit: BoxFit.cover,
+                          width: double.infinity,
+                          height: double.infinity,
+                          fallback: Icon(siteObjectKindIcon(kind), color: _muted, size: 28),
+                        ),
                 ),
               ),
               Padding(

@@ -25,6 +25,13 @@ class ParkedTx {
   final Int64 totalAmount;
 }
 
+/// Customer label for a held cart (walk-in when no [Tx.subjectName]).
+String parkedTxCustomerLabel(Tx tx, {String walkInLabel = 'Walk-In'}) {
+  final name = tx.subjectName.trim();
+  if (name.isNotEmpty) return name;
+  return walkInLabel;
+}
+
 /// In-memory state manager for parked orders per [siteIid].
 class TxParkedOrders extends ChangeNotifier {
   TxParkedOrders._();

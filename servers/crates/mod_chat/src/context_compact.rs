@@ -26,7 +26,7 @@ use crate::prompt::gemini::{gemini_generate, gemini_model};
 use crate::prompt::thought::thinking_level;
 use crate::prompt::ChatHistoryMsg;
 
-pub const CONTEXT_COMPACT_MODEL: &str = "gemini-3.1-flash-lite";
+pub const CONTEXT_COMPACT_MODEL: &str = c35_mod_llm::CHEAP_MODEL;
 const SUMMARY_MAX_LEN: usize = 8000;
 
 const COMPACT_SYSTEM: &str =

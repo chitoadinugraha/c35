@@ -12,15 +12,27 @@ use axum::{
 use c35_ctx::AppState;
 use c35_mod_identity::auth_session_caller_iid;
 use serde::Deserialize;
-use sqlx::{Postgres, Row, Transaction};
 use serde_json::Value as JsonValue;
+use sqlx::{Postgres, Row, Transaction};
 
+pub mod doc_cache;
+pub mod doc_index;
+pub mod docx;
 mod inline_fit;
 mod optimize;
+pub mod pdf;
+pub mod pptx;
 mod s3;
 mod tool_artifact;
 
+pub use doc_cache::{
+    doc_index_get, doc_index_load_or_build, doc_index_put, doc_kind_from_mime_name,
+};
+pub use doc_index::{doc_index_json, DocIndex, DocPage};
+pub use docx::docx_doc_index;
 pub use inline_fit::cas_image_bytes_fit_inline;
+pub use pdf::{pdf_doc_index, pdf_page_embedded_jpeg};
+pub use pptx::pptx_doc_index;
 pub use tool_artifact::{
     tool_artifact_evict_stale, tool_artifact_get, tool_artifact_insert, tool_artifact_list_by_req,
     ToolArtifactRow, TOOL_ARTIFACT_TTL_DAYS,
@@ -149,33 +161,61 @@ pub fn cas_verify(secret: &str, hash: &str, exp: i64, sig: &str) -> bool {
     cas_mac(secret, hash, exp).eq_ignore_ascii_case(sig.trim())
 }
 
+/// Blake3 blobs referenced by a public surface (avatar, guest catalog, published/draft site doc).
+/// Unreferenced hashes stay session- or signature-gated.
 async fn cas_is_public(pool: &sqlx::PgPool, hash: &str) -> bool {
-    let hash = hash.trim();
-    if hash.is_empty() {
+    let Some(hash) = cas_hash_normalize(hash) else {
         return false;
-    }
+    };
     sqlx::query_scalar::<_, bool>(
         r#"
         SELECT EXISTS(
-            SELECT 1 FROM ai.identity
-            WHERE is_active = true AND pic LIKE '%' || $1 || '%'
+            SELECT 1 FROM ai.file_blob_meta WHERE hash_blake3 = $1
         )
-        AND EXISTS(
-            SELECT 1 FROM ai.file_blob_meta
-            WHERE hash_blake3 = $1
+        AND (
+            EXISTS(
+                SELECT 1 FROM ai.identity
+                WHERE is_active = true AND position($1 in pic) > 0
+            )
+            OR EXISTS(
+                SELECT 1 FROM site.product
+                WHERE deleted_ts IS NULL
+                  AND (
+                    position($1 in pic) > 0
+                    OR position($1 in product_json::text) > 0
+                  )
+            )
+            OR EXISTS(
+                SELECT 1 FROM site.object
+                WHERE deleted_ts IS NULL AND position($1 in pic) > 0
+            )
+            OR EXISTS(
+                SELECT 1 FROM site.post
+                WHERE deleted_ts IS NULL
+                  AND on_storefront = TRUE
+                  AND (
+                    position($1 in thumb) > 0
+                    OR position($1 in media_json::text) > 0
+                  )
+            )
+            OR EXISTS(
+                SELECT 1 FROM site.draft
+                WHERE deleted_ts IS NULL AND position($1 in doc_json::text) > 0
+            )
+            OR EXISTS(
+                SELECT 1 FROM site.publish
+                WHERE deleted_ts IS NULL AND position($1 in doc_json::text) > 0
+            )
         )
         "#,
     )
-    .bind(hash)
+    .bind(&hash)
     .fetch_one(pool)
     .await
     .unwrap_or(false)
 }
 
-pub async fn cas_meta_get(
-    pool: &sqlx::PgPool,
-    hash: &str,
-) -> Result<Option<CasMeta>, sqlx::Error> {
+pub async fn cas_meta_get(pool: &sqlx::PgPool, hash: &str) -> Result<Option<CasMeta>, sqlx::Error> {
     let Some(hash) = cas_hash_normalize(hash) else {
         return Ok(None);
     };
@@ -203,7 +243,11 @@ pub async fn file_variant_set(
         .ok_or_else(|| sqlx::Error::Protocol("invalid canonical hash".into()))?;
     let variant_hash = cas_hash_normalize(variant_hash)
         .ok_or_else(|| sqlx::Error::Protocol("invalid variant hash".into()))?;
-    if key.is_empty() || !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+    if key.is_empty()
+        || !key
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
         return Err(sqlx::Error::Protocol("invalid variant key".into()));
     }
     let patch = serde_json::json!({ key: variant_hash });
@@ -235,12 +279,10 @@ pub async fn file_variant_get(
     let Some(canonical_hash) = cas_hash_normalize(canonical_hash) else {
         return Ok(None);
     };
-    let row = sqlx::query(
-        "SELECT variants FROM ai.file_blob_meta WHERE hash_blake3 = $1",
-    )
-    .bind(&canonical_hash)
-    .fetch_optional(pool)
-    .await?;
+    let row = sqlx::query("SELECT variants FROM ai.file_blob_meta WHERE hash_blake3 = $1")
+        .bind(&canonical_hash)
+        .fetch_optional(pool)
+        .await?;
     Ok(row.and_then(|r| {
         r.get::<JsonValue, _>("variants")
             .get(key)
@@ -299,13 +341,11 @@ pub async fn cas_put(
                 url,
             });
         }
-        sqlx::query(
-            "INSERT INTO ai.file_blob_inline (hash_blake3, bytes) VALUES ($1, $2)",
-        )
-        .bind(&hash)
-        .bind(body)
-        .execute(&mut *tx)
-        .await?;
+        sqlx::query("INSERT INTO ai.file_blob_inline (hash_blake3, bytes) VALUES ($1, $2)")
+            .bind(&hash)
+            .bind(body)
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
     } else if cas_store_disk() {
         let prefix = &hash[0..2.min(hash.len())];
@@ -320,16 +360,7 @@ pub async fn cas_put(
             "path": disk_path.to_string_lossy()
         });
         let mut tx = pool.begin().await?;
-        let inserted = meta_insert_tx(
-            &mut tx,
-            &hash,
-            size,
-            mime_type,
-            false,
-            "disk",
-            &loc,
-        )
-        .await?;
+        let inserted = meta_insert_tx(&mut tx, &hash, size, mime_type, false, "disk", &loc).await?;
         if !inserted {
             tx.rollback().await?;
             tokio::fs::remove_file(&disk_path).await.ok();
@@ -436,14 +467,11 @@ pub async fn cas_bytes_get(
     match store.as_str() {
         "inline" => {
             let bytes: Option<Vec<u8>> = row.get("inline_bytes");
-            bytes
-                .map(|b| (b, mime))
-                .ok_or(sqlx::Error::RowNotFound)
+            bytes.map(|b| (b, mime)).ok_or(sqlx::Error::RowNotFound)
         }
         "s3" => {
-            let s3 = s3_client().ok_or_else(|| {
-                sqlx::Error::Protocol("S3 not configured".into())
-            })?;
+            let s3 =
+                s3_client().ok_or_else(|| sqlx::Error::Protocol("S3 not configured".into()))?;
             let loc: JsonValue = row.get("loc");
             let key = loc
                 .get("key")
@@ -498,7 +526,12 @@ pub fn file_router() -> Router<AppState> {
             "/fs/{hash}/{filename}",
             get(get_file_named_handler).head(head_file_named_handler),
         )
-        .route("/fs/{hash}", get(get_file_handler).head(head_file_handler).put(put_file_handler))
+        .route(
+            "/fs/{hash}",
+            get(get_file_handler)
+                .head(head_file_handler)
+                .put(put_file_handler),
+        )
 }
 
 #[derive(Deserialize, Default)]
@@ -544,12 +577,7 @@ async fn resolve_fetch_hash(
     Ok(hash)
 }
 
-async fn file_access_ok(
-    st: &AppState,
-    hash: &str,
-    q: &CasGetQuery,
-    headers: &HeaderMap,
-) -> bool {
+async fn file_access_ok(st: &AppState, hash: &str, q: &CasGetQuery, headers: &HeaderMap) -> bool {
     let signed = cas_verify(&st.cas_secret, hash, q.exp, &q.sig);
     if signed {
         return true;
@@ -601,7 +629,10 @@ async fn file_get_response(
     };
 
     let etag = format!("\"{fetch_hash}\"");
-    if let Some(if_none_match) = headers.get(header::IF_NONE_MATCH).and_then(|v| v.to_str().ok()) {
+    if let Some(if_none_match) = headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+    {
         if if_none_match == etag {
             return (
                 StatusCode::NOT_MODIFIED,
@@ -614,10 +645,7 @@ async fn file_get_response(
 
     match cas_bytes_get(&st.pool, &st.cas_dir, &fetch_hash).await {
         Ok((bytes, mime)) => {
-            let meta = cas_meta_get(&st.pool, &fetch_hash)
-                .await
-                .ok()
-                .flatten();
+            let meta = cas_meta_get(&st.pool, &fetch_hash).await.ok().flatten();
             let size = meta.map(|m| m.size_bytes).unwrap_or(bytes.len() as i64);
             let mut res_headers = cache_headers(&fetch_hash, size);
             if let Ok(v) = HeaderValue::from_str(&mime) {

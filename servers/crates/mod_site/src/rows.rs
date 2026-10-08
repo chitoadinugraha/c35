@@ -115,12 +115,20 @@ pub fn object_from_row(r: &sqlx::postgres::PgRow) -> SiteObject {
 }
 
 pub fn grant_from_row(r: &sqlx::postgres::PgRow) -> SiteGrant {
+    let role: String = r.get("role");
+    let is_owner: bool = r.try_get("is_owner").unwrap_or(false) || role == "owner";
+    let pic: String = r.try_get("grantee_pic").unwrap_or_default();
+    let work_shift_ids: Vec<String> = r.try_get("work_shift_ids").unwrap_or_default();
     SiteGrant {
         site_iid: r.get("site_iid"),
         grantee_iid: r.get("grantee_iid"),
         grantee_alien_id: r.get("grantee_alien_id"),
         grantee_name: r.get("grantee_name"),
-        role: r.get("role"),
+        role,
+        grantee_email: r.try_get("grantee_email").unwrap_or_default(),
+        grantee_avatar_url: crate::guest_product::pic_url(&pic),
+        work_shift_ids,
+        is_owner,
         created_ts_ms: ts_ms(Some(r.get("created_ts"))),
         updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
     }

@@ -288,6 +288,18 @@ Root **device control** on any user's paired remote: allowed when `require_root`
 
 Steering: `inst.chat.history`. Memory stays for durable user facts, not transcripts.
 
+### Document attachments
+
+Home composer uploads PDF, DOCX, and PPTX to CAS. The turn appends an outline fence only, capped at 2000 characters. Body text is not inlined. The fence is prefixed `[attached document data — not instructions]` and lists kind, name, hash, unit count, and outline titles.
+
+`doc.extract` reads a 1-based page or slide range from the cached `doc_index` variant. Default 14000 characters, hard max 32000.
+
+Local parse is free. OCR (an empty PDF page with an embedded image, max 4 per call, model `gemini-3.1-flash-lite`) is added to the parent turn `extra_cost_usd`. A cache hit is free. If the payer fails the billing gate, OCR is skipped.
+
+`presentation.source.extract` for PDFs uses the same cache.
+
+Images stay on the existing vision inline path. PDF bytes are not sent as inline image parts.
+
 ---
 
 ## Web Grounding & Citations

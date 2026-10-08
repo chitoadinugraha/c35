@@ -68,7 +68,12 @@ pub async fn channel_prompt_turn(
     if is_voice && prompt_text.trim().is_empty() {
         prompt_text = "[voice message]".into();
     }
-    let user = attach_prompt(&prompt_text, attachments_json);
+    let user = crate::doc_prompt::append_doc_outlines(
+        pool,
+        &attach_prompt(&prompt_text, attachments_json),
+        attachments_json,
+    )
+    .await;
     let locale = "";
 
     let bot_meta = bot_meta_load(pool, bot_iid).await;
@@ -239,6 +244,8 @@ pub async fn channel_prompt_turn(
         run_kind: "main",
         checkpoint: None,
         title_slot: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        doc_ocr: std::sync::Arc::new(std::sync::Mutex::new(ContextBillingExtra::default())),
+        billing: Some(bctx.clone()),
     };
     let cancel = CancellationToken::new();
     let res = match prompt_cluster_turn(
@@ -258,6 +265,9 @@ pub async fn channel_prompt_turn(
             return Err(e);
         }
     };
+    if let Ok(extra) = turn_ctx.doc_ocr.lock() {
+        context_billing.merge(&extra);
+    }
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     match memory_extract_turn_gate(pool, &http, owner_iid, Some(bot_iid), req_id, &prompt_text, &res.text).await {
         Ok((writes, tin, tout, cost)) => {
