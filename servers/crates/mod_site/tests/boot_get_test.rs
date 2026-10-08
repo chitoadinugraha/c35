@@ -29,6 +29,7 @@ fn site_boot_json_assemble_includes_pages_and_capabilities() {
         serde_json::Map::new(),
         &[],
         &[],
+        &[],
     );
     assert_eq!(boot["site_id"], 42);
     assert_eq!(boot["name"], "Warung");

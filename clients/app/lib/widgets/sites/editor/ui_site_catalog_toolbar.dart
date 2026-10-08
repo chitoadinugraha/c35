@@ -3,6 +3,15 @@ import 'package:flutter/material.dart';
 const _border = Color(0xFF3F3F46);
 const _muted = Color(0xFF71717A);
 
+class SiteCatalogMenuItem {
+  const SiteCatalogMenuItem({required this.value, required this.label, this.leading, this.enabled = true});
+
+  final String value;
+  final String label;
+  final Widget? leading;
+  final bool enabled;
+}
+
 class UiSiteCatalogToolbar extends StatelessWidget {
   const UiSiteCatalogToolbar({
     super.key,
@@ -11,11 +20,14 @@ class UiSiteCatalogToolbar extends StatelessWidget {
     required this.onSearchChanged,
     this.onAdd,
     this.addBusy = false,
+    this.addTooltip = 'Add',
     this.onPaste,
     this.onImportImage,
     this.designSelected = false,
     this.onDesignToggle,
     this.extraActions,
+    this.menuItems,
+    this.onMenuAction,
   });
 
   final TextEditingController searchController;
@@ -23,11 +35,14 @@ class UiSiteCatalogToolbar extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback? onAdd;
   final bool addBusy;
+  final String addTooltip;
   final VoidCallback? onPaste;
   final VoidCallback? onImportImage;
   final bool designSelected;
   final VoidCallback? onDesignToggle;
   final List<Widget>? extraActions;
+  final List<SiteCatalogMenuItem>? menuItems;
+  final ValueChanged<String>? onMenuAction;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -87,7 +102,27 @@ class UiSiteCatalogToolbar extends StatelessWidget {
               ),
             ],
             if (extraActions != null) ...extraActions!,
-            if (onAdd != null) ...[
+            if (menuItems != null && menuItems!.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              PopupMenuButton<String>(
+                tooltip: addTooltip,
+                icon: const Icon(Icons.person_add_outlined, size: 20, color: _muted),
+                onSelected: onMenuAction,
+                itemBuilder: (ctx) => [
+                  for (final item in menuItems!)
+                    PopupMenuItem(
+                      value: item.value,
+                      enabled: item.enabled,
+                      child: Row(
+                        children: [
+                          if (item.leading != null) ...[item.leading!, const SizedBox(width: 10)],
+                          Text(item.label),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ] else if (onAdd != null) ...[
               const SizedBox(width: 4),
               addBusy
                   ? const Padding(
@@ -95,7 +130,7 @@ class UiSiteCatalogToolbar extends StatelessWidget {
                       child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   : Tooltip(
-                      message: 'Add',
+                      message: addTooltip,
                       child: IconButton(onPressed: onAdd, icon: const Icon(Icons.add, size: 20)),
                     ),
             ],

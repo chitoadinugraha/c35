@@ -13,6 +13,10 @@ pub struct ProductRow {
     pub pic: String,
     pub category: String,
     pub sort_order: i32,
+    pub can_reserve: bool,
+    pub duration_value: i64,
+    pub duration_unit: String,
+    pub reservation_unit_selection: String,
 }
 
 pub fn product_row_json(p: &ProductRow) -> Value {
@@ -23,7 +27,90 @@ pub fn product_row_json(p: &ProductRow) -> Value {
         "price": p.price,
         "pic": pic_url(&p.pic),
         "category": p.category,
+        "can_reserve": p.can_reserve,
+        "duration_value": p.duration_value,
+        "duration_unit": p.duration_unit,
+        "reservation_unit_selection": p.reservation_unit_selection,
     })
+}
+
+/// Duration and unit-selection fields from `site.product.product_json`.
+/// Same rules as `siteProductExtrasRead` in `site_product_json.dart`.
+/// Invalid JSON, or a value that is not an object, uses the defaults.
+pub fn reservation_fields_from_product_json(raw: &str) -> (i64, String, String) {
+    let parsed = serde_json::from_str::<Value>(raw).ok();
+    let map = parsed.as_ref().and_then(|v| v.as_object());
+    let Some(map) = map else {
+        return reservation_field_defaults();
+    };
+    let duration_value = map
+        .get("duration_value")
+        .and_then(json_num_to_int)
+        .filter(|n| *n > 0)
+        .unwrap_or(1);
+    let unit_raw = map
+        .get("duration_unit")
+        .map(json_trim_string)
+        .unwrap_or_default();
+    let duration_unit = if unit_raw.is_empty() {
+        "day".to_string()
+    } else {
+        unit_raw
+    };
+    let selection_raw = map
+        .get("reservation_unit_selection")
+        .map(json_trim_string)
+        .unwrap_or_default();
+    let reservation_unit_selection = if selection_raw == "guest_picks" {
+        "guest_picks".to_string()
+    } else {
+        "system".to_string()
+    };
+    (duration_value, duration_unit, reservation_unit_selection)
+}
+
+fn reservation_field_defaults() -> (i64, String, String) {
+    (1, "day".to_string(), "system".to_string())
+}
+
+fn json_num_to_int(v: &Value) -> Option<i64> {
+    match v {
+        Value::Number(n) => n
+            .as_i64()
+            .or_else(|| n.as_f64().map(|f| f.trunc() as i64)),
+        _ => None,
+    }
+}
+
+fn json_trim_string(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.trim().to_string(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
+fn reservation_fields_from_json_value(v: &Value) -> (i64, String, String) {
+    reservation_fields_from_product_json(&v.to_string())
+}
+
+fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
+    let product_json: Value = r.get("product_json");
+    let (duration_value, duration_unit, reservation_unit_selection) =
+        reservation_fields_from_json_value(&product_json);
+    ProductRow {
+        product_id: r.get("product_id"),
+        name: r.get("name"),
+        desc: r.get("desc"),
+        price: r.get("price"),
+        pic: col_text(r, "pic"),
+        category: r.get("category"),
+        sort_order: r.get("sort_order"),
+        can_reserve: r.get("can_reserve"),
+        duration_value,
+        duration_unit,
+        reservation_unit_selection,
+    }
 }
 
 pub fn pic_url(pic: &str) -> String {
@@ -156,7 +243,7 @@ async fn fetch_product_rows(
         if let Some((sort_order, product_id)) = keyset {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND recommended_guest = TRUE
@@ -174,7 +261,7 @@ async fn fetch_product_rows(
         } else {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND recommended_guest = TRUE
@@ -191,7 +278,7 @@ async fn fetch_product_rows(
         if let Some((sort_order, product_id)) = keyset {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND category = $2
@@ -210,7 +297,7 @@ async fn fetch_product_rows(
         } else {
             sqlx::query(
                 r#"
-                SELECT product_id, name, "desc", price, pic, category, sort_order
+                SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
                 FROM site.product
                 WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
                   AND can_sell = TRUE AND category = $2
@@ -227,7 +314,7 @@ async fn fetch_product_rows(
     } else if let Some((sort_order, product_id)) = keyset {
         sqlx::query(
             r#"
-            SELECT product_id, name, "desc", price, pic, category, sort_order
+            SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
             FROM site.product
             WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
               AND can_sell = TRUE
@@ -245,7 +332,7 @@ async fn fetch_product_rows(
     } else {
         sqlx::query(
             r#"
-            SELECT product_id, name, "desc", price, pic, category, sort_order
+            SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
             FROM site.product
             WHERE site_iid = $1 AND deleted_ts IS NULL AND is_archived = FALSE
               AND can_sell = TRUE
@@ -258,18 +345,7 @@ async fn fetch_product_rows(
         .fetch_all(pool)
         .await?
     };
-    Ok(rows
-        .iter()
-        .map(|r| ProductRow {
-            product_id: r.get("product_id"),
-            name: r.get("name"),
-            desc: r.get("desc"),
-            price: r.get("price"),
-            pic: col_text(r, "pic"),
-            category: r.get("category"),
-            sort_order: r.get("sort_order"),
-        })
-        .collect())
+    Ok(rows.iter().map(product_row_from_pg).collect())
 }
 
 pub struct GuestProductDetail {
@@ -287,7 +363,7 @@ pub async fn guest_product_get(
     }
     let row = sqlx::query(
         r#"
-        SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve
+        SELECT product_id, name, "desc", price, pic, category, sort_order, can_reserve, product_json
         FROM site.product
         WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL AND is_archived = FALSE
         "#,
@@ -296,17 +372,10 @@ pub async fn guest_product_get(
     .bind(product_id)
     .fetch_optional(pool)
     .await?;
-    Ok(row.map(|r| GuestProductDetail {
-        row: ProductRow {
-            product_id: r.get("product_id"),
-            name: r.get("name"),
-            desc: r.get("desc"),
-            price: r.get("price"),
-            pic: col_text(&r, "pic"),
-            category: r.get("category"),
-            sort_order: r.get("sort_order"),
-        },
-        can_reserve: r.get("can_reserve"),
+    Ok(row.map(|r| {
+        let row = product_row_from_pg(&r);
+        let can_reserve = row.can_reserve;
+        GuestProductDetail { row, can_reserve }
     }))
 }
 
@@ -328,4 +397,29 @@ pub async fn guest_product_sell_ids(pool: &PgPool, site_iid: i64, limit: i32) ->
     .fetch_all(pool)
     .await?;
     Ok(rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::reservation_fields_from_product_json;
+
+    #[test]
+    fn product_json_reservation_fields() {
+        let (duration, unit, selection) = reservation_fields_from_product_json(
+            r#"{"duration_unit":"hour","reservation_unit_selection":"guest_picks"}"#,
+        );
+        assert_eq!(duration, 1);
+        assert_eq!(unit, "hour");
+        assert_eq!(selection, "guest_picks");
+
+        let (duration, unit, selection) = reservation_fields_from_product_json("{}");
+        assert_eq!(duration, 1);
+        assert_eq!(unit, "day");
+        assert_eq!(selection, "system");
+
+        let (duration, unit, selection) = reservation_fields_from_product_json("not-json");
+        assert_eq!(duration, 1);
+        assert_eq!(unit, "day");
+        assert_eq!(selection, "system");
+    }
 }

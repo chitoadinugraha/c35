@@ -1,6 +1,8 @@
 use c35_mod_site::doc::{render_key_for_page, site_doc_validate};
+use c35_mod_site::guest_design::GuestDesign;
 use c35_mod_site::render::{
-    block_html_render, render_etag, render_offline_html, ProductGridCtx, ProductRow,
+    block_html_render, product_detail_article_html, render_etag, render_offline_html, ProductGridCtx,
+    ProductRow,
 };
 use c35_mod_site::site_preview_token_verify;
 use c35_proto::{SiteBlock, SiteDoc, SitePage};
@@ -13,7 +15,8 @@ fn render_block(
     caps: &Value,
     grid_ctx: Option<&ProductGridCtx>,
 ) -> String {
-    block_html_render(block_type, props, products, caps, grid_ctx, 0, &[], &[], None)
+    let design = GuestDesign::from_theme_json("");
+    block_html_render(block_type, props, products, caps, grid_ctx, 0, &[], &[], None, &design, &[])
 }
 
 fn render_block_site(
@@ -25,7 +28,20 @@ fn render_block_site(
     site_iid: i64,
     product_design: Option<&Value>,
 ) -> String {
-    block_html_render(block_type, props, products, caps, grid_ctx, site_iid, &[], &[], product_design)
+    let design = GuestDesign::from_theme_json("");
+    block_html_render(
+        block_type,
+        props,
+        products,
+        caps,
+        grid_ctx,
+        site_iid,
+        &[],
+        &[],
+        product_design,
+        &design,
+        &[],
+    )
 }
 
 fn sample_doc() -> SiteDoc {
@@ -204,6 +220,10 @@ fn block_product_grid_renders_products() {
             pic: "pic-kopi".into(),
             category: "drinks".into(),
             sort_order: 0,
+            can_reserve: false,
+            duration_value: 1,
+            duration_unit: "day".into(),
+            reservation_unit_selection: "system".into(),
         },
         ProductRow {
             product_id: 102,
@@ -213,6 +233,10 @@ fn block_product_grid_renders_products() {
             pic: "".into(),
             category: "drinks".into(),
             sort_order: 1,
+            can_reserve: false,
+            duration_value: 1,
+            duration_unit: "day".into(),
+            reservation_unit_selection: "system".into(),
         },
     ];
     let grid_ctx = ProductGridCtx {
@@ -253,6 +277,42 @@ fn block_product_grid_renders_products() {
     assert!(html.contains("data-block-id=\"g1\""));
     assert!(html.contains("data-next-cursor=\"0:102\""));
     assert!(html.contains("guest-load-more-btn"));
+}
+
+fn sample_product(can_reserve: bool) -> ProductRow {
+    ProductRow {
+        product_id: 7,
+        name: "Villa Melati".into(),
+        desc: "Malam".into(),
+        price: 250000,
+        pic: "".into(),
+        category: "stay".into(),
+        sort_order: 0,
+        can_reserve,
+        duration_value: 1,
+        duration_unit: "day".into(),
+        reservation_unit_selection: "guest_picks".into(),
+    }
+}
+
+#[test]
+fn reservable_product_detail_renders_reserve_button() {
+    let html = product_detail_article_html(&sample_product(true));
+    assert!(html.contains("guest-reserve-btn"));
+    assert!(html.contains("data-reserve-product=\"7\""));
+    assert!(html.contains(">Reservasi</button>"));
+    assert!(!html.contains("product-reserve-placeholder"));
+    assert!(!html.contains("+ Pesan"));
+    assert!(html.contains("data-can-reserve=\"1\""));
+}
+
+#[test]
+fn sellable_product_detail_keeps_pesan_button() {
+    let html = product_detail_article_html(&sample_product(false));
+    assert!(html.contains("guest-add-btn"));
+    assert!(html.contains("+ Pesan"));
+    assert!(!html.contains("guest-reserve-btn"));
+    assert!(!html.contains("product-reserve-placeholder"));
 }
 
 #[test]
@@ -383,6 +443,8 @@ fn social_feed_block_renders_hub_posts() {
         &[],
         &[post],
         None,
+        &GuestDesign::from_theme_json(""),
+        &[],
     );
     assert!(html.contains("posts/7"));
     assert!(html.contains("News"));

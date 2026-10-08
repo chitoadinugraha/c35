@@ -42,6 +42,8 @@ class SiteScheduleSlot {
 
 const siteScheduleWeekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+const siteScheduleWeekdayLabelsLong = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 String siteScheduleSlotNewId() => 'slot-${DateTime.now().millisecondsSinceEpoch}';
 
 SiteScheduleSlot siteScheduleSlotDefault() => SiteScheduleSlot(id: siteScheduleSlotNewId());
@@ -52,12 +54,32 @@ String siteScheduleMinFormat(int min) {
   return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
 }
 
+int siteScheduleWeekMin(int day, int min) => day.clamp(0, 6) * 1440 + min.clamp(0, 1439);
+
+int siteScheduleSlotDurationMin(SiteScheduleSlot slot) {
+  final start = siteScheduleWeekMin(slot.startDay, slot.startMin);
+  var end = siteScheduleWeekMin(slot.endDay, slot.endMin);
+  if (end <= start) end += 7 * 1440;
+  return end - start;
+}
+
+String siteScheduleMinsDurationLabel(int total) {
+  if (total % 60 == 0) return '${total ~/ 60} hours';
+  final h = total ~/ 60;
+  final m = total % 60;
+  if (h == 0) return '$m min';
+  return '$h h $m m';
+}
+
+String siteScheduleDurationLabel(SiteScheduleSlot slot) => siteScheduleMinsDurationLabel(siteScheduleSlotDurationMin(slot));
+
 String siteScheduleSlotPreview(SiteScheduleSlot slot) {
   final start = '${siteScheduleWeekdayLabels[slot.startDay.clamp(0, 6)]} ${siteScheduleMinFormat(slot.startMin)}';
   final end = slot.endDay == slot.startDay
       ? siteScheduleMinFormat(slot.endMin)
       : '${siteScheduleWeekdayLabels[slot.endDay.clamp(0, 6)]} ${siteScheduleMinFormat(slot.endMin)}';
-  return '$start – $end';
+  final duration = siteScheduleDurationLabel(slot);
+  return '$start – $end ($duration)';
 }
 
 List<SiteScheduleSlot> siteScheduleSort(List<SiteScheduleSlot> slots) => [...slots]

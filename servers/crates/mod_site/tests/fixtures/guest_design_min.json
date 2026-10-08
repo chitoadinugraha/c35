@@ -1,0 +1,13 @@
+{
+  "accent": "#E11D48",
+  "base": "rosegold",
+  "dark": true,
+  "background": { "type": "color", "color": "#111111" },
+  "backdrop": { "id": "glow" },
+  "card": { "id": "solid", "params": {} },
+  "profile": { "showAvatar": false },
+  "product": { "titleFontSize": 22 },
+  "blocks": [{ "block": "link", "cardStyleId": "none", "params": {} }],
+  "partners": { "header": "Featured Partners" },
+  "clients": { "header": "Featured Clients" }
+}

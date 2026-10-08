@@ -1,6 +1,10 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/design/site_design_models.dart';
+
+export 'package:alienai_c35/c/site/design/site_design_models.dart'
+    show SiteProductDesignDraft, siteFontWeightNormalize, siteFontWeightParse, siteFontWeightLabel, siteFontWeightIds;
 
 class SiteTaxDraft {
   const SiteTaxDraft({
@@ -50,108 +54,11 @@ String siteTaxDefaultName(String type) => switch (siteTaxTypeNormalize(type)) {
       _ => 'PPN',
     };
 
-class SiteProductDesignDraft {
-  const SiteProductDesignDraft({
-    this.titleFontSize = 14,
-    this.titleFontWeight = 'w600',
-    this.titleFontFamily = '',
-    this.titleItalic = false,
-    this.titleUnderline = false,
-    this.titleColor = '',
-    this.subtitleFontSize = 12,
-    this.subtitleFontWeight = 'w400',
-    this.subtitleFontFamily = '',
-    this.subtitleItalic = false,
-    this.subtitleUnderline = false,
-    this.subtitleColor = '',
-    this.priceFontSize = 14,
-    this.priceFontWeight = 'w600',
-    this.priceFontFamily = '',
-    this.priceItalic = false,
-    this.priceUnderline = false,
-    this.priceColor = '',
-  });
-
-  final double titleFontSize;
-  final String titleFontWeight;
-  final String titleFontFamily;
-  final bool titleItalic;
-  final bool titleUnderline;
-  final String titleColor;
-  final double subtitleFontSize;
-  final String subtitleFontWeight;
-  final String subtitleFontFamily;
-  final bool subtitleItalic;
-  final bool subtitleUnderline;
-  final String subtitleColor;
-  final double priceFontSize;
-  final String priceFontWeight;
-  final String priceFontFamily;
-  final bool priceItalic;
-  final bool priceUnderline;
-  final String priceColor;
-
-  SiteProductDesignDraft copyWith({
-    double? titleFontSize,
-    String? titleFontWeight,
-    String? titleFontFamily,
-    bool? titleItalic,
-    bool? titleUnderline,
-    String? titleColor,
-    double? subtitleFontSize,
-    String? subtitleFontWeight,
-    String? subtitleFontFamily,
-    bool? subtitleItalic,
-    bool? subtitleUnderline,
-    String? subtitleColor,
-    double? priceFontSize,
-    String? priceFontWeight,
-    String? priceFontFamily,
-    bool? priceItalic,
-    bool? priceUnderline,
-    String? priceColor,
-  }) =>
-      SiteProductDesignDraft(
-        titleFontSize: titleFontSize ?? this.titleFontSize,
-        titleFontWeight: titleFontWeight ?? this.titleFontWeight,
-        titleFontFamily: titleFontFamily ?? this.titleFontFamily,
-        titleItalic: titleItalic ?? this.titleItalic,
-        titleUnderline: titleUnderline ?? this.titleUnderline,
-        titleColor: titleColor ?? this.titleColor,
-        subtitleFontSize: subtitleFontSize ?? this.subtitleFontSize,
-        subtitleFontWeight: subtitleFontWeight ?? this.subtitleFontWeight,
-        subtitleFontFamily: subtitleFontFamily ?? this.subtitleFontFamily,
-        subtitleItalic: subtitleItalic ?? this.subtitleItalic,
-        subtitleUnderline: subtitleUnderline ?? this.subtitleUnderline,
-        subtitleColor: subtitleColor ?? this.subtitleColor,
-        priceFontSize: priceFontSize ?? this.priceFontSize,
-        priceFontWeight: priceFontWeight ?? this.priceFontWeight,
-        priceFontFamily: priceFontFamily ?? this.priceFontFamily,
-        priceItalic: priceItalic ?? this.priceItalic,
-        priceUnderline: priceUnderline ?? this.priceUnderline,
-        priceColor: priceColor ?? this.priceColor,
-      );
-}
-
 class SiteDraftMeta {
   const SiteDraftMeta({this.taxes = const [], this.productDesign = const SiteProductDesignDraft()});
 
   final List<SiteTaxDraft> taxes;
   final SiteProductDesignDraft productDesign;
-}
-
-String siteFontWeightNormalize(String? raw) {
-  final w = (raw ?? '').trim();
-  return switch (w) {
-    'w300' || 'light' => 'w300',
-    'w400' || 'regular' || 'normal' => 'w400',
-    'w500' || 'medium' => 'w500',
-    'w700' || 'bold' => 'w700',
-    'w800' || 'extraBold' => 'w800',
-    'w900' || 'black' => 'w900',
-    'w600' || 'semibold' || 'semiBold' => 'w600',
-    _ => 'w600',
-  };
 }
 
 Map<String, dynamic> _metaMap(String metaJson) {

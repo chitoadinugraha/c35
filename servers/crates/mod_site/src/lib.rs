@@ -3,6 +3,7 @@ pub mod doc;
 pub mod grant;
 mod http;
 mod commerce_boot;
+pub mod guest_design;
 mod guest_product;
 mod product_design;
 pub mod render;
@@ -76,6 +77,7 @@ pub use guest_product::{
     product_grid_page_size, product_row_json, product_rows_for_grid, GuestProductListResult,
     ProductRow,
 };
-pub use render::{block_html_render, product_card_html, ProductGridCtx};
+pub use guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
+pub use render::{block_html_render, guest_shell_html, product_card_html, ProductGridCtx};
 pub use sync::sync_pull;
 pub use sync_push::site_sync_push;

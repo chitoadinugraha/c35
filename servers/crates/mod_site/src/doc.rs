@@ -19,6 +19,8 @@ pub const BLOCK_TYPES_V1: &[&str] = &[
     "embed",
     "spacer",
     "custom_html",
+    "partners_display",
+    "clients_display",
 ];
 
 pub fn site_doc_to_json(doc: &SiteDoc) -> Result<Value> {
@@ -263,6 +265,7 @@ fn block_props_validate(block_type: &str, props: &Value) -> Result<()> {
                 }
             }
         }
+        "partners_display" | "clients_display" => {}
         _ => return Err(anyhow!("unsupported block type: {block_type}")),
     }
     Ok(())

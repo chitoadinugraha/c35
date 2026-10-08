@@ -1,10 +1,21 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:alienai_c35/c/pb/c35/site.pbenum.dart';
+import 'package:alienai_c35/c/site/design/site_backdrop.dart';
+import 'package:alienai_c35/c/site/design/site_design_models.dart';
+import 'package:alienai_c35/c/site/design/site_design_resolve.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
+import 'package:alienai_c35/guest_site/guest_site_hours.dart';
+import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/widgets/sites/ui_powered_by_alien.dart';
 import 'package:flutter/material.dart';
+
+const _guestTextSecondary = Color(0xFFA1A1AA);
+const _guestTextPrimary = Color(0xFFF4F4F5);
 
 /// Renders v1 site blocks from `site_boot_get` JSON (guest HTML parity in Flutter).
 class GuestSiteView extends StatelessWidget {
@@ -131,6 +142,12 @@ class _GuestSiteBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final blocks = boot.homeBlocks;
     final accent = boot.accentColor;
+    final openHours = boot.openHoursSlots;
+    final hubShowsHours = blocks.any((b) {
+      if (b['type']?.toString() != 'hub_profile') return false;
+      final props = b['props'];
+      return props is Map && props['show_hours'] == true;
+    });
 
     if (blocks.isEmpty) {
       return Padding(
@@ -144,7 +161,10 @@ class _GuestSiteBody extends StatelessWidget {
       );
     }
 
-    return Column(
+    final resolved = boot.design == null ? null : siteDesignResolve(boot.design!);
+    final fg = resolved?.fg ?? _guestTextPrimary;
+    final muted = resolved?.muted ?? _guestTextSecondary;
+    final column = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < blocks.length; i++)
@@ -157,13 +177,145 @@ class _GuestSiteBody extends StatelessWidget {
               siteIid: boot.siteIid,
               productDesign: boot.productDesign,
               productRows: boot.productsForBlock(blocks[i]['id']?.toString() ?? ''),
-              productNextCursor:
-                  boot.nextProductCursorForBlock(blocks[i]['id']?.toString() ?? ''),
+              commerceObjects: boot.commerceObjects,
+              productNextCursor: boot.nextProductCursorForBlock(blocks[i]['id']?.toString() ?? ''),
               hubLinks: boot.links,
               postsPreload: boot.postsPreload,
+              openHours: openHours,
+              suppressHoursBlock: hubShowsHours,
+              siteAvatar: boot.avatarUrl,
+              design: boot.design,
+              featuredContacts: boot.featuredContacts,
+              foreground: fg,
+              muted: muted,
             ),
           ),
+        if (boot.shouldShowMetaLocation) _GuestSiteMetaLocationChip(accent: accent, label: boot.locationLabel),
+        if (boot.shouldShowMetaHours && !hubShowsHours)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: GuestSiteHoursCompact(openHours: openHours),
+          ),
+        const SizedBox(height: 28),
+        Center(child: UiPoweredByAlien(color: muted, strongColor: fg)),
+        const SizedBox(height: 88),
       ],
     );
+
+    if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: column);
+    return _GuestSiteCanvas(resolved: resolved, effects: boot.effects, child: column);
   }
+}
+
+/// Backdrop host. [backdropId] is the normalized preset (`none`, `glow`, `mesh`, `grain`, `diamond`, `aurora`).
+class GuestSiteBackdrop extends StatelessWidget {
+  const GuestSiteBackdrop({super.key, required this.backdropId, required this.child});
+
+  final String backdropId;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: backdropId,
+        container: true,
+        child: child,
+      );
+}
+
+class _GuestSiteCanvas extends StatelessWidget {
+  const _GuestSiteCanvas({required this.resolved, required this.effects, required this.child});
+
+  final SiteResolvedDesign resolved;
+  final List<Map<String, dynamic>> effects;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = resolved.background;
+    final backdropId = siteBackdropNormalizeId(resolved.backdrop.id);
+    return ColoredBox(
+      color: resolved.pageBackground,
+      child: Stack(
+        children: [
+          if (bg.type == 'image') Positioned.fill(child: _GuestSiteBackgroundImage(background: bg)),
+          if (bg.overlay > 0)
+            Positioned.fill(
+              child: ColoredBox(
+                color: (bg.overlayTone == 'light' ? Colors.white : Colors.black).withValues(alpha: bg.overlay.clamp(0, 1)),
+              ),
+            ),
+          Positioned.fill(
+            child: GuestSiteBackdrop(
+              key: const Key('guest-backdrop'),
+              backdropId: backdropId,
+              child: siteBackdropLayer(
+                style: resolved.backdrop,
+                theme: resolved.theme,
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+          GuestSiteEffectStack(effects: effects, child: child),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestSiteBackgroundImage extends StatelessWidget {
+  const _GuestSiteBackgroundImage({required this.background});
+
+  final SiteBackgroundDraft background;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = guestSitePicUrl(background.url);
+    if (url.isEmpty) return const SizedBox.expand();
+    Widget image = DecoratedBox(
+      decoration: BoxDecoration(
+        image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+      ),
+      child: const SizedBox.expand(),
+    );
+    if (background.blur > 0) {
+      final sigma = background.blur;
+      image = ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma), child: image);
+    }
+    return image;
+  }
+}
+
+class _GuestSiteMetaLocationChip extends StatelessWidget {
+  const _GuestSiteMetaLocationChip({required this.accent, required this.label});
+
+  final Color accent;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        child: Center(
+          child: Material(
+            color: _guestTextPrimary.withValues(alpha: 0.04),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: _guestTextSecondary.withValues(alpha: 0.28)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.location_on_outlined, size: 14, color: accent),
+                  const SizedBox(width: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 276),
+                    child: Text(label, style: const TextStyle(color: _guestTextSecondary, fontSize: 12, height: 1.35)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }

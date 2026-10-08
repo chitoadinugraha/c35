@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use c35_proto::{SiteDoc, SiteLink, SitePost};
-use serde_json::Value;
+use serde_json::{json, Value};
 use sqlx::PgPool;
 
 use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
@@ -9,6 +9,7 @@ use crate::product_design::{
     product_card_price_style, product_card_subtitle_style, product_card_title_style,
     product_design_from_site_meta,
 };
+use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
 use crate::guest_product::{
     guest_product_get, guest_product_list, guest_product_sell_ids, pic_url, product_grid_page_size,
 };
@@ -50,9 +51,12 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
     } else {
         format!(r#" style="{}""#, esc_attr(&price_style))
     };
+    let reserve_attr = product_reserve_attrs(p);
+    let action = product_purchase_button(p);
     format!(
-        r#"<article class="product-card" data-pid="{pid}">{img}<div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p><div class="product-bottom"><span class="price"{price_attr}>{price_str}</span><button type="button" class="guest-add-btn" onclick="c35GuestCart.add({pid}, '{name_esc}', {price}, '{pic_esc}')">+ Pesan</button></div></div></article>"#,
+        r#"<article class="product-card" data-pid="{pid}"{reserve_attr}>{img}<div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p><div class="product-bottom"><span class="price"{price_attr}>{price_str}</span>{action}</div></div></article>"#,
         pid = p.product_id,
+        reserve_attr = reserve_attr,
         img = img,
         title_attr = title_attr,
         name = esc(&p.name),
@@ -60,9 +64,127 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
         desc = esc(&p.desc),
         price_attr = price_attr,
         price_str = esc(&format_currency(p.price)),
-        name_esc = esc_js(&p.name),
-        price = p.price,
-        pic_esc = esc_js(&pic_url(&p.pic)),
+        action = action,
+    )
+}
+
+fn product_reserve_attrs(p: &ProductRow) -> String {
+    if !p.can_reserve {
+        return String::new();
+    }
+    format!(
+        r#" data-can-reserve="1" data-name="{}" data-price="{}" data-pic="{}" data-duration-value="{}" data-duration-unit="{}" data-unit-selection="{}""#,
+        esc(&p.name),
+        p.price,
+        esc(&pic_url(&p.pic)),
+        p.duration_value.max(1),
+        esc(&p.duration_unit),
+        esc(&p.reservation_unit_selection),
+    )
+}
+
+fn product_purchase_button(p: &ProductRow) -> String {
+    if p.can_reserve {
+        return format!(
+            r#"<button type="button" class="guest-reserve-btn" data-reserve-product="{}">Reservasi</button>"#,
+            p.product_id
+        );
+    }
+    format!(
+        r#"<button type="button" class="guest-add-btn" onclick="c35GuestCart.add({}, '{}', {}, '{}')">+ Pesan</button>"#,
+        p.product_id,
+        esc_js(&p.name),
+        p.price,
+        esc_js(&pic_url(&p.pic)),
+    )
+}
+
+/// Product detail article. Reservable products show Reservasi and omit + Pesan.
+pub fn product_detail_article_html(p: &ProductRow) -> String {
+    let img = if p.pic.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<img src="{}" alt="" loading="lazy" class="product-detail-pic"/>"#,
+            esc(&pic_url(&p.pic))
+        )
+    };
+    format!(
+        r#"<article class="product-detail" data-pid="{pid}"{reserve_attr}>{img}<h1>{name}</h1><p>{desc}</p><p class="price">{price_str}</p>{action}</article>"#,
+        pid = p.product_id,
+        reserve_attr = product_reserve_attrs(p),
+        img = img,
+        name = esc(&p.name),
+        desc = esc(&p.desc),
+        price_str = esc(&format_currency(p.price)),
+        action = product_purchase_button(p),
+    )
+}
+
+fn featured_strip_html(
+    guest: &str,
+    kind: &str,
+    strip: &crate::guest_design::StripDesign,
+    design: &GuestDesign,
+    featured: &[FeaturedContact],
+) -> String {
+    let block_id = if kind == "partners" {
+        "partners_display"
+    } else {
+        "clients_display"
+    };
+    let (card_open, card_close) = design.card_wrap(block_id);
+    let mode = strip.item_mode.as_str();
+    let items = featured
+        .iter()
+        .filter(|c| c.featured == kind)
+        .map(|c| strip_item_html(c, mode, strip.show_label))
+        .collect::<Vec<_>>()
+        .join("");
+    let align = css_align(&strip.item_align, "left");
+    let header_align = css_align(&strip.header_align, "left");
+    format!(
+        r#"<section class="block featured-strip" data-guest="{guest}" data-item-mode="{mode}" data-align="{align}" data-slide="{slide}">{card_open}<h2 class="strip-header" style="text-align:{header_align};font-size:{size}{family}">{header}</h2><ul class="strip-items" style="text-align:{align}">{items}</ul>{card_close}</section>"#,
+        guest = guest,
+        mode = mode,
+        align = align,
+        slide = esc(strip.slide_from.as_str()),
+        card_open = card_open,
+        header_align = header_align,
+        size = css_px(strip.header_font_size),
+        family = family_decl(&strip.header_font_family),
+        header = esc(&strip.header),
+        items = items,
+        card_close = card_close,
+    )
+}
+
+fn strip_item_html(contact: &FeaturedContact, mode: &str, show_label: bool) -> String {
+    let img = if contact.pic.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<img src="{}" alt="" loading="lazy"/>"#,
+            esc(&contact.pic)
+        )
+    };
+    let show_name = show_label && mode != "icon";
+    let label = if show_name {
+        format!(r#"<span class="strip-label">{}</span>"#, esc(&contact.name))
+    } else {
+        String::new()
+    };
+    let mode_class = match mode {
+        "card" => "strip-item strip-card card",
+        "icon_label" => "strip-item strip-icon-label",
+        _ => "strip-item strip-icon",
+    };
+    format!(
+        r#"<li class="{mode_class}" data-id="{id}">{img}{label}</li>"#,
+        mode_class = mode_class,
+        id = contact.id,
+        img = img,
+        label = label,
     )
 }
 
@@ -244,6 +366,70 @@ fn hours_row_html(row: &Value) -> String {
     )
 }
 
+pub fn guest_root_css(design: &GuestDesign) -> String {
+    format!(
+        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};}}",
+        accent = design.accent,
+        page_bg = design.page_bg,
+        fg = design.fg,
+        muted = design.muted,
+        radius = design.card_radius_css(),
+        card_bg = design.card_bg,
+        card_border = design.card_border,
+    )
+}
+
+pub fn guest_shell_html(design: &GuestDesign, inner: &str) -> String {
+    let image = page_bg_image_html(design);
+    format!(
+        r#"<style>{root}</style><body data-backdrop="{bd}" class="backdrop-{bd}" style="background-color:{page_bg};color:{fg}">{image}<main class="wrap">{inner}</main></body>"#,
+        root = guest_root_css(design),
+        bd = design.backdrop_id,
+        page_bg = design.page_bg,
+        fg = design.fg,
+        image = image,
+        inner = inner,
+    )
+}
+
+fn page_bg_image_html(design: &GuestDesign) -> String {
+    if design.background_type != "image" {
+        return String::new();
+    }
+    let url = pic_url(&design.background_url);
+    if url.is_empty() {
+        return String::new();
+    }
+    format!(
+        r#"<div class="page-bg-image" style="background-image:url('{}')"></div>"#,
+        esc(&url)
+    )
+}
+
+fn css_px(n: f64) -> String {
+    if (n - n.round()).abs() < 0.001 {
+        format!("{}px", n.round() as i64)
+    } else {
+        format!("{n}px")
+    }
+}
+
+fn css_align(raw: &str, fallback: &str) -> String {
+    match raw.trim() {
+        "left" | "right" | "center" | "start" | "end" => raw.trim().to_string(),
+        _ => fallback.to_string(),
+    }
+}
+
+fn family_decl(family: &str) -> String {
+    let f = family.trim();
+    if f.is_empty() {
+        String::new()
+    } else {
+        format!(";font-family:{f}")
+    }
+}
+
 pub fn block_html_render(
     block_type: &str,
     props: &Value,
@@ -254,6 +440,8 @@ pub fn block_html_render(
     hub_links: &[SiteLink],
     hub_posts: &[SitePost],
     product_design: Option<&Value>,
+    design: &GuestDesign,
+    featured: &[FeaturedContact],
 ) -> String {
     match block_type {
         "hero" => {
@@ -328,9 +516,14 @@ pub fn block_html_render(
         "product_grid" => {
             let filter = props.get("filter").and_then(|x| x.as_str()).unwrap_or("all");
             let category = props.get("category").and_then(|x| x.as_str()).unwrap_or("");
+            let typography = if design.product_from_theme {
+                Some(&design.product)
+            } else {
+                product_design
+            };
             let cards = products
                 .iter()
-                .map(|p| product_card_html(p, product_design))
+                .map(|p| product_card_html(p, typography))
                 .collect::<Vec<_>>()
                 .join("");
             let (site_iid, block_id, next_cursor) = grid_ctx
@@ -343,15 +536,18 @@ pub fn block_html_render(
                     r#"<button type="button" class="guest-load-more-btn" onclick="c35GuestCatalog.loadMore(this)">Muat lebih banyak</button>"#
                 )
             };
+            let (card_open, card_close) = design.card_wrap("site_product");
             format!(
-                r#"<section class="block product-grid" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}"><div class="grid">{cards}</div>{load_more}</section>"#,
+                r#"<section class="block product-grid" data-guest="site_product" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{card_open}<div class="grid">{cards}</div>{load_more}{card_close}</section>"#,
                 bid = esc(block_id),
                 sid = site_iid,
                 filter = esc(filter),
                 category = esc(category),
                 cursor = esc(next_cursor),
+                card_open = card_open,
                 cards = cards,
                 load_more = load_more,
+                card_close = card_close,
             )
         }
         "gallery" => {
@@ -413,9 +609,13 @@ pub fn block_html_render(
             } else {
                 format!(r#"<h2>{}</h2>"#, esc(title))
             };
+            let (card_open, card_close) = design.card_wrap("link");
             format!(
-                r#"<section class="block links" data-guest="link">{heading}<ul class="links">{}</ul></section>"#,
-                lis
+                r#"<section class="block links" data-guest="link">{heading}{card_open}<ul class="links">{lis}</ul>{card_close}</section>"#,
+                heading = heading,
+                card_open = card_open,
+                lis = lis,
+                card_close = card_close,
             )
         }
         "contact_form" => {
@@ -499,16 +699,55 @@ pub fn block_html_render(
             let location_label = props.get("location_label").and_then(|x| x.as_str()).unwrap_or("");
             let location_href = props.get("location_href").and_then(|x| x.as_str()).unwrap_or("");
             let show_hours = props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false);
-            let avatar = if pic.is_empty() {
+            let profile = &design.profile;
+            let avatar = if !profile.show_avatar || pic.is_empty() {
                 String::new()
             } else {
+                let mut style = format!(
+                    "width:{size};height:{size}",
+                    size = css_px(profile.avatar_size)
+                );
+                if profile.avatar_outline_width > 0.0 {
+                    let color = if profile.avatar_outline_color.trim().is_empty() {
+                        design.accent.as_str()
+                    } else {
+                        profile.avatar_outline_color.trim()
+                    };
+                    style.push_str(&format!(
+                        ";outline:{} solid {color}",
+                        css_px(profile.avatar_outline_width)
+                    ));
+                }
                 format!(
-                    r#"<img class="hub-avatar" src="{}" alt="" loading="lazy"/>"#,
-                    esc(&pic_url(pic))
+                    r#"<img class="hub-avatar" src="{}" alt="" style="{}" loading="lazy"/>"#,
+                    esc(&pic_url(pic)),
+                    esc_attr(&style)
                 )
             };
+            let title_html = if profile.show_title {
+                format!(
+                    r#"<h1 style="font-size:{size};text-align:{align}{family}">{title}</h1>"#,
+                    size = css_px(profile.title_font_size),
+                    align = css_align(&profile.title_align, "center"),
+                    family = family_decl(&profile.title_font_family),
+                    title = esc(title),
+                )
+            } else {
+                String::new()
+            };
+            let bio_html = if profile.show_bio {
+                format!(
+                    r#"<p style="font-size:{size};text-align:{align}{family}">{bio}</p>"#,
+                    size = css_px(profile.bio_font_size),
+                    align = css_align(&profile.bio_align, "center"),
+                    family = family_decl(&profile.bio_font_family),
+                    bio = esc(subtitle),
+                )
+            } else {
+                String::new()
+            };
             let mut chips = String::new();
-            if !location_label.trim().is_empty() {
+            if profile.show_location && !location_label.trim().is_empty() {
                 let href = if location_href.trim().is_empty() {
                     format!(
                         "https://www.google.com/maps/search/?api=1&query={}",
@@ -523,7 +762,7 @@ pub fn block_html_render(
                     esc(location_label.trim())
                 ));
             }
-            if show_hours {
+            if profile.show_hours && show_hours {
                 chips.push_str(r#"<span class="hub-chip hub-chip-muted">Open hours</span>"#);
             }
             let chips_html = if chips.is_empty() {
@@ -532,12 +771,15 @@ pub fn block_html_render(
                 format!(r#"<div class="hub-chips">{}</div>"#, chips)
             };
             format!(
-                r#"<section class="block hub-profile"><div class="hub-profile">{avatar}<h1>{}</h1><p>{}</p>{chips_html}</div></section>"#,
-                esc(title),
-                esc(subtitle),
+                r#"<section class="block hub-profile" data-guest="profile"><div class="hub-profile">{avatar}{title_html}{bio_html}{chips_html}</div></section>"#,
+                avatar = avatar,
+                title_html = title_html,
+                bio_html = bio_html,
                 chips_html = chips_html
             )
         }
+        "partners_display" => featured_strip_html("partners", "partners", &design.partners, design, featured),
+        "clients_display" => featured_strip_html("clients", "clients", &design.clients, design, featured),
         "social_feed" => {
             let title = props
                 .get("title")
@@ -647,15 +889,8 @@ pub async fn page_html_render(
         .find(|p| p.path == page_path || (page_path == "/" && p.path == "/"))
         .or_else(|| doc.pages.first())
         .ok_or_else(|| anyhow!("page not found"))?;
-    let theme: Value = if doc.theme_json.is_empty() {
-        Value::Object(Default::default())
-    } else {
-        serde_json::from_str(&doc.theme_json).unwrap_or(Value::Object(Default::default()))
-    };
-    let accent = theme
-        .get("accent")
-        .and_then(|x| x.as_str())
-        .unwrap_or("#2563eb");
+    let design = GuestDesign::from_theme_json(&doc.theme_json);
+    let featured = featured_contacts_load(pool, site_iid).await?;
     let caps = site_capabilities(pool, site_iid).await;
     let hub_links = site_link_boot_rows(pool, site_iid).await?;
     let hub_posts = site_post_boot_summaries(pool, site_iid).await?;
@@ -698,12 +933,16 @@ pub async fn page_html_render(
             &hub_links,
             &hub_posts,
             product_design.as_ref(),
+            &design,
+            &featured,
         ));
     }
+    let root = guest_root_css(&design);
+    let image = page_bg_image_html(&design);
     Ok(format!(
         r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title><style>
-:root{{--accent:{accent};}}
-body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;padding-bottom:80px}}
+{root}
+body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:80px}}
 .wrap{{max-width:960px;margin:0 auto;padding:24px 16px}}
 .block{{margin:0 0 24px}}
 .hero{{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,var(--accent),#111);color:#fff;padding:48px 24px}}
@@ -744,7 +983,7 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;pa
 .product-reserve-placeholder{{margin-top:16px;padding:12px;background:#fff;border-radius:8px;color:#666;font-size:14px}}
 .embed iframe{{display:block;border-radius:8px}}
 .md{{line-height:1.6}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body><main class="wrap">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd}">{image}<main class="wrap">{body}</main>
 <div id="c35-guest-cart-bar" class="guest-cart-bar" style="display:none;" onclick="c35GuestCart.openModal()">
   <div class="guest-cart-count" id="c35-cart-count">0</div>
   <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
@@ -757,8 +996,11 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;pa
 <button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
 {client_js}</body></html>"#,
         esc(&doc_title),
+        root = root,
+        bd = design.backdrop_id,
+        image = image,
         body = body,
-        client_js = guest_client_script_tags(pool, site_iid).await
+        client_js = guest_client_script_tags(pool, site_iid, &theme_effects(&doc.theme_json)).await
     ))
 }
 
@@ -779,7 +1021,12 @@ fn site_doc_html_title(site_name: &str, meta: &Value, page_title: &str) -> Strin
     site_name.trim().to_string()
 }
 
-async fn guest_client_script_tags(pool: &PgPool, site_iid: i64) -> String {
+fn theme_effects(theme_json: &str) -> Value {
+    let theme: Value = serde_json::from_str(theme_json).unwrap_or(Value::Null);
+    theme.get("effects").cloned().unwrap_or_else(|| json!([]))
+}
+
+async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value) -> String {
     let meta = site_published_meta_json(pool, site_iid).await;
     let commerce = commerce_boot_build(pool, site_iid, &meta)
         .await
@@ -792,9 +1039,11 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64) -> String {
     });
     let raw = serde_json::to_string(&guest).unwrap_or_else(|_| "{}".into());
     let safe = raw.replace("</", "<\\/");
+    let effects_raw = serde_json::to_string(effects).unwrap_or_else(|_| "[]".into());
+    let effects_safe = effects_raw.replace("</", "<\\/");
     format!(
-        r#"<script>window.__SITE_GUEST__={};</script><script defer src="/static/site-guest/site-guest.v1.js"></script>"#,
-        safe
+        r#"<script>window.__SITE_GUEST__={};window.__SITE_BOOT__={{"effects":{}}};</script><script defer src="/static/site-guest/site-guest.v1.js"></script><script defer src="/static/site-guest/site-guest.effects.js"></script>"#,
+        safe, effects_safe
     )
 }
 
@@ -809,38 +1058,13 @@ pub async fn product_detail_html_render(
         Some(d) => d,
         None => return Ok(None),
     };
-    let p = &detail.row;
-    let img = if p.pic.is_empty() {
-        String::new()
-    } else {
-        format!(
-            r#"<img src="{}" alt="" loading="lazy" class="product-detail-pic"/>"#,
-            esc(&pic_url(&p.pic))
-        )
-    };
-    let reserve = if detail.can_reserve {
-        r#"<div class="product-reserve-placeholder" data-reserve="1">Reservasi — pilih tanggal di aplikasi (segera).</div>"#
-    } else {
-        ""
-    };
-    let body = format!(
-        r#"<article class="product-detail" data-pid="{pid}">{img}<h1>{name}</h1><p>{desc}</p><p class="price">{price_str}</p>{reserve}<button type="button" class="guest-add-btn" onclick="c35GuestCart.add({pid}, '{name_esc}', {price_num}, '{pic_esc}')">+ Pesan</button></article>"#,
-        pid = p.product_id,
-        img = img,
-        name = esc(&p.name),
-        desc = esc(&p.desc),
-        price_str = esc(&format_currency(p.price)),
-        reserve = reserve,
-        name_esc = esc_js(&p.name),
-        price_num = p.price,
-        pic_esc = esc_js(&pic_url(&p.pic)),
-    );
+    let body = product_detail_article_html(&detail.row);
     let html = format!(
         r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/><style>:root{{--accent:#2563eb}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa}}.wrap{{max-width:720px;margin:0 auto;padding:24px 16px}}</style></head><body><main class="wrap">{body}</main>{client_js}</body></html>"#,
-        esc(&p.name),
+        esc(&detail.row.name),
         esc(site_name),
         body = body,
-        client_js = guest_client_script_tags(pool, site_iid).await
+        client_js = guest_client_script_tags(pool, site_iid, &json!([])).await
     );
     Ok(Some(html))
 }
@@ -890,7 +1114,7 @@ pub async fn post_detail_html_render(
         esc(&post.title),
         esc(site_name),
         body = article,
-        client_js = guest_client_script_tags(pool, site_iid).await
+        client_js = guest_client_script_tags(pool, site_iid, &json!([])).await
     );
     Ok(Some(html))
 }

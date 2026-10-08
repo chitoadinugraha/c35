@@ -4,6 +4,7 @@ use serde_json::{json, Map, Value};
 use sqlx::{PgPool, Row};
 
 use crate::doc::site_doc_from_json;
+use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
 use crate::grant::site_grant_check;
 use crate::guest_product::{
     guest_product_list, product_grid_page_size, product_row_json, product_rows_for_grid,
@@ -55,8 +56,10 @@ pub fn site_boot_json_assemble(
     product_preload_meta: Map<String, Value>,
     links: &[SiteLink],
     posts_preload: &[Value],
+    featured_contacts: &[FeaturedContact],
 ) -> Value {
     let theme = doc_json.get("theme").cloned().unwrap_or_else(|| json!({}));
+    let design = GuestDesign::from_value(&theme).to_value();
     let meta = doc_json.get("meta").cloned().unwrap_or_else(|| json!({}));
     let product_design = product_design_from_site_meta(&meta).unwrap_or_else(|| json!({}));
     let pages = doc_json.get("pages").cloned().unwrap_or_else(|| json!([]));
@@ -76,6 +79,9 @@ pub fn site_boot_json_assemble(
         "product_preload_meta": product_preload_meta,
         "links": links.iter().map(link_boot_json).collect::<Vec<_>>(),
         "posts_preload": posts_preload,
+        "design": design,
+        "effects": theme.get("effects").cloned().unwrap_or_else(|| json!([])),
+        "featured_contacts": featured_contacts.iter().map(FeaturedContact::to_value).collect::<Vec<_>>(),
     })
 }
 
@@ -198,6 +204,7 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
     let links = site_link_boot_rows(pool, req.site_iid).await?;
     let posts = site_post_boot_summaries(pool, req.site_iid).await?;
     let posts_preload: Vec<Value> = posts.iter().map(post_boot_summary_json).collect();
+    let featured_contacts = featured_contacts_load(pool, req.site_iid).await?;
     let meta = doc_json.get("meta").cloned().unwrap_or_else(|| json!({}));
     let commerce_boot = commerce_boot_build(pool, req.site_iid, &meta).await?;
     let boot = site_boot_json_assemble(
@@ -212,6 +219,7 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
         product_preload_meta,
         &links,
         &posts_preload,
+        &featured_contacts,
     );
     let boot = if let Some(obj) = boot.as_object() {
         let mut m = obj.clone();

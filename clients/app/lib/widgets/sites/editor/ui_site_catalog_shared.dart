@@ -21,6 +21,46 @@ Color siteCatalogMasterDividerColor(BuildContext context) {
 Widget siteCatalogMasterDivider(BuildContext context) =>
     ColoredBox(color: siteCatalogMasterDividerColor(context), child: const SizedBox(width: 1));
 
+/// Palette toggle before catalog `+` — opens block appearance editors.
+Widget siteCatalogPaletteButton({required bool selected, required VoidCallback onPressed, String tooltip = 'Appearance'}) {
+  return Builder(
+    builder: (context) {
+      final cs = Theme.of(context).colorScheme;
+      return IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(
+          selected ? Icons.palette : Icons.palette_outlined,
+          color: selected ? cs.primary : cs.onSurfaceVariant,
+        ),
+      );
+    },
+  );
+}
+
+Future<bool> siteCatalogConfirmDelete(
+  BuildContext context, {
+  required String title,
+  String? body,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(title),
+      content: body == null || body.isEmpty ? null : Text(body),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: TextButton.styleFrom(foregroundColor: Theme.of(ctx).colorScheme.error),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  return result == true;
+}
+
 class UiSiteEditorFormScroll extends StatelessWidget {
   const UiSiteEditorFormScroll({super.key, required this.children});
 

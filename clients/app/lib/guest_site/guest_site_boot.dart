@@ -1,4 +1,9 @@
+import 'dart:convert';
+
+import 'package:alienai_c35/c/site/design/site_color.dart';
+import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/site_schedule.dart';
 import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:flutter/material.dart';
 
@@ -19,6 +24,10 @@ class GuestSiteBoot {
     required this.productPreloadMeta,
     required this.links,
     required this.postsPreload,
+    this.design,
+    this.featuredContacts = const [],
+    this.effects = const [],
+    this.commerceObjects = const [],
   });
 
   final int siteIid;
@@ -36,6 +45,18 @@ class GuestSiteBoot {
   final List<Map<String, dynamic>> links;
   final List<Map<String, dynamic>> postsPreload;
 
+  /// Theme document from boot `design` (`SiteDesignStore.toThemeMap` shape). Null when the boot has no `design` key.
+  final SiteDesignStore? design;
+
+  /// Boot `featured_contacts`: `{id, name, pic, featured}` where `featured` is `partners` or `clients`.
+  final List<Map<String, dynamic>> featuredContacts;
+
+  /// Boot `effects`: `{id, presetId, params, active}`. Parsed for the effect layer; painting lives on that track.
+  final List<Map<String, dynamic>> effects;
+
+  /// Boot `commerce_boot.objects`: reservable units `{id, name, code, pic, kind, product_id}`.
+  final List<Map<String, dynamic>> commerceObjects;
+
   /// Client-side boot from `site.preview` / tool `doc` (no product preload until `boot_get`).
   factory GuestSiteBoot.fromSiteDoc({
     required int siteIid,
@@ -52,6 +73,8 @@ class GuestSiteBoot {
         : const <Map<String, dynamic>>[];
     final theme = doc['theme'] is Map<String, dynamic> ? doc['theme'] as Map<String, dynamic> : const <String, dynamic>{};
     final meta = doc['meta'] is Map<String, dynamic> ? doc['meta'] as Map<String, dynamic> : const <String, dynamic>{};
+    final productFallback = siteProductDesignFromJson(meta['product_design']);
+    final design = _designStore(doc['design'], productFallback);
     return GuestSiteBoot(
       siteIid: siteIid,
       name: name,
@@ -59,7 +82,7 @@ class GuestSiteBoot {
       avatarUrl: avatarUrl,
       mode: mode,
       meta: meta,
-      productDesign: siteProductDesignFromJson(meta['product_design']),
+      productDesign: design?.productDesign ?? productFallback,
       theme: theme,
       pages: pages,
       capabilities: capabilities ?? const <String, dynamic>{},
@@ -67,6 +90,10 @@ class GuestSiteBoot {
       productPreloadMeta: const {},
       links: const [],
       postsPreload: const [],
+      design: design,
+      featuredContacts: _mapList(doc['featured_contacts']),
+      effects: _mapList(doc['effects']),
+      commerceObjects: commerceObjectsFrom(doc),
     );
   }
 
@@ -109,6 +136,8 @@ class GuestSiteBoot {
         ? postsRaw.whereType<Map<String, dynamic>>().toList(growable: false)
         : const <Map<String, dynamic>>[];
 
+    final productFallback = guestSiteProductDesignFromBoot(json);
+    final design = _designStore(json['design'], productFallback);
     return GuestSiteBoot(
       siteIid: json['site_iid'] as int? ?? json['site_id'] as int? ?? 0,
       name: json['name']?.toString() ?? 'Website',
@@ -116,7 +145,7 @@ class GuestSiteBoot {
       avatarUrl: json['avatar_url']?.toString() ?? '',
       mode: json['mode']?.toString() ?? 'draft',
       meta: _mapOrEmpty(json['meta']),
-      productDesign: guestSiteProductDesignFromBoot(json),
+      productDesign: design?.productDesign ?? productFallback,
       theme: _mapOrEmpty(json['theme']),
       pages: pages,
       capabilities: _mapOrEmpty(json['capabilities']),
@@ -124,11 +153,48 @@ class GuestSiteBoot {
       productPreloadMeta: productPreloadMeta,
       links: links,
       postsPreload: postsPreload,
+      design: design,
+      featuredContacts: _mapList(json['featured_contacts']),
+      effects: _mapList(json['effects']),
+      commerceObjects: commerceObjectsFrom(json),
     );
   }
 
-  static Map<String, dynamic> _mapOrEmpty(Object? v) =>
-      v is Map<String, dynamic> ? v : const <String, dynamic>{};
+  static Map<String, dynamic> _mapOrEmpty(Object? v) {
+    if (v is Map<String, dynamic>) return v;
+    if (v is Map) return v.map((k, val) => MapEntry(k.toString(), val));
+    return const <String, dynamic>{};
+  }
+
+  static List<Map<String, dynamic>> commerceObjectsFrom(Map<String, dynamic> json) {
+    final boot = json['commerce_boot'];
+    if (boot is! Map) return const [];
+    return _mapList(boot['objects']);
+  }
+
+  static List<Map<String, dynamic>> _mapList(Object? raw) {
+    if (raw is! List) return const [];
+    return [
+      for (final item in raw)
+        if (item is Map) item.map((k, v) => MapEntry(k.toString(), v)),
+    ];
+  }
+
+  /// `design` is a theme_json object, or a JSON string of that object. Absent means accent-only.
+  static SiteDesignStore? _designStore(Object? raw, SiteProductDesignDraft productFallback) {
+    if (raw == null) return null;
+    final store = SiteDesignStore();
+    if (raw is String) {
+      if (raw.trim().isEmpty) return null;
+      store.loadTheme(raw, productFallback: productFallback);
+      return store;
+    }
+    if (raw is Map) {
+      store.loadTheme(jsonEncode(_mapOrEmpty(raw)), productFallback: productFallback);
+      return store;
+    }
+    return null;
+  }
 
   List<Map<String, dynamic>> get homeBlocks {
     if (pages.isEmpty) return const [];
@@ -151,10 +217,32 @@ class GuestSiteBoot {
       productPreloadMeta[blockId]?['next_cursor']?.toString();
 
   Color get accentColor {
+    final fromDesign = design?.accent.trim() ?? '';
+    if (fromDesign.isNotEmpty) return siteColorParse(fromDesign);
     final hex = theme['accent']?.toString().replaceAll('#', '') ?? '';
     if (hex.length == 6) {
       return Color(int.parse('FF$hex', radix: 16));
     }
     return const Color(0xFFF97316);
   }
+
+  String get locationLabel => meta['location_label']?.toString().trim() ?? '';
+
+  String get locationHref => meta['location_href']?.toString().trim() ?? '';
+
+  List<SiteScheduleSlot> get openHoursSlots => siteScheduleSlotsFromMetaJson(jsonEncode(meta));
+
+  List<Map<String, dynamic>> get metaOpenHoursRows => siteScheduleSlotsToHoursRows(openHoursSlots);
+
+  bool get shouldShowMetaLocation =>
+      locationLabel.isNotEmpty && !homeBlocks.any((b) => b['type']?.toString() == 'map') && !_hubShowsLocation;
+
+  bool get shouldShowMetaHours => openHoursSlots.isNotEmpty && !homeBlocks.any((b) => b['type']?.toString() == 'hours');
+
+  bool get _hubShowsLocation => homeBlocks.any((b) {
+        if (b['type']?.toString() != 'hub_profile') return false;
+        final props = b['props'];
+        if (props is! Map<String, dynamic>) return false;
+        return (props['location_label']?.toString().trim() ?? '').isNotEmpty;
+      });
 }

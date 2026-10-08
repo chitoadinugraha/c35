@@ -40,6 +40,7 @@ fn site_boot_json_assemble_orders_links() {
         serde_json::Map::new(),
         &links,
         &[],
+        &[],
     );
     let arr = boot["links"].as_array().expect("links array");
     assert_eq!(arr.len(), 2);
