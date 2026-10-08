@@ -5,6 +5,8 @@ import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/guest_site/guest_site_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_cart.dart';
 import 'package:alienai_c35/guest_site/guest_site_view.dart';
 import 'package:alienai_c35/guest_site/site_preview_mode.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -41,10 +43,12 @@ class _UiSitePreviewState extends State<UiSitePreview> {
   var _loading = true;
   String? _error;
   String? _url;
+  late GuestSiteCartController _cart = GuestSiteCartController(siteIid: widget.row.siteIid.toInt());
 
   @override
   void initState() {
     super.initState();
+    unawaited(_cart.load());
     unawaited(_load());
   }
 
@@ -54,6 +58,8 @@ class _UiSitePreviewState extends State<UiSitePreview> {
     if (oldWidget.mode != widget.mode ||
         oldWidget.reloadNonce != widget.reloadNonce ||
         oldWidget.row.siteIid != widget.row.siteIid) {
+      _cart = GuestSiteCartController(siteIid: widget.row.siteIid.toInt());
+      unawaited(_cart.load());
       unawaited(_load());
     }
   }
@@ -131,7 +137,15 @@ class _UiSitePreviewState extends State<UiSitePreview> {
     if (boot == null) {
       return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
-    final guest = GuestSiteView.bootJson(bootJson: boot);
+    final accent = GuestSiteBoot.fromJson(boot).accentColor;
+    final guest = GuestSiteCartScope(
+      controller: _cart,
+      child: GuestSiteCartChrome(
+        controller: _cart,
+        accent: accent,
+        child: GuestSiteView.bootJson(bootJson: boot),
+      ),
+    );
     if (widget.embedded) return _embeddedPreview(child: guest);
     return _previewChrome(child: guest);
   }

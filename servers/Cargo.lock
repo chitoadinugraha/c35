@@ -1108,6 +1108,7 @@ dependencies = [
  "c35_mod_site",
  "c35_mod_tx",
  "c35_mod_voice",
+ "c35_nats",
  "c35_proto",
  "c35_store",
  "chrono",

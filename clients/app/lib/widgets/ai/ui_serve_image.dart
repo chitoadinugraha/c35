@@ -1,5 +1,6 @@
-import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/media/media_disk_cache.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/widgets/ui/ui_img_cached.dart';
 import 'package:flutter/material.dart';
 
 class UiServeImage extends StatelessWidget {
@@ -19,17 +20,18 @@ class UiServeImage extends StatelessWidget {
   Widget _build(BuildContext context) {
     final p = path.trim();
     if (p.isEmpty) return errorBuilder?.call(context) ?? const SizedBox.shrink();
-    final url = p.startsWith('http') ? p : '${C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '')}${p.startsWith('/') ? p : '/$p'}';
+    final url = p.startsWith('http') ? p : mediaUrlResolve(p);
     final token = sessionAuthToken();
     final loading = errorBuilder?.call(context) ?? const SizedBox.shrink();
-    return Image.network(
-      url,
+    final headers = token.isEmpty ? null : {'Authorization': 'Bearer $token'};
+    return UiImgCached(
+      src: p,
+      networkUrl: url,
+      headers: headers,
       fit: fit,
       width: width,
       height: height,
-      headers: token.isEmpty ? null : {'Authorization': 'Bearer $token'},
-      loadingBuilder: (_, child, progress) => progress == null ? child : loading,
-      errorBuilder: (context, error, stackTrace) => errorBuilder?.call(context) ?? const Center(child: Icon(Icons.broken_image_rounded, color: Color(0xFF71717A), size: 28)),
+      fallback: loading,
     );
   }
 }

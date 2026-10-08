@@ -84,6 +84,8 @@ pub struct PromptTurn {
     pub tokens_in: i32,
     pub tokens_out: i32,
     pub cost_usd: f64,
+    /// True when turn cost was covered by plan allowance (wallet not charged).
+    pub billing_included: bool,
     pub model: String,
     pub duration_ms: i32,
     pub error_text: String,
@@ -680,9 +682,9 @@ where
         if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) { Some(usage_meta) } else { None },
     )
     .await;
-    let (cost_usd, status, error_text) = match billing {
-        Ok(c) => (c, "done", String::new()),
-        Err(e) => (0.0, "error", e.to_string()),
+    let (cost_usd, billing_included, status, error_text) = match billing {
+        Ok(r) => (r.cost_usd, !r.wallet_charged, "done", String::new()),
+        Err(e) => (0.0, false, "error", e.to_string()),
     };
     sqlx::query(
         r#"
@@ -722,6 +724,7 @@ where
         tokens_in: res.tokens_in,
         tokens_out: res.tokens_out,
         cost_usd,
+        billing_included,
         model: res.model_used,
         duration_ms,
         error_text,

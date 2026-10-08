@@ -32,6 +32,7 @@ const PromptModelOption$json = {
       '5': 8,
       '10': 'supportsThinking'
     },
+    {'1': 'context_tokens', '3': 8, '4': 1, '5': 5, '10': 'contextTokens'},
   ],
 };
 
@@ -41,7 +42,7 @@ final $typed_data.Uint8List promptModelOptionDescriptor = $convert.base64Decode(
     'VsEhoKCHByb3ZpZGVyGAMgASgJUghwcm92aWRlchIdCgppc19kZWZhdWx0GAQgASgIUglpc0Rl'
     'ZmF1bHQSIQoNdXNkX2luX3Blcl8xbRgFIAEoAVIKdXNkSW5QZXIxbRIjCg51c2Rfb3V0X3Blcl'
     '8xbRgGIAEoAVILdXNkT3V0UGVyMW0SKwoRc3VwcG9ydHNfdGhpbmtpbmcYByABKAhSEHN1cHBv'
-    'cnRzVGhpbmtpbmc=');
+    'cnRzVGhpbmtpbmcSJQoOY29udGV4dF90b2tlbnMYCCABKAVSDWNvbnRleHRUb2tlbnM=');
 
 @$core.Deprecated('Use reqSessionInitDescriptor instead')
 const ReqSessionInit$json = {

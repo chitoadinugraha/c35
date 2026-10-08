@@ -17,6 +17,17 @@ void main() {
     expect(uiFriendlyError('Bad state: Connection failed'), uiConnectionFailed);
   });
 
+  test('uiPromptErrorMessage hides raw gemini provider errors', () {
+    const raw = 'gemini HTTP 400 Bad Request: {\n  "error": {\n    "status": "INVALID_ARGUMENT"\n  }\n}';
+    expect(uiIsTechnicalError(raw), isTrue);
+    expect(uiPromptErrorMessage(raw), 'Something went wrong. Please try again.');
+  });
+
+  test('uiIsTechnicalError flags long json-ish blobs', () {
+    final blob = 'x' * 221 + '{"code":1}';
+    expect(uiIsTechnicalError(blob), isTrue);
+  });
+
   test('uiFriendlyError and uiIsQuotaError recognize quota exhaustion', () {
     const freemium = 'freemium daily limit: 30 messages per day used. Subscribe to Lite or above for full access.';
     expect(uiIsQuotaError(freemium), isTrue);

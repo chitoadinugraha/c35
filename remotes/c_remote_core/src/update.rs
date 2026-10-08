@@ -483,51 +483,90 @@ exit 0
     }
 }
 
-/// Tray / user-initiated check: poll, download, apply immediately when idle.
-pub fn update_check_now() {
-    if let Some(v) = update_staged_version() {
-        if is_idle() {
-            info!(version = v, "manual update check: applying staged build");
-            tokio::spawn(async move {
-                if let Err(e) = update_apply(v) {
-                    warn!("manual update apply failed: {e}");
+/// Poll server, download if needed, optionally apply when idle. Returns user-facing status text.
+async fn update_poll_download(base_url: &str, apply_if_idle: bool) -> String {
+    let build = agent_build();
+    match update_poll(base_url).await {
+        Ok(Some(rel)) => {
+            if !ready_marker(rel.version).exists() {
+                if let Err(e) = update_download(base_url, &rel).await {
+                    warn!("update download failed: {e}");
+                    return format!("Download failed: {e}");
                 }
-            });
-            return;
+            }
+            crate::webrtc::notify_update_ready(rel.version).await;
+            if apply_if_idle && is_idle() {
+                info!(version = rel.version, "agent is idle; applying update now");
+                if let Err(e) = update_apply(rel.version) {
+                    warn!("update apply failed: {e}");
+                    return format!("Install failed: {e}");
+                }
+                return format!("Installing build {}…", rel.version);
+            }
+            if apply_if_idle {
+                info!(
+                    version = rel.version,
+                    active_tasks = active_tasks(),
+                    active_sessions = active_sessions(),
+                    "update staged; waiting for agent to become idle before applying"
+                );
+            }
+            format!(
+                "Build {} ready — tap Update now to install",
+                rel.version
+            )
+        }
+        Ok(None) => format!("Up to date (build {build})"),
+        Err(e) => {
+            warn!("update poll failed: {e}");
+            format!("Check failed: {e}")
         }
     }
-    trigger_background_update(crate::config::server_url());
+}
+
+/// Check for updates: poll and download only (never installs).
+pub fn update_check_poll() {
+    info!("user initiated update check (download only)");
+    let base_url = crate::config::server_url();
+    tokio::spawn(async move {
+        let msg = update_poll_download(&base_url, false).await;
+        crate::agent_ui::last_update_check_msg_set(msg);
+    });
+}
+
+/// Tray / status "Check for update" — same as [`update_check_poll`].
+pub fn update_check_now() {
+    update_check_poll();
+}
+
+/// Install a staged build immediately (does not require idle).
+pub fn update_apply_now() {
+    if let Some(v) = update_staged_version() {
+        info!(
+            version = v,
+            active_tasks = active_tasks(),
+            active_sessions = active_sessions(),
+            "user initiated apply update now"
+        );
+        tokio::spawn(async move {
+            if let Err(e) = update_apply(v) {
+                warn!("update apply now failed: {e}");
+                crate::agent_ui::last_update_check_msg_set(format!("Install failed: {e}"));
+            }
+        });
+        return;
+    }
+    warn!("update apply now: no staged build newer than current");
+    crate::agent_ui::last_update_check_msg_set(format!(
+        "No newer build downloaded (current build {})",
+        agent_build()
+    ));
 }
 
 /// Trigger an immediate background check and download (e.g. from NATS release push).
 pub fn trigger_background_update(base_url: String) {
     tokio::spawn(async move {
-        match update_poll(&base_url).await {
-            Ok(Some(rel)) => {
-                if !ready_marker(rel.version).exists() {
-                    if let Err(e) = update_download(&base_url, &rel).await {
-                        warn!("immediate background update download failed: {e}");
-                        return;
-                    }
-                }
-                // Notify active viewers so appbar update button appears
-                crate::webrtc::notify_update_ready(rel.version).await;
-
-                if is_idle() {
-                    info!(version = rel.version, "agent is idle; applying update now");
-                    let _ = update_apply(rel.version);
-                } else {
-                    info!(
-                        version = rel.version,
-                        active_tasks = active_tasks(),
-                        active_sessions = active_sessions(),
-                        "update staged; waiting for agent to become idle before applying"
-                    );
-                }
-            }
-            Ok(None) => {}
-            Err(e) => warn!("immediate update poll failed: {e}"),
-        }
+        let _ = update_poll_download(&base_url, true).await;
     });
 }
 

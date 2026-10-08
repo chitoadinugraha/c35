@@ -321,6 +321,16 @@
                      "clear":  "Hapus",
                      "unknownIssuer":  "pengundang Anda"
                  },
+    "site":  {
+                 "pos":  {
+                             "pickCustomer":  "Pilih pelanggan",
+                             "searchCustomer":  "Cari pelanggan...",
+                             "walkIn":  "Walk-In",
+                             "walkInSubtitle":  "Tamu / pelanggan belum terdaftar",
+                             "newCustomer":  "Pelanggan baru",
+                             "addNew":  "Tambah baru"
+                         }
+             },
     "legal":  {
                   "aiDisclaimerTitle":  "Sebelum melanjutkan",
                   "aiDisclaimerIntro":  "Centang setiap item di bawah, lalu lanjutkan.",

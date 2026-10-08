@@ -68,7 +68,12 @@ class UiMsgUsage extends StatelessWidget {
           final (currency, fx) = _walletMoney();
           final timeLabel = showTimestamp && msg.createdAtMs > 0 ? chatMsgTimeLabel(msg.createdAtMs) : '';
           final usageMs = uiFmtDurationMs(stats.durationMs);
-          final price = moneyCostLabel(stats.costUsd, currency: currency, fxMicroPerUsd: fx);
+          final price = moneyCostLabel(
+            stats.costUsd,
+            currency: currency,
+            fxMicroPerUsd: fx,
+            included: stats.costUsd > 0 && msgUsageBillingIncluded(msg, model: stats.model),
+          );
           final modelLabel = stats.model.isNotEmpty && stats.model != 'local' ? traceModelLabel(stats.model) : '';
           final tooltipParts = <String>[
             if (modelLabel.isNotEmpty) modelLabel,

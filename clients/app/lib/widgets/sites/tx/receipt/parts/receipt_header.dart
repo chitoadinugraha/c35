@@ -16,20 +16,24 @@ class ReceiptHeader {
         ? receiptFmtTs(tx.createdTsMs)
         : (tx.hasTimeTsMs() ? receiptFmtTs(tx.timeTsMs) : '');
     final id = txReceiptId(tx);
+    final receiptId = id.isNotEmpty ? '#$id' : 'Nota Baru';
+    final cashier = receiptCashierName(tx);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        buildRow('ID', id.isNotEmpty ? id : 'Nota Baru'),
+        buildRow('No. Nota', receiptId),
         pw.SizedBox(height: 4),
-        if (tx.subjectName.isNotEmpty) ...[
-          buildRow('Customer', tx.subjectName),
+        if (timeStr.isNotEmpty) ...[
+          buildRow('Waktu', timeStr),
           pw.SizedBox(height: 4),
         ],
-        if (tx.cashierName.isNotEmpty) ...[
-          buildRow('Cashier', tx.cashierName),
+        buildRow('Kasir', cashier.isNotEmpty ? cashier : '-'),
+        pw.SizedBox(height: 4),
+        buildRow('Pelanggan', receiptCustomerName(tx)),
+        if (tx.subjectPhone.trim().isNotEmpty) ...[
           pw.SizedBox(height: 4),
+          buildRow('Telp', tx.subjectPhone.trim()),
         ],
-        buildRow('Waktu', timeStr),
         pw.SizedBox(height: 4),
         pw.Divider(thickness: 0.5),
       ],

@@ -2,6 +2,7 @@ mod collection_def;
 pub mod doc;
 pub mod grant;
 mod http;
+mod commerce_boot;
 mod guest_product;
 mod product_design;
 pub mod render;
@@ -47,6 +48,7 @@ pub use site_post::{
 };
 pub use site_domain::{site_domain_list, site_domain_put, site_domain_verify};
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
+pub use commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
 pub use site_boot::{site_boot_get, site_boot_json_assemble};
 pub use site_draft::{site_draft_get, site_draft_put};
 pub use site_handle::{site_handle_normalize, site_handle_put};

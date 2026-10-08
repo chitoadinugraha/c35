@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/sites/tx/payment/ask_transaksi_payment_cash.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ Future<TxPayment?> askTransaksiPaymentMethod({
     showModalBottomSheet<TxPayment>(
       context: context,
       useSafeArea: true,
+      isScrollControlled: true,
       backgroundColor: const Color(0xFF121215),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -24,26 +26,56 @@ Future<TxPayment?> askTransaksiPaymentMethod({
       builder: (ctx) => _SheetPaymentMethod(totalDue: totalDue),
     );
 
-class _SheetPaymentMethod extends StatelessWidget {
+class _SheetPaymentMethod extends StatefulWidget {
   const _SheetPaymentMethod({required this.totalDue});
 
   final int totalDue;
 
-  void _pick(BuildContext context, TxPaymentMethod method) async {
+  @override
+  State<_SheetPaymentMethod> createState() => _SheetPaymentMethodState();
+}
+
+class _SheetPaymentMethodState extends State<_SheetPaymentMethod> {
+  late final TextEditingController _amountCtrl;
+  late int _amount;
+
+  @override
+  void initState() {
+    super.initState();
+    _amount = widget.totalDue > 0 ? widget.totalDue : 0;
+    _amountCtrl = TextEditingController(text: _amount > 0 ? moneyFmtIdrGrouped(_amount) : '');
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  int get _payAmount {
+    final parsed = moneyParseIdrInt(_amountCtrl.text) ?? _amount;
+    if (parsed <= 0) return 0;
+    if (widget.totalDue > 0 && parsed > widget.totalDue) return widget.totalDue;
+    return parsed;
+  }
+
+  Future<void> _pick(TxPaymentMethod method) async {
+    final amount = _payAmount;
+    if (amount <= 0) return;
+
     if (method == TxPaymentMethod.TX_PAYMENT_METHOD_CASH) {
-      Navigator.of(context).pop();
-      final payment = await askTransaksiPaymentCash(context: context, totalDue: totalDue);
-      if (payment != null && context.mounted) {
-        Navigator.of(context).pop(payment);
-      }
+      final payment = await askTransaksiPaymentCash(context: context, totalDue: amount);
+      if (!mounted) return;
+      Navigator.of(context).pop(payment);
       return;
     }
 
     final p = TxPayment(
       method: method,
-      amount: Int64(totalDue),
+      amount: Int64(amount),
       tsMs: Int64(DateTime.now().millisecondsSinceEpoch),
     );
+    if (!mounted) return;
     Navigator.of(context).pop(p);
   }
 
@@ -66,16 +98,35 @@ class _SheetPaymentMethod extends StatelessWidget {
                   ),
                 ),
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Pilih Metode Pembayaran', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
-                  Text(moneyFmtIdr(totalDue), style: const TextStyle(color: _accent, fontSize: 16, fontWeight: FontWeight.bold)),
-                ],
+              const Text('Pilih Metode Pembayaran', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _amountCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: moneyIdrInputFormatters,
+                autofocus: true,
+                style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600),
+                decoration: InputDecoration(
+                  labelText: 'Jumlah bayar',
+                  labelStyle: const TextStyle(color: _muted, fontSize: 12),
+                  prefixText: 'Rp ',
+                  prefixStyle: const TextStyle(color: _accent, fontSize: 16, fontWeight: FontWeight.w600),
+                  filled: true,
+                  fillColor: const Color(0xFF18181B),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
+                ),
+                onChanged: (v) => setState(() => _amount = moneyParseIdrInt(v) ?? 0),
               ),
+              if (widget.totalDue > 0) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Sisa tagihan: ${moneyFmtIdr(widget.totalDue)}',
+                  style: const TextStyle(color: _muted, fontSize: 11),
+                ),
+              ],
               const SizedBox(height: 16),
               _methodTile(
-                context,
                 icon: Icons.payments_outlined,
                 title: 'Tunai (Cash)',
                 subtitle: 'Hitung kembalian dan pecahan uang',
@@ -83,30 +134,26 @@ class _SheetPaymentMethod extends StatelessWidget {
                 highlight: true,
               ),
               _methodTile(
-                context,
                 icon: Icons.qr_code_2_outlined,
                 title: 'QRIS',
                 subtitle: 'GoPay, OVO, Dana, BCA, Mandiri, ShopeePay',
                 method: TxPaymentMethod.TX_PAYMENT_METHOD_QRIS,
               ),
               _methodTile(
-                context,
                 icon: Icons.account_balance_outlined,
                 title: 'Transfer Bank',
                 subtitle: 'BCA, BRI, Mandiri, BNI',
                 method: TxPaymentMethod.TX_PAYMENT_METHOD_TRANSFER,
               ),
               _methodTile(
-                context,
                 icon: Icons.credit_card_outlined,
                 title: 'Kartu Debit / Kredit (EDC)',
                 subtitle: 'Visa, Mastercard, GPN',
                 method: TxPaymentMethod.TX_PAYMENT_METHOD_CARD,
               ),
               _methodTile(
-                context,
                 icon: Icons.assignment_late_outlined,
-                title: 'Hutang / Bon (Pay Later)',
+                title: 'Hutang',
                 subtitle: 'Dicatat sebagai piutang pelanggan',
                 method: TxPaymentMethod.TX_PAYMENT_METHOD_DEBT,
               ),
@@ -115,8 +162,7 @@ class _SheetPaymentMethod extends StatelessWidget {
         ),
       );
 
-  Widget _methodTile(
-    BuildContext context, {
+  Widget _methodTile({
     required IconData icon,
     required String title,
     required String subtitle,
@@ -132,11 +178,12 @@ class _SheetPaymentMethod extends StatelessWidget {
         ),
         child: ListTile(
           dense: true,
+          enabled: _payAmount > 0,
           leading: Icon(icon, color: highlight ? _accent : _muted, size: 24),
           title: Text(title, style: TextStyle(color: _text, fontWeight: highlight ? FontWeight.w600 : FontWeight.w500)),
           subtitle: Text(subtitle, style: const TextStyle(color: _muted, fontSize: 11)),
           trailing: const Icon(Icons.chevron_right, color: _muted, size: 18),
-          onTap: () => _pick(context, method),
+          onTap: () => _pick(method),
         ),
       );
 }

@@ -7,6 +7,7 @@ import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
+import 'package:alienai_c35/c/mention/mention_device_icon.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
@@ -57,7 +58,7 @@ bool _mentionQueryShowsImage(String q) => q.isEmpty || 'image'.contains(q.toLowe
 bool _mentionQueryShowsFile(String q) => q.isEmpty || 'file'.contains(q.toLowerCase());
 
 Widget _mentionLeadingIcon(CatalogMention m) {
-  if (m.isDevice) return const Icon(Icons.computer_rounded, size: 16, color: _mentionIconGrey);
+  if (m.isDevice) return catalogMentionDeviceIcon(m, size: 16, iconColor: _mentionIconGrey);
   if (m.isSite) return const Icon(Icons.language_rounded, size: 16, color: _mentionIconGrey);
   if (m.id == 'image_high' || m.topicId == 'image') {
     return const Icon(Icons.image_outlined, size: 16, color: _mentionIconGrey);
@@ -410,11 +411,24 @@ class _InComposerState extends State<InComposer> {
   void _scrollHighlightedMentionIntoView() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final ctx = _mentionMenuRowKeys[_mentionMenuHighlight.value]?.currentContext;
+      final index = _mentionMenuHighlight.value;
+      final rowCount = _mentionPickRows.length;
+      final scroll = _mentionListScrollController;
+      if (scroll.hasClients && rowCount > 0) {
+        if (index == 0) {
+          scroll.jumpTo(0);
+          return;
+        }
+        if (index == rowCount - 1) {
+          scroll.jumpTo(scroll.position.maxScrollExtent);
+          return;
+        }
+      }
+      final ctx = _mentionMenuRowKeys[index]?.currentContext;
       if (ctx == null) return;
       Scrollable.ensureVisible(
         ctx,
-        alignment: 0.5,
+        alignment: 0.35,
         duration: const Duration(milliseconds: 100),
         curve: Curves.easeOutCubic,
       );

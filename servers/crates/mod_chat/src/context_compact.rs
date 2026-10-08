@@ -432,6 +432,7 @@ async fn bill_manual_compact(
         Some(billing.to_log_meta()),
     )
     .await
+    .map(|r| r.cost_usd)
 }
 
 pub async fn chat_compact_manual(

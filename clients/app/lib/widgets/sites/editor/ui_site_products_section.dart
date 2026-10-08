@@ -2,6 +2,8 @@ import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
+import 'package:alienai_c35/widgets/sites/tx/ui_site_product_thumb.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
@@ -84,6 +86,7 @@ class UiSiteProductsSection extends StatelessWidget {
               ? const UiEmptyState(icon: Icons.inventory_2_outlined, title: 'No products', subtitle: 'Add a product to get started')
               : ReorderableListView.builder(
                   buildDefaultDragHandles: false,
+                  padding: const EdgeInsets.only(bottom: 4),
                   itemCount: filtered.length,
                   onReorder: (old, newIdx) {
                     final adj = newIdx > old ? newIdx - 1 : newIdx;
@@ -94,23 +97,31 @@ class UiSiteProductsSection extends StatelessWidget {
                     final id = '${p.productId}';
                     final active = selectedId == id;
                     final price = p.price <= Int64.ZERO ? '' : moneyFmtIdr(p.price.toInt());
+                    final subtitle = [if (p.category.isNotEmpty) p.category, if (price.isNotEmpty) price].join(' · ');
                     return Material(
                       key: ValueKey(id),
-                      color: active ? const Color(0xFF1F2937) : Colors.transparent,
+                      color: active ? const Color(0xFF1A1F2E) : Colors.transparent,
                       child: InkWell(
                         onTap: () => onSelect(id),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-                          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: _border.withValues(alpha: 0.6)))),
+                          padding: const EdgeInsets.fromLTRB(4, 8, 10, 8),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(color: active ? _accent : Colors.transparent, width: 3),
+                              bottom: BorderSide(color: _border.withValues(alpha: 0.55)),
+                            ),
+                          ),
                           child: Row(
                             children: [
                               ReorderableDragStartListener(
                                 index: i,
                                 child: const Padding(
-                                  padding: EdgeInsets.only(right: 4),
-                                  child: Icon(Icons.drag_handle, size: 20, color: _muted),
+                                  padding: EdgeInsets.symmetric(horizontal: 2),
+                                  child: Icon(Icons.drag_indicator, size: 20, color: _muted),
                                 ),
                               ),
+                              UiSiteProductThumb(product: p, size: 44),
+                              const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,9 +136,9 @@ class UiSiteProductsSection extends StatelessWidget {
                                         fontWeight: active ? FontWeight.w600 : FontWeight.w500,
                                       ),
                                     ),
-                                    if (p.category.isNotEmpty || price.isNotEmpty)
+                                    if (subtitle.isNotEmpty)
                                       Text(
-                                        [p.category, price].where((s) => s.isNotEmpty).join(' · '),
+                                        subtitle,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(color: _muted, fontSize: 11),
@@ -135,7 +146,11 @@ class UiSiteProductsSection extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              if (p.isArchived) const Icon(Icons.inventory_2_outlined, size: 14, color: _muted),
+                              if (p.isArchived)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 4),
+                                  child: Icon(Icons.inventory_2_outlined, size: 14, color: _muted),
+                                ),
                             ],
                           ),
                         ),
@@ -144,26 +159,48 @@ class UiSiteProductsSection extends StatelessWidget {
                   },
                 ),
         ),
-        Material(
-          color: const Color(0xFF18181B),
-          child: InkWell(
-            onTap: onOpenTaxes,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(border: Border(top: BorderSide(color: _border.withValues(alpha: 0.8)))),
-              child: Row(
-                children: [
-                  const Icon(Icons.percent_outlined, size: 18, color: _muted),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _activeTaxCount == 0 ? 'No sales taxes' : '$_activeTaxCount active tax${_activeTaxCount == 1 ? '' : 'es'}',
-                      style: const TextStyle(color: _text, fontSize: 12),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+          child: Material(
+            color: siteEditorCardBg,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: siteEditorFieldBorder.withValues(alpha: 0.85)),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: onOpenTaxes,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: siteEditorFieldFill,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: siteEditorFieldBorder),
+                      ),
+                      child: const Icon(Icons.percent_outlined, size: 16, color: _accent),
                     ),
-                  ),
-                  const Text('Manage', style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)),
-                  const Icon(Icons.chevron_right, size: 18, color: _muted),
-                ],
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Sales taxes', style: TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600)),
+                          Text(
+                            _activeTaxCount == 0 ? 'None configured' : '$_activeTaxCount active',
+                            style: const TextStyle(color: _muted, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Text('Manage', style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)),
+                    const Icon(Icons.chevron_right, size: 18, color: _muted),
+                  ],
+                ),
               ),
             ),
           ),

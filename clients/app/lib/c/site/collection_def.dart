@@ -29,7 +29,7 @@ TableDef _productTable() => TableDef(
       subtables: [
         SubTableDef(
           collection: 'site.product_embed',
-          label: 'Alt labels',
+          label: 'Alternative names',
           fkKeys: ['site_iid', 'product_id'],
           syncName: 'site_product_embed',
         ),
@@ -100,7 +100,7 @@ TableDef _domainTable() => TableDef(
 
 TableDef _productEmbedTable() => TableDef(
       collection: 'site.product_embed',
-      label: 'Alt labels',
+      label: 'Alternative names',
       syncName: 'site_product_embed',
       siteScoped: true,
       primaryKey: 'site_iid,embed_id',

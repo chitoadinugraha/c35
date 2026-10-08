@@ -38,6 +38,11 @@ pub use gemini_no_provider_grounding::gemini_request_reject_provider_grounding;
 pub use model_catalog::{
     model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };
+pub use catalog_types::context_tokens_infer;
+pub use model_catalog::{
+    context_tokens_from_raw, context_window_default, context_window_options, context_window_picker_ceiling, context_window_resolve,
+    context_window_store, model_context_tokens, CONTEXT_WINDOW_DEFAULT, CONTEXT_WINDOW_STEPS,
+};
 pub use catalog_sync::{llm_catalog_spawn, llm_catalog_sync_force, sync_live_offers, PricingIndex};
 pub use fetch_catalog::{llm_catalog_nats_subscribe, LlmCatalogFetchTask};
 pub use catalog_resolve::{

@@ -1,6 +1,82 @@
 use crate::catalog_resolve::{catalog_provider_model, catalog_row_by_provider_model};
+use crate::catalog_types::context_tokens_infer;
 use crate::llm_catalog::catalog_row_resolve;
 use crate::runtime_config::alien_chain_models;
+
+pub const CONTEXT_WINDOW_STEPS: [i32; 6] = [32_768, 65_536, 131_072, 262_144, 524_288, 1_048_576];
+pub const CONTEXT_WINDOW_DEFAULT: i32 = 128_000;
+
+pub fn context_tokens_from_raw(raw: &serde_json::Value) -> i32 {
+    let n = raw
+        .get("context_length")
+        .and_then(|v| v.as_i64())
+        .or_else(|| raw.get("top_provider").and_then(|t| t.get("context_length")).and_then(|v| v.as_i64()));
+    n.filter(|&x| x > 0).map(|x| x.min(i32::MAX as i64) as i32).unwrap_or(0)
+}
+
+pub fn model_context_tokens(slug: &str) -> i32 {
+    let key = slug.trim();
+    if key.is_empty() || model_is_alien(key) {
+        if let Some(row) = catalog_row_resolve("alienai") {
+            return row.effective_context_tokens();
+        }
+        return context_tokens_infer("alienai", "alienai");
+    }
+    if let Some(row) = catalog_row_resolve(key) {
+        return row.effective_context_tokens();
+    }
+    context_tokens_infer("", key)
+}
+
+pub fn context_window_picker_ceiling(model: &str) -> i32 {
+    model_context_tokens(model)
+}
+
+fn context_window_snap_down(n: i32) -> i32 {
+    CONTEXT_WINDOW_STEPS.iter().rev().find(|&&s| s <= n).copied().unwrap_or(CONTEXT_WINDOW_STEPS[0])
+}
+
+pub fn context_window_default(model: &str) -> i32 {
+    let ceiling = model_context_tokens(model);
+    let raw = CONTEXT_WINDOW_DEFAULT.min(ceiling);
+    if raw >= CONTEXT_WINDOW_DEFAULT {
+        CONTEXT_WINDOW_DEFAULT
+    } else {
+        context_window_snap_down(raw)
+    }
+}
+
+pub fn context_window_resolve(model: &str, stored: i32) -> i32 {
+    if stored <= 0 {
+        return context_window_default(model);
+    }
+    let ceiling = context_window_picker_ceiling(model);
+    let capped = if stored > ceiling { ceiling } else { stored };
+    if CONTEXT_WINDOW_STEPS.contains(&capped) {
+        capped
+    } else {
+        context_window_snap_down(capped)
+    }
+}
+
+pub fn context_window_options(model: &str) -> Vec<i32> {
+    let ceiling = context_window_picker_ceiling(model);
+    CONTEXT_WINDOW_STEPS.into_iter().filter(|&s| s <= ceiling).collect()
+}
+
+pub fn context_window_store(model: &str, requested: i32) -> Result<i32, String> {
+    if requested <= 0 {
+        return Ok(0);
+    }
+    let ceiling = context_window_picker_ceiling(model);
+    if requested > ceiling {
+        return Err(format!("context_window {requested} above model ceiling {ceiling}"));
+    }
+    if !CONTEXT_WINDOW_STEPS.contains(&requested) {
+        return Err(format!("context_window {requested} is not an allowed step"));
+    }
+    Ok(requested)
+}
 
 #[derive(Debug, Clone)]
 pub struct ModelTarget {

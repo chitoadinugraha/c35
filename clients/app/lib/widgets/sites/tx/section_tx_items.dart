@@ -1,10 +1,14 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_discount_dialog.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_item_numpad.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_reserve_dialog.dart';
+import 'package:alienai_c35/widgets/io/in_site_contact.dart';
+import 'package:alienai_c35/widgets/sites/tx/section_tx_cart_pay.dart';
+import 'package:alienai_c35/widgets/sites/tx/ui_site_product_thumb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
@@ -22,6 +26,15 @@ class SectionTxItems extends StatefulWidget {
     this.onCheckout,
     this.discounts = const [],
     this.onDiscountsChanged,
+    this.posShell = false,
+    this.contacts = const [],
+    this.selectedContact,
+    this.onContactChanged,
+    this.onAddCustomer,
+    this.payments = const [],
+    this.onRemovePayment,
+    this.onCartDiscount,
+    this.onPrintUnpaidReceipt,
   });
 
   final List<TxItem> items;
@@ -30,6 +43,15 @@ class SectionTxItems extends StatefulWidget {
   final VoidCallback? onCheckout;
   final List<TxDiscount> discounts;
   final ValueChanged<List<TxDiscount>>? onDiscountsChanged;
+  final bool posShell;
+  final List<SiteContact> contacts;
+  final SiteContact? selectedContact;
+  final ValueChanged<SiteContact?>? onContactChanged;
+  final Future<SiteContact?> Function(String name)? onAddCustomer;
+  final List<TxPayment> payments;
+  final ValueChanged<int>? onRemovePayment;
+  final VoidCallback? onCartDiscount;
+  final VoidCallback? onPrintUnpaidReceipt;
 
   @override
   State<SectionTxItems> createState() => _SectionTxItemsState();
@@ -61,9 +83,30 @@ class _SectionTxItemsState extends State<SectionTxItems> {
 
   Map<Int64, SiteProduct> get _productById => {for (final p in widget.products) p.productId: p};
 
+  int _cartLineIndexForMerge(Int64 productId, String note, {int? exceptIndex}) {
+    final key = note.trim();
+    for (var i = 0; i < widget.items.length; i++) {
+      if (exceptIndex != null && i == exceptIndex) continue;
+      final line = widget.items[i];
+      if (line.productId == productId && line.note.trim() == key) return i;
+    }
+    return -1;
+  }
+
+  int _productQtyInCart(Int64 productId) =>
+      widget.items.where((i) => i.productId == productId).fold(0, (sum, i) => sum + i.qty);
+
+  void _applyLineTotals(TxItem item) {
+    final gross = txItemLineNominal(item);
+    if (item.totalDiscount > gross) {
+      item.totalDiscount = gross;
+    }
+    item.totalPrice = gross;
+    item.totalNet = txItemLineNet(item);
+  }
 
   void _addProduct(SiteProduct product) {
-    final existingIndex = widget.items.indexWhere((i) => i.productId == product.productId);
+    final existingIndex = _cartLineIndexForMerge(product.productId, '');
     if (existingIndex >= 0) {
       final existing = widget.items[existingIndex];
       _updateQty(existingIndex, existing.qty + 1);
@@ -117,15 +160,25 @@ class _SectionTxItemsState extends State<SectionTxItems> {
       if (updated.qty <= 0) {
         _updateQty(index, 0);
       } else {
-        final gross = txItemLineNominal(updated);
-        if (updated.totalDiscount > gross) {
-          updated.totalDiscount = gross;
+        final noteKey = updated.note.trim();
+        final mergeIndex = _cartLineIndexForMerge(updated.productId, noteKey, exceptIndex: index);
+        if (mergeIndex >= 0) {
+          final target = widget.items[mergeIndex].clone();
+          target.qty += updated.qty;
+          _applyLineTotals(target);
+          final next = <TxItem>[];
+          for (var i = 0; i < widget.items.length; i++) {
+            if (i == index) continue;
+            next.add(i == mergeIndex ? target : widget.items[i]);
+          }
+          widget.onChanged(next);
+        } else {
+          final line = updated.clone();
+          _applyLineTotals(line);
+          widget.onChanged(
+            widget.items.asMap().entries.map((e) => e.key == index ? line : e.value).toList(growable: false),
+          );
         }
-        updated.totalPrice = gross;
-        updated.totalNet = txItemLineNet(updated);
-        widget.onChanged(
-          widget.items.asMap().entries.map((e) => e.key == index ? updated : e.value).toList(growable: false),
-        );
       }
     }
   }
@@ -175,7 +228,7 @@ class _SectionTxItemsState extends State<SectionTxItems> {
       context: context,
       originalAmount: itemsSubtotal,
       initialDiscount: initialDiscount,
-      title: 'Diskon Transaksi (Nota)',
+      title: 'Tambah Diskon',
     );
 
     if (discount != null && mounted) {
@@ -206,11 +259,111 @@ class _SectionTxItemsState extends State<SectionTxItems> {
     }
   }
 
+  Widget _cartLine(int index) {
+    final item = widget.items[index];
+    final product = _productById[item.productId];
+    final name = product?.name ?? 'Item ${item.productId}';
+    final lineGross = txItemLineNominal(item);
+    final lineDisc = txItemDiscountNominal(item);
+    final lineNet = txItemLineNet(item);
+    final hasRes = item.reservations.isNotEmpty;
+    final hasNote = item.note.trim().isNotEmpty;
+    final hasDisc = lineDisc > Int64.ZERO;
+    final lineTotal = hasDisc ? lineNet : lineGross;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _editItem(index),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 3),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141417),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _border.withValues(alpha: 0.6)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (product != null) ...[
+                UiSiteProductThumb(product: product, size: 36),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${item.qty} × ${moneyFmtIdr(item.price.toInt())}',
+                      style: const TextStyle(color: _muted, fontSize: 12),
+                    ),
+                    if (hasDisc || hasNote || hasRes || (product != null && product.canReserve && !hasRes))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            if (hasDisc)
+                              InkWell(
+                                onTap: () => _editItemDiscount(index),
+                                child: Text('-${moneyFmtIdr(lineDisc.toInt())}', style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.w600)),
+                              ),
+                            if (hasNote) Text('“${item.note}”', style: const TextStyle(color: Colors.amberAccent, fontSize: 11)),
+                            if (hasRes)
+                              InkWell(
+                                onTap: () => _editReservation(index),
+                                child: const Text('Reservasi', style: TextStyle(color: Colors.lightBlueAccent, fontSize: 11)),
+                              )
+                            else if (product != null && product.canReserve)
+                              InkWell(
+                                onTap: () => _editReservation(index),
+                                child: const Text('+ Reservasi', style: TextStyle(color: _accent, fontSize: 11)),
+                              ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (hasDisc)
+                    Text(
+                      moneyFmtIdr(lineGross.toInt()),
+                      style: const TextStyle(color: _muted, fontSize: 11, decoration: TextDecoration.lineThrough),
+                    ),
+                  Text(
+                    moneyFmtIdr(lineTotal.toInt()),
+                    style: const TextStyle(color: _accent, fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, size: 18, color: _muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _submitBarcode(String text) {
     final code = text.trim().toLowerCase();
     if (code.isEmpty) return;
     final matched = widget.products.where((p) => p.canSell && !p.isArchived).where((p) {
-      return p.sku.toLowerCase() == code || p.productId.toString() == code || p.name.toLowerCase() == code;
+      final barcodes = siteProductBarcodesRead(p).map((b) => b.toLowerCase());
+      return p.sku.toLowerCase() == code ||
+          barcodes.contains(code) ||
+          p.productId.toString() == code ||
+          p.name.toLowerCase() == code;
     }).firstOrNull;
 
     if (matched != null) {
@@ -332,10 +485,11 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                         separatorBuilder: (_, __) => const Divider(height: 1, color: _border),
                         itemBuilder: (_, i) {
                           final p = filtered[i];
-                          final inCart = widget.items.where((it) => it.productId == p.productId).firstOrNull;
+                          final inCartQty = _productQtyInCart(p.productId);
                           return ListTile(
                             dense: true,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            leading: UiSiteProductThumb(product: p, size: 44),
                             title: Row(
                               children: [
                                 Expanded(
@@ -359,6 +513,13 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                                   p.price > Int64.ZERO ? moneyFmtIdr(p.price.toInt()) : 'Gratis',
                                   style: const TextStyle(color: _muted, fontSize: 12),
                                 ),
+                                if (inCartQty > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '· $inCartQty in cart',
+                                    style: TextStyle(color: _accent.withValues(alpha: 0.85), fontSize: 11, fontWeight: FontWeight.w500),
+                                  ),
+                                ],
                                 if (p.trackStock) ...[
                                   const SizedBox(width: 8),
                                   Text(
@@ -371,16 +532,10 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                                 ],
                               ],
                             ),
-                            trailing: inCart != null
-                                ? Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(12)),
-                                    child: Text('${inCart.qty}', style: const TextStyle(color: Color(0xFF052E1B), fontSize: 12, fontWeight: FontWeight.bold)),
-                                  )
-                                : IconButton(
-                                    icon: const Icon(Icons.add_circle_outline, color: _accent, size: 22),
-                                    onPressed: () => _addProduct(p),
-                                  ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.add, color: _muted, size: 22),
+                              onPressed: () => _addProduct(p),
+                            ),
                             onTap: () => _addProduct(p),
                           );
                         },
@@ -399,15 +554,39 @@ class _SectionTxItemsState extends State<SectionTxItems> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('Keranjang (Cart)', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                    const Spacer(),
-                    Text(
-                      '${widget.items.length} item',
-                      style: const TextStyle(color: _muted, fontSize: 12),
+                    Row(
+                      children: [
+                        const Text('Keranjang', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        Text('${widget.items.length} item', style: const TextStyle(color: _muted, fontSize: 12)),
+                      ],
                     ),
+                    if (widget.posShell && widget.onContactChanged != null) ...[
+                      const SizedBox(height: 6),
+                      InSiteContact(
+                        value: widget.selectedContact == null ? '' : '${widget.selectedContact!.contactId}',
+                        contacts: {for (final c in widget.contacts) '${c.contactId}': c},
+                        onAddCustomer: widget.onAddCustomer == null
+                            ? null
+                            : (name) async {
+                                final c = await widget.onAddCustomer!(name);
+                                if (c != null) widget.onContactChanged!(c);
+                                return c == null ? null : '${c.contactId}';
+                              },
+                        onCommit: (id) async {
+                          if (id.isEmpty) {
+                            widget.onContactChanged!(null);
+                            return;
+                          }
+                          final picked = widget.contacts.where((c) => '${c.contactId}' == id).firstOrNull;
+                          if (picked != null) widget.onContactChanged!(picked);
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -420,297 +599,97 @@ class _SectionTxItemsState extends State<SectionTxItems> {
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         itemCount: widget.items.length,
                         separatorBuilder: (_, __) => const Divider(height: 1, color: _border),
-                        itemBuilder: (_, i) {
-                          final item = widget.items[i];
-                          final product = _productById[item.productId];
-                          final name = product?.name ?? 'Item ${item.productId}';
-                          final lineGross = txItemLineNominal(item);
-                          final lineDisc = txItemDiscountNominal(item);
-                          final lineNet = txItemLineNet(item);
-                          final hasRes = item.reservations.isNotEmpty;
-                          final hasNote = item.note.trim().isNotEmpty;
-                          final hasDisc = lineDisc > Int64.ZERO;
-
-                          return Container(
-                            margin: const EdgeInsets.symmetric(vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF141417),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              title: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(name, style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
-                                  ),
-                                  if (hasDisc) ...[
-                                    Text(
-                                      moneyFmtIdr(lineGross.toInt()),
-                                      style: const TextStyle(
-                                        color: _muted,
-                                        fontSize: 11,
-                                        decoration: TextDecoration.lineThrough,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      moneyFmtIdr(lineNet.toInt()),
-                                      style: const TextStyle(color: _accent, fontSize: 13, fontWeight: FontWeight.w600),
-                                    ),
-                                  ] else ...[
-                                    Text(
-                                      moneyFmtIdr(lineGross.toInt()),
-                                      style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Wrap(
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    spacing: 8,
-                                    children: [
-                                      InkWell(
-                                        onTap: () => _editItem(i),
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 2),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                '${moneyFmtIdr(item.price.toInt())} × ${item.qty}',
-                                                style: const TextStyle(color: _muted, fontSize: 12),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const Icon(Icons.edit_note, size: 14, color: _accent),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      if (hasDisc)
-                                        InkWell(
-                                          onTap: () => _editItemDiscount(i),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            decoration: BoxDecoration(
-                                              color: Colors.redAccent.withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(4),
-                                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                const Icon(Icons.local_offer_outlined, size: 10, color: Colors.redAccent),
-                                                const SizedBox(width: 3),
-                                                Text(
-                                                  '-${moneyFmtIdr(lineDisc.toInt())}',
-                                                  style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        )
-                                      else
-                                        InkWell(
-                                          onTap: () => _editItemDiscount(i),
-                                          child: const Padding(
-                                            padding: EdgeInsets.symmetric(vertical: 2),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(Icons.discount_outlined, size: 11, color: _muted),
-                                                SizedBox(width: 2),
-                                                Text('+ Diskon', style: TextStyle(color: _muted, fontSize: 11)),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                  if (hasNote)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text('“${item.note}”', style: const TextStyle(color: Colors.amberAccent, fontSize: 11, fontStyle: FontStyle.italic)),
-                                    ),
-                                  if (hasRes)
-                                    InkWell(
-                                      onTap: () => _editReservation(i),
-                                      child: Container(
-                                        margin: const EdgeInsets.only(top: 4),
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: Colors.blueAccent.withValues(alpha: 0.15),
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(Icons.event_seat_outlined, size: 12, color: Colors.lightBlueAccent),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Reservasi: ${item.reservations.first.durationQty} unit (${item.reservations.first.note.isNotEmpty ? item.reservations.first.note : "Terkonfirmasi"})',
-                                              style: const TextStyle(color: Colors.lightBlueAccent, fontSize: 10, fontWeight: FontWeight.w600),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  if (product != null && product.canReserve && !hasRes)
-                                    InkWell(
-                                      onTap: () => _editReservation(i),
-                                      child: const Padding(
-                                        padding: EdgeInsets.only(top: 4),
-                                        child: Text('+ Set Reservasi / Jadwal', style: TextStyle(color: _accent, fontSize: 11, fontWeight: FontWeight.w500)),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.remove_circle_outline, size: 18, color: _muted),
-                                    onPressed: () => _updateQty(i, item.qty - 1),
-                                  ),
-                                  InkWell(
-                                    onTap: () => _editItem(i),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1F1F23),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text('${item.qty}', style: const TextStyle(color: _text, fontWeight: FontWeight.bold)),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.add_circle_outline, size: 18, color: _accent),
-                                    onPressed: () => _updateQty(i, item.qty + 1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                        itemBuilder: (_, i) => _cartLine(i),
                       ),
               ),
 
-              // Bottom Checkout Panel
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: const BoxDecoration(
                   color: Color(0xFF101013),
                   border: Border(top: BorderSide(color: _border)),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Subtotal Produk', style: TextStyle(color: _muted, fontSize: 12)),
-                        Text(
-                          moneyFmtIdr(grossSubtotal.toInt()),
-                          style: const TextStyle(color: _text, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    if (itemsDiscountTotal > Int64.ZERO) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: widget.posShell
+                    ? SectionTxCartPay(
+                        grossSubtotal: grossSubtotal,
+                        itemsDiscountTotal: itemsDiscountTotal,
+                        cartDiscountTotal: cartDiscountTotal,
+                        finalTotal: finalTotal,
+                        paid: widget.payments.fold(Int64.ZERO, (s, p) => s + p.amount),
+                        payments: widget.payments,
+                        onCartDiscount: widget.items.isEmpty ? null : (widget.onCartDiscount ?? _editCartDiscount),
+                        onRemovePayment: widget.onRemovePayment ?? (_) {},
+                        onCheckout: widget.items.isEmpty ? null : widget.onCheckout,
+                        onPrintUnpaid: widget.items.isEmpty ? null : widget.onPrintUnpaidReceipt,
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text('Diskon Produk', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
-                          Text(
-                            '- ${moneyFmtIdr(itemsDiscountTotal.toInt())}',
-                            style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Subtotal Produk', style: TextStyle(color: _muted, fontSize: 12)),
+                              Text(moneyFmtIdr(grossSubtotal.toInt()), style: const TextStyle(color: _text, fontSize: 12)),
+                            ],
                           ),
-                        ],
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        InkWell(
-                          onTap: widget.items.isEmpty ? null : _editCartDiscount,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 2),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                          if (itemsDiscountTotal > Int64.ZERO) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Icon(
-                                  Icons.local_offer_outlined,
-                                  size: 13,
-                                  color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
-                                ),
-                                const SizedBox(width: 4),
+                                const Text('Diskon Produk', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
                                 Text(
-                                  cartDiscountTotal > Int64.ZERO ? 'Diskon Transaksi' : '+ Diskon Transaksi',
+                                  '- ${moneyFmtIdr(itemsDiscountTotal.toInt())}',
+                                  style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              InkWell(
+                                onTap: widget.items.isEmpty ? null : _editCartDiscount,
+                                child: Text(
+                                  cartDiscountTotal > Int64.ZERO ? 'Diskon Transaksi' : 'Tambah Diskon',
                                   style: TextStyle(
                                     color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
                                     fontSize: 12,
-                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                if (cartDiscountTotal > Int64.ZERO) ...[
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.edit, size: 11, color: _muted),
-                                ],
-                              ],
-                            ),
+                              ),
+                              Text(
+                                cartDiscountTotal > Int64.ZERO ? '- ${moneyFmtIdr(cartDiscountTotal.toInt())}' : 'Rp 0',
+                                style: TextStyle(color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _muted, fontSize: 12),
+                              ),
+                            ],
                           ),
-                        ),
-                        if (cartDiscountTotal > Int64.ZERO)
-                          InkWell(
-                            onTap: _editCartDiscount,
-                            child: Text(
-                              '- ${moneyFmtIdr(cartDiscountTotal.toInt())}',
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: _border)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Total Pembayaran', style: TextStyle(color: _muted, fontSize: 13)),
+                              Text(
+                                moneyFmtIdr(finalTotal.toInt()),
+                                style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _accent,
+                              foregroundColor: const Color(0xFF052E1B),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
-                          )
-                        else
-                          const Text('Rp 0', style: TextStyle(color: _muted, fontSize: 12)),
-                      ],
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Divider(height: 1, color: _border),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Total Pembayaran', style: TextStyle(color: _muted, fontSize: 13)),
-                        Text(
-                          moneyFmtIdr(finalTotal.toInt()),
-                          style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _accent,
-                        foregroundColor: const Color(0xFF052E1B),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            onPressed: finalTotal < Int64.ZERO || widget.items.isEmpty || widget.onCheckout == null ? null : widget.onCheckout,
+                            icon: const Icon(Icons.payments_outlined, size: 20),
+                            label: Text('Bayar  •  ${moneyFmtIdr(finalTotal.toInt())}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
                       ),
-                      onPressed: finalTotal < Int64.ZERO || widget.items.isEmpty || widget.onCheckout == null
-                          ? null
-                          : widget.onCheckout,
-                      icon: const Icon(Icons.payments_outlined, size: 20),
-                      label: Text(
-                        'Bayar  •  ${moneyFmtIdr(finalTotal.toInt())}',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),

@@ -12,4 +12,8 @@ void main() {
   test('moneyCostLabel keeps sub-IDR costs visible', () {
     expect(moneyCostLabel(0.00000003), 'IDR 0.0005');
   });
+
+  test('moneyCostLabel appends Included for allowance usage', () {
+    expect(moneyCostLabel(0.00000003, included: true), 'IDR 0.0005 (Included)');
+  });
 }

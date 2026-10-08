@@ -3,6 +3,7 @@ use c35_proto::{SiteDoc, SiteLink, SitePost};
 use serde_json::Value;
 use sqlx::PgPool;
 
+use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
 use crate::doc::site_doc_from_json;
 use crate::product_design::{
     product_card_price_style, product_card_subtitle_style, product_card_title_style,
@@ -495,6 +496,9 @@ pub fn block_html_render(
             let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
             let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
             let pic = props.get("pic").and_then(|x| x.as_str()).unwrap_or("");
+            let location_label = props.get("location_label").and_then(|x| x.as_str()).unwrap_or("");
+            let location_href = props.get("location_href").and_then(|x| x.as_str()).unwrap_or("");
+            let show_hours = props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false);
             let avatar = if pic.is_empty() {
                 String::new()
             } else {
@@ -503,10 +507,35 @@ pub fn block_html_render(
                     esc(&pic_url(pic))
                 )
             };
+            let mut chips = String::new();
+            if !location_label.trim().is_empty() {
+                let href = if location_href.trim().is_empty() {
+                    format!(
+                        "https://www.google.com/maps/search/?api=1&query={}",
+                        esc_attr(location_label.trim())
+                    )
+                } else {
+                    esc(location_href.trim())
+                };
+                chips.push_str(&format!(
+                    r#"<a class="hub-chip" href="{}" target="_blank" rel="noopener">{}</a>"#,
+                    href,
+                    esc(location_label.trim())
+                ));
+            }
+            if show_hours {
+                chips.push_str(r#"<span class="hub-chip hub-chip-muted">Open hours</span>"#);
+            }
+            let chips_html = if chips.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<div class="hub-chips">{}</div>"#, chips)
+            };
             format!(
-                r#"<section class="block hub-profile"><div class="hub-profile">{avatar}<h1>{}</h1><p>{}</p></div></section>"#,
+                r#"<section class="block hub-profile"><div class="hub-profile">{avatar}<h1>{}</h1><p>{}</p>{chips_html}</div></section>"#,
                 esc(title),
-                esc(subtitle)
+                esc(subtitle),
+                chips_html = chips_html
             )
         }
         "social_feed" => {
@@ -636,6 +665,7 @@ pub async fn page_html_render(
         serde_json::from_str(&doc.meta_json).unwrap_or(Value::Object(Default::default()))
     };
     let product_design = product_design_from_site_meta(&site_meta);
+    let doc_title = site_doc_html_title(site_name, &site_meta, &page.title);
     let mut body = String::new();
     for block in &page.blocks {
         let props: Value = if block.props_json.is_empty() {
@@ -671,7 +701,7 @@ pub async fn page_html_render(
         ));
     }
     Ok(format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><style>
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title><style>
 :root{{--accent:{accent};}}
 body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;padding-bottom:80px}}
 .wrap{{max-width:960px;margin:0 auto;padding:24px 16px}}
@@ -705,6 +735,9 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;pa
 .guest-queue-btn,.guest-order-poll-btn{{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;margin-top:8px}}
 .hub-profile{{text-align:center;padding:24px 16px}}
 .hub-avatar{{width:96px;height:96px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block}}
+.hub-chips{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}}
+.hub-chip{{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #e5e5e5;font-size:12px;color:#333;text-decoration:none}}
+.hub-chip-muted{{color:#666}}
 .order-track label{{display:block;margin:12px 0}}
 .order-track input{{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box}}
 .product-detail .price{{font-size:20px;font-weight:700;color:var(--accent);margin:12px 0}}
@@ -721,18 +754,47 @@ body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111;pa
   <div class="guest-modal-sheet" id="c35-modal-content"></div>
 </div>
 <div id="c35-guest-toast" class="guest-toast" style="display:none;"></div>
+<button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
 {client_js}</body></html>"#,
-        esc(&page.title),
-        esc(site_name),
+        esc(&doc_title),
         body = body,
-        client_js = guest_client_assets(site_iid)
+        client_js = guest_client_script_tags(pool, site_iid).await
     ))
 }
 
-fn guest_client_assets(site_iid: i64) -> String {
+fn site_doc_html_title(site_name: &str, meta: &Value, page_title: &str) -> String {
+    let tagline = meta
+        .get("tagline")
+        .or_else(|| meta.get("seo_desc"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .trim();
+    if !tagline.is_empty() {
+        return format!("{} — {}", site_name.trim(), tagline);
+    }
+    let page = page_title.trim();
+    if !page.is_empty() && page != site_name.trim() {
+        return format!("{} — {}", site_name.trim(), page);
+    }
+    site_name.trim().to_string()
+}
+
+async fn guest_client_script_tags(pool: &PgPool, site_iid: i64) -> String {
+    let meta = site_published_meta_json(pool, site_iid).await;
+    let commerce = commerce_boot_build(pool, site_iid, &meta)
+        .await
+        .unwrap_or_else(|_| serde_json::json!({}));
+    let guest = serde_json::json!({
+        "site_iid": site_iid,
+        "api_base": "",
+        "commerce_boot": commerce,
+        "order_progress_steps": order_progress_steps_json(),
+    });
+    let raw = serde_json::to_string(&guest).unwrap_or_else(|_| "{}".into());
+    let safe = raw.replace("</", "<\\/");
     format!(
-        r#"<script>window.__SITE_GUEST__={{site_iid:{site_iid},api_base:""}};</script><script defer src="/static/site-guest/site-guest.v1.js"></script>"#,
-        site_iid = site_iid
+        r#"<script>window.__SITE_GUEST__={};</script><script defer src="/static/site-guest/site-guest.v1.js"></script>"#,
+        safe
     )
 }
 
@@ -778,7 +840,7 @@ pub async fn product_detail_html_render(
         esc(&p.name),
         esc(site_name),
         body = body,
-        client_js = guest_client_assets(site_iid)
+        client_js = guest_client_script_tags(pool, site_iid).await
     );
     Ok(Some(html))
 }
@@ -828,7 +890,7 @@ pub async fn post_detail_html_render(
         esc(&post.title),
         esc(site_name),
         body = article,
-        client_js = guest_client_assets(site_iid)
+        client_js = guest_client_script_tags(pool, site_iid).await
     );
     Ok(Some(html))
 }

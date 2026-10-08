@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_editor_save_bus.dart';
+import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
@@ -25,6 +27,7 @@ import 'package:flutter/material.dart';
 
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
+const _savingGreen = Color(0xFF22C55E);
 
 /// CSA-style site editor: nav rail | section | live preview (right on wide).
 class UiSiteEditorShell extends StatefulWidget {
@@ -34,12 +37,16 @@ class UiSiteEditorShell extends StatefulWidget {
     required this.api,
     this.initialSection = siteEditorMenuDefaultId,
     this.onCapabilitiesSaved,
+    this.onBack,
+    this.title,
   });
 
   final SiteRow row;
   final SiteApi api;
   final String initialSection;
   final Future<void> Function()? onCapabilitiesSaved;
+  final VoidCallback? onBack;
+  final String? title;
 
   @override
   State<UiSiteEditorShell> createState() => _UiSiteEditorShellState();
@@ -47,6 +54,8 @@ class UiSiteEditorShell extends StatefulWidget {
 
 class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   late String? _section = widget.initialSection;
+  late SiteRow _row = widget.row.clone();
+  final _saveBus = SiteEditorSaveBus();
   String? _catalogDetailId;
   SiteProductsPane _productsPane = SiteProductsPane.list;
   var _caps = const SiteEditorCaps();
@@ -55,13 +64,29 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   var _publishing = false;
   var _mobilePreviewOpen = false;
 
-  int get _siteIid => widget.row.siteIid.toInt();
+  int get _siteIid => _row.siteIid.toInt();
 
   @override
   void initState() {
     super.initState();
     unawaited(_loadCaps());
   }
+
+  @override
+  void didUpdateWidget(covariant UiSiteEditorShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.row.siteIid != widget.row.siteIid) _row = widget.row.clone();
+  }
+
+  @override
+  void dispose() {
+    _saveBus.dispose();
+    super.dispose();
+  }
+
+  void _onRowChanged(SiteRow row) => setState(() => _row = row.clone());
+
+  void _onDraftSaved() => setState(() => _previewReloadNonce++);
 
   Future<void> _loadCaps() async {
     try {
@@ -96,7 +121,42 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     }
   }
 
-  String get _handle => widget.row.alienId.isNotEmpty ? '@${widget.row.alienId}' : '';
+  String get _handle => _row.alienId.isNotEmpty ? '@${_row.alienId}' : '';
+
+  String get _siteTitle {
+    if (widget.title != null && widget.title!.trim().isNotEmpty) return widget.title!.trim();
+    if (_row.name.isNotEmpty) return _row.name;
+    return 'Site';
+  }
+
+  String _chromeSubtitle(String section) {
+    final parts = <String>[];
+    if (section == 'products' && _productsPane != SiteProductsPane.list) {
+      parts.add(_productsSubtitle());
+    } else {
+      parts.add(siteEditorMenuLabel(section, caps: _caps) ?? section);
+    }
+    if (_handle.isNotEmpty) parts.add(_handle);
+    return parts.join(' · ');
+  }
+
+  ({String? subtitle, Color? subtitleColor}) _chromeSubtitleState(String section) {
+    if (_saveBus.error.isNotEmpty) return (subtitle: 'Save failed', subtitleColor: Theme.of(context).colorScheme.error);
+    if (_saveBus.saving) return (subtitle: 'Saving…', subtitleColor: _savingGreen);
+    final sub = _chromeSubtitle(section);
+    return (subtitle: sub.isEmpty ? null : sub, subtitleColor: null);
+  }
+
+  Widget _saveErrorStrip() {
+    if (_saveBus.error.isEmpty) return const SizedBox.shrink();
+    return Material(
+      color: Theme.of(context).colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Text(_saveBus.error, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer, fontSize: 12)),
+      ),
+    );
+  }
 
   double _previewPaneW(double width) => siteEditorShowPreviewPane(width) ? siteEditorPreviewPaneW : 0;
 
@@ -121,6 +181,23 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
         }
         _catalogDetailId = null;
       });
+
+  /// Catalog children may sync detail/pane during [State.didUpdateWidget]; defer to avoid setState during build.
+  void _scheduleCatalogDetailId(String? id) {
+    if (_catalogDetailId == id) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _catalogDetailId == id) return;
+      setState(() => _catalogDetailId = id);
+    });
+  }
+
+  void _scheduleProductsPane(SiteProductsPane pane) {
+    if (_productsPane == pane) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _productsPane == pane) return;
+      setState(() => _productsPane = pane);
+    });
+  }
 
   String _productsSubtitle() => siteProductsPaneLabel(_productsPane);
 
@@ -158,7 +235,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       ];
 
   Widget _previewPane() => UiSitePreviewPane(
-        row: widget.row,
+        row: _row,
         api: widget.api,
         mode: _previewMode,
         reloadNonce: _previewReloadNonce,
@@ -167,45 +244,45 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   Widget _sectionBody(BuildContext context, String section, {required bool wide}) {
     final masterDetail = _catalogMasterDetail(context, wide, section);
     return switch (section) {
-      'info' => UiSiteInfoEditor(row: widget.row, api: widget.api, siteIid: _siteIid),
+      'info' => UiSiteInfoEditor(row: _row, api: widget.api, siteIid: _siteIid, onRowChanged: _onRowChanged, onDraftSaved: _onDraftSaved),
       'links' => UiSiteLinksEditor(api: widget.api, siteIid: _siteIid),
       'design' => UiSiteDesignEditor(api: widget.api, siteIid: _siteIid),
       'effects' => const UiSiteEffectsEditor(),
       'team' => UiSiteTeamEditor(
-          row: widget.row,
+          row: _row,
           api: widget.api,
           siteIid: _siteIid,
           onCapabilitiesSaved: _onCapabilitiesSaved,
         ),
       'capabilities' => UiSiteSettingsEditor(
-          row: widget.row,
+          row: _row,
           api: widget.api,
           siteIid: _siteIid,
           onCapabilitiesSaved: _onCapabilitiesSaved,
         ),
-      'publish' => UiSitePublishEditor(row: widget.row, onPublish: _publish, publishing: _publishing),
+      'publish' => UiSitePublishEditor(row: _row, onPublish: _publish, publishing: _publishing),
       'products' => UiSiteProductsEditor(
           api: widget.api,
           siteIid: _siteIid,
           masterDetail: masterDetail,
           pane: _productsPane,
-          onPaneChanged: (p) => setState(() => _productsPane = p),
+          onPaneChanged: _scheduleProductsPane,
           detailId: _catalogDetailId,
-          onDetailIdChanged: (id) => setState(() => _catalogDetailId = id),
+          onDetailIdChanged: _scheduleCatalogDetailId,
         ),
       'contacts' => UiSiteContactsEditor(
           api: widget.api,
           siteIid: _siteIid,
           masterDetail: masterDetail,
           detailId: _catalogDetailId,
-          onDetailIdChanged: (id) => setState(() => _catalogDetailId = id),
+          onDetailIdChanged: _scheduleCatalogDetailId,
         ),
       'objects' => UiSiteObjectsEditor(
           api: widget.api,
           siteIid: _siteIid,
           masterDetail: masterDetail,
           detailId: _catalogDetailId,
-          onDetailIdChanged: (id) => setState(() => _catalogDetailId = id),
+          onDetailIdChanged: _scheduleCatalogDetailId,
         ),
       'queue' => UiSiteQueueEditor(api: widget.api, siteIid: _siteIid),
       _ => Center(child: Text('Coming soon', style: const TextStyle(color: _muted, fontSize: 13))),
@@ -241,6 +318,18 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       (section == 'products' && (_productsPane != SiteProductsPane.list || _catalogDetailId != null)) ||
       ((section == 'contacts' || section == 'objects') && _catalogDetailId != null);
 
+  Widget _chrome({required String? subtitle, Color? subtitleColor, VoidCallback? onBack, required List<Widget> actions}) =>
+      ListenableBuilder(
+        listenable: _saveBus,
+        builder: (context, _) => UiSiteEditorChrome(
+          title: _siteTitle,
+          subtitle: subtitle,
+          subtitleColor: subtitleColor,
+          onBack: onBack,
+          actions: actions,
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
@@ -248,66 +337,76 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     final active = _section ?? (wide ? widget.initialSection : '');
     final onMenu = !wide && (_section == null || _section!.isEmpty);
 
-    if (!wide && _mobilePreviewOpen) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          UiSiteEditorChrome(
-            title: 'Preview',
-            subtitle: widget.row.name.isNotEmpty ? widget.row.name : null,
-            onBack: () => setState(() => _mobilePreviewOpen = false),
-            actions: _chromeActions(showPreviewToggle: false),
-          ),
-          Expanded(child: _previewPane()),
-        ],
-      );
-    }
+    return SiteEditorSaveScope(
+      bus: _saveBus,
+      child: Builder(
+        builder: (context) {
+          if (!wide && _mobilePreviewOpen) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _chrome(
+                  subtitle: _row.name.isNotEmpty ? _row.name : null,
+                  subtitleColor: null,
+                  onBack: () => setState(() => _mobilePreviewOpen = false),
+                  actions: _chromeActions(showPreviewToggle: false),
+                ),
+                _saveErrorStrip(),
+                Expanded(child: _previewPane()),
+              ],
+            );
+          }
 
-    final chromeActions = _chromeActions(showPreviewToggle: !wide);
+          final chromeActions = _chromeActions(showPreviewToggle: !wide);
 
-    if (!wide) {
-      if (onMenu) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            UiSiteEditorChrome(
-              title: widget.row.name.isNotEmpty ? widget.row.name : 'Site',
-              subtitle: _handle.isEmpty ? null : _handle,
-              actions: chromeActions,
-            ),
-            Expanded(child: UiSiteEditorMenu(caps: _caps, onSelect: _openSection)),
-          ],
-        );
-      }
-      final section = _section!;
-      final catalogDrill = _narrowCatalogDrill(section);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          UiSiteEditorChrome(
-            title: widget.row.name.isNotEmpty ? widget.row.name : 'Site',
-            subtitle: catalogDrill && section == 'products' ? _productsSubtitle() : siteEditorMenuLabel(section, caps: _caps),
-            onBack: catalogDrill ? _catalogDetailBack : () => setState(() => _section = null),
-            actions: chromeActions,
-          ),
-          Expanded(child: _narrowBody(context)),
-        ],
-      );
-    }
+          if (!wide) {
+            if (onMenu) {
+              final sub = _chromeSubtitleState('');
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _chrome(
+                    subtitle: sub.subtitle ?? (_handle.isEmpty ? null : _handle),
+                    subtitleColor: sub.subtitleColor,
+                    onBack: widget.onBack,
+                    actions: chromeActions,
+                  ),
+                  _saveErrorStrip(),
+                  Expanded(child: UiSiteEditorMenu(caps: _caps, onSelect: _openSection)),
+                ],
+              );
+            }
+            final section = _section!;
+            final catalogDrill = _narrowCatalogDrill(section);
+            final sub = _chromeSubtitleState(section);
+            final fallback = catalogDrill && section == 'products' ? _productsSubtitle() : siteEditorMenuLabel(section, caps: _caps);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _chrome(
+                  subtitle: sub.subtitle ?? fallback,
+                  subtitleColor: sub.subtitleColor,
+                  onBack: catalogDrill ? _catalogDetailBack : () => setState(() => _section = null),
+                  actions: chromeActions,
+                ),
+                _saveErrorStrip(),
+                Expanded(child: _narrowBody(context)),
+              ],
+            );
+          }
 
-    final section = active.isEmpty ? widget.initialSection : active;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        UiSiteEditorChrome(
-          title: widget.row.name.isNotEmpty ? widget.row.name : 'Site',
-          subtitle: section == 'products' && _productsPane != SiteProductsPane.list
-              ? '${siteEditorMenuLabel(section, caps: _caps)} · ${_productsSubtitle()}'
-              : siteEditorMenuLabel(section, caps: _caps),
-          actions: chromeActions,
-        ),
-        Expanded(child: _buildWide(context, section)),
-      ],
+          final section = active.isEmpty ? widget.initialSection : active;
+          final sub = _chromeSubtitleState(section);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _chrome(subtitle: sub.subtitle ?? _chromeSubtitle(section), subtitleColor: sub.subtitleColor, onBack: widget.onBack, actions: chromeActions),
+              _saveErrorStrip(),
+              Expanded(child: _buildWide(context, section)),
+            ],
+          );
+        },
+      ),
     );
   }
 }

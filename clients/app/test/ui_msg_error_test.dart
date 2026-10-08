@@ -26,6 +26,7 @@ void main() {
         body: UiMsgError(
           message: "Alien AI didn't return an answer. Please try again.",
           detail: 'empty response from gemini-3.5-flash-lite',
+          viewerIsRoot: true,
         ),
       ),
     ));
@@ -64,12 +65,25 @@ void main() {
           message: 'Cannot connect to Alien AI',
           msgId: msgId,
           detail: err,
+          viewerIsRoot: true,
         ),
       ),
     ));
     await tester.tap(find.byIcon(Icons.copy_rounded));
     await tester.pump();
     binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
+  });
+
+  testWidgets('UiMsgError hides raw gemini in message', (tester) async {
+    const raw = 'gemini HTTP 400 Bad Request: {"error":{"status":"INVALID_ARGUMENT"}}';
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: UiMsgError(message: raw),
+      ),
+    ));
+    expect(find.text(raw), findsNothing);
+    expect(find.text('Something went wrong. Please try again.'), findsOneWidget);
+    expect(find.text('Root only'), findsNothing);
   });
 
   testWidgets('UiMsgError hides detail when null', (tester) async {
@@ -92,7 +106,7 @@ void main() {
         ),
       ),
     ));
-    expect(find.text("You're out of quota. Upgrade your plan or top up your balance to continue."), findsOneWidget);
+    expect(find.textContaining('out of quota'), findsOneWidget);
     expect(find.text('Upgrade plan'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
     expect(find.byIcon(Icons.bolt_rounded), findsNWidgets(2));

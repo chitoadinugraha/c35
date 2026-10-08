@@ -177,10 +177,7 @@ fn run_tray_loop(tx: tokio::sync::mpsc::UnboundedSender<TrayAction>) -> anyhow::
                     crate::agent_window::show_or_focus();
                 }
                 if id == 1005 {
-                    if let Some(v) = c_remote_core::update::update_staged_version() {
-                        info!(version = v, "tray: applying staged agent update");
-                        let _ = c_remote_core::update::update_apply(v);
-                    }
+                    c_remote_core::update::update_apply_now();
                 }
                 if id == ID_CHECK_UPDATE {
                     info!("tray: check for update");

@@ -59,6 +59,7 @@ mod tool_index;
 pub mod tool_rag;
 pub mod tools;
 mod turn_tracer;
+mod user_error;
 
 pub use catalog::{mention_list, topic_list, translation_get, translation_rev, CatalogMentionRow, CatalogTopicRow};
 pub use presentation_theme::{
@@ -158,6 +159,7 @@ pub use prompt_turn::{
     chat_ensure, chat_title_from_prompt, chat_title_from_text, prompt_turn, PromptHopCheckpoint, PromptTurn,
     PromptTurnHooks,
 };
+pub use user_error::{chat_user_error_message, prompt_end_trace_json};
 pub use site_resolve::{site_at_tokens, site_context_block, site_context_resolve, SiteContext};
 pub use site_validate::{
     block_props_allowed, validate_block, validate_object_keys, validate_sitedoc, BLOCK_TYPES, META_KEYS,

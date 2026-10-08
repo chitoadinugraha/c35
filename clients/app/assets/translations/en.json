@@ -321,6 +321,16 @@
                      "clear":  "Clear",
                      "unknownIssuer":  "your referrer"
                  },
+    "site":  {
+                 "pos":  {
+                             "pickCustomer":  "Pick customer",
+                             "searchCustomer":  "Search customer...",
+                             "walkIn":  "Walk-In",
+                             "walkInSubtitle":  "Guest / unregistered customer",
+                             "newCustomer":  "New Customer",
+                             "addNew":  "Add New"
+                         }
+             },
     "legal":  {
                   "aiDisclaimerTitle":  "Before you continue",
                   "aiDisclaimerIntro":  "Check each item below, then continue.",

@@ -237,7 +237,9 @@ pub fn model_uses_alien_pool(model: &str) -> bool {
 }
 
 pub async fn billing_profile_fetch(pool: &PgPool, owner_iid: i64) -> Result<Option<ProfilePoolRow>> {
-    let _ = billing_profile_repair_rings_v4(pool, owner_iid).await;
+    if let Ok(Some(row)) = billing_profile_repair_rings_v4(pool, owner_iid).await {
+        return Ok(Some(row));
+    }
     billing_profile_fetch_inner(pool, owner_iid).await
 }
 
@@ -260,15 +262,20 @@ pub async fn billing_profile_ensure(pool: &PgPool, owner_iid: i64) -> Result<Pro
 
 pub async fn billing_profile_windows_roll(pool: &PgPool, mut row: ProfilePoolRow) -> Result<ProfilePoolRow> {
     let now = Utc::now();
+    let roll_5h = now - row.rings.window_5h_start >= Duration::hours(5);
+    let roll_weekly = now - row.rings.window_weekly_start >= Duration::days(7);
+    if !roll_5h && !roll_weekly {
+        return Ok(row);
+    }
     let mut sql = "UPDATE ai.billing_profile SET updated_ts = NOW()".to_string();
     let r = &mut row.rings;
-    if now - r.window_5h_start >= Duration::hours(5) {
+    if roll_5h {
         sql.push_str(", alien_allow_5h_used = 0, frontier_allow_5h_used = 0, window_5h_start = NOW()");
         r.alien_allow_5h_used = 0.0;
         r.frontier_allow_5h_used = 0.0;
         r.window_5h_start = now;
     }
-    if now - r.window_weekly_start >= Duration::days(7) {
+    if roll_weekly {
         sql.push_str(", alien_allow_weekly_used = 0, frontier_allow_weekly_used = 0, window_weekly_start = NOW()");
         r.alien_allow_weekly_used = 0.0;
         r.frontier_allow_weekly_used = 0.0;

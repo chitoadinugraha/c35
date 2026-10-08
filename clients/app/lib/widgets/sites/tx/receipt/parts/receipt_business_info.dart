@@ -1,6 +1,6 @@
+import 'package:alienai_c35/c/media/media_disk_cache.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import 'package:pdf/widgets.dart' as pw;
 
 class ReceiptBusinessInfo {
@@ -32,25 +32,23 @@ class ReceiptBusinessInfo {
 
   static Future<Uint8List?> loadLogo([String? path]) async {
     final loadPath = path?.trim() ?? '';
-    if (loadPath.isEmpty) {
+    if (loadPath.isEmpty) return null;
+    if (loadPath.toLowerCase().endsWith('.svg') || loadPath.startsWith('iconify://')) return null;
+    if (!loadPath.startsWith('http://') &&
+        !loadPath.startsWith('https://') &&
+        !loadPath.startsWith('/fs/') &&
+        !loadPath.startsWith('fs/')) {
       try {
-        final data = await rootBundle.load('assets/icons/app_icon.png');
+        final data = await rootBundle.load(loadPath);
         return data.buffer.asUint8List();
       } catch (_) {
         return null;
       }
     }
-    if (loadPath.toLowerCase().endsWith('.svg') || loadPath.startsWith('iconify://')) return null;
-    if (loadPath.startsWith('http://') || loadPath.startsWith('https://')) {
-      try {
-        final res = await http.get(Uri.parse(loadPath));
-        if (res.statusCode >= 200 && res.statusCode < 300) return res.bodyBytes;
-      } catch (_) {}
-      return null;
-    }
     try {
-      final data = await rootBundle.load(loadPath);
-      return data.buffer.asUint8List();
+      final file = await mediaDiskCacheFetch(loadPath);
+      if (file == null) return null;
+      return await file.readAsBytes();
     } catch (_) {
       return null;
     }

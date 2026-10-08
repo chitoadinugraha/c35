@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
@@ -8,7 +9,9 @@ import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/site/collection_def.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/site/site_commerce_cache.dart';
+import 'package:alienai_c35/c/site/site_commerce_media_prefetch.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/site_link_platform.dart';
 import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:fixnum/fixnum.dart';
 
@@ -116,7 +119,7 @@ SiteDraft siteCreateDraft({required Int64 siteIid, required String name, require
       ),
     ],
     themeJson: '{"accent":"#2563eb"}',
-    metaJson: jsonEncode({'seo_title': name, if (tagline.isNotEmpty) 'tagline': tagline}),
+    metaJson: jsonEncode({if (tagline.isNotEmpty) 'tagline': tagline, if (tagline.isNotEmpty) 'seo_desc': tagline}),
   );
   return SiteDraft(siteIid: siteIid, doc: doc);
 }
@@ -182,10 +185,14 @@ class SiteApi {
     try {
       final res = await conn.siteProductList(siteIid);
       await siteProductCacheSave(uid, siteIid, res.products);
+      unawaited(siteCommerceMediaPrefetch(products: res.products));
       return res.products;
     } catch (e) {
       final cached = await siteProductCacheRestore(uid, siteIid);
-      if (cached.isNotEmpty) return cached;
+      if (cached.isNotEmpty) {
+        unawaited(siteCommerceMediaPrefetch(products: cached));
+        return cached;
+      }
       rethrow;
     }
   }
@@ -381,7 +388,8 @@ class SiteApi {
 
   SiteObject objectNew(int siteIid) => SiteObject(siteIid: Int64(siteIid), name: 'New object', isActive: true);
 
-  SiteLink linkNew(int siteIid) => SiteLink(siteIid: Int64(siteIid), label: 'New link', url: 'https://', active: true);
+  SiteLink linkNew(int siteIid) =>
+      SiteLink(siteIid: Int64(siteIid), label: siteLinkDefaultTitle('website'), icon: 'website', url: '', active: true);
 
   SiteDomain domainNew(int siteIid) => SiteDomain(siteIid: Int64(siteIid), hostname: 'example.com');
 

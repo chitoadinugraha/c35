@@ -57,13 +57,18 @@ async fn billing_fetch(pool: &PgPool, owner_iid: i64) -> Result<Option<BillingRo
 
 async fn billing_windows_roll(pool: &PgPool, mut row: BillingRow) -> Result<BillingRow> {
     let now = Utc::now();
+    let roll_5h = now - row.window_5h_start >= Duration::hours(5);
+    let roll_weekly = now - row.window_weekly_start >= Duration::days(7);
+    if !roll_5h && !roll_weekly {
+        return Ok(row);
+    }
     let mut sql = "UPDATE ai.billing_account SET updated_ts = NOW()".to_string();
-    if now - row.window_5h_start >= Duration::hours(5) {
+    if roll_5h {
         sql.push_str(", alien_allow_5h_used = 0, window_5h_start = NOW()");
         row.alien_allow_5h_used = 0.0;
         row.window_5h_start = now;
     }
-    if now - row.window_weekly_start >= Duration::days(7) {
+    if roll_weekly {
         sql.push_str(", alien_allow_weekly_used = 0, window_weekly_start = NOW()");
         row.alien_allow_weekly_used = 0.0;
         row.window_weekly_start = now;
@@ -248,6 +253,12 @@ pub async fn billing_deduct_personal_profile(
     Ok(billing_fetch(pool, owner_iid).await?.unwrap_or(row))
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct BillingUsageReport {
+    pub cost_usd: f64,
+    pub wallet_charged: bool,
+}
+
 pub async fn billing_usage_report(
     pool: &PgPool,
     nats: Option<&async_nats::Client>,
@@ -261,7 +272,7 @@ pub async fn billing_usage_report(
     bctx: Option<&crate::billing_resolve::BillingContext>,
     extra_cost_usd: f64,
     usage_meta: Option<serde_json::Value>,
-) -> Result<f64> {
+) -> Result<BillingUsageReport> {
     let req_id = req_id.trim();
     if req_id.is_empty() {
         anyhow::bail!("req_id required");
@@ -283,7 +294,7 @@ pub async fn billing_usage_report(
             let turn_tokens = (tokens_in + tokens_out).max(0);
             crate::billing_freemium::billing_freemium_add_tokens(pool, owner_iid, turn_tokens).await?;
         }
-        return Ok(0.0);
+        return Ok(BillingUsageReport { cost_usd: 0.0, wallet_charged: false });
     }
     let mut meta = if let Some(b) = bctx {
         serde_json::json!({
@@ -344,7 +355,7 @@ pub async fn billing_usage_report(
     .execute(pool)
     .await?;
     if inserted.rows_affected() == 0 {
-        return Ok(0.0);
+        return Ok(BillingUsageReport { cost_usd: 0.0, wallet_charged: false });
     }
     if freemium {
         let turn_tokens = (tokens_in + tokens_out).max(0);
@@ -382,7 +393,7 @@ pub async fn billing_usage_report(
         .bind(&acct.1)
         .execute(pool)
         .await?;
-        return Ok(cost);
+        return Ok(BillingUsageReport { cost_usd: cost, wallet_charged: false });
     }
     let allowance_rem = crate::billing_on_demand::allowance_remaining(
         row.alien_allow_5h_used,
@@ -504,5 +515,6 @@ pub async fn billing_usage_report(
     .bind(deducted_native)
     .execute(pool)
     .await?;
-    Ok(cost)
+    let wallet_charged = deducted_native.abs() > 0.000_1;
+    Ok(BillingUsageReport { cost_usd: cost, wallet_charged })
 }

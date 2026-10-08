@@ -50,7 +50,18 @@ pub fn block_props_allowed(block_type: &str) -> &'static [&'static str] {
 }
 
 pub const THEME_KEYS: &[&str] = &["accent", "font", "layout", "background", "text_color"];
-pub const META_KEYS: &[&str] = &["seo_title", "seo_desc", "favicon", "og_image"];
+pub const META_KEYS: &[&str] = &[
+    "seo_title",
+    "seo_desc",
+    "favicon",
+    "og_image",
+    "tagline",
+    "location_label",
+    "location_href",
+    "lat",
+    "lng",
+    "open_hours",
+];
 
 pub fn validate_object_keys(obj: &Map<String, Value>, allowed: &[&str], label: &str) -> Result<()> {
     for key in obj.keys() {

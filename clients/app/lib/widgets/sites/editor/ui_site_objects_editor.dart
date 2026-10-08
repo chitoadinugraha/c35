@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/site/site_object_batch.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:flutter/material.dart';
 
@@ -13,7 +14,13 @@ const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _fieldBorder = Color(0xFF3F3F46);
-const _fieldFill = Color(0xFF18181B);
+const _accent = Color(0xFF34D399);
+
+IconData _objectKindIcon(String kind) => switch (kind) {
+      siteObjectKindTable => Icons.table_restaurant_outlined,
+      siteObjectKindRoom => Icons.meeting_room_outlined,
+      _ => Icons.category_outlined,
+    };
 
 class UiSiteObjectsEditor extends StatefulWidget {
   const UiSiteObjectsEditor({
@@ -209,18 +216,49 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
                         onTap: () => _select(id),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: _border.withValues(alpha: 0.6)))),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(color: active ? _accent : Colors.transparent, width: 3),
+                              bottom: BorderSide(color: _border.withValues(alpha: 0.6)),
+                            ),
+                          ),
+                          child: Row(
                             children: [
-                              Text(
-                                o.name.isEmpty ? 'Object' : o.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w500),
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: active ? const Color(0xFF27272A) : const Color(0xFF18181B),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: _fieldBorder.withValues(alpha: 0.7)),
+                                ),
+                                child: Icon(_objectKindIcon(o.kind), size: 18, color: active ? _accent : _muted),
                               ),
-                              if (subtitle.isNotEmpty)
-                                Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 11)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      o.name.isEmpty ? 'Object' : o.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: _text,
+                                        fontSize: 13,
+                                        fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                                      ),
+                                    ),
+                                    if (subtitle.isNotEmpty)
+                                      Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              if (!o.isActive)
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 6),
+                                  child: Text('Inactive', style: TextStyle(color: _muted, fontSize: 10)),
+                                ),
                             ],
                           ),
                         ),
@@ -328,39 +366,15 @@ class _UiSiteObjectDetailFormState extends State<_UiSiteObjectDetailForm> {
     super.dispose();
   }
 
-  InputDecoration _decoration() => InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: _fieldFill,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _fieldBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _fieldBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF34D399))),
-      );
-
-  Widget _field(String label, TextEditingController ctrl, void Function(String v) onChanged, {int maxLines = 1}) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(label, style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            TextField(
-              controller: ctrl,
-              onChanged: onChanged,
-              maxLines: maxLines,
-              style: const TextStyle(fontSize: 13, color: _text),
-              decoration: _decoration(),
-            ),
-          ],
+  Widget _field(String label, TextEditingController ctrl, void Function(String v) onChanged, {int maxLines = 1}) => UiSiteEditorLabeledField(
+        label: label,
+        child: TextField(
+          controller: ctrl,
+          onChanged: onChanged,
+          maxLines: maxLines,
+          style: const TextStyle(fontSize: 13, color: _text),
+          decoration: siteEditorInputDecoration(),
         ),
-      );
-
-  Widget _flag(String label, bool value, ValueChanged<bool> onChanged) => SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        title: Text(label, style: const TextStyle(color: _text, fontSize: 13)),
-        value: value,
-        activeThumbColor: const Color(0xFF34D399),
-        onChanged: onChanged,
       );
 
   @override
@@ -369,22 +383,41 @@ class _UiSiteObjectDetailFormState extends State<_UiSiteObjectDetailForm> {
     final o = widget.object;
     return UiSiteEditorFormScroll(
       children: [
-        Text(o.name.isEmpty ? 'Object' : o.name, style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text('ID $id', style: const TextStyle(color: _muted, fontSize: 11)),
+        Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF18181B),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _fieldBorder),
+              ),
+              child: Icon(_objectKindIcon(o.kind), color: _accent, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(o.name.isEmpty ? 'Object' : o.name, style: const TextStyle(color: _text, fontSize: 17, fontWeight: FontWeight.w600)),
+                  Text('ID $id', style: const TextStyle(color: _muted, fontSize: 11)),
+                ],
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
-        _field('Name', _nameCtrl, (v) => widget.onPatch(id, (o) => o.name = v)),
-        _field('Code', _codeCtrl, (v) => widget.onPatch(id, (o) => o.code = v)),
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Kind', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              DropdownButtonFormField<String>(
+        UiSiteEditorFormSection(
+          title: 'Identity',
+          children: [
+            _field('Name', _nameCtrl, (v) => widget.onPatch(id, (o) => o.name = v)),
+            _field('Code', _codeCtrl, (v) => widget.onPatch(id, (o) => o.code = v)),
+            UiSiteEditorLabeledField(
+              label: 'Kind',
+              child: DropdownButtonFormField<String>(
                 initialValue: siteObjectKindValues.contains(_kind) ? _kind : siteObjectKindOther,
-                decoration: _decoration(),
+                decoration: siteEditorInputDecoration(),
                 dropdownColor: const Color(0xFF18181B),
                 style: const TextStyle(fontSize: 13, color: _text),
                 items: siteObjectKindValues
@@ -396,13 +429,18 @@ class _UiSiteObjectDetailFormState extends State<_UiSiteObjectDetailForm> {
                   widget.onPatch(id, (o) => o.kind = v);
                 },
               ),
-            ],
-          ),
+            ),
+            _field('Description', _descCtrl, (v) => widget.onPatch(id, (o) => o.desc = v), maxLines: 3),
+          ],
         ),
-        _flag('Can order', o.canOrder, (v) => widget.onPatch(id, (o) => o.canOrder = v)),
-        _flag('Can be reserved', o.canBeReserved, (v) => widget.onPatch(id, (o) => o.canBeReserved = v)),
-        _flag('Active', o.isActive, (v) => widget.onPatch(id, (o) => o.isActive = v)),
-        _field('Description', _descCtrl, (v) => widget.onPatch(id, (o) => o.desc = v), maxLines: 3),
+        UiSiteEditorFormSection(
+          title: 'Capabilities',
+          children: [
+            UiSiteEditorSwitchRow(label: 'Can order', value: o.canOrder, onChanged: (v) => widget.onPatch(id, (o) => o.canOrder = v)),
+            UiSiteEditorSwitchRow(label: 'Can be reserved', value: o.canBeReserved, onChanged: (v) => widget.onPatch(id, (o) => o.canBeReserved = v)),
+            UiSiteEditorSwitchRow(label: 'Active', value: o.isActive, onChanged: (v) => widget.onPatch(id, (o) => o.isActive = v)),
+          ],
+        ),
       ],
     );
   }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:alienai_c35/c/catalog/catalog_api.dart';
+import 'package:alienai_c35/c/mention/mention_device_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:extended_text/extended_text.dart';
 import 'package:flutter/material.dart';
@@ -425,7 +426,7 @@ class _ComposerMentionChipInline extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (mention?.isDevice == true)
-            const Icon(Icons.computer_rounded, size: 13, color: _iconGrey)
+            catalogMentionDeviceIcon(mention!, size: 13, iconColor: _iconGrey)
           else if (mention != null)
             SizedBox(width: 13, height: 13, child: Center(child: _mentionIcon(mention!)))
           else

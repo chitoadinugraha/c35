@@ -270,7 +270,7 @@ pub async fn channel_prompt_turn(
     }
     let context_extra = context_billing.total_extra_usd();
     let usage_meta = context_billing.to_log_meta();
-    let cost_usd = billing_usage_report(
+    let billing = billing_usage_report(
         pool,
         nats,
         owner_iid,
@@ -285,6 +285,7 @@ pub async fn channel_prompt_turn(
         if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) { Some(usage_meta) } else { None },
     )
     .await?;
+    let cost_usd = billing.cost_usd;
     tracer.llm_turn(&res.model_used, res.tokens_in, res.tokens_out, duration_ms as i64, 0, cost_usd, &res.text).await;
     Ok((res.text, res.tokens_in, res.tokens_out, cost_usd, res.model_used, duration_ms))
 }

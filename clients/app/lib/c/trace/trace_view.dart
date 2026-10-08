@@ -310,6 +310,8 @@ String traceToolLabel(String toolId) {
 }
 
 int _prepareBranchOrder(String topic) => switch (topic) {
+      'trace_gate' => -2,
+      'trace_setup' => -1,
       'trace_tool_embed' => 0,
       'trace_inst_enrich' => 1,
       'trace_tool_filter' => 2,
@@ -395,6 +397,21 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         model: traceModelLabel(main.model),
         branches: branches,
       );
+    } else if (stepNum == 9998 || rows.any((r) => r.topic == 'trace_settle')) {
+      final settleRow = rows.firstWhere((r) => r.topic == 'trace_settle', orElse: () => rows.first);
+      final meta = settleRow.meta;
+      final settleMs = settleRow.durationMs > 0 ? settleRow.durationMs : _asInt(meta['duration_ms']);
+      final branch = TraceBranch(
+        label: 'Billing settle & save',
+        durationMs: settleMs,
+        detail: settleRow.text.split('\n').first,
+      );
+      hopStep = TraceStep(
+        index: steps.length,
+        title: 'Settle',
+        durationMs: settleMs,
+        branches: [branch],
+      );
     } else {
       final prepRows = [...rows]..sort((a, b) {
           final ta = a.topic.isNotEmpty ? a.topic : _asStr(a.meta['topic']);
@@ -404,6 +421,8 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       for (final r in prepRows) {
         final branch = _asStr(r.meta['branch']);
         final label = switch (r.topic) {
+          'trace_gate' => 'Quota & hold gate',
+          'trace_setup' => 'Chat & message setup',
           'trace_tool_embed' => 'Prompt embed',
           'trace_memory' => 'Memory',
           'trace_inst_enrich' => 'Inst enrich',
@@ -459,6 +478,17 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       costUsd: steps.fold(0.0, (a, s) => a + s.costUsd),
       model: totals.model.isNotEmpty ? totals.model : traceModelLabel(steps.last.model),
     );
+  } else if (totals.durationMs > 0) {
+    final settleMs = steps.where((s) => s.title == 'Settle').fold<int>(0, (a, s) => a + s.durationMs);
+    if (settleMs > 0) {
+      totals = TraceTotals(
+        tokensIn: totals.tokensIn,
+        tokensOut: totals.tokensOut,
+        durationMs: totals.durationMs + settleMs,
+        costUsd: totals.costUsd,
+        model: totals.model,
+      );
+    }
   }
 
   return TraceView(steps: steps, totals: totals);

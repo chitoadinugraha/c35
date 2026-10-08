@@ -1,7 +1,6 @@
-import 'package:alienai_c35/widgets/ui/ui_icon.dart';
+import 'package:alienai_c35/widgets/devices/ui_device_kind_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -172,41 +171,8 @@ class UiDeviceRow extends StatelessWidget {
         child: Center(child: _kindIconInner()),
       );
 
-  Widget _kindIconInner() {
-    final t = type.toLowerCase();
-    if (t == 'browser' && browserEngine.toLowerCase() == 'extension') {
-      return Padding(
-        padding: const EdgeInsets.all(6),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: Image.network(
-            'https://www.google.com/s2/favicons?domain=chrome.google.com&sz=64',
-            width: 22,
-            height: 22,
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(Icons.public, size: 18, color: Color(0xFFA1A1AA)),
-          ),
-        ),
-      );
-    }
-    if (t == 'android') {
-      return Padding(padding: const EdgeInsets.all(6), child: UiIcon('logos:android-icon', size: 22, recolor: false));
-    }
-    if (t == 'windows') {
-      return Padding(
+  Widget _kindIconInner() => Padding(
         padding: const EdgeInsets.all(5),
-        child: SvgPicture.asset('assets/icons/windows.svg', width: 24, height: 24, fit: BoxFit.contain),
+        child: UiDeviceKindIcon(kind: kind, type: type, browserEngine: browserEngine, size: 22),
       );
-    }
-    return Icon(_iconForKind(kind, type), size: 18, color: const Color(0xFFA1A1AA));
-  }
-
-  IconData _iconForKind(String k, String deviceType) => switch (deviceType.toLowerCase()) {
-        'browser' => Icons.public_outlined,
-        _ => switch (k.toLowerCase()) {
-            'iot' => Icons.sensors_outlined,
-            'remote' => Icons.laptop_mac_outlined,
-            _ => Icons.devices_other_outlined,
-          },
-      };
 }

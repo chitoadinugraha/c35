@@ -7,6 +7,7 @@ mod catalog;
 mod device;
 mod guest_contact;
 mod guest_order;
+mod site_order_push;
 mod guest_product;
 mod guest_queue;
 mod invoke;

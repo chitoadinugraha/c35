@@ -7,7 +7,7 @@ import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_payments.dart
 import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_qr.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_status.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_totals.dart';
-import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_watermark.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_branding.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
@@ -19,10 +19,10 @@ class ReceiptPdfGenerator {
     ReceiptConfig config, {
     Map<String, String> productNames = const {},
     String? alienId,
-    String? watermark,
   }) async {
     final pdf = pw.Document();
     final logoData = await ReceiptBusinessInfo.loadLogo(config.projectLogo.isNotEmpty ? config.projectLogo : null);
+    final alienIcon = await ReceiptBranding.loadAlienIcon();
     final qrWidget = await ReceiptQr.build(tx, config, alienId: alienId);
 
     const rollPaperFormat = PdfPageFormat(227, 800, marginTop: 10, marginLeft: 10, marginRight: 10, marginBottom: 10);
@@ -55,25 +55,18 @@ class ReceiptPdfGenerator {
               pw.SizedBox(height: 8),
               ReceiptStatus.build(tx),
               if (qrWidget != null) ...[pw.SizedBox(height: 12), qrWidget],
-              if (config.receiptFooter.isNotEmpty) ...[
-                pw.SizedBox(height: 12),
-                pw.Center(child: pw.Text(config.receiptFooter, style: const pw.TextStyle(fontSize: 10))),
-              ],
+              pw.SizedBox(height: 12),
+              pw.Center(
+                child: pw.Text(
+                  config.receiptFooter.isNotEmpty ? config.receiptFooter : 'Terima Kasih atas Kunjungan Anda',
+                  textAlign: pw.TextAlign.center,
+                  style: const pw.TextStyle(fontSize: 10),
+                ),
+              ),
+              ReceiptBranding.poweredFooter(alienIcon: alienIcon),
             ],
           );
-          final mark = watermark?.trim();
-          return pw.Container(
-            color: PdfColors.white,
-            width: double.infinity,
-            child: mark == null || mark.isEmpty
-                ? body
-                : pw.Stack(
-                    children: [
-                      pw.Positioned.fill(child: ReceiptWatermark.build(mark)),
-                      body,
-                    ],
-                  ),
-          );
+          return pw.Container(color: PdfColors.white, width: double.infinity, child: body);
         },
       ),
     );

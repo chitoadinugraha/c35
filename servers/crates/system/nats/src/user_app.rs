@@ -53,6 +53,11 @@ pub fn user_app_subject_chat(owner_iid: i64, chat_id: i64) -> String {
     format!("c35.user.{owner_iid}.{APP_SEGMENT}.chat.{chat_id}")
 }
 
+/// Guest storefront order created/updated — `WsRes` with `SyncPush.tx`.
+pub fn user_app_subject_site_order(owner_iid: i64) -> String {
+    format!("c35.user.{owner_iid}.{APP_SEGMENT}.site_order")
+}
+
 /// Segment after `.app.` (e.g. `balance`, `chat.12345`, `inbox`).
 pub fn user_app_tail(subject: &str) -> Option<&str> {
     let marker = format!(".{APP_SEGMENT}.");
@@ -97,7 +102,8 @@ pub fn user_app_fanout_decode(subject: &str, payload: &[u8]) -> Option<WsRes> {
             body: Some(body),
         });
     }
-    if tail == "inbox"
+    if tail == "site_order"
+        || tail == "inbox"
         || tail == "profile"
         || tail == "settings"
         || tail == "task_run"

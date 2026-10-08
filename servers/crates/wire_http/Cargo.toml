@@ -35,5 +35,6 @@ c35_mod_voice = { path = "../mod_voice", package = "c35_mod_voice" }
 c35_mod_llm = { path = "../mod_llm", package = "c35_mod_llm" }
 c35_mod_live = { path = "../mod_live", package = "c35_mod_live" }
 c35_proto = { path = "../proto", package = "c35_proto" }
+c35_nats = { path = "../system/nats", package = "c35_nats" }
 subtle = "2"
 urlencoding = { workspace = true }

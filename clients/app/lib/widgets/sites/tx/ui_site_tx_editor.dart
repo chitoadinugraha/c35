@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
@@ -6,12 +9,15 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/tx/section_tx_items.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
+import 'package:alienai_c35/c/site/site_commerce_media_prefetch.dart';
+import 'package:alienai_c35/widgets/sites/tx/tx_offline_queue.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_discount_dialog.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_parked_dialog.dart';
 import 'package:alienai_c35/widgets/sites/tx/payment/ask_transaksi_payment_method.dart';
 import 'package:alienai_c35/c/hardware/thermal_printer_manager.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/esc_pos_receipt_formatter.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_calc.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/ui_receipt.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_parked_orders.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_tx_save_menu.dart';
@@ -47,9 +53,9 @@ class UiSiteTxEditor extends StatefulWidget {
   State<UiSiteTxEditor> createState() => _UiSiteTxEditorState();
 }
 
-class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProviderStateMixin {
+class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStateMixin {
   late final TxApi _txApi = TxApi(widget.api.conn);
-  late TabController _tabs;
+  TabController? _tabs;
   var _loading = true;
   var _busy = false;
   var _previewLoading = false;
@@ -60,18 +66,61 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
   var _contacts = <SiteContact>[];
   var _catalogOffline = false;
   ResTxPreview? _preview;
+  Timer? _previewDebounce;
+
+  int get _editorTabCount => widget.posEntry ? 0 : (Session.instance.isRoot ? 4 : 2);
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _syncTabController();
+    widget.api.conn.status.addListener(_onConnStatus);
     _load();
   }
 
   @override
   void dispose() {
-    _tabs.dispose();
+    widget.api.conn.status.removeListener(_onConnStatus);
+    _previewDebounce?.cancel();
+    _tabs?.dispose();
     super.dispose();
+  }
+
+  void _onConnStatus() {
+    if (widget.api.conn.status.value != ChatConnStatus.connected) return;
+    unawaited(_syncOfflineQueue());
+  }
+
+  Future<void> _syncOfflineQueue() async {
+    try {
+      final n = await _txApi.syncOfflineQueue(widget.siteIid);
+      if (n > 0 && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(n == 1 ? '1 penjualan offline tersinkron' : '$n penjualan offline tersinkron'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  void _syncTabController() {
+    final n = _editorTabCount;
+    if (n <= 0) {
+      _tabs?.dispose();
+      _tabs = null;
+      return;
+    }
+    if (_tabs != null && _tabs!.length == n) return;
+    _tabs?.dispose();
+    _tabs = TabController(length: n, vsync: this);
   }
 
   Future<void> _load() async {
@@ -81,6 +130,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
     });
     try {
       _products = await widget.api.productList(widget.siteIid);
+      unawaited(siteCommerceMediaPrefetch(products: _products, sitePic: widget.site?.pic));
       _contacts = await widget.api.contactList(widget.siteIid);
       if (widget.txId != null && widget.txId! > Int64.ZERO) {
         _tx = await _txApi.get(widget.siteIid, widget.txId!);
@@ -93,6 +143,9 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
       }
       await _refreshPreview();
       _catalogOffline = widget.api.conn.status.value != ChatConnStatus.connected;
+      if (widget.api.conn.status.value == ChatConnStatus.connected) {
+        unawaited(_syncOfflineQueue());
+      }
     } catch (e) {
       _error = e;
       _catalogOffline = false;
@@ -126,7 +179,11 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
     next.totalDiscounts = txTotalDiscounts(next);
     next.total = txItemsNominal(next);
     setState(() => _tx = next);
-    _refreshPreview();
+    if (widget.posEntry) return;
+    _previewDebounce?.cancel();
+    _previewDebounce = Timer(const Duration(milliseconds: 450), () {
+      if (mounted) unawaited(_refreshPreview());
+    });
   }
 
   void _discountsChanged(List<TxDiscount> discounts) {
@@ -144,7 +201,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
       context: context,
       originalAmount: subtotal,
       initialDiscount: initial,
-      title: 'Diskon Transaksi (Nota)',
+      title: 'Tambah Diskon',
     );
     if (discount != null && mounted) {
       if (discount.amount <= Int64.ZERO) {
@@ -166,13 +223,60 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
     }
     setState(() => _busy = true);
     try {
-      final saved = await _txApi.putSale(widget.siteIid, _tx);
+      final payload = _tx.clone();
+      receiptStampCashier(payload, Session.instance.name);
+      final saved = await _txApi.putSale(widget.siteIid, payload);
       widget.onSaved?.call(saved);
       if (!mounted) return;
+      if (saved.txId > Int64.ZERO) {
+        final stillQueued = (await TxOfflineQueue.listPending(widget.siteIid)).any((t) => t.txId == saved.txId);
+        if (stillQueued && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tersimpan offline — No. Nota tetap sama; akan disinkron saat online.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
       final hasCash = saved.payments.any((p) => p.method == TxPaymentMethod.TX_PAYMENT_METHOD_CASH) ||
           _tx.payments.any((p) => p.method == TxPaymentMethod.TX_PAYMENT_METHOD_CASH);
       if (hasCash && ThermalPrinterManager.instance.autoKickDrawer) {
         ThermalPrinterManager.instance.kickCashDrawer();
+      }
+
+      if (widget.posEntry) {
+        await showPosReceiptAfterSale(
+          context,
+          saved,
+          siteApi: widget.api,
+          site: widget.site,
+          productNames: _productNameMap(),
+        );
+        if (!mounted) return;
+        final printerMgr = ThermalPrinterManager.instance;
+        if (printerMgr.printerType == ThermalPrinterType.network) {
+          final bytes = EscPosReceiptFormatter.formatReceipt(
+            saved,
+            site: widget.site,
+            productNames: _productNameMap(),
+            paperWidth: printerMgr.paperWidth,
+          );
+          final ok = await printerMgr.printRaw(bytes);
+          if (!ok && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Gagal cetak ke printer jaringan'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+        setState(() {
+          _tx = _txApi.newSale(widget.siteIid);
+          _printReceipt = ThermalPrinterManager.instance.autoPrintReceipt;
+        });
+        return;
       }
 
       if (_printReceipt) {
@@ -230,6 +334,18 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
     _txChanged(next);
   }
 
+  Future<SiteContact?> _addCustomerFromPos(String name) async {
+    try {
+      final draft = widget.api.contactNew(widget.siteIid)..name = name;
+      final saved = await widget.api.contactPut(widget.siteIid, draft);
+      if (mounted) setState(() => _contacts = [..._contacts, saved]);
+      return saved;
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+      return null;
+    }
+  }
+
   void _paymentAmountChanged(Int64 amount) {
     final next = _tx.clone();
     next.payments.clear();
@@ -262,6 +378,19 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
       next.payments.removeAt(index);
       _txChanged(next);
     }
+  }
+
+  Future<void> _printUnpaidReceipt() async {
+    if (_tx.items.isEmpty) return;
+    final preview = _tx.clone();
+    receiptStampCashier(preview, Session.instance.name);
+    await showViewReceipt(
+      context,
+      preview,
+      siteApi: widget.api,
+      site: widget.site,
+      productNames: _productNameMap(),
+    );
   }
 
   Future<void> _checkoutTap() async {
@@ -492,6 +621,11 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
     final appBarTitle = widget.posEntry
         ? (widget.site?.name.isNotEmpty == true ? widget.site!.name : 'POS')
         : (_tx.txId > Int64.ZERO ? 'Order ${_tx.txId}' : 'New sale');
+    final tabLabels = widget.posEntry
+        ? const <Tab>[]
+        : Session.instance.isRoot
+            ? const [Tab(text: 'Items'), Tab(text: 'Payments'), Tab(text: 'Acc'), Tab(text: 'Stock')]
+            : const [Tab(text: 'Items'), Tab(text: 'Payments')];
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -526,6 +660,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
           ),
           const SizedBox(width: 4),
           UiTxSaveMenu(
+            posShell: widget.posEntry,
             busy: _busy,
             canSave: _validate() == null,
             saveBlockReason: _validate(),
@@ -539,65 +674,76 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
           ),
           const SizedBox(width: 8),
         ],
-        bottom: TabBar(
-          controller: _tabs,
-          labelColor: _text,
-          unselectedLabelColor: _muted,
-          indicatorColor: const Color(0xFF34D399),
-          dividerColor: _border,
-          tabs: const [
-            Tab(text: 'Items'),
-            Tab(text: 'Payments'),
-            Tab(text: 'Acc'),
-            Tab(text: 'Stock'),
-          ],
-        ),
+        bottom: _tabs != null && tabLabels.isNotEmpty
+            ? TabBar(
+                controller: _tabs,
+                labelColor: _text,
+                unselectedLabelColor: _muted,
+                indicatorColor: const Color(0xFF34D399),
+                dividerColor: _border,
+                tabs: tabLabels,
+              )
+            : null,
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_catalogOffline)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              color: const Color(0xFF422006),
-              child: const Row(
-                children: [
-                  Icon(Icons.cloud_off_outlined, size: 16, color: Color(0xFFFBBF24)),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Offline mode — catalog from cache. Connect to save sales.',
-                      style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          _headerBar(nominal, paid),
-          Expanded(
-            child: TabBarView(
-              controller: _tabs,
-              children: [
-                SectionTxItems(
-                  items: _tx.items,
-                  products: _products,
-                  onChanged: _itemsChanged,
-                  onCheckout: _checkoutTap,
-                  discounts: _tx.discounts,
-                  onDiscountsChanged: _discountsChanged,
-                ),
-                _paymentsTab(nominal, paid),
-                _ledgerTab('Accounting', previewTx.accs, (a) => '${a.accCode} ${a.note} ${moneyFmtIdr(a.amount.toInt())}'),
-                _ledgerTab('Stock', previewTx.stocks, (s) => '${s.productId} qty ${s.qty} ${s.note}'),
-              ],
-            ),
-          ),
-          if (_previewLoading) const LinearProgressIndicator(minHeight: 2, color: Color(0xFF34D399)),
+          if (_catalogOffline) _offlineBanner(),
+          if (!widget.posEntry) _headerBar(nominal, paid),
+          Expanded(child: widget.posEntry ? _itemsSection() : _tabbedBody(previewTx, nominal, paid)),
+          if (_previewLoading && !widget.posEntry) const LinearProgressIndicator(minHeight: 2, color: Color(0xFF34D399)),
         ],
       ),
     );
   }
+
+  Widget _offlineBanner() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        color: const Color(0xFF422006),
+        child: const Row(
+          children: [
+            Icon(Icons.cloud_off_outlined, size: 16, color: Color(0xFFFBBF24)),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Offline — katalog dari cache. Penjualan disimpan lokal (tx id tetap) dan disinkron saat online.',
+                style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _itemsSection() => SectionTxItems(
+        items: _tx.items,
+        products: _products,
+        onChanged: _itemsChanged,
+        onCheckout: _checkoutTap,
+        discounts: _tx.discounts,
+        onDiscountsChanged: _discountsChanged,
+        posShell: widget.posEntry,
+        contacts: widget.posEntry ? _contacts : const [],
+        selectedContact: widget.posEntry ? _selectedContact() : null,
+        onContactChanged: widget.posEntry ? _contactChanged : null,
+        onAddCustomer: widget.posEntry ? _addCustomerFromPos : null,
+        payments: widget.posEntry ? _tx.payments : const [],
+        onRemovePayment: widget.posEntry ? _removePayment : null,
+        onCartDiscount: widget.posEntry ? _openCartDiscountDialog : null,
+        onPrintUnpaidReceipt: widget.posEntry ? _printUnpaidReceipt : null,
+      );
+
+  Widget _tabbedBody(Tx previewTx, Int64 nominal, Int64 paid) => TabBarView(
+        controller: _tabs!,
+        children: [
+          _itemsSection(),
+          _paymentsTab(nominal, paid),
+          if (Session.instance.isRoot) ...[
+            _ledgerTab('Accounting', previewTx.accs, (a) => '${a.accCode} ${a.note} ${moneyFmtIdr(a.amount.toInt())}'),
+            _ledgerTab('Stock', previewTx.stocks, (s) => '${s.productId} qty ${s.qty} ${s.note}'),
+          ],
+        ],
+      );
 
   Widget _headerBar(Int64 nominal, Int64 paid) => Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),

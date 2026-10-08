@@ -7,8 +7,10 @@ use axum::{
     Router,
 };
 use c35_ctx::AppState;
-use c35_proto::{ReqSiteGuestOrderGet, ReqSiteGuestOrderPut};
+use c35_proto::{ReqSiteGuestOrderGet, ReqSiteGuestOrderPut, Tx};
 use prost::Message;
+
+use crate::site_order_push::guest_order_notify_app;
 
 pub fn guest_order_router() -> Router<AppState> {
     Router::new()
@@ -62,8 +64,15 @@ async fn guest_order_put_handler(
 
     match c35_mod_tx::guest_order_put(&st.pool, req).await {
         Ok(res) => {
+            if let (Some(nats), Some(tx)) = (st.nats.as_ref(), res.tx.as_ref()) {
+                guest_order_notify_app(nats, &st.pool, tx.site_iid, tx).await;
+            }
             if is_json_req || from_json {
-                let tx_json = res.tx.as_ref().map(c35_mod_tx::tx_to_json).unwrap_or_default();
+                let tx_json = res
+                    .tx
+                    .as_ref()
+                    .map(|t| guest_tx_view_json(t))
+                    .unwrap_or_default();
                 let json_body = serde_json::json!({
                     "tx": tx_json,
                 });
@@ -114,7 +123,11 @@ async fn guest_order_get_handler(
                 return text_response(StatusCode::NOT_FOUND, "order not found".into());
             }
             if is_json_req || from_json {
-                let tx_json = res.tx.as_ref().map(c35_mod_tx::tx_to_json).unwrap_or_default();
+                let tx_json = res
+                    .tx
+                    .as_ref()
+                    .map(|t| guest_tx_view_json(t))
+                    .unwrap_or_default();
                 return (
                     StatusCode::OK,
                     [(
@@ -147,4 +160,27 @@ fn protobuf_response<T: Message>(status: StatusCode, res: &T) -> Response {
 
 fn text_response(status: StatusCode, msg: String) -> Response {
     (status, msg).into_response()
+}
+
+fn guest_tx_view_json(tx: &Tx) -> serde_json::Value {
+    let mut out = c35_mod_tx::tx_to_json(tx);
+    if let Some(obj) = out.as_object_mut() {
+        obj.insert(
+            "progress_label".into(),
+            serde_json::json!(guest_progress_label(
+                obj.get("state").and_then(|v| v.as_str()).unwrap_or(""),
+            )),
+        );
+    }
+    out
+}
+
+fn guest_progress_label(state: &str) -> &'static str {
+    match state {
+        "waiting_payment" => "Menunggu pembayaran",
+        "pending" => "Diproses",
+        "ok" => "Selesai",
+        "cancelled" => "Dibatalkan",
+        _ => "Diproses",
+    }
 }

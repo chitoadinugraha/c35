@@ -17,7 +17,7 @@ class UIReceipt extends StatelessWidget {
     this.config,
     this.productNames,
     this.print = false,
-    this.watermark,
+    this.posDoneBar = false,
   });
 
   final Tx tx;
@@ -26,7 +26,7 @@ class UIReceipt extends StatelessWidget {
   final ReceiptConfig? config;
   final Map<String, String>? productNames;
   final bool print;
-  final String? watermark;
+  final bool posDoneBar;
 
   @override
   Widget build(BuildContext context) => FutureBuilder<_ReceiptPreviewData>(
@@ -34,13 +34,40 @@ class UIReceipt extends StatelessWidget {
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Scaffold(body: UILoading());
           final data = snapshot.data!;
-          return ReceiptPdfPreview(
+          final preview = ReceiptPdfPreview(
             tx: tx,
             config: data.config,
             productNames: data.productNames,
             alienId: data.alienId,
             print: print,
-            watermark: watermark,
+            embedded: posDoneBar,
+          );
+          if (!posDoneBar) return preview;
+          return Scaffold(
+            backgroundColor: const Color(0xFF121215),
+            appBar: AppBar(
+              backgroundColor: const Color(0xFF18181B),
+              title: const Text('Nota', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
+            ),
+            body: preview,
+            bottomNavigationBar: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: SizedBox(
+                  height: 48,
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF34D399),
+                      foregroundColor: const Color(0xFF052E1B),
+                    ),
+                    child: const Text('Selesai', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+              ),
+            ),
           );
         },
       );
@@ -84,7 +111,6 @@ Future<void> showPrintReceipt(
   SiteRow? site,
   ReceiptConfig? config,
   Map<String, String>? productNames,
-  String? watermark,
 }) =>
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -94,7 +120,6 @@ Future<void> showPrintReceipt(
           site: site,
           config: config,
           productNames: productNames,
-          watermark: watermark,
           print: true,
         ),
       ),
@@ -107,7 +132,6 @@ Future<void> showViewReceipt(
   SiteRow? site,
   ReceiptConfig? config,
   Map<String, String>? productNames,
-  String? watermark,
 }) =>
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -117,7 +141,26 @@ Future<void> showViewReceipt(
           site: site,
           config: config,
           productNames: productNames,
-          watermark: watermark,
+        ),
+      ),
+    );
+
+Future<void> showPosReceiptAfterSale(
+  BuildContext context,
+  Tx tx, {
+  required SiteApi siteApi,
+  SiteRow? site,
+  Map<String, String>? productNames,
+}) =>
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => UIReceipt(
+          tx: tx,
+          siteApi: siteApi,
+          site: site,
+          productNames: productNames,
+          posDoneBar: true,
         ),
       ),
     );

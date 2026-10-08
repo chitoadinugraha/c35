@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/site/site_commerce_cache.dart';
+import 'package:alienai_c35/c/site/site_guest_order_bus.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_tx_editor.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
@@ -19,18 +21,13 @@ Future<void> sitePosOpen({
   required ChatConn chatConn,
   required String siteIid,
   Int64? txId,
-}) async {
-  try {
-    await chatConn.reconnect();
-  } catch (_) {}
-  if (!context.mounted) return;
-  await Navigator.push<void>(
-    context,
-    MaterialPageRoute<void>(
-      builder: (_) => PageSitePos(chatConn: chatConn, siteIid: siteIid, txId: txId),
-    ),
-  );
-}
+}) =>
+    Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => PageSitePos(chatConn: chatConn, siteIid: siteIid, txId: txId),
+      ),
+    );
 
 class PageSitePos extends StatefulWidget {
   const PageSitePos({
@@ -52,14 +49,37 @@ class _PageSitePosState extends State<PageSitePos> {
   late final _store = SiteStore(conn: widget.chatConn);
   var _booting = true;
   String? _blockReason;
+  SiteGuestOrderEvent? _lastGuestOrderSnack;
 
   @override
   void initState() {
     super.initState();
+    siteGuestOrderBus.addListener(_onGuestOrderPush);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(_boot());
     });
+  }
+
+  @override
+  void dispose() {
+    siteGuestOrderBus.removeListener(_onGuestOrderPush);
+    super.dispose();
+  }
+
+  void _onGuestOrderPush() {
+    final e = siteGuestOrderBus.last;
+    if (e == null || e == _lastGuestOrderSnack) return;
+    if (e.siteIid.toString() != widget.siteIid.trim()) return;
+    _lastGuestOrderSnack = e;
+    if (!mounted) return;
+    final label = e.subjectName.isNotEmpty ? e.subjectName : 'Tamu';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Pesanan baru #${e.txId} dari $label · ${moneyFmtIdr(e.total)}'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _boot() async {

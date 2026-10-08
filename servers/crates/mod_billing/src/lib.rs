@@ -118,6 +118,6 @@ pub use billing_reservation::{
 pub use billing_turn::{
     billing_account_ensure, billing_deduct, billing_deduct_allowance, billing_deduct_personal_profile,
     billing_gate, billing_gate_model, billing_usage_report,
-    BillingRow,
+    BillingRow, BillingUsageReport,
 };
 pub use bot_usage::bot_usage_stats;

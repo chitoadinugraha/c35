@@ -49,8 +49,10 @@ class _UiConnWifiState extends State<UiConnWifi> with SingleTickerProviderStateM
     try {
       final fn = widget.onReconnect ?? widget.conn.reconnect;
       await fn();
-    } catch (_) {}
-    if (mounted) _reconnectBusy = false;
+    } catch (_) {
+    } finally {
+      if (mounted) _reconnectBusy = false;
+    }
   }
 
   @override

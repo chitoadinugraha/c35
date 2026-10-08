@@ -382,7 +382,7 @@ pub fn run(
 
     fn footer_labels(tab: u8) -> &'static [&'static str] {
         match tab {
-            TAB_STATUS => &["Update"],
+            TAB_STATUS => &["Check for update", "Update now"],
             _ => &["Open log", "Logs"],
         }
     }
@@ -776,7 +776,7 @@ pub fn run(
                 ),
             ];
             if let Some(v) = snap.update_staged {
-                info_lines.push(format!("Update ready: build {v} (tray when idle)"));
+                info_lines.push(format!("Update ready: build {v} — use Update now"));
             }
             if !snap.update_check_msg.is_empty() {
                 info_lines.push(format!("Last update check: {}", snap.update_check_msg));
@@ -1098,7 +1098,9 @@ pub fn run(
                 let btns = btn_row(&scale, &rc, footer_labels(active_tab));
                 if active_tab == TAB_STATUS {
                     if btns.first().is_some_and(|b| in_rect(pt, b)) {
-                        c_remote_core::update::update_check_now();
+                        c_remote_core::update::update_check_poll();
+                    } else if btns.get(1).is_some_and(|b| in_rect(pt, b)) {
+                        c_remote_core::update::update_apply_now();
                     }
                 } else {
                     if btns.first().is_some_and(|b| in_rect(pt, b)) {

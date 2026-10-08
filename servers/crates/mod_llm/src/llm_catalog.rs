@@ -79,6 +79,7 @@ pub fn prompt_models() -> Vec<PromptModelOption> {
                 usd_in_per_1m,
                 usd_out_per_1m,
                 supports_thinking: m.supports_thinking,
+                context_tokens: m.effective_context_tokens(),
             }
         })
         .collect()
@@ -162,8 +163,9 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
             String,
             i32,
             String,
+            i32,
         )>(
-            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
+            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens \
              FROM ai.llm_model WHERE deleted_at IS NULL ORDER BY sort_order ASC, label ASC",
         )
         .fetch_all(pool)
@@ -173,7 +175,7 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
     let models = rows
         .into_iter()
         .map(
-            |(id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source)| {
+            |(id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens)| {
                 LlmModelRow {
                     id,
                     provider,
@@ -189,6 +191,7 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
                     family,
                     version_rank,
                     source,
+                    context_tokens,
                 }
             },
         )
@@ -241,13 +244,14 @@ async fn llm_catalog_seed(pool: &PgPool) -> Result<()> {
     for m in pinned {
         db_retry(pool, || async {
             sqlx::query(
-                "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, updated_at) \
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW()) \
+                "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens, updated_at) \
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW()) \
                  ON CONFLICT (id) DO UPDATE SET \
                  label = EXCLUDED.label, provider_model = EXCLUDED.provider_model, \
                  input_micro_per_m = EXCLUDED.input_micro_per_m, input_cache_micro_per_m = EXCLUDED.input_cache_micro_per_m, output_micro_per_m = EXCLUDED.output_micro_per_m, \
                  supports_thinking = EXCLUDED.supports_thinking, enabled = EXCLUDED.enabled, is_default = EXCLUDED.is_default, \
                  sort_order = EXCLUDED.sort_order, family = EXCLUDED.family, version_rank = EXCLUDED.version_rank, source = EXCLUDED.source, \
+                 context_tokens = CASE WHEN EXCLUDED.context_tokens > 0 THEN EXCLUDED.context_tokens ELSE ai.llm_model.context_tokens END, \
                  updated_at = NOW()",
             )
             .bind(&m.id)
@@ -264,6 +268,7 @@ async fn llm_catalog_seed(pool: &PgPool) -> Result<()> {
             .bind(&m.family)
             .bind(m.version_rank)
             .bind(&m.source)
+            .bind(m.context_tokens)
             .execute(pool)
             .await
         })
@@ -313,14 +318,15 @@ fn fallback_models() -> Vec<PromptModelOption> {
         usd_in_per_1m: ALIEN_POOL_USD_IN_PER_1M,
         usd_out_per_1m: ALIEN_POOL_USD_OUT_PER_1M,
         supports_thinking: true,
+        context_tokens: 1_048_576,
     }]
 }
 
 pub(crate) async fn upsert_model(pool: &PgPool, m: &LlmModelRow, synced_at: DateTime<Utc>) -> Result<()> {
     db_retry(pool, || async {
         sqlx::query(
-            "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, synced_at, updated_at) \
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW()) \
+            "INSERT INTO ai.llm_model (id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens, synced_at, updated_at) \
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,NOW()) \
              ON CONFLICT (id) DO UPDATE SET \
              label = EXCLUDED.label, provider_model = EXCLUDED.provider_model, \
              input_micro_per_m = EXCLUDED.input_micro_per_m, input_cache_micro_per_m = EXCLUDED.input_cache_micro_per_m, output_micro_per_m = EXCLUDED.output_micro_per_m, \
@@ -328,6 +334,7 @@ pub(crate) async fn upsert_model(pool: &PgPool, m: &LlmModelRow, synced_at: Date
              enabled = CASE WHEN ai.llm_model.source IN ('pinned', 'manual') THEN ai.llm_model.enabled ELSE EXCLUDED.enabled END, \
              family = EXCLUDED.family, version_rank = EXCLUDED.version_rank, \
              source = CASE WHEN ai.llm_model.source IN ('pinned', 'manual') THEN ai.llm_model.source ELSE EXCLUDED.source END, \
+             context_tokens = CASE WHEN EXCLUDED.context_tokens > 0 THEN EXCLUDED.context_tokens ELSE ai.llm_model.context_tokens END, \
              synced_at = EXCLUDED.synced_at, updated_at = NOW(), deleted_at = NULL",
         )
         .bind(&m.id)
@@ -344,6 +351,7 @@ pub(crate) async fn upsert_model(pool: &PgPool, m: &LlmModelRow, synced_at: Date
         .bind(&m.family)
         .bind(m.version_rank)
         .bind(&m.source)
+        .bind(m.context_tokens)
         .bind(synced_at)
         .execute(pool)
         .await
@@ -383,6 +391,7 @@ mod tests {
             family: "flash-lite".into(),
             version_rank: 0,
             source: "pinned".into(),
+            context_tokens: 1_048_576,
         };
         let (in_usd, out_usd) = prompt_model_usd_per_1m(&m);
         assert_eq!(in_usd, ALIEN_POOL_USD_IN_PER_1M);

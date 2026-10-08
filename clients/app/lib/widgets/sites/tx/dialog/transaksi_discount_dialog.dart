@@ -14,7 +14,7 @@ Future<TxDiscount?> showTransaksiDiscountDialog({
   required BuildContext context,
   required Int64 originalAmount,
   TxDiscount? initialDiscount,
-  String title = 'Diskon',
+  String title = 'Tambah Diskon',
 }) =>
     showDialog<TxDiscount>(
       context: context,
@@ -209,7 +209,7 @@ class _DialogDiscountState extends State<_DialogDiscount> {
                   autofocus: true,
                   style: const TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
-                    labelText: 'Besar Diskon (%)',
+                    labelText: 'Persentase Diskon',
                     labelStyle: const TextStyle(color: _muted),
                     suffixText: '%',
                     suffixStyle: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
@@ -254,7 +254,7 @@ class _DialogDiscountState extends State<_DialogDiscount> {
                   autofocus: true,
                   style: const TextStyle(color: _text, fontSize: 18, fontWeight: FontWeight.bold),
                   decoration: InputDecoration(
-                    labelText: 'Nominal Potongan (Rp)',
+                    labelText: 'Nominal Diskon',
                     labelStyle: const TextStyle(color: _muted),
                     prefixText: 'Rp ',
                     prefixStyle: const TextStyle(color: _accent, fontSize: 16, fontWeight: FontWeight.bold),
@@ -299,8 +299,13 @@ class _DialogDiscountState extends State<_DialogDiscount> {
               // Note / reason field
               TextFormField(
                 controller: _noteCtrl,
+                minLines: 2,
+                maxLines: 4,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
                 style: const TextStyle(color: _text, fontSize: 13),
                 decoration: InputDecoration(
+                  alignLabelWithHint: true,
                   labelText: 'Alasan / Catatan (opsional)',
                   labelStyle: const TextStyle(color: _muted, fontSize: 12),
                   hintText: 'Contoh: Member VIP, Promo Weekend',
@@ -377,11 +382,6 @@ class _DialogDiscountState extends State<_DialogDiscount> {
             icon: const Icon(Icons.delete_outline, size: 16),
             label: const Text('Hapus Diskon'),
           ),
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: _muted),
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Batal'),
-        ),
         FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: _accent,

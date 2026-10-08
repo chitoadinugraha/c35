@@ -22,6 +22,8 @@ message PromptModelOption {
   double usd_in_per_1m = 5;
   double usd_out_per_1m = 6;
   bool supports_thinking = 7;
+  // Max prompt context (tokens) from ai.llm_model.context_tokens; 0 omitted on wire when unknown.
+  int32 context_tokens = 8;
 }
 
 message ReqSessionInit {

@@ -35,6 +35,28 @@ bool uiIsConnectionError(String raw) {
       lower == 'connection failed';
 }
 
+bool uiIsTechnicalError(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return false;
+  final lower = s.toLowerCase();
+  if (lower.contains('gemini http') ||
+      lower.contains('invalid_argument') ||
+      lower.contains('failed_precondition') ||
+      lower.contains('thought_signature') ||
+      lower.contains('generativelanguage.googleapis.com') ||
+      lower.contains('openai') ||
+      lower.contains('anthropic') ||
+      lower.contains('vertex ai') ||
+      (lower.contains('bad request') && lower.contains('gemini'))) {
+    return true;
+  }
+  if (s.contains('{\n') || (s.contains('"error"') && s.contains('{'))) return true;
+  if (lower.contains('"status"') && (lower.contains('invalid') || lower.contains('internal'))) return true;
+  if (RegExp(r'\bHTTP\s+\d{3}\b', caseSensitive: false).hasMatch(s)) return true;
+  if (s.length > 220 && (s.contains('{') || s.contains('":'))) return true;
+  return false;
+}
+
 bool uiIsQuotaError(Object error) {
   final s = error.toString().toLowerCase();
   if (s.isEmpty) return false;
@@ -115,6 +137,7 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   if (uiIsRecoverableDeviceContextError(s)) {
     return fallback;
   }
+  if (uiIsTechnicalError(s)) return fallback;
   if (RegExp(r'https?://|\d{1,3}(?:\.\d{1,3}){3}|localhost|status=\d|errno|socketexception').hasMatch(lower)) {
     if (lower.contains('timeout') || lower.contains('timed out')) return 'Request timed out. Check your internet and try again.';
     if (lower.contains('refused') || lower.contains('failed host lookup') || lower.contains('unreachable')) {
@@ -122,6 +145,7 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
     }
     return fallback;
   }
+  if (s.length > 220 || s.contains('{') || s.contains('\n')) return fallback;
   return s;
 }
 

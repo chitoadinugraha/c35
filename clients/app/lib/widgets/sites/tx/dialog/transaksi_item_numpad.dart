@@ -12,14 +12,12 @@ Future<TxItem?> showTransaksiItemNumpad({
   required BuildContext context,
   required TxItem item,
   String productName = '',
-  bool allowPriceEdit = true,
 }) =>
     showDialog<TxItem>(
       context: context,
       builder: (ctx) => _DialogItemNumpad(
         item: item,
         productName: productName,
-        allowPriceEdit: allowPriceEdit,
       ),
     );
 
@@ -27,12 +25,10 @@ class _DialogItemNumpad extends StatefulWidget {
   const _DialogItemNumpad({
     required this.item,
     required this.productName,
-    required this.allowPriceEdit,
   });
 
   final TxItem item;
   final String productName;
-  final bool allowPriceEdit;
 
   @override
   State<_DialogItemNumpad> createState() => _DialogItemNumpadState();
@@ -40,14 +36,13 @@ class _DialogItemNumpad extends StatefulWidget {
 
 class _DialogItemNumpadState extends State<_DialogItemNumpad> {
   late int _qty = widget.item.qty > 0 ? widget.item.qty : 1;
-  late int _price = widget.item.price.toInt();
   late final TextEditingController _noteCtrl = TextEditingController(text: widget.item.note);
-  late final TextEditingController _priceCtrl = TextEditingController(text: _price.toString());
+
+  int get _price => widget.item.price.toInt();
 
   @override
   void dispose() {
     _noteCtrl.dispose();
-    _priceCtrl.dispose();
     super.dispose();
   }
 
@@ -161,8 +156,13 @@ class _DialogItemNumpadState extends State<_DialogItemNumpad> {
               // Note field
               TextField(
                 controller: _noteCtrl,
+                minLines: 2,
+                maxLines: 4,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
                 style: const TextStyle(color: _text, fontSize: 13),
                 decoration: InputDecoration(
+                  alignLabelWithHint: true,
                   labelText: 'Catatan Item (cth: kurang manis, meja 2)',
                   labelStyle: const TextStyle(color: _muted, fontSize: 12),
                   filled: true,
@@ -171,30 +171,6 @@ class _DialogItemNumpadState extends State<_DialogItemNumpad> {
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
                 ),
               ),
-
-              // Price edit field (optional)
-              if (widget.allowPriceEdit) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _priceCtrl,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: _text, fontSize: 13),
-                  decoration: InputDecoration(
-                    labelText: 'Ubah Harga Satuan (Price Override)',
-                    labelStyle: const TextStyle(color: _muted, fontSize: 12),
-                    prefixText: 'Rp ',
-                    prefixStyle: const TextStyle(color: _accent, fontSize: 13),
-                    filled: true,
-                    fillColor: const Color(0xFF18181B),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
-                  ),
-                  onChanged: (v) {
-                    final parsed = int.tryParse(v.replaceAll(RegExp(r'[^0-9]'), '')) ?? _price;
-                    setState(() => _price = parsed);
-                  },
-                ),
-              ],
             ],
           ),
         ),

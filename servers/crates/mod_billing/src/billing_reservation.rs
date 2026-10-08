@@ -253,54 +253,90 @@ pub async fn billing_gate_with_hold_model(
         crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
         return Ok(());
     }
-    let allowance_rem = match crate::billing_profile::billing_profile_fetch(pool, owner_iid).await? {
-        Some(profile) if crate::billing_profile::profile_has_rings(&profile) => {
-            let profile = crate::billing_profile::billing_profile_windows_roll(pool, profile).await?;
-            let (alien_rem, frontier_rem) =
-                crate::billing_profile::profile_ring_remaining_usd(&profile.rings);
-            if let Some(m) = model {
-                if crate::billing_profile::model_uses_alien_pool(m) {
-                    alien_rem
+    let profile_fut = async {
+        match crate::billing_profile::billing_profile_fetch(pool, owner_iid).await? {
+            Some(profile) if crate::billing_profile::profile_has_rings(&profile) => {
+                let profile = crate::billing_profile::billing_profile_windows_roll(pool, profile).await?;
+                let (alien_rem, frontier_rem) =
+                    crate::billing_profile::profile_ring_remaining_usd(&profile.rings);
+                let rem = if let Some(m) = model {
+                    if crate::billing_profile::model_uses_alien_pool(m) {
+                        alien_rem
+                    } else {
+                        frontier_rem
+                    }
                 } else {
-                    frontier_rem
-                }
-            } else {
-                alien_rem + frontier_rem
+                    alien_rem + frontier_rem
+                };
+                Ok::<_, anyhow::Error>(rem)
             }
+            Some(_) => Ok(0.0),
+            None => Ok(allowance_remaining(
+                row.alien_allow_5h_used,
+                row.alien_allow_5h_limit,
+                row.alien_allow_weekly_used,
+                row.alien_allow_weekly_limit,
+            )),
         }
-        Some(_) => 0.0,
-        None => allowance_remaining(
-            row.alien_allow_5h_used,
-            row.alien_allow_5h_limit,
-            row.alien_allow_weekly_used,
-            row.alien_allow_weekly_limit,
-        ),
     };
 
-    let in_flight_held_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*)::bigint FROM ai.billing_reservation WHERE owner_iid = $1 AND status = 'held'",
-    )
-    .bind(owner_iid)
-    .fetch_one(pool)
-    .await
-    .unwrap_or(0);
+    let in_flight_held_fut = async {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*)::bigint FROM ai.billing_reservation WHERE owner_iid = $1 AND status = 'held'",
+        )
+        .bind(owner_iid)
+        .fetch_one(pool)
+        .await
+        .unwrap_or(0)
+    };
+
+    let extra_fut = async {
+        sqlx::query_as::<_, (String, String, i64)>(
+            r#"
+            SELECT balance_idr::text, billing_currency, fx_micro_per_usd
+            FROM ai.billing_account WHERE id = $1
+            "#,
+        )
+        .bind(row.id)
+        .fetch_one(pool)
+        .await
+    };
+
+    let held_totals_fut = billing_held_totals(pool, row.id);
+
+    let existing_fut = async {
+        sqlx::query_as::<_, (String,)>(
+            "SELECT status FROM ai.billing_reservation WHERE req_id = $1",
+        )
+        .bind(req_id)
+        .fetch_optional(pool)
+        .await
+    };
+
+    let (allowance_rem_res, in_flight_held_count, extra_res, held_totals_res, existing_res) = tokio::join!(
+        profile_fut,
+        in_flight_held_fut,
+        extra_fut,
+        held_totals_fut,
+        existing_fut,
+    );
+
+    if let Ok(Some((status,))) = existing_res {
+        if status == "held" || status == "settled" {
+            return Ok(());
+        }
+    }
+
+    let allowance_rem = allowance_rem_res?;
     let in_flight_allowance_hold = (in_flight_held_count as f64) * hold_usd;
     let effective_allowance_rem = (allowance_rem - in_flight_allowance_hold).max(0.0);
 
-    let extra = sqlx::query_as::<_, (String, String, i64)>(
-        r#"
-        SELECT balance_idr::text, billing_currency, fx_micro_per_usd
-        FROM ai.billing_account WHERE id = $1
-        "#,
-    )
-    .bind(row.id)
-    .fetch_one(pool)
-    .await?;
+    let extra = extra_res?;
     let balance_idr = f(extra.0);
     let currency = extra.1;
     let fx = extra.2;
     let balance_native = if currency.eq_ignore_ascii_case("IDR") { balance_idr } else { row.balance_usd };
-    let (held_usd, held_idr) = billing_held_totals(pool, row.id).await?;
+    let (held_usd, held_idr) = held_totals_res?;
     let held_native = if currency.eq_ignore_ascii_case("IDR") { held_idr } else { held_usd };
     let (hold_usd_amt, hold_idr) = hold_amounts(hold_usd, effective_allowance_rem, &currency, fx);
     let hold_native = if currency.eq_ignore_ascii_case("IDR") { hold_idr } else { hold_usd_amt };
@@ -314,18 +350,6 @@ pub async fn billing_gate_with_hold_model(
             hold_native,
         );
         anyhow::bail!(reason);
-    }
-
-    let existing = sqlx::query_as::<_, (String,)>(
-        "SELECT status FROM ai.billing_reservation WHERE req_id = $1",
-    )
-    .bind(req_id)
-    .fetch_optional(pool)
-    .await?;
-    if let Some((status,)) = existing {
-        if status == "held" || status == "settled" {
-            return Ok(());
-        }
     }
 
     let id = snowflake_id();

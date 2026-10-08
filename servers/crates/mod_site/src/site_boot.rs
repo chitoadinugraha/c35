@@ -11,6 +11,7 @@ use crate::guest_product::{
 use crate::site_config::site_capabilities_get;
 use crate::site_link::site_link_boot_rows;
 use crate::product_design::product_design_from_site_meta;
+use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json};
 use crate::site_post::{post_boot_summary_json, site_post_boot_summaries};
 
 fn avatar_url(pic: &str) -> String {
@@ -197,6 +198,8 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
     let links = site_link_boot_rows(pool, req.site_iid).await?;
     let posts = site_post_boot_summaries(pool, req.site_iid).await?;
     let posts_preload: Vec<Value> = posts.iter().map(post_boot_summary_json).collect();
+    let meta = doc_json.get("meta").cloned().unwrap_or_else(|| json!({}));
+    let commerce_boot = commerce_boot_build(pool, req.site_iid, &meta).await?;
     let boot = site_boot_json_assemble(
         req.site_iid,
         &name,
@@ -210,6 +213,14 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
         &links,
         &posts_preload,
     );
+    let boot = if let Some(obj) = boot.as_object() {
+        let mut m = obj.clone();
+        m.insert("commerce_boot".into(), commerce_boot);
+        m.insert("order_progress_steps".into(), order_progress_steps_json());
+        Value::Object(m)
+    } else {
+        boot
+    };
     Ok(ResSiteBootGet {
         boot_json: boot.to_string(),
     })

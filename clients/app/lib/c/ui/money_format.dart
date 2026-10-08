@@ -52,13 +52,17 @@ int moneyIdrDetailDecimals(double amount) {
 
 String moneyFmtIdrDetail(num n) => moneyFmtIdr(n, decimals: moneyIdrDetailDecimals(n.toDouble()));
 
-String moneyCostLabel(double costUsd, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {
+String moneyCostLabel(double costUsd, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd, bool included = false}) {
   if (costUsd <= 0) return '';
   final cur = currency.toUpperCase();
-  if (cur == 'USD') return uiFmtUsd(costUsd);
-  final local = moneyUsdToLocal(costUsd, fxMicroPerUsd);
-  if (cur == 'IDR') return moneyFmtIdrDetail(local);
-  return '$cur ${local.toStringAsFixed(4)}';
+  final String base;
+  if (cur == 'USD') {
+    base = uiFmtUsd(costUsd);
+  } else {
+    final local = moneyUsdToLocal(costUsd, fxMicroPerUsd);
+    base = cur == 'IDR' ? moneyFmtIdrDetail(local) : '$cur ${local.toStringAsFixed(4)}';
+  }
+  return included ? '$base (Included)' : base;
 }
 
 String moneyBalanceLabel(double balanceUsd, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {

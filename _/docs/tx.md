@@ -140,7 +140,7 @@ Reference tree: `E:\Project Archive\id.alienai\client_app\lib\page_project\bisni
 | Surface | id.alienai source | c35 target |
 |---------|-------------------|------------|
 | Tx list browse | UITable / list patterns | Sites → **Orders** tab (`site.tx` collection) |
-| Tx editor | `page_transaksi_edit.dart` + ledger sections | Ledger tabs: **Items \| Payments \| Acc \| Stock** |
+| Tx editor | `page_transaksi_edit.dart` + ledger sections | **Sites → POS** (`posEntry`): catalog \| cart + inline pay, no tabs. **Orders → edit**: Items + Payments; Acc + Stock **root only** |
 | Receipt / print | `transaksi/receipt/` (`ui_receipt`, `receipt_pdf_generator`) | Same UX in Sites Orders flow |
 | Debt / installment | `payment/ask_transaksi_payment_debt.dart`, etc. | Port with `site_iid` |
 | AI tx input | `TxPrompt` in `tx_data` | Home prompt + `site.tx.put` tool / `hint.expense_add` |

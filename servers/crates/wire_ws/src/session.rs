@@ -170,7 +170,9 @@ fn prompt_abort(flight: Option<&PromptFlight>) {
 fn prompt_fail(req_id: &str, message: String) -> WsRes {
     WsRes {
         req_id: req_id.into(),
-        body: Some(ws_res::Body::PromptFail(ResPromptFail { message })),
+        body: Some(ws_res::Body::PromptFail(ResPromptFail {
+            message: c35_mod_chat::chat_user_error_message(&message),
+        })),
     }
 }
 
@@ -302,7 +304,7 @@ fn prompt_req_put(
                         model: turn.model,
                         req_id: req_id_spawn.clone(),
                         trace_json: c35_mod_chat::prompt_end_trace_json(turn.billing_included, turn.cost_usd),
-                        error_message: turn.error_text,
+                        error_message: c35_mod_chat::chat_user_error_message(&turn.error_text),
                         prompt_tokens: turn.prompt_tokens,
                         context_window: turn.context_window,
                         usage: Some(turn.usage.proto()),

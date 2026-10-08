@@ -34,6 +34,7 @@ class PromptModelOption extends $pb.GeneratedMessage {
     $core.double? usdInPer1m,
     $core.double? usdOutPer1m,
     $core.bool? supportsThinking,
+    $core.int? contextTokens,
   }) {
     final result = PromptModelOption._();
     if (id != null) result.id = id;
@@ -43,6 +44,7 @@ class PromptModelOption extends $pb.GeneratedMessage {
     if (usdInPer1m != null) result.usdInPer1m = usdInPer1m;
     if (usdOutPer1m != null) result.usdOutPer1m = usdOutPer1m;
     if (supportsThinking != null) result.supportsThinking = supportsThinking;
+    if (contextTokens != null) result.contextTokens = contextTokens;
     return result;
   }
 
@@ -66,6 +68,7 @@ class PromptModelOption extends $pb.GeneratedMessage {
     ..aD(5, _omitFieldNames ? '' : 'usdInPer1m', protoName: 'usd_in_per_1m')
     ..aD(6, _omitFieldNames ? '' : 'usdOutPer1m', protoName: 'usd_out_per_1m')
     ..aOB(7, _omitFieldNames ? '' : 'supportsThinking')
+    ..aI(8, _omitFieldNames ? '' : 'contextTokens')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -152,6 +155,16 @@ class PromptModelOption extends $pb.GeneratedMessage {
   $core.bool hasSupportsThinking() => $_has(6);
   @$pb.TagNumber(7)
   void clearSupportsThinking() => $_clearField(7);
+
+  /// Max prompt context (tokens) from ai.llm_model.context_tokens; 0 omitted on wire when unknown.
+  @$pb.TagNumber(8)
+  $core.int get contextTokens => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set contextTokens($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasContextTokens() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearContextTokens() => $_clearField(8);
 }
 
 class ReqSessionInit extends $pb.GeneratedMessage {

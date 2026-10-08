@@ -2,10 +2,10 @@ import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/widgets/io/in_site_contact.dart';
 import 'package:alienai_c35/widgets/io/in_site_product.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:flutter/material.dart';
 
-const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
@@ -88,7 +88,7 @@ Widget _readText(UiColCellScope scope, String text) => Padding(
 Widget _textCell(UiColCellScope scope, {bool multiline = false, TextInputType? keyboard}) {
   if (!scope.editable || scope.onCommit == null) return _readText(scope, scope.value);
   return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+    padding: const EdgeInsets.only(top: 2),
     child: _UiColCellTextEdit(
       key: ValueKey('${scope.rowKey}:${scope.col.key}'),
       initial: scope.value,
@@ -217,12 +217,8 @@ class _UiColCellTextEditState extends State<_UiColCellTextEdit> {
     super.dispose();
   }
 
-  InputDecoration get _decoration => InputDecoration(
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: widget.multiline ? 10 : 8),
-        border: const OutlineInputBorder(borderSide: BorderSide(color: _border)),
-        enabledBorder: const OutlineInputBorder(borderSide: BorderSide(color: _border)),
-        focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: _accent)),
+  InputDecoration get _decoration => siteEditorInputDecoration().copyWith(
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: widget.multiline ? 10 : 10),
       );
 
   Future<void> _commit() => widget.onCommit(_ctrl.text.trim());

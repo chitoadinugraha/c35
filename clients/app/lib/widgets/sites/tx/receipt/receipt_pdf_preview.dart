@@ -14,7 +14,7 @@ class ReceiptPdfPreview extends StatefulWidget {
     this.productNames = const {},
     this.alienId,
     this.print = false,
-    this.watermark,
+    this.embedded = false,
   });
 
   final Tx tx;
@@ -22,7 +22,7 @@ class ReceiptPdfPreview extends StatefulWidget {
   final Map<String, String> productNames;
   final String? alienId;
   final bool print;
-  final String? watermark;
+  final bool embedded;
 
   @override
   State<ReceiptPdfPreview> createState() => _ReceiptPdfPreviewState();
@@ -36,32 +36,33 @@ class _ReceiptPdfPreviewState extends State<ReceiptPdfPreview> {
 
   String get _filename => 'receipt_${_title.toLowerCase().replaceAll(' ', '_')}.pdf';
 
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(_title)),
-        body: PdfPreview(
-          build: (format) => ReceiptPdfGenerator.generate(
-            widget.tx,
-            widget.config,
-            productNames: widget.productNames,
-            alienId: widget.alienId,
-            watermark: widget.watermark,
-          ),
-          canDebug: false,
-          allowPrinting: true,
-          allowSharing: true,
-          canChangePageFormat: false,
-          canChangeOrientation: false,
-          maxPageWidth: 300,
-          initialPageFormat: const PdfPageFormat(227, 800, marginTop: 10, marginLeft: 10, marginRight: 10, marginBottom: 10),
-          pdfFileName: _filename,
-          pdfPreviewPageDecoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 2)),
-            ],
-          ),
+  Widget _pdfPreview() => PdfPreview(
+        build: (format) => ReceiptPdfGenerator.generate(
+          widget.tx,
+          widget.config,
+          productNames: widget.productNames,
+          alienId: widget.alienId,
+        ),
+        canDebug: false,
+        allowPrinting: true,
+        allowSharing: true,
+        canChangePageFormat: false,
+        canChangeOrientation: false,
+        maxPageWidth: 300,
+        initialPageFormat: const PdfPageFormat(227, 800, marginTop: 10, marginLeft: 10, marginRight: 10, marginBottom: 10),
+        pdfFileName: _filename,
+        pdfPreviewPageDecoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 4, offset: const Offset(0, 2)),
+          ],
         ),
       );
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.embedded) return _pdfPreview();
+    return Scaffold(appBar: AppBar(title: Text(_title)), body: _pdfPreview());
+  }
 }

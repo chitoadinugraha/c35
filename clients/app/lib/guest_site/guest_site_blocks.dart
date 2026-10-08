@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/guest_order_api.dart';
+import 'package:alienai_c35/guest_site/guest_site_cart.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
@@ -419,6 +421,28 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                 style: priceStyle,
               ),
             ),
+          Builder(
+            builder: (context) {
+              final cart = GuestSiteCartScope.maybeOf(context);
+              final pid = (p['product_id'] as num?)?.toInt() ?? 0;
+              if (cart == null || pid <= 0 || price <= 0) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () => cart.addProduct(productId: pid, name: name, price: price),
+                    child: Text('+ Pesan', style: TextStyle(color: accent, fontSize: 10, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );
@@ -677,14 +701,62 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
   final String fallbackTitle;
 
   @override
-  Widget build(BuildContext context) => GuestSiteHeroBlock(
-        props: props,
-        accent: accent,
-        fallbackTitle: fallbackTitle,
-      );
+  Widget build(BuildContext context) {
+    final location = props['location_label']?.toString().trim() ?? '';
+    final showHours = props['show_hours'] == true;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GuestSiteHeroBlock(props: props, accent: accent, fallbackTitle: fallbackTitle),
+        if (location.isNotEmpty || showHours)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                if (location.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _guestBorder),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.place_outlined, size: 14, color: _guestTextSecondary),
+                        const SizedBox(width: 4),
+                        Flexible(child: Text(location, style: const TextStyle(color: _guestTextSecondary, fontSize: 11))),
+                      ],
+                    ),
+                  ),
+                if (showHours)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _guestBorder),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.schedule_outlined, size: 14, color: _guestTextSecondary),
+                        SizedBox(width: 4),
+                        Text('Open hours', style: TextStyle(color: _guestTextSecondary, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
-class GuestSiteOrderTrackBlock extends StatelessWidget {
+class GuestSiteOrderTrackBlock extends StatefulWidget {
   const GuestSiteOrderTrackBlock({
     super.key,
     required this.props,
@@ -697,9 +769,46 @@ class GuestSiteOrderTrackBlock extends StatelessWidget {
   final int siteIid;
 
   @override
+  State<GuestSiteOrderTrackBlock> createState() => _GuestSiteOrderTrackBlockState();
+}
+
+class _GuestSiteOrderTrackBlockState extends State<GuestSiteOrderTrackBlock> {
+  late final TextEditingController _txCtrl = TextEditingController();
+  String? _status;
+  String? _error;
+
+  @override
+  void dispose() {
+    _txCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _poll() async {
+    if (widget.siteIid <= 0) return;
+    final txId = int.tryParse(_txCtrl.text.trim()) ?? 0;
+    if (txId <= 0) {
+      setState(() => _error = 'Masukkan nomor pesanan');
+      return;
+    }
+    setState(() {
+      _error = null;
+      _status = null;
+    });
+    try {
+      final res = await GuestOrderApi.orderGet(siteIid: widget.siteIid, txId: txId);
+      final tx = res['tx'];
+      if (tx is! Map) throw StateError('Pesanan tidak ditemukan');
+      final label = tx['progress_label']?.toString() ?? tx['state']?.toString() ?? '—';
+      setState(() => _status = label);
+    } catch (e) {
+      setState(() => _error = e.toString());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final title = props['title']?.toString() ?? 'Lacak pesanan';
-    final hint = props['hint']?.toString() ?? '';
+    final title = widget.props['title']?.toString() ?? 'Lacak pesanan';
+    final hint = widget.props['hint']?.toString() ?? '';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: const BoxDecoration(
@@ -718,20 +827,28 @@ class GuestSiteOrderTrackBlock extends StatelessWidget {
           ],
           const SizedBox(height: 10),
           TextField(
+            controller: _txCtrl,
             decoration: InputDecoration(
               labelText: 'No. pesanan',
               labelStyle: const TextStyle(color: _guestTextSecondary, fontSize: 12),
               enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _guestBorder)),
-              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: accent)),
+              focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: widget.accent)),
             ),
             style: const TextStyle(color: _guestTextPrimary, fontSize: 13),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 10),
-          Text(
-            siteIid > 0 ? 'Status — cek di situs publik' : 'Preview lacak pesanan',
-            style: TextStyle(color: accent.withValues(alpha: 0.85), fontSize: 11),
-          ),
+          TextButton(onPressed: widget.siteIid > 0 ? _poll : null, child: const Text('Cek status')),
+          if (_status != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_status!, style: TextStyle(color: widget.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+            ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_error!, style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11)),
+            ),
         ],
       ),
     );

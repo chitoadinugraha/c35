@@ -112,6 +112,51 @@ Map<String, dynamic> siteProductExtrasToJsonMap(SiteProductExtras extras) => {
       'stock_show_max_qty': extras.stockShowMaxQty,
     };
 
+List<String> siteProductBarcodesRead(SiteProduct product) {
+  final map = siteProductJsonMap(product.productJson);
+  final fromList = map['barcodes'];
+  if (fromList is List) {
+    return fromList.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList(growable: false);
+  }
+  final legacy = map['barcode']?.toString().trim() ?? '';
+  return legacy.isEmpty ? const [] : [legacy];
+}
+
+SiteProduct siteProductApplyBarcodes(SiteProduct product, List<String> barcodes) {
+  final out = product.clone();
+  final map = siteProductJsonMap(out.productJson);
+  map.remove('barcode');
+  final clean = barcodes.map((e) => e.trim()).where((e) => e.isNotEmpty).toList(growable: false);
+  if (clean.isEmpty) {
+    map.remove('barcodes');
+  } else {
+    map['barcodes'] = clean;
+  }
+  out.productJson = jsonEncode(map);
+  return out;
+}
+
+/// Gallery images (excluding primary [SiteProduct.pic]).
+List<String> siteProductPicsRead(SiteProduct product) {
+  final map = siteProductJsonMap(product.productJson);
+  final raw = map['pics'];
+  if (raw is! List) return const [];
+  return raw.map((e) => e.toString().trim()).where((e) => e.isNotEmpty && e != product.pic).toList(growable: false);
+}
+
+SiteProduct siteProductApplyPics(SiteProduct product, List<String> pics) {
+  final out = product.clone();
+  final map = siteProductJsonMap(out.productJson);
+  final clean = pics.map((e) => e.trim()).where((e) => e.isNotEmpty && e != out.pic).toList(growable: false);
+  if (clean.isEmpty) {
+    map.remove('pics');
+  } else {
+    map['pics'] = clean;
+  }
+  out.productJson = jsonEncode(map);
+  return out;
+}
+
 String siteProductJsonMergeExtras(String productJson, SiteProductExtras extras) {
   final base = siteProductJsonMap(productJson);
   base.addAll(siteProductExtrasToJsonMap(extras));

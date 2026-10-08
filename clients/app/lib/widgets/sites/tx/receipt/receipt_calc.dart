@@ -17,6 +17,19 @@ String receiptFmtTs(Int64 ms) {
 
 String txReceiptId(Tx tx) => tx.txId > Int64.ZERO ? tx.txId.toString() : '';
 
+String receiptCustomerName(Tx tx) {
+  final name = tx.subjectName.trim();
+  return name.isEmpty ? 'Walk In' : name;
+}
+
+String receiptCashierName(Tx tx) => tx.cashierName.trim();
+
+void receiptStampCashier(Tx tx, String sessionName) {
+  if (tx.cashierName.trim().isNotEmpty) return;
+  final name = sessionName.trim();
+  if (name.isNotEmpty) tx.cashierName = name;
+}
+
 int receiptItemLineTotal(TxItem item) {
   if (item.totalNet > Int64.ZERO) return item.totalNet.toInt();
   return item.qty * item.price.toInt();

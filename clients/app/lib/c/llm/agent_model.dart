@@ -2,6 +2,45 @@ import 'package:alienai_c35/c/pb/c35/session.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:flutter/material.dart';
 
+const contextWindowDefaultTokens = 128000;
+
+const contextWindowSteps = <int>[32768, 65536, 131072, 262144, 524288, 1048576];
+
+int contextTokensInfer({required String provider, required String id}) {
+  final p = provider.toLowerCase();
+  final s = id.toLowerCase();
+  if (p == 'alienai' || p == 'google' || s.contains('gemini')) return 1048576;
+  if (p == 'anthropic' || s.contains('claude')) return 200000;
+  if (p == 'openai') {
+    if (s.contains('gpt-4.1') || s.contains('o1') || s.contains('o3')) return 1047576;
+    return 128000;
+  }
+  if (p == 'deepseek') return 128000;
+  return 128000;
+}
+
+int contextWindowResolve(int modelContextTokens, int stored) {
+  if (stored <= 0) return contextWindowDefaultForModel(modelContextTokens);
+  final capped = stored > modelContextTokens ? modelContextTokens : stored;
+  if (contextWindowSteps.contains(capped)) return capped;
+  for (final s in contextWindowSteps.reversed) {
+    if (s <= capped) return s;
+  }
+  return contextWindowSteps.first;
+}
+
+int contextWindowDefaultForModel(int modelContextTokens) {
+  final raw = contextWindowDefaultTokens < modelContextTokens ? contextWindowDefaultTokens : modelContextTokens;
+  if (raw >= contextWindowDefaultTokens) return contextWindowDefaultTokens;
+  for (final s in contextWindowSteps.reversed) {
+    if (s <= raw) return s;
+  }
+  return contextWindowSteps.first;
+}
+
+List<int> contextWindowOptionsForModel(int modelContextTokens) =>
+    [for (final w in contextWindowSteps) if (w <= modelContextTokens) w];
+
 enum AgentThinking {
   off,
   low,
@@ -41,6 +80,7 @@ class AgentModel {
     this.version = '',
     this.usdInPer1m = 0,
     this.usdOutPer1m = 0,
+    this.contextTokens = contextWindowDefaultTokens,
     this.thinking = AgentThinking.off,
   });
 
@@ -56,13 +96,10 @@ class AgentModel {
   final String version;
   final double usdInPer1m;
   final double usdOutPer1m;
+  final int contextTokens;
   final AgentThinking thinking;
 
   bool get gemini => provider == 'google';
-  bool get wideContextWindow {
-    final slug = id.toLowerCase();
-    return provider == 'alienai' || slug == 'auto' || provider == 'google' || slug.contains('gemini');
-  }
   bool get canThink {
     if (local) return false;
     if (supportsThinking) return true;
@@ -96,8 +133,8 @@ class AgentModel {
         _ => const Color(0xFFA1A1AA),
       };
 
-  static const alien = AgentModel(id: 'auto', chip: 'Alien AI', label: 'Alien AI', provider: 'alienai', providerModel: 'auto', isDefault: true, supportsThinking: true, usdInPer1m: 1.5, usdOutPer1m: 7);
-  static const gemini31 = AgentModel(id: 'gemini-3.1-flash-lite', chip: 'Gemini 3.1', label: 'Gemini 3.1 Flash Lite', provider: 'google', providerModel: 'gemini-3.1-flash-lite', supportsThinking: true, usdInPer1m: 75000, usdOutPer1m: 300000);
+  static const alien = AgentModel(id: 'auto', chip: 'Alien AI', label: 'Alien AI', provider: 'alienai', providerModel: 'auto', isDefault: true, supportsThinking: true, usdInPer1m: 1.5, usdOutPer1m: 7, contextTokens: 1048576);
+  static const gemini31 = AgentModel(id: 'gemini-3.1-flash-lite', chip: 'Gemini 3.1', label: 'Gemini 3.1 Flash Lite', provider: 'google', providerModel: 'gemini-3.1-flash-lite', supportsThinking: true, usdInPer1m: 75000, usdOutPer1m: 300000, contextTokens: 1048576);
   static const gpt4o = AgentModel(id: 'gpt-4o', chip: 'GPT-4o', label: 'GPT-4o', provider: 'openai', providerModel: 'gpt-4o');
   static const claude = AgentModel(id: 'claude-sonnet-4-5', chip: 'Claude', label: 'Claude Sonnet 4.5', provider: 'anthropic', providerModel: 'anthropic/claude-sonnet-4-5');
   static const fallback = [alien];
@@ -115,6 +152,7 @@ class AgentModel {
       supportsThinking: m.supportsThinking,
       usdInPer1m: m.usdInPer1m,
       usdOutPer1m: m.usdOutPer1m,
+      contextTokens: m.contextTokens > 0 ? m.contextTokens : contextTokensInfer(provider: m.provider, id: slug),
     );
   }
 
@@ -133,6 +171,7 @@ class AgentModel {
       version: '${j['version'] ?? ''}',
       usdInPer1m: (j['usd_in_per_1m'] as num?)?.toDouble() ?? 0,
       usdOutPer1m: (j['usd_out_per_1m'] as num?)?.toDouble() ?? 0,
+      contextTokens: (j['context_tokens'] as num?)?.toInt() ?? contextWindowDefaultTokens,
     );
   }
 
@@ -155,6 +194,7 @@ class AgentModel {
         version: version,
         usdInPer1m: usdInPer1m,
         usdOutPer1m: usdOutPer1m,
+        contextTokens: contextTokens,
         thinking: thinking ?? this.thinking,
       );
 

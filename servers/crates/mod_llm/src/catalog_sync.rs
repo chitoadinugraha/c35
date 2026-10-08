@@ -16,6 +16,7 @@ use crate::catalog_rank::{
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
 use crate::embed_gemini::gemini_api_key;
 use crate::catalog_types::LlmModelRow;
+use crate::model_catalog::context_tokens_from_raw;
 use crate::llm_catalog::{llm_catalog_reload, sync_enabled, sync_interval_secs, upsert_model};
 use crate::runtime_config::{runtime_config_reload, CONFIG_KEY_ALIEN_CHAIN};
 
@@ -115,8 +116,18 @@ pub fn pinned_seed_fingerprint() -> String {
         h.update(m.family.as_bytes());
         h.update(&m.version_rank.to_le_bytes());
         h.update(m.source.as_bytes());
+        h.update(&m.context_tokens.to_le_bytes());
     }
     h.finalize().to_hex().to_string()
+}
+
+fn catalog_row_context_tokens(provider: &str, id: &str, raw: Option<&Value>) -> i32 {
+    let from_api = raw.map(context_tokens_from_raw).unwrap_or(0);
+    if from_api > 0 {
+        from_api
+    } else {
+        crate::catalog_types::context_tokens_infer(provider, id)
+    }
 }
 
 pub fn pinned_models() -> Vec<LlmModelRow> {
@@ -135,6 +146,7 @@ pub fn pinned_models() -> Vec<LlmModelRow> {
         family: "flash-lite".into(),
         version_rank: 0,
         source: "pinned".into(),
+        context_tokens: 1_048_576,
     }]
 }
 
@@ -200,18 +212,20 @@ async fn sync_alien_meta(pool: &PgPool, fetched: &[LlmModelRow]) -> Result<()> {
     let wholesale = fetched
         .iter()
         .find(|m| m.id == default || m.provider_model == default)
-        .map(|m| (m.input_micro_per_m, m.output_micro_per_m))
-        .unwrap_or((0, 0));
+        .map(|m| (m.input_micro_per_m, m.output_micro_per_m, m.context_tokens))
+        .unwrap_or((0, 0, 0));
+    let alien_ctx = if wholesale.2 > 0 { wholesale.2 } else { 1_048_576 };
     db_retry(pool, || async {
         sqlx::query(
             "UPDATE ai.llm_model SET provider_model = $1, input_micro_per_m = $2, output_micro_per_m = $3, \
-             family = 'flash-lite', version_rank = $4, updated_at = NOW() \
+             context_tokens = $5, family = 'flash-lite', version_rank = $4, updated_at = NOW() \
              WHERE id = 'alienai' AND source = 'pinned'",
         )
         .bind(&default)
         .bind(wholesale.0)
         .bind(wholesale.1)
         .bind(version_rank_of(&default))
+        .bind(alien_ctx)
         .execute(pool)
         .await
     })
@@ -386,6 +400,7 @@ async fn gemini_fetch(price_index: &HashMap<String, CatalogPricing>, cf_ids: &Ha
         let version_rank = version_rank_of(&id);
         let supports_thinking = id.contains("gemini-3") || id.contains("2.5");
         let provider_model = id.clone();
+        let context_tokens = catalog_row_context_tokens("google", &id, None);
         out.push(LlmModelRow {
             id,
             provider: "google".into(),
@@ -401,6 +416,7 @@ async fn gemini_fetch(price_index: &HashMap<String, CatalogPricing>, cf_ids: &Ha
             family,
             version_rank,
             source: "api".into(),
+            context_tokens,
         });
     }
     assign_picker_order(&mut out);
@@ -485,8 +501,8 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             || slug.contains("grok");
         let provider_model = if provider == "google" { slug.clone() } else { id.clone() };
         out.push(LlmModelRow {
-            id: slug,
-            provider,
+            id: slug.clone(),
+            provider: provider.clone(),
             label,
             provider_model,
             input_micro_per_m: p.input_micro_per_m,
@@ -499,6 +515,7 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             family,
             version_rank,
             source: "cf_api".into(),
+            context_tokens: catalog_row_context_tokens(&provider, &slug, Some(&raw)),
         });
     }
     assign_picker_order(&mut out);
@@ -571,8 +588,8 @@ fn catalog_rows_from_openrouter_raw(rows: Vec<Value>) -> Result<Vec<LlmModelRow>
             || slug.contains("grok");
         let provider_model = if provider == "google" { slug.clone() } else { id.clone() };
         out.push(LlmModelRow {
-            id: slug,
-            provider,
+            id: slug.clone(),
+            provider: provider.clone(),
             label,
             provider_model,
             input_micro_per_m: p.input_micro_per_m,
@@ -585,6 +602,7 @@ fn catalog_rows_from_openrouter_raw(rows: Vec<Value>) -> Result<Vec<LlmModelRow>
             family,
             version_rank,
             source: "cf_api".into(),
+            context_tokens: catalog_row_context_tokens(&provider, &slug, Some(&raw)),
         });
     }
     assign_picker_order(&mut out);
@@ -664,8 +682,8 @@ fn cf_api_error_hint(body: &str) -> String {
 
 async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
     let rows = db_retry(pool, || async {
-        sqlx::query_as::<_, (String, String, String, String, i64, i64, i64, bool, bool, bool, i32, String, i32, String)>(
-            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
+        sqlx::query_as::<_, (String, String, String, String, i64, i64, i64, bool, bool, bool, i32, String, i32, String, i32)>(
+            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens \
              FROM ai.llm_model WHERE deleted_at IS NULL",
         )
         .fetch_all(pool)
@@ -675,7 +693,7 @@ async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
     let mut models = rows
         .into_iter()
         .map(
-            |(id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source)| {
+            |(id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens)| {
                 LlmModelRow {
                     id,
                     provider,
@@ -691,6 +709,7 @@ async fn catalog_reindex_sort_orders(pool: &PgPool) -> Result<()> {
                     family,
                     version_rank,
                     source,
+                    context_tokens,
                 }
             },
         )
@@ -757,6 +776,7 @@ async fn upsert_openrouter_embed_models(
             .unwrap_or(slug.as_str())
             .to_string();
         let version_rank = version_rank_of(&slug);
+        let context_tokens = catalog_row_context_tokens(&provider, &slug, Some(raw));
         let mut row = LlmModelRow {
             id: slug,
             provider,
@@ -772,6 +792,7 @@ async fn upsert_openrouter_embed_models(
             family: "embed".into(),
             version_rank,
             source: "or_api".into(),
+            context_tokens,
         };
         apply_openrouter_pricing(&mut row, or_prices);
         if let Some(p) = pricing_from_model_row(raw) {
@@ -793,8 +814,8 @@ async fn llm_catalog_reconcile_or_prices(
     synced_at: DateTime<Utc>,
 ) -> Result<usize> {
     let rows = db_retry(pool, || async {
-        sqlx::query_as::<_, (String, String, String, String, i64, i64, i64, bool, bool, bool, i32, String, i32, String)>(
-            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source \
+        sqlx::query_as::<_, (String, String, String, String, i64, i64, i64, bool, bool, bool, i32, String, i32, String, i32)>(
+            "SELECT id, provider, label, provider_model, input_micro_per_m, input_cache_micro_per_m, output_micro_per_m, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens \
              FROM ai.llm_model WHERE deleted_at IS NULL",
         )
         .fetch_all(pool)
@@ -802,7 +823,7 @@ async fn llm_catalog_reconcile_or_prices(
     })
     .await?;
     let mut updated = 0usize;
-    for (id, provider, label, provider_model, in_ppm, cache_ppm, out_ppm, supports_thinking, enabled, is_default, sort_order, family, version_rank, source) in rows {
+    for (id, provider, label, provider_model, in_ppm, cache_ppm, out_ppm, supports_thinking, enabled, is_default, sort_order, family, version_rank, source, context_tokens) in rows {
         if id == "alienai" || provider == "alienai" {
             continue;
         }
@@ -821,6 +842,7 @@ async fn llm_catalog_reconcile_or_prices(
             family,
             version_rank,
             source,
+            context_tokens,
         };
         let before = (row.input_micro_per_m, row.input_cache_micro_per_m, row.output_micro_per_m);
         apply_openrouter_pricing(&mut row, or_prices);

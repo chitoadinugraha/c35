@@ -374,13 +374,17 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
         children: [
           if (widget.onPaneChanged != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF34D399),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
                   onPressed: () => _setPane(SiteProductsPane.list),
                   icon: const Icon(Icons.arrow_back, size: 18),
-                  label: const Text('Back to products'),
+                  label: const Text('Products'),
                 ),
               ),
             ),

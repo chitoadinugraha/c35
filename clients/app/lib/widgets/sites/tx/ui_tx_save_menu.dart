@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 const _accent = Color(0xFF34D399);
 const _muted = Color(0xFF71717A);
+const _text = Color(0xFFF4F4F5);
 
 class UiTxSaveMenu extends StatelessWidget {
   const UiTxSaveMenu({
@@ -19,6 +20,7 @@ class UiTxSaveMenu extends StatelessWidget {
     this.canSave = true,
     this.saveBlockReason,
     this.busy = false,
+    this.posShell = false,
   });
 
   final VoidCallback onSave;
@@ -33,6 +35,7 @@ class UiTxSaveMenu extends StatelessWidget {
   final bool canSave;
   final String? saveBlockReason;
   final bool busy;
+  final bool posShell;
 
   bool get _saveEnabled => canSave && !busy;
 
@@ -57,35 +60,39 @@ class UiTxSaveMenu extends StatelessWidget {
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         ),
         menuChildren: [
-          MenuItemButton(
-            onPressed: busy ? null : () => _saveTap(context, onSave),
-            child: _menuRow(Icons.save_outlined, 'Save', enabled: _saveEnabled),
-          ),
-          MenuItemButton(
-            onPressed: busy ? null : () => _saveTap(context, onSaveNew),
-            child: _menuRow(Icons.post_add_outlined, 'Save & new', enabled: _saveEnabled),
-          ),
-          if (onHold != null)
+          if (!posShell) ...[
+            MenuItemButton(
+              onPressed: busy ? null : () => _saveTap(context, onSave),
+              child: _menuRow(Icons.save_outlined, 'Save', enabled: _saveEnabled),
+            ),
+            MenuItemButton(
+              onPressed: busy ? null : () => _saveTap(context, onSaveNew),
+              child: _menuRow(Icons.post_add_outlined, 'Save & new', enabled: _saveEnabled),
+            ),
+          ],
+          if (onHold != null) ...[
             MenuItemButton(
               onPressed: (busy || !canHold) ? null : onHold,
               child: _menuRow(Icons.pause_circle_outline, 'Hold order', enabled: canHold && !busy),
             ),
-          const SizedBox(height: 6),
-          const Divider(height: 1),
-          const SizedBox(height: 6),
+            const SizedBox(height: 6),
+            const Divider(height: 1),
+            const SizedBox(height: 6),
+          ],
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: _menuSwitch(
               icon: Icons.print_outlined,
-              label: 'Print receipt',
+              label: 'Print Receipt',
               value: printReceipt,
               onChanged: onPrintReceiptChanged,
             ),
           ),
-          MenuItemButton(
-            onPressed: busy ? null : onViewReceipt,
-            child: _menuRow(Icons.receipt_long_outlined, 'View receipt', enabled: !busy),
-          ),
+          if (!posShell)
+            MenuItemButton(
+              onPressed: busy ? null : onViewReceipt,
+              child: _menuRow(Icons.receipt_long_outlined, 'View receipt', enabled: !busy),
+            ),
           MenuItemButton(
             onPressed: busy
                 ? null
@@ -100,14 +107,22 @@ class UiTxSaveMenu extends StatelessWidget {
             ),
           ],
         ],
-        builder: (context, controller, child) => FilledButton.icon(
-          onPressed: busy ? null : () => controller.isOpen ? controller.close() : controller.open(),
-          icon: busy
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.save_outlined, size: 18),
-          label: const Text('Save'),
-          style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: const Color(0xFF052E1B)),
-        ),
+        builder: (context, controller, child) => posShell
+            ? IconButton(
+                tooltip: 'More',
+                onPressed: busy ? null : () => controller.isOpen ? controller.close() : controller.open(),
+                icon: busy
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))
+                    : const Icon(Icons.more_vert, color: _text),
+              )
+            : FilledButton.icon(
+                onPressed: busy ? null : () => controller.isOpen ? controller.close() : controller.open(),
+                icon: busy
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.save_outlined, size: 18),
+                label: const Text('Save'),
+                style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: const Color(0xFF052E1B)),
+              ),
       );
 
   Widget _menuRow(IconData icon, String label, {required bool enabled, bool danger = false}) => Padding(
@@ -128,11 +143,17 @@ class UiTxSaveMenu extends StatelessWidget {
     required ValueChanged<bool> onChanged,
   }) =>
       Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 18, color: _muted),
           const SizedBox(width: 10),
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 14))),
-          Switch.adaptive(value: value, onChanged: busy ? null : onChanged),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 14, height: 1.2))),
+          const SizedBox(width: 12),
+          Switch.adaptive(
+            value: value,
+            onChanged: busy ? null : onChanged,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ],
       );
 }

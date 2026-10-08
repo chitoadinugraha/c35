@@ -2,17 +2,20 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_link_platform.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
+import 'package:alienai_c35/widgets/sites/io/in_site_link_platform_picker.dart';
+import 'package:alienai_c35/widgets/sites/ui_site_platform_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
-const _fieldBorder = Color(0xFF3F3F46);
-const _fieldFill = Color(0xFF18181B);
 
 class UiSiteLinksEditor extends StatefulWidget {
   const UiSiteLinksEditor({super.key, required this.api, required this.siteIid});
@@ -147,7 +150,12 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
     final q = _search.trim().toLowerCase();
     if (q.isEmpty) return _ordered;
     return _ordered
-        .where((l) => l.label.toLowerCase().contains(q) || l.url.toLowerCase().contains(q))
+        .where((l) {
+          final icon = siteLinkPlatformNormalize(l.icon);
+          return l.label.toLowerCase().contains(q) ||
+              l.url.toLowerCase().contains(q) ||
+              siteLinkPlatformLabel(icon).toLowerCase().contains(q);
+        })
         .toList(growable: false);
   }
 
@@ -217,58 +225,78 @@ class _UiSiteLinkCard extends StatefulWidget {
 }
 
 class _UiSiteLinkCardState extends State<_UiSiteLinkCard> {
-  late final _labelCtrl = TextEditingController(text: widget.link.label);
-  late final _urlCtrl = TextEditingController(text: widget.link.url);
-  late final _iconCtrl = TextEditingController(text: widget.link.icon);
+  late final _labelCtrl = TextEditingController();
+  late final _valueCtrl = TextEditingController();
+  late String _icon;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncFromLink();
+  }
+
+  void _syncFromLink() {
+    _icon = siteLinkPlatformNormalize(widget.link.icon);
+    _labelCtrl.text = widget.link.label;
+    _valueCtrl.text = siteLinkValueDisplay(icon: _icon, stored: widget.link.url);
+  }
 
   @override
   void didUpdateWidget(covariant _UiSiteLinkCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if ('${oldWidget.link.linkId}' != '${widget.link.linkId}') {
-      _labelCtrl.text = widget.link.label;
-      _urlCtrl.text = widget.link.url;
-      _iconCtrl.text = widget.link.icon;
+    if ('${oldWidget.link.linkId}' != '${widget.link.linkId}' ||
+        oldWidget.link.url != widget.link.url ||
+        oldWidget.link.icon != widget.link.icon ||
+        oldWidget.link.label != widget.link.label) {
+      _syncFromLink();
     }
   }
 
   @override
   void dispose() {
     _labelCtrl.dispose();
-    _urlCtrl.dispose();
-    _iconCtrl.dispose();
+    _valueCtrl.dispose();
     super.dispose();
   }
 
-  InputDecoration _decoration() => InputDecoration(
-        isDense: true,
-        filled: true,
-        fillColor: _fieldFill,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _fieldBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: _fieldBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: Color(0xFF34D399))),
-      );
+  String get _previewUrl => siteLinkUrlForSave(icon: _icon, raw: _valueCtrl.text);
 
-  Widget _field(String label, TextEditingController ctrl, void Function(String v) onChanged) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(label, style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            TextField(
-              controller: ctrl,
-              onChanged: onChanged,
-              style: const TextStyle(fontSize: 13, color: _text),
-              decoration: _decoration(),
-            ),
-          ],
-        ),
-      );
+  bool get _hasPreviewUrl => siteLinkHasPreviewValue(icon: _icon, raw: _valueCtrl.text);
+
+  Future<void> _openPreview() async {
+    final url = _previewUrl;
+    if (siteLinkPreviewUrlEmpty(url)) return;
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  void _selectPlatform(String id) {
+    final prev = _icon;
+    final title = _labelCtrl.text.trim();
+    final nextTitle = title.isEmpty || title == siteLinkDefaultTitle(prev) ? siteLinkDefaultTitle(id) : title;
+    if (title.isEmpty || title == siteLinkDefaultTitle(prev)) _labelCtrl.text = nextTitle;
+    final raw = _valueCtrl.text;
+    final idNorm = siteLinkPlatformNormalize(id);
+    final savedUrl = siteLinkUrlForSave(icon: idNorm, raw: raw);
+    final idStr = '${widget.link.linkId}';
+    widget.onPatch(idStr, (l) {
+      l.icon = idNorm;
+      l.label = nextTitle;
+      l.url = savedUrl;
+    });
+    setState(() {
+      _icon = idNorm;
+      _valueCtrl.text = siteLinkValueDisplay(icon: idNorm, stored: savedUrl);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final id = '${widget.link.linkId}';
     final link = widget.link;
+    final platformLabel = siteLinkPlatformLabel(_icon);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -282,28 +310,86 @@ class _UiSiteLinkCardState extends State<_UiSiteLinkCard> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(link.label.isEmpty ? 'Link' : link.label, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600))),
+              Opacity(opacity: link.active ? 1 : 0.5, child: UiSitePlatformIcon(id: _icon, size: 22)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  link.label.isEmpty ? platformLabel : link.label,
+                  style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
               IconButton(
                 onPressed: widget.busy ? null : () => unawaited(widget.onDelete(id)),
                 icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFF87171)),
               ),
             ],
           ),
-          _field('Label', _labelCtrl, (v) => widget.onPatch(id, (l) => l.label = v)),
-          _field('URL', _urlCtrl, (v) => widget.onPatch(id, (l) => l.url = v)),
-          _field('Icon', _iconCtrl, (v) => widget.onPatch(id, (l) => l.icon = v)),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Pinned', style: TextStyle(color: _text, fontSize: 13)),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InSiteLinkPlatformButton(
+                value: _icon,
+                readOnly: widget.busy,
+                onChanged: _selectPlatform,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    UiSiteEditorLabeledField(
+                      label: 'Label',
+                      child: TextField(
+                        controller: _labelCtrl,
+                        onChanged: widget.busy ? null : (v) => widget.onPatch(id, (l) => l.label = v),
+                        style: const TextStyle(fontSize: 13, color: siteEditorFormText),
+                        decoration: siteEditorInputDecoration(hintText: siteLinkDefaultTitle(_icon)),
+                      ),
+                    ),
+                    UiSiteEditorLabeledField(
+                      label: siteLinkValueLabel(_icon),
+                      child: TextField(
+                        controller: _valueCtrl,
+                        keyboardType: siteLinkValueKeyboardType(_icon),
+                        onChanged: widget.busy
+                            ? null
+                            : (v) {
+                                widget.onPatch(id, (l) => l.url = siteLinkUrlForSave(icon: _icon, raw: v));
+                                setState(() {});
+                              },
+                        style: const TextStyle(fontSize: 13, color: siteEditorFormText),
+                        decoration: siteEditorInputDecoration(hintText: siteLinkValueHint(_icon)),
+                      ),
+                    ),
+                    if (_hasPreviewUrl)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 2, bottom: 8),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: InkWell(
+                            onTap: widget.busy ? null : () => unawaited(_openPreview()),
+                            borderRadius: BorderRadius.circular(4),
+                            child: Text(
+                              _previewUrl,
+                              style: const TextStyle(fontSize: 11, color: siteEditorFormMuted, height: 1.35),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          UiSiteEditorSwitchRow(
+            label: 'Pinned',
             value: link.isPinned,
-            activeThumbColor: const Color(0xFF34D399),
             onChanged: widget.busy ? null : (v) => widget.onPatch(id, (l) => l.isPinned = v),
           ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Active', style: TextStyle(color: _text, fontSize: 13)),
+          UiSiteEditorSwitchRow(
+            label: 'Active',
             value: link.active,
-            activeThumbColor: const Color(0xFF34D399),
             onChanged: widget.busy ? null : (v) => widget.onPatch(id, (l) => l.active = v),
           ),
         ],

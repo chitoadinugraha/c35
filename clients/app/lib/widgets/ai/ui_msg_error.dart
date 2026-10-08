@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
@@ -18,6 +19,7 @@ class UiMsgError extends StatelessWidget {
     this.retrying = false,
     this.showIcon = true,
     this.onUpgrade,
+    this.viewerIsRoot,
   });
 
   final String message;
@@ -28,6 +30,7 @@ class UiMsgError extends StatelessWidget {
   final bool retrying;
   final bool showIcon;
   final VoidCallback? onUpgrade;
+  final bool? viewerIsRoot;
 
   bool _isQuota(String msg, String? det) {
     if (uiIsQuotaError(msg)) return true;
@@ -53,10 +56,13 @@ class UiMsgError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final quota = _isQuota(message, detail);
-    final displayMessage = quota && (message.contains('Something went wrong') || message.contains('timed out'))
+    final safeMessage = uiPromptErrorMessage(message);
+    final isRoot = viewerIsRoot ?? sessionViewerIsRoot();
+    final rootDetail = isRoot ? detail?.trim() : null;
+    final quota = _isQuota(safeMessage, rootDetail);
+    final displayMessage = quota && (safeMessage.contains('Something went wrong') || safeMessage.contains('timed out'))
         ? "You're out of quota. Upgrade your plan or top up your balance to continue."
-        : message;
+        : safeMessage;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,9 +86,9 @@ class UiMsgError extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(displayMessage, style: const TextStyle(fontSize: 14, height: 1.45, color: Color(0xFFF4F4F5))),
-                  if (detail != null && detail!.trim().isNotEmpty && detail!.trim() != message.trim()) ...[
+                  if (rootDetail != null && rootDetail.isNotEmpty && rootDetail != displayMessage) ...[
                     const SizedBox(height: 8),
-                    UiRootErrorDetail(detail: detail!, msgId: msgId, reqId: reqId),
+                    UiRootErrorDetail(detail: rootDetail, msgId: msgId, reqId: reqId),
                   ],
                   const SizedBox(height: 6),
                   if (quota)

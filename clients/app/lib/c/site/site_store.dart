@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
@@ -10,6 +11,8 @@ import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_commerce_media_prefetch.dart';
+import 'package:alienai_c35/c/site/site_guest_order_bus.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -78,6 +81,7 @@ class SiteStore extends ChangeNotifier {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
     if (_conn.status.value != ChatConnStatus.connected) throw 'not connected';
+    siteGuestOrderBus.attachOnce(_conn);
   }
 
   Future<void> ensureCacheRestored() => _restoreCacheIfNeeded();
@@ -92,6 +96,9 @@ class SiteStore extends ChangeNotifier {
       if (hints.isNotEmpty) _rows.addAll(hints);
     } else {
       _rows.addAll(cached);
+      for (final row in cached) {
+        if (row.pic.trim().isNotEmpty) unawaited(siteCommerceMediaPrefetch(sitePic: row.pic));
+      }
     }
     if (_rows.isNotEmpty) {
       if (_selectedId == null) _selectedId = _rows.first.siteIid.toString();
@@ -123,6 +130,9 @@ class SiteStore extends ChangeNotifier {
       if (_selectedId != null && rowById(_selectedId) == null) _selectedId = null;
       if (_selectedId == null && _rows.isNotEmpty) _selectedId = _rows.first.siteIid.toString();
       await _siteListCacheSave(Session.instance.uid, _rows);
+      for (final row in _rows) {
+        if (row.pic.trim().isNotEmpty) unawaited(siteCommerceMediaPrefetch(sitePic: row.pic));
+      }
       _refreshError = null;
     } catch (e) {
       if (_refreshGen != gen) return;

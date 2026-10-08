@@ -2,10 +2,11 @@ import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/material.dart';
 
 class IoAskItemAction {
-  const IoAskItemAction({required this.label, required this.onTap});
+  const IoAskItemAction({required this.label, required this.onTap, this.icon});
 
   final String label;
   final VoidCallback onTap;
+  final IconData? icon;
 }
 
 class IoAskItem {
@@ -17,6 +18,8 @@ class IoAskItem {
     this.accent,
     this.imageUrl,
     this.actions = const [],
+    this.trailingLabel,
+    this.trailingIcon,
   });
 
   final String id;
@@ -26,6 +29,8 @@ class IoAskItem {
   final Color? accent;
   final String? imageUrl;
   final List<IoAskItemAction> actions;
+  final String? trailingLabel;
+  final IconData? trailingIcon;
 }
 
 Future<IoAskItem?> ioAskItemsShow(
@@ -35,10 +40,11 @@ Future<IoAskItem?> ioAskItemsShow(
   String searchHint = 'Search…',
   double width = uiDialogAskWidth,
   double height = uiDialogAskHeight,
+  IoAskItem? Function(String query)? noMatchItem,
 }) =>
     uiDialogShow<IoAskItem>(
       context: context,
-      builder: (_) => IoAskItemsDialog(semanticsLabel: title, items: items, searchHint: searchHint, width: width, height: height),
+      builder: (_) => IoAskItemsDialog(semanticsLabel: title, items: items, searchHint: searchHint, width: width, height: height, noMatchItem: noMatchItem),
     );
 
 class IoAskItemsDialog extends StatefulWidget {
@@ -61,6 +67,7 @@ class IoAskItemsDialog extends StatefulWidget {
     this.dividerBelowHeader = false,
     this.bodyGap = 10,
     this.popOnSelect = true,
+    this.noMatchItem,
   });
 
   final String semanticsLabel;
@@ -80,6 +87,7 @@ class IoAskItemsDialog extends StatefulWidget {
   final bool dividerBelowHeader;
   final double bodyGap;
   final bool popOnSelect;
+  final IoAskItem? Function(String query)? noMatchItem;
 
   @override
   State<IoAskItemsDialog> createState() => _IoAskItemsDialogState();
@@ -120,7 +128,12 @@ class _IoAskItemsDialogState extends State<IoAskItemsDialog> {
 
   Widget _body() {
     if (widget.loading) return uiDialogAskLoading();
-    final filtered = _filtered;
+    var filtered = _filtered;
+    if (filtered.isEmpty) {
+      final q = _search.text.trim();
+      final synthetic = q.isNotEmpty ? widget.noMatchItem?.call(q) : null;
+      if (synthetic != null) filtered = [synthetic];
+    }
     if (filtered.isEmpty) {
       if (widget.clientSearch && widget.items.isNotEmpty) return uiDialogAskEmptyText(widget.noMatchText);
       final sourceCount = widget.sourceItemCount;
@@ -158,6 +171,7 @@ class _IoAskItemsDialogState extends State<IoAskItemsDialog> {
 Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}) {
   final accent = item.accent ?? uiDialogAccent;
   final hasLeading = item.imageUrl != null && item.imageUrl!.isNotEmpty || item.icon != null;
+  final trailingBadge = item.trailingLabel != null;
   return Material(
     color: Colors.transparent,
     child: InkWell(
@@ -166,7 +180,7 @@ Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: trailingBadge ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           children: [
             if (hasLeading) ...[
               ioAskItemLeading(item: item, accent: accent),
@@ -184,15 +198,38 @@ Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}
                     Wrap(
                       spacing: 4,
                       runSpacing: 0,
-                      children: item.actions.map((a) => ioAskItemActionChip(label: a.label, onTap: a.onTap)).toList(),
+                      children: item.actions.map((a) => ioAskItemActionChip(label: a.label, icon: a.icon, onTap: a.onTap)).toList(),
                     ),
                   ],
                 ],
               ),
             ),
+            if (trailingBadge) IgnorePointer(child: ioAskItemTrailingBadge(item.trailingLabel!, accent: accent, leadingIcon: item.trailingIcon)),
           ],
         ),
       ),
+    ),
+  );
+}
+
+Widget ioAskItemTrailingBadge(String label, {Color? accent, IconData? leadingIcon}) {
+  final c = accent ?? uiDialogAccent;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+    decoration: BoxDecoration(
+      color: c.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: c.withValues(alpha: 0.35)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (leadingIcon != null) ...[
+          Icon(leadingIcon, size: 13, color: c),
+          const SizedBox(width: 3),
+        ],
+        Text(label, style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600)),
+      ],
     ),
   );
 }
@@ -215,7 +252,7 @@ Widget ioAskItemIconBox({required IconData icon, required Color accent}) => Cont
       child: Icon(icon, size: 18, color: accent),
     );
 
-Widget ioAskItemActionChip({required String label, required VoidCallback onTap}) => Material(
+Widget ioAskItemActionChip({required String label, required VoidCallback onTap, IconData? icon}) => Material(
       color: const Color(0xFF3F3F46),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(6),
@@ -226,7 +263,16 @@ Widget ioAskItemActionChip({required String label, required VoidCallback onTap})
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-          child: Text(label, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 11, fontWeight: FontWeight.w600)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: const Color(0xFFE4E4E7)),
+                const SizedBox(width: 4),
+              ],
+              Text(label, style: const TextStyle(color: Color(0xFFE4E4E7), fontSize: 11, fontWeight: FontWeight.w600)),
+            ],
+          ),
         ),
       ),
     );

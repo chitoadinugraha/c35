@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS ai.llm_model (
     version_rank        INT NOT NULL DEFAULT 0,
     source              VARCHAR(16) NOT NULL DEFAULT 'seed',
     synced_at           TIMESTAMPTZ,
+    context_tokens      INT NOT NULL DEFAULT 0,
     deleted_at          TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()

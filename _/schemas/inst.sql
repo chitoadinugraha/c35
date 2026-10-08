@@ -1401,7 +1401,7 @@ INSERT INTO ai.inst (
     '',
     '[SITE BUILDER] User wants to create or edit a website, landing page, or web catalog. \
 0a. ONE-SHOT SITE + CATALOG (skip discovery): When the same message asks to create/buat a site AND lists products and/or prices, or mentions POS / fitur POS, skip section 0 questions. Same turn (multiple tool calls): \
-(1) site.create — use the business/site name from the message; if they give a slug/handle (e.g. test-site) pass alien_id (lowercase [a-z0-9_-] only). Commerce/POS is enabled on create. \
+(1) site.create — use the business/site name from the message; if they give a slug/handle (e.g. test-site) pass alien_id (lowercase [a-z0-9_-] only). If the user already owns a site with that handle or display name, site.create reuses it (reused=true) instead of making test-site-2. Commerce/POS is enabled on create. \
 (2) site.product_put once per product with site_iid from site.create — price in IDR rupiah as integer (20rb / 20 ribu -> 20000). \
 Reply briefly with site name, handle/URL, and products added. Offer site.publish if they want it live. \
 0. DISCOVERY BEFORE site.create (when 0a does not apply): \

@@ -184,6 +184,26 @@ MsgUsageStats msgUsageStats(MsgRow m) {
   return MsgUsageStats(tokensIn: tokensIn, tokensOut: tokensOut, durationMs: durationMs, costUsd: costUsd, model: model);
 }
 
+bool msgModelUsesAllowancePool(String model) {
+  final m = model.trim().toLowerCase();
+  return m.isEmpty || m == 'alienai' || m == 'auto' || m == 'alien' || m == 'cloud';
+}
+
+bool msgUsageBillingIncluded(MsgRow m, {String model = ''}) {
+  final trace = m.traceJson.trim();
+  if (trace.isNotEmpty) {
+    try {
+      final root = jsonDecode(trace);
+      if (root is Map<String, dynamic>) {
+        if (root['billing_included'] == true) return true;
+        if (root['billing_included'] == false) return false;
+      }
+    } catch (_) {}
+  }
+  final slug = model.trim().isNotEmpty ? model : m.model;
+  return msgModelUsesAllowancePool(slug);
+}
+
 String msgDisplayContent(MsgRow m) {
   var c = m.content;
   final err = msgRowError(m).trim();
