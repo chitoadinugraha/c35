@@ -19,6 +19,7 @@ macro_rules! tool {
         $(cost_wholesale: $cost:expr,)?
         $(sensitive: $sensitive:expr,)?
         $(readonly: $readonly:expr,)?
+        $(requires_platform_mail: $requires_platform_mail:expr,)?
         parameters: {
             $($param_name:ident: ($param_type:ident, $param_desc:expr $(, $req:ident)? $(, default = $def:expr)?)),* $(,)?
         },
@@ -118,6 +119,7 @@ macro_rules! tool {
                 let cost_wholesale = 0.0 $(+ $cost)?;
                 let sensitive = false $(|| $sensitive)?;
                 let readonly = false $(|| $readonly)?;
+                let requires_platform_mail = false $(|| $requires_platform_mail)?;
 
                 $crate::tools::ToolDefinition {
                     name: $name.to_string(),
@@ -133,6 +135,7 @@ macro_rules! tool {
                     requires_kinds,
                     requires_capability,
                     requires_global_roles,
+                    requires_platform_mail,
                     ui_keys,
                 }
             }

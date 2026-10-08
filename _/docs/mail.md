@@ -153,6 +153,8 @@ Port message names from CSA `mail.proto` with c35 field renames:
 
 Steering: `inst.task.mail_read`, `inst.task.mail_send`, `inst.task.mail_mailbox` in `inst.sql`. Live cluster: `inst_put` after deploy.
 
+**Compose gate:** tools set `requires_platform_mail: true`. They are omitted from the turn catalog unless `mail_access` is true (partner/root or `mail.mailbox_member`). Direct `tool_exec` / forced hops still return JSON `no_platform_mail` with a contact-representative message.
+
 Smoke: `_/scripts/dev/mail_send_e2e.ps1` (RPC + tools examples).
 
 ## Out of scope (this spec)

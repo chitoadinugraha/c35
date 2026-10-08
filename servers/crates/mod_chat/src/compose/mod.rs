@@ -1,5 +1,6 @@
 //! Compose inst match + vector/lexical tool filter per turn.
 
+mod mail_gate;
 mod mention_gate;
 mod staff_gate;
 mod topic;
@@ -28,6 +29,7 @@ use crate::tools::ToolDef;
 pub use mention_gate::{
     tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
 };
+pub use mail_gate::tool_platform_mail_eligible;
 pub use staff_gate::tool_staff_eligible;
 pub use topic::{tool_topic_eligible, topic_resolve};
 pub use tool_select::{
@@ -165,11 +167,18 @@ pub fn site_builder_ready_to_create(text: &str) -> bool {
 }
 
 /// First LLM hop must call a tool when a force-* inst matched and its tool is available.
+/// Menu-photo catalog add must call `site.product_put` on hop 1 (inst owns the price scale).
+pub fn compose_force_catalog_menu_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.site.catalog.add.menu")
+        && tools.iter().any(|t| t.name == "site.product_put")
+}
+
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
     compose_force_web_tool_call(matched_ids, tools)
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)
+        || compose_force_catalog_menu_tool_call(matched_ids, tools)
 }
 
 pub fn compose_force_tool_call_with_text(matched_ids: &[String], tools: &[ToolDef], user_text: &str) -> bool {
@@ -333,6 +342,7 @@ fn compose_prepare_scoped(
     mention: &MentionContext,
     caps: &SiteCapabilityView,
     staff: &StaffView,
+    platform_mail: bool,
     opts: ComposeTurnOpts<'_>,
 ) -> Result<ComposePrep, ComposeOutput> {
     let mut topics: Vec<String> = if active_topics.is_empty() {
@@ -394,6 +404,7 @@ fn compose_prepare_scoped(
         .into_iter()
         .filter(|t| tool_mention_eligible(t, mention, caps))
         .filter(|t| tool_staff_eligible(t, staff))
+        .filter(|t| tool_platform_mail_eligible(t, platform_mail))
         .filter(|t| !ask_mode || t.readonly)
         .collect();
     compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
@@ -519,6 +530,7 @@ pub async fn compose_tools_and_inst_async(
 ) -> ComposeOutput {
     let started = Instant::now();
     let staff = c35_mod_admin::staff_view_load(pool, owner_iid).await;
+    let platform_mail = c35_mod_mail::mail_access(pool, owner_iid).await.unwrap_or(false);
     let prep = match compose_prepare_scoped(
         inst_rows,
         text,
@@ -532,6 +544,7 @@ pub async fn compose_tools_and_inst_async(
         mention,
         caps,
         &staff,
+        platform_mail,
         opts,
     ) {
         Ok(p) => p,
@@ -624,6 +637,7 @@ pub fn compose_tools_and_inst(
         mention,
         caps,
         &staff,
+        false,
         opts,
     ) {
         Ok(p) => p,

@@ -9,6 +9,8 @@ use serde_json::{json, Value};
 use crate::tool;
 use crate::tools::ToolContext;
 
+const NO_PLATFORM_MAIL_JSON: &str = r#"{"error":"no_platform_mail","message":"You have no mail. Please contact our representative on how to get an email address."}"#;
+
 fn cas_secret_from_env() -> String {
     std::env::var("CAS_HMAC_SECRET").unwrap_or_else(|_| "dev".into())
 }
@@ -141,18 +143,21 @@ fn parse_attachments(args: &Value) -> Vec<MailAttachment> {
         .collect()
 }
 
-async fn require_mail(ctx: &ToolContext) -> Result<()> {
+async fn require_mail(ctx: &ToolContext) -> Result<Value> {
     if !mail_access(&ctx.pool, ctx.owner_iid).await.map_err(|e| anyhow!(e))? {
-        anyhow::bail!("forbidden");
+        return Ok(serde_json::from_str(NO_PLATFORM_MAIL_JSON)?);
     }
     ensure_personal_on_first_access(&ctx.pool, ctx.owner_iid)
         .await
         .map_err(|e| anyhow!(e))?;
-    Ok(())
+    Ok(json!({}))
 }
 
 pub async fn mail_mailbox_list_exec(ctx: &ToolContext, _args: &Value) -> Result<Value> {
-    require_mail(ctx).await?;
+    let gate = require_mail(ctx).await?;
+    if gate.get("error").is_some() {
+        return Ok(gate);
+    }
     let mailboxes = list_for_user(&ctx.pool, ctx.owner_iid).await.map_err(|e| anyhow!(e))?;
     Ok(json!({
         "mailboxes": mailboxes.iter().map(mailbox_json).collect::<Vec<_>>(),
@@ -160,7 +165,10 @@ pub async fn mail_mailbox_list_exec(ctx: &ToolContext, _args: &Value) -> Result<
 }
 
 pub async fn mail_list_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    require_mail(ctx).await?;
+    let gate = require_mail(ctx).await?;
+    if gate.get("error").is_some() {
+        return Ok(gate);
+    }
     let direction = parse_direction(args)?;
     let mailbox_id = mailbox_id_arg(args);
     let limit = args.get("limit").and_then(|v| v.as_i64()).unwrap_or(50) as i32;
@@ -176,7 +184,10 @@ pub async fn mail_list_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
 }
 
 pub async fn mail_get_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    require_mail(ctx).await?;
+    let gate = require_mail(ctx).await?;
+    if gate.get("error").is_some() {
+        return Ok(gate);
+    }
     let message_id = args
         .get("message_id")
         .and_then(|v| v.as_i64())
@@ -192,7 +203,10 @@ pub async fn mail_get_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
 }
 
 pub async fn mail_send_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    require_mail(ctx).await?;
+    let gate = require_mail(ctx).await?;
+    if gate.get("error").is_some() {
+        return Ok(gate);
+    }
     let to_addr = args
         .get("to_addr")
         .and_then(|v| v.as_str())
@@ -243,7 +257,10 @@ pub async fn mail_mark_read_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
 }
 
 pub async fn mail_archive_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    require_mail(ctx).await?;
+    let gate = require_mail(ctx).await?;
+    if gate.get("error").is_some() {
+        return Ok(gate);
+    }
     let mailbox_id = mailbox_id_arg(args);
     let archive = args.get("archive").and_then(|v| v.as_bool()).unwrap_or(true);
     let ids: Vec<i64> = args
@@ -277,6 +294,7 @@ tool! {
         "daftar inbox", "list mailboxes",
     ],
     readonly: true,
+    requires_platform_mail: true,
     parameters: {},
     execute: |args, ctx| {
         mail_mailbox_list_exec(ctx, &args).await
@@ -294,6 +312,7 @@ tool! {
         "list emails", "kotak masuk", "pesan masuk",
     ],
     readonly: true,
+    requires_platform_mail: true,
     parameters: {
         direction: (string, "in or out", required),
         mailbox_id: (integer, "Mailbox id; 0 = default personal mailbox", optional),
@@ -314,6 +333,7 @@ tool! {
     topics: ["mail", "general"],
     rag_phrases: ["buka email", "open email", "read message", "isi email"],
     readonly: true,
+    requires_platform_mail: true,
     parameters: {
         message_id: (integer, "mail.message id", required),
         mailbox_id: (integer, "Mailbox id; 0 = resolve default", optional),
@@ -333,6 +353,7 @@ tool! {
         "kirim email", "send email", "email ke", "compose email", "balas email",
     ],
     readonly: false,
+    requires_platform_mail: true,
     parameters: {
         to_addr: (string, "Recipient email (comma-separated allowed)", required),
         subject: (string, "Subject line", required),
@@ -353,6 +374,7 @@ tool! {
     description: "Mark inbound message(s) read or unread.",
     topics: ["mail"],
     readonly: false,
+    requires_platform_mail: true,
     parameters: {
         message_id: (integer, "Single message id", optional),
         message_ids: (array, "Multiple message ids", optional),
@@ -371,6 +393,7 @@ tool! {
     description: "Archive or unarchive message(s) in a mailbox.",
     topics: ["mail"],
     readonly: false,
+    requires_platform_mail: true,
     parameters: {
         message_id: (integer, "Single message id", optional),
         message_ids: (array, "Multiple message ids", optional),

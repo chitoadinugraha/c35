@@ -76,6 +76,7 @@ pub struct ToolDef {
     pub requires_kinds: Vec<String>,
     pub requires_capability: Option<String>,
     pub requires_global_roles: Vec<String>,
+    pub requires_platform_mail: bool,
     pub rag_phrases: Vec<String>,
 }
 
@@ -92,6 +93,7 @@ impl ToolDef {
             requires_kinds: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
             rag_phrases: vec![],
         }
     }
@@ -108,6 +110,7 @@ impl ToolDef {
             requires_kinds: def.requires_kinds.clone(),
             requires_capability: def.requires_capability.clone(),
             requires_global_roles: def.requires_global_roles.clone(),
+            requires_platform_mail: def.requires_platform_mail,
             rag_phrases: def.rag_phrases.clone(),
         }
     }

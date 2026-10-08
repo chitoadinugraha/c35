@@ -1,5 +1,5 @@
 use c35_mod_chat::compose::{
-    compose_force_account_tool_call, compose_force_consumption_coach_tool_call,
+    compose_force_account_tool_call, compose_force_catalog_menu_tool_call, compose_force_consumption_coach_tool_call,
     compose_force_presentation_tool_call, compose_force_site_builder_tool_call, compose_force_tool_call,
     compose_force_web_tool_call, compose_tools_and_inst, site_builder_bootstrap_catalog,
     site_builder_ready_to_create, tool_mention_eligible, ComposeTurnOpts,
@@ -61,6 +61,7 @@ fn inst_core_assistant() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 200,
     }
 }
@@ -89,6 +90,7 @@ fn inst_web_search() -> InstRow {
         include_tools: vec!["web.search".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 100,
     }
 }
@@ -106,6 +108,7 @@ fn inst_consumption_coach() -> InstRow {
         include_tools: vec!["consumption.today".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 135,
     }
 }
@@ -128,6 +131,7 @@ fn inst_consumption() -> InstRow {
         include_tools: vec!["consumption.add".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 140,
     }
 }
@@ -150,6 +154,7 @@ fn inst_consumption_delete() -> InstRow {
         include_tools: vec!["consumption.delete".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 140,
     }
 }
@@ -168,6 +173,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "img.generate".into(),
@@ -181,6 +187,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "web.visit".into(),
@@ -194,6 +201,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "consumption.add".into(),
@@ -207,6 +215,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "consumption.today".into(),
@@ -220,6 +229,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "web.research".into(),
@@ -233,6 +243,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "consumption.update".into(),
@@ -246,6 +257,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "consumption.delete".into(),
@@ -259,6 +271,7 @@ fn health_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
     ]
 }
@@ -302,6 +315,7 @@ fn inst_web_search_cinema() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 100,
     }
 }
@@ -355,6 +369,7 @@ fn compose_inst_exclude_drops_web_search() {
         include_tools: vec![],
         exclude_tools: vec!["web.search".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 50,
     };
     let out = compose_default(&[inst], "offline only please", pa_catalog(), &[]);
@@ -535,6 +550,7 @@ fn compose_ask_mode_keeps_readonly_consumption_today() {
         rag_phrases: vec![],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     });
     let scopes = inst_scopes_home();
     let out = compose_tools_and_inst(
@@ -572,6 +588,7 @@ fn inst_mention_research() -> InstRow {
         ],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 125,
     }
 }
@@ -611,6 +628,7 @@ fn inst_referral_put() -> InstRow {
         include_tools: vec!["referral.code.put".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -628,6 +646,7 @@ fn inst_referral_list() -> InstRow {
         include_tools: vec!["referral.code.list".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 125,
     }
 }
@@ -701,6 +720,7 @@ fn inst_account_billing() -> InstRow {
         include_tools: vec!["account.billing.get".into(), "account.billing.history".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -728,6 +748,7 @@ fn inst_account_assets() -> InstRow {
         ],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 128,
     }
 }
@@ -795,6 +816,7 @@ fn inst_device_pair() -> InstRow {
         include_tools: vec!["device.pair".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 132,
     }
 }
@@ -849,6 +871,7 @@ fn site_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
         ToolDef {
             name: "web.search".into(),
@@ -862,6 +885,7 @@ fn site_catalog() -> Vec<ToolDef> {
             rag_phrases: vec![],
             requires_capability: None,
             requires_global_roles: vec![],
+            requires_platform_mail: false,
         },
     ]
 }
@@ -951,6 +975,7 @@ fn tool_mention_capability_read_needs_any_site() {
         rag_phrases: vec![],
         requires_capability: Some("commerce".into()),
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     };
     let caps = SiteCapabilityView::from_map(HashMap::from([
         (111, json!({ "commerce": true })),
@@ -990,6 +1015,7 @@ fn tool_mention_capability_write_needs_default_site() {
         rag_phrases: vec![],
         requires_capability: Some("commerce".into()),
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     };
     let caps = SiteCapabilityView::from_map(HashMap::from([(111, json!({ "commerce": true }))]));
     let multi_site = MentionContext {
@@ -1026,6 +1052,7 @@ fn inst_img_edit() -> InstRow {
         include_tools: vec!["img.edit".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 145,
     }
 }
@@ -1043,6 +1070,7 @@ fn inst_mention_image_high() -> InstRow {
         include_tools: vec!["img.generate".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -1105,6 +1133,15 @@ fn compose_force_tool_call_when_web_search_inst_and_tool() {
 }
 
 #[test]
+fn compose_force_tool_call_when_catalog_menu_inst_and_tool() {
+    let tools = vec![ToolDef::new("site.product_put".into(), "Upsert product".into(), json!({}))];
+    assert!(compose_force_catalog_menu_tool_call(&["inst.site.catalog.add.menu".into()], &tools));
+    assert!(compose_force_tool_call(&["inst.site.catalog.add.menu".into()], &tools));
+    assert!(!compose_force_catalog_menu_tool_call(&["inst.site.catalog.add".into()], &tools));
+    assert!(!compose_force_catalog_menu_tool_call(&["inst.site.catalog.add.menu".into()], &[]));
+}
+
+#[test]
 fn compose_force_tool_call_when_presentation_inst_and_tool() {
     let tools = vec![presentation_create_tool()];
     assert!(compose_force_presentation_tool_call(&["inst.presentation".into()], &tools));
@@ -1156,6 +1193,7 @@ fn inst_multitask_delegate() -> InstRow {
         include_tools: vec!["delegate.run".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 127,
     }
 }
@@ -1201,6 +1239,7 @@ fn inst_browser_device_tool_probe() -> InstRow {
             .collect(),
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 50,
     }
 }
@@ -1295,6 +1334,7 @@ fn inst_site_catalog_price() -> InstRow {
         include_tools: vec!["site.query.run".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -1312,6 +1352,7 @@ fn inst_web_search_fixture() -> InstRow {
         include_tools: vec!["web.search".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 100,
     }
 }
@@ -1329,6 +1370,7 @@ fn site_query_tool() -> ToolDef {
         rag_phrases: vec![],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     }
 }
 
@@ -1380,6 +1422,7 @@ fn inst_bot_draft() -> InstRow {
         include_tools: vec!["bot.draft".into()],
         exclude_tools: vec!["web.search".into(), "web.visit".into(), "site.query.run".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 132,
     }
 }
@@ -1397,6 +1440,7 @@ fn bot_draft_tool() -> ToolDef {
         rag_phrases: vec!["buat chat bot".into(), "buat bot".into()],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     }
 }
 
@@ -1424,6 +1468,7 @@ fn inst_site_builder() -> InstRow {
         ],
         exclude_tools: vec!["web.search".into(), "web.visit".into(), "consumption.today".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 150,
     }
 }
@@ -1441,6 +1486,7 @@ fn site_create_tool() -> ToolDef {
         rag_phrases: vec!["buat website".into()],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     }
 }
 
@@ -1457,6 +1503,7 @@ fn site_patch_tool() -> ToolDef {
         rag_phrases: vec![],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     }
 }
 
@@ -1502,6 +1549,7 @@ fn compose_site_bootstrap_pos_catalog_phrase() {
         rag_phrases: vec![],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     };
     let out = compose_default(
         &[inst_core_assistant(), inst_site_builder(), inst_site_catalog_price(), inst_consumption_coach()],
@@ -1556,6 +1604,7 @@ fn inst_site_catalog_stock() -> InstRow {
         include_tools: vec!["site.query.run".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 128,
     }
 }
@@ -1573,6 +1622,7 @@ fn site_query_run_tool() -> ToolDef {
         rag_phrases: vec![],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     }
 }
 
@@ -1614,6 +1664,7 @@ fn inst_presentation() -> InstRow {
         include_tools: vec!["presentation.create".into(), "presentation.patch".into()],
         exclude_tools: vec!["web.search".into(), "web.visit".into()],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 150,
     }
 }
@@ -1631,6 +1682,7 @@ fn presentation_create_tool() -> ToolDef {
         rag_phrases: vec!["buat presentasi".into()],
         requires_capability: None,
         requires_global_roles: vec![],
+        requires_platform_mail: false,
     }
 }
 
@@ -1661,6 +1713,7 @@ fn inst_pool_alien() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 180,
     }
 }
@@ -1678,6 +1731,7 @@ fn inst_pool_frontier() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
+        requires_platform_mail: false,
         priority: 180,
     }
 }
