@@ -479,11 +479,32 @@ pub fn sql_stmts(sql: &str) -> Vec<String> {
     out
 }
 
+/// SQL `--` line comment, but not `--` inside single-quoted literals (e.g. `---` or `<!--` in seed text).
 fn strip_line_comment(line: &str) -> &str {
-    match line.find("--") {
-        Some(pos) => line[..pos].trim_end(),
-        None => line,
+    let bytes = line.as_bytes();
+    let mut i = 0;
+    let mut in_string = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'\'' {
+            if in_string {
+                if i + 1 < bytes.len() && bytes[i + 1] == b'\'' {
+                    i += 2;
+                    continue;
+                }
+                in_string = false;
+            } else {
+                in_string = true;
+            }
+            i += 1;
+            continue;
+        }
+        if !in_string && b == b'-' && i + 1 < bytes.len() && bytes[i + 1] == b'-' {
+            return line[..i].trim_end();
+        }
+        i += 1;
     }
+    line
 }
 
 fn dollar_block_opens(line: &str) -> bool {
@@ -628,6 +649,21 @@ mod tests {
         assert!(stmts[0].starts_with("CREATE TABLE IF NOT EXISTS ai.tool_artifact"));
         assert!(stmts[1].contains("idx_tool_artifact_req"));
         assert!(stmts[2].contains("idx_tool_artifact_expires"));
+    }
+
+    #[test]
+    fn sql_stmts_parses_inst_presentation_seed_as_one_insert() {
+        let sql = include_str!("../../../../_/schemas/inst.sql");
+        let stmts = super::sql_stmts(sql);
+        let pres = stmts
+            .iter()
+            .find(|s| s.contains("'inst.presentation'") && s.contains("INSERT INTO ai.inst"))
+            .expect("inst.presentation INSERT");
+        assert!(
+            pres.contains("slide-patch") && pres.contains("Google Slides"),
+            "presentation seed must not be split on --- or <!-- inside inst text"
+        );
+        assert!(pres.contains("ARRAY['presentation.create'"));
     }
 
     #[test]
