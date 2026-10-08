@@ -1,12 +1,110 @@
 use anyhow::{anyhow, Result};
+use c35_proto::{
+    ReqSiteQueueAdvance, ReqSiteQueueList, ReqSiteQueuePut, ResSiteQueueAdvance, ResSiteQueueList,
+    ResSiteQueuePut,
+};
 use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
+use crate::grant::site_grant_check;
+use crate::rows::queue_from_row;
 use crate::site_config::{site_capabilities_get, site_capability_enabled};
 use crate::site_publish::site_published;
 
 const DEFAULT_QUEUE_ID: i64 = 1;
+
+pub async fn site_queue_list(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteQueueList,
+) -> Result<ResSiteQueueList> {
+    let _ = site_grant_check(pool, caller_iid, req.site_iid, false).await?;
+    let rows = sqlx::query(
+        r#"
+        SELECT site_iid, queue_id, owner_iid, name, mode, prefix,
+               last_ticket_no, serving_ticket_no, is_active, meta_json,
+               created_ts, updated_ts, deleted_ts
+        FROM site.queue
+        WHERE site_iid = $1 AND deleted_ts IS NULL
+        ORDER BY queue_id
+        "#,
+    )
+    .bind(req.site_iid)
+    .fetch_all(pool)
+    .await?;
+    Ok(ResSiteQueueList {
+        queues: rows.iter().map(queue_from_row).collect(),
+    })
+}
+
+pub async fn site_queue_put(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteQueuePut,
+) -> Result<ResSiteQueuePut> {
+    let queue = req.queue.ok_or_else(|| anyhow!("queue required"))?;
+    let site_iid = req.site_iid;
+    let owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+    let queue_id = if queue.queue_id > 0 { queue.queue_id } else { DEFAULT_QUEUE_ID };
+    let meta_json = if queue.meta_json.trim().is_empty() { "{}" } else { queue.meta_json.as_str() };
+    sqlx::query(
+        r#"
+        INSERT INTO site.queue (
+            site_iid, queue_id, owner_iid, name, mode, prefix,
+            last_ticket_no, serving_ticket_no, is_active, meta_json,
+            created_ts, updated_ts
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, NOW(), NOW())
+        ON CONFLICT (site_iid, queue_id) DO UPDATE SET
+            name = EXCLUDED.name,
+            mode = EXCLUDED.mode,
+            prefix = EXCLUDED.prefix,
+            is_active = EXCLUDED.is_active,
+            meta_json = EXCLUDED.meta_json,
+            updated_ts = NOW(),
+            deleted_ts = NULL
+        "#,
+    )
+    .bind(site_iid)
+    .bind(queue_id)
+    .bind(owner_iid)
+    .bind(queue.name.trim())
+    .bind(if queue.mode.is_empty() { "fifo" } else { queue.mode.as_str() })
+    .bind(&queue.prefix)
+    .bind(queue.last_ticket_no)
+    .bind(queue.serving_ticket_no)
+    .bind(queue.is_active)
+    .bind(meta_json)
+    .execute(pool)
+    .await?;
+    Ok(ResSiteQueuePut { queue_id })
+}
+
+pub async fn site_queue_advance_serving(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteQueueAdvance,
+) -> Result<ResSiteQueueAdvance> {
+    let site_iid = req.site_iid;
+    let _owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+    let queue_id = if req.queue_id > 0 { req.queue_id } else { DEFAULT_QUEUE_ID };
+    let row = sqlx::query(
+        r#"
+        UPDATE site.queue
+        SET serving_ticket_no = serving_ticket_no + 1, updated_ts = NOW()
+        WHERE site_iid = $1 AND queue_id = $2 AND deleted_ts IS NULL
+        RETURNING serving_ticket_no
+        "#,
+    )
+    .bind(site_iid)
+    .bind(queue_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| anyhow!("queue not found"))?;
+    Ok(ResSiteQueueAdvance {
+        serving_ticket_no: row.get("serving_ticket_no"),
+    })
+}
 
 pub struct GuestQueueTakeResult {
     pub ok: bool,

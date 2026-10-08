@@ -1,3 +1,5 @@
+import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:flutter/material.dart';
 
 /// Parsed `site_boot_get` JSON (`mod_site::site_boot_json_assemble`).
@@ -9,6 +11,7 @@ class GuestSiteBoot {
     required this.avatarUrl,
     required this.mode,
     required this.meta,
+    required this.productDesign,
     required this.theme,
     required this.pages,
     required this.capabilities,
@@ -24,6 +27,7 @@ class GuestSiteBoot {
   final String avatarUrl;
   final String mode;
   final Map<String, dynamic> meta;
+  final SiteProductDesignDraft productDesign;
   final Map<String, dynamic> theme;
   final List<Map<String, dynamic>> pages;
   final Map<String, dynamic> capabilities;
@@ -55,6 +59,7 @@ class GuestSiteBoot {
       avatarUrl: avatarUrl,
       mode: mode,
       meta: meta,
+      productDesign: siteProductDesignFromJson(meta['product_design']),
       theme: theme,
       pages: pages,
       capabilities: capabilities ?? const <String, dynamic>{},
@@ -111,6 +116,7 @@ class GuestSiteBoot {
       avatarUrl: json['avatar_url']?.toString() ?? '',
       mode: json['mode']?.toString() ?? 'draft',
       meta: _mapOrEmpty(json['meta']),
+      productDesign: guestSiteProductDesignFromBoot(json),
       theme: _mapOrEmpty(json['theme']),
       pages: pages,
       capabilities: _mapOrEmpty(json['capabilities']),

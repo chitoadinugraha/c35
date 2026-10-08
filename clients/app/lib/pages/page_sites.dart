@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 
 const _muted = Color(0xFF71717A);
 
-/// Single-site admin (Preview, Orders, Settings, …). Site picking is `uiSitesPickerOpen`.
+/// Single-site admin (Preview + Edit shell). Site picking is `uiSitesPickerOpen`.
 class PageSites extends StatefulWidget {
   const PageSites({
     super.key,

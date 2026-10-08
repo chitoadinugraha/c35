@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
@@ -31,6 +32,7 @@ class UiSiteTxEditor extends StatefulWidget {
     this.site,
     this.txId,
     this.onSaved,
+    this.posEntry = false,
   });
 
   final int siteIid;
@@ -38,6 +40,8 @@ class UiSiteTxEditor extends StatefulWidget {
   final SiteRow? site;
   final Int64? txId;
   final ValueChanged<Tx>? onSaved;
+  /// Full-screen POS route (Sites picker / hints), not nested under Orders tab.
+  final bool posEntry;
 
   @override
   State<UiSiteTxEditor> createState() => _UiSiteTxEditorState();
@@ -54,6 +58,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
   late Tx _tx;
   var _products = <SiteProduct>[];
   var _contacts = <SiteContact>[];
+  var _catalogOffline = false;
   ResTxPreview? _preview;
 
   @override
@@ -87,8 +92,10 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
         _printReceipt = ThermalPrinterManager.instance.autoPrintReceipt;
       }
       await _refreshPreview();
+      _catalogOffline = widget.api.conn.status.value != ChatConnStatus.connected;
     } catch (e) {
       _error = e;
+      _catalogOffline = false;
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -448,19 +455,57 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
     if (_error != null) {
       return Scaffold(
         backgroundColor: _bg,
-        appBar: AppBar(backgroundColor: _bg, foregroundColor: _text),
-        body: Center(child: Text(uiFriendlyError(_error!), style: const TextStyle(color: _muted))),
+        appBar: AppBar(
+          backgroundColor: _bg,
+          foregroundColor: _text,
+          automaticallyImplyLeading: !widget.posEntry,
+          leading: widget.posEntry
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Close POS',
+                  onPressed: () => Navigator.maybePop(context),
+                )
+              : null,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(uiFriendlyError(_error!), textAlign: TextAlign.center, style: const TextStyle(color: _muted)),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
       );
     }
     final nominal = txItemsNominal(_tx);
     final paid = txPaymentsTotal(_tx);
     final previewTx = _preview?.tx ?? txEnsureCashPayment(_tx);
+    final appBarTitle = widget.posEntry
+        ? (widget.site?.name.isNotEmpty == true ? widget.site!.name : 'POS')
+        : (_tx.txId > Int64.ZERO ? 'Order ${_tx.txId}' : 'New sale');
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: _bg,
         foregroundColor: _text,
-        title: Text(_tx.txId > Int64.ZERO ? 'Order ${_tx.txId}' : 'New sale'),
+        title: Text(appBarTitle),
+        automaticallyImplyLeading: !widget.posEntry,
+        leading: widget.posEntry
+            ? IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Close POS',
+                onPressed: () => Navigator.maybePop(context),
+              )
+            : null,
         actions: [
           ListenableBuilder(
             listenable: TxParkedOrders.instance,
@@ -511,6 +556,24 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with SingleTickerProvid
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_catalogOffline)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              color: const Color(0xFF422006),
+              child: const Row(
+                children: [
+                  Icon(Icons.cloud_off_outlined, size: 16, color: Color(0xFFFBBF24)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Offline mode — catalog from cache. Connect to save sales.',
+                      style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           _headerBar(nominal, paid),
           Expanded(
             child: TabBarView(

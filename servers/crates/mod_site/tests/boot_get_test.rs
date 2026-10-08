@@ -11,7 +11,10 @@ fn site_boot_json_assemble_includes_pages_and_capabilities() {
             "blocks": [{ "id": "g1", "type": "product_grid", "props": { "filter": "all" } }]
         }],
         "theme": { "accent": "#2563eb" },
-        "meta": { "seo_title": "Shop" }
+        "meta": {
+            "seo_title": "Shop",
+            "product_design": { "titleFontSize": 18, "titleColor": "#111111" }
+        }
     });
     let caps = json!({ "commerce": true });
     let boot = site_boot_json_assemble(
@@ -36,6 +39,8 @@ fn site_boot_json_assemble_includes_pages_and_capabilities() {
     assert_eq!(boot["pages"].as_array().unwrap().len(), 1);
     assert_eq!(boot["theme"]["accent"], "#2563eb");
     assert_eq!(boot["meta"]["seo_title"], "Shop");
+    assert_eq!(boot["product_design"]["titleFontSize"], 18);
+    assert_eq!(boot["product_design"]["titleColor"], "#111111");
     assert!(boot["product_preload"].is_object());
     assert!(boot["links"].as_array().unwrap().is_empty());
 }

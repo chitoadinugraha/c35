@@ -1,7 +1,9 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -15,6 +17,7 @@ Widget guestSiteBlock({
   required Color accent,
   required String siteName,
   int siteIid = 0,
+  SiteProductDesignDraft productDesign = const SiteProductDesignDraft(),
   List<Map<String, dynamic>> productRows = const [],
   String? productNextCursor,
   List<Map<String, dynamic>> hubLinks = const [],
@@ -32,6 +35,7 @@ Widget guestSiteBlock({
         props: props,
         accent: accent,
         siteIid: siteIid,
+        productDesign: productDesign,
         products: productRows,
         initialNextCursor: productNextCursor,
       ),
@@ -226,6 +230,7 @@ class GuestSiteProductGridBlock extends StatefulWidget {
     required this.props,
     required this.accent,
     required this.siteIid,
+    required this.productDesign,
     required this.products,
     this.initialNextCursor,
   });
@@ -233,6 +238,7 @@ class GuestSiteProductGridBlock extends StatefulWidget {
   final Map<String, dynamic> props;
   final Color accent;
   final int siteIid;
+  final SiteProductDesignDraft productDesign;
   final List<Map<String, dynamic>> products;
   final String? initialNextCursor;
 
@@ -320,7 +326,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                   for (final p in rows)
                     SizedBox(
                       width: (constraints.maxWidth - (cols - 1) * 8) / cols,
-                      child: _productCard(widget.accent, p),
+                      child: _productCard(widget.accent, widget.productDesign, p),
                     ),
                 ],
               );
@@ -340,10 +346,31 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     );
   }
 
-  Widget _productCard(Color accent, Map<String, dynamic> p) {
+  Widget _productCard(Color accent, SiteProductDesignDraft design, Map<String, dynamic> p) {
     final name = p['name']?.toString() ?? 'Product';
+    final desc = p['desc']?.toString() ?? p['description']?.toString() ?? '';
     final picUrl = guestSitePicUrl(p['pic']?.toString() ?? '');
     final price = p['price'] as int? ?? 0;
+    final titleStyle = guestSiteProductTextStyle(
+      design,
+      'title',
+      fallbackColor: _guestTextPrimary,
+      fallbackSize: 10,
+      fallbackWeight: FontWeight.w500,
+    );
+    final subtitleStyle = guestSiteProductTextStyle(
+      design,
+      'subtitle',
+      fallbackColor: _guestTextSecondary,
+      fallbackSize: 9,
+    );
+    final priceStyle = guestSiteProductTextStyle(
+      design,
+      'price',
+      fallbackColor: accent,
+      fallbackSize: 9,
+      fallbackWeight: FontWeight.w600,
+    );
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -370,16 +397,26 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
           const SizedBox(height: 6),
           Text(
             name,
-            style: const TextStyle(color: _guestTextPrimary, fontSize: 10, fontWeight: FontWeight.w500),
+            style: titleStyle,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+          if (desc.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                desc,
+                style: subtitleStyle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           if (price > 0)
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
                 'Rp $price',
-                style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w600),
+                style: priceStyle,
               ),
             ),
         ],

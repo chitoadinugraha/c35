@@ -80,6 +80,8 @@ class SiteStore extends ChangeNotifier {
     if (_conn.status.value != ChatConnStatus.connected) throw 'not connected';
   }
 
+  Future<void> ensureCacheRestored() => _restoreCacheIfNeeded();
+
   Future<void> _restoreCacheIfNeeded() async {
     if (_cacheRestored) return;
     _cacheRestored = true;

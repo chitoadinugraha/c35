@@ -104,9 +104,9 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
       imageUrl: row.pic,
       icon: Icons.language_outlined,
       actions: [
-        IoAskItemAction(label: 'Visit', onTap: () => unawaited(_visitSite(context, row, _store.api))),
-        IoAskItemAction(label: 'Edit', onTap: () => _edit(id)),
-        IoAskItemAction(label: 'POS', onTap: () => unawaited(_pos(row))),
+        IoAskItemAction(label: 'Visit', icon: Icons.open_in_new_rounded, onTap: () => unawaited(_visitSite(context, row, _store.api))),
+        IoAskItemAction(label: 'Edit', icon: Icons.edit_outlined, onTap: () => _edit(id)),
+        IoAskItemAction(label: 'POS', icon: Icons.point_of_sale_outlined, onTap: () => unawaited(_pos(row))),
       ],
     );
   }

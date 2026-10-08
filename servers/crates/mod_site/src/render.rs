@@ -4,6 +4,10 @@ use serde_json::Value;
 use sqlx::PgPool;
 
 use crate::doc::site_doc_from_json;
+use crate::product_design::{
+    product_card_price_style, product_card_subtitle_style, product_card_title_style,
+    product_design_from_site_meta,
+};
 use crate::guest_product::{
     guest_product_get, guest_product_list, guest_product_sell_ids, pic_url, product_grid_page_size,
 };
@@ -18,7 +22,7 @@ pub struct ProductGridCtx {
     pub next_cursor: String,
 }
 
-pub fn product_card_html(p: &ProductRow) -> String {
+pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> String {
     let img = if p.pic.is_empty() {
         String::new()
     } else {
@@ -27,17 +31,43 @@ pub fn product_card_html(p: &ProductRow) -> String {
             esc(&pic_url(&p.pic))
         )
     };
+    let title_style = product_card_title_style(product_design);
+    let subtitle_style = product_card_subtitle_style(product_design);
+    let price_style = product_card_price_style(product_design);
+    let title_attr = if title_style.is_empty() {
+        String::new()
+    } else {
+        format!(r#" style="{}""#, esc_attr(&title_style))
+    };
+    let subtitle_attr = if subtitle_style.is_empty() {
+        String::new()
+    } else {
+        format!(r#" style="{}""#, esc_attr(&subtitle_style))
+    };
+    let price_attr = if price_style.is_empty() {
+        String::new()
+    } else {
+        format!(r#" style="{}""#, esc_attr(&price_style))
+    };
     format!(
-        r#"<article class="product-card" data-pid="{pid}">{img}<div class="product-info"><h3>{name}</h3><p>{desc}</p><div class="product-bottom"><span class="price">{price_str}</span><button type="button" class="guest-add-btn" onclick="c35GuestCart.add({pid}, '{name_esc}', {price}, '{pic_esc}')">+ Pesan</button></div></div></article>"#,
+        r#"<article class="product-card" data-pid="{pid}">{img}<div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p><div class="product-bottom"><span class="price"{price_attr}>{price_str}</span><button type="button" class="guest-add-btn" onclick="c35GuestCart.add({pid}, '{name_esc}', {price}, '{pic_esc}')">+ Pesan</button></div></div></article>"#,
         pid = p.product_id,
         img = img,
+        title_attr = title_attr,
         name = esc(&p.name),
+        subtitle_attr = subtitle_attr,
         desc = esc(&p.desc),
+        price_attr = price_attr,
         price_str = esc(&format_currency(p.price)),
         name_esc = esc_js(&p.name),
         price = p.price,
         pic_esc = esc_js(&pic_url(&p.pic)),
     )
+}
+
+fn esc_attr(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
 }
 
 fn esc(s: &str) -> String {
@@ -222,6 +252,7 @@ pub fn block_html_render(
     site_iid: i64,
     hub_links: &[SiteLink],
     hub_posts: &[SitePost],
+    product_design: Option<&Value>,
 ) -> String {
     match block_type {
         "hero" => {
@@ -298,7 +329,7 @@ pub fn block_html_render(
             let category = props.get("category").and_then(|x| x.as_str()).unwrap_or("");
             let cards = products
                 .iter()
-                .map(product_card_html)
+                .map(|p| product_card_html(p, product_design))
                 .collect::<Vec<_>>()
                 .join("");
             let (site_iid, block_id, next_cursor) = grid_ctx
@@ -599,6 +630,12 @@ pub async fn page_html_render(
     let caps = site_capabilities(pool, site_iid).await;
     let hub_links = site_link_boot_rows(pool, site_iid).await?;
     let hub_posts = site_post_boot_summaries(pool, site_iid).await?;
+    let site_meta: Value = if doc.meta_json.is_empty() {
+        Value::Object(Default::default())
+    } else {
+        serde_json::from_str(&doc.meta_json).unwrap_or(Value::Object(Default::default()))
+    };
+    let product_design = product_design_from_site_meta(&site_meta);
     let mut body = String::new();
     for block in &page.blocks {
         let props: Value = if block.props_json.is_empty() {
@@ -630,6 +667,7 @@ pub async fn page_html_render(
             site_iid,
             &hub_links,
             &hub_posts,
+            product_design.as_ref(),
         ));
     }
     Ok(format!(

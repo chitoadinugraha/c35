@@ -6,7 +6,7 @@ use c35_proto::{
 use sqlx::{PgPool, Row};
 
 use crate::doc::site_doc_from_json;
-use crate::rows::domain_from_row;
+use crate::rows::{col_i32_smallint, col_text, domain_from_row};
 use crate::site_ids::site_ids_for_caller;
 use crate::ts::{ts_ms, ts_ms_opt};
 
@@ -170,7 +170,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
             r#"
             SELECT site_iid, product_id, type, name, "desc", unit, sku, rev,
                    can_sell, can_reserve, track_stock, stock_qty, price, pic, category,
-                   product_json, is_archived, created_ts, updated_ts, deleted_ts
+                   product_json, is_archived, sort_order, created_ts, updated_ts, deleted_ts
             FROM site.product
             WHERE site_iid = ANY($1::bigint[])
               AND updated_ts > to_timestamp($2::double precision / 1000.0)
@@ -192,7 +192,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
             res.site_products.push(SiteProduct {
                 site_iid: r.get("site_iid"),
                 product_id: r.get("product_id"),
-                r#type: r.get("type"),
+                r#type: col_i32_smallint(r, "type"),
                 name: r.get("name"),
                 desc: r.get("desc"),
                 unit: r.get("unit"),
@@ -203,10 +203,11 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
                 track_stock: r.get("track_stock"),
                 stock_qty: r.get("stock_qty"),
                 price: r.get("price"),
-                pic: r.get("pic"),
+                pic: col_text(r, "pic"),
                 category: r.get("category"),
                 product_json: r.get::<serde_json::Value, _>("product_json").to_string(),
                 is_archived: r.get("is_archived"),
+                sort_order: r.get("sort_order"),
                 created_ts_ms: ts_ms(r.get("created_ts")),
                 updated_ts_ms: updated,
                 deleted_ts_ms: ts_ms_opt(r.get("deleted_ts")),
@@ -367,7 +368,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
                 can_be_reserved: r.get("can_be_reserved"),
                 is_active: r.get("is_active"),
                 desc: r.get("desc"),
-                pic: r.get("pic"),
+                pic: col_text(r, "pic"),
                 meta_json: r.get::<serde_json::Value, _>("meta_json").to_string(),
                 created_ts_ms: ts_ms(r.get("created_ts")),
                 updated_ts_ms: updated,

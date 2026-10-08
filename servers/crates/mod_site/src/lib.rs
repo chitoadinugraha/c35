@@ -3,6 +3,7 @@ pub mod doc;
 pub mod grant;
 mod http;
 mod guest_product;
+mod product_design;
 pub mod render;
 mod rows;
 mod site_config;
@@ -50,14 +51,20 @@ pub use site_boot::{site_boot_get, site_boot_json_assemble};
 pub use site_draft::{site_draft_get, site_draft_put};
 pub use site_handle::{site_handle_normalize, site_handle_put};
 pub use grant::site_granted_iids;
-pub use site_grant::{site_grant_delete, site_grant_put, site_grant_role_staff_manage, site_grantee_resolve};
+pub use site_grant::{
+    site_grant_delete, site_grant_delete_rpc, site_grant_list, site_grant_put, site_grant_put_rpc,
+    site_grant_role_staff_manage, site_grantee_resolve,
+};
 pub use site_list::site_list;
 pub use site_object::{site_object_list, site_object_put, site_object_upsert};
 pub use site_preview::{site_draft_html_render, site_preview_token, site_preview_token_issue, site_preview_token_verify};
 pub use query::site_query_run;
-pub use site_product::{site_product_list, site_product_put};
+pub use site_product::{
+    site_product_delete, site_product_list, site_product_put, site_product_reorder,
+};
 pub use site_queue::{
     guest_queue_get, guest_queue_get_json, guest_queue_take, guest_queue_take_json,
+    site_queue_advance_serving, site_queue_list, site_queue_put,
 };
 pub use site_publish::{
     site_publish, site_publish_from_draft, site_published, SitePublishFromDraftResult,

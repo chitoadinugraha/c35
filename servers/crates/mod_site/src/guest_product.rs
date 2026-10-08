@@ -3,6 +3,8 @@ use c35_proto::{ResSiteGuestProductList, SiteGuestProductItem};
 use serde_json::Value;
 use sqlx::{PgPool, Row};
 
+use crate::rows::col_text;
+
 pub struct ProductRow {
     pub product_id: i64,
     pub name: String,
@@ -263,7 +265,7 @@ async fn fetch_product_rows(
             name: r.get("name"),
             desc: r.get("desc"),
             price: r.get("price"),
-            pic: r.get("pic"),
+            pic: col_text(r, "pic"),
             category: r.get("category"),
             sort_order: r.get("sort_order"),
         })
@@ -300,7 +302,7 @@ pub async fn guest_product_get(
             name: r.get("name"),
             desc: r.get("desc"),
             price: r.get("price"),
-            pic: r.get("pic"),
+            pic: col_text(&r, "pic"),
             category: r.get("category"),
             sort_order: r.get("sort_order"),
         },

@@ -3058,6 +3058,14 @@ enum WsReq_Body {
   sitePostList,
   sitePostPut,
   sitePostDelete,
+  siteProductDelete,
+  siteProductReorder,
+  siteGrantList,
+  siteGrantPut,
+  siteGrantDelete,
+  siteQueueList,
+  siteQueuePut,
+  siteQueueAdvance,
   notSet
 }
 
@@ -3194,6 +3202,14 @@ class WsReq extends $pb.GeneratedMessage {
     $17.ReqSitePostList? sitePostList,
     $17.ReqSitePostPut? sitePostPut,
     $17.ReqSitePostDelete? sitePostDelete,
+    $17.ReqSiteProductDelete? siteProductDelete,
+    $17.ReqSiteProductReorder? siteProductReorder,
+    $17.ReqSiteGrantList? siteGrantList,
+    $17.ReqSiteGrantPut? siteGrantPut,
+    $17.ReqSiteGrantDelete? siteGrantDelete,
+    $17.ReqSiteQueueList? siteQueueList,
+    $17.ReqSiteQueuePut? siteQueuePut,
+    $17.ReqSiteQueueAdvance? siteQueueAdvance,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3347,6 +3363,15 @@ class WsReq extends $pb.GeneratedMessage {
     if (sitePostList != null) result.sitePostList = sitePostList;
     if (sitePostPut != null) result.sitePostPut = sitePostPut;
     if (sitePostDelete != null) result.sitePostDelete = sitePostDelete;
+    if (siteProductDelete != null) result.siteProductDelete = siteProductDelete;
+    if (siteProductReorder != null)
+      result.siteProductReorder = siteProductReorder;
+    if (siteGrantList != null) result.siteGrantList = siteGrantList;
+    if (siteGrantPut != null) result.siteGrantPut = siteGrantPut;
+    if (siteGrantDelete != null) result.siteGrantDelete = siteGrantDelete;
+    if (siteQueueList != null) result.siteQueueList = siteQueueList;
+    if (siteQueuePut != null) result.siteQueuePut = siteQueuePut;
+    if (siteQueueAdvance != null) result.siteQueueAdvance = siteQueueAdvance;
     return result;
   }
 
@@ -3489,6 +3514,14 @@ class WsReq extends $pb.GeneratedMessage {
     187: WsReq_Body.sitePostList,
     188: WsReq_Body.sitePostPut,
     189: WsReq_Body.sitePostDelete,
+    190: WsReq_Body.siteProductDelete,
+    191: WsReq_Body.siteProductReorder,
+    192: WsReq_Body.siteGrantList,
+    193: WsReq_Body.siteGrantPut,
+    194: WsReq_Body.siteGrantDelete,
+    195: WsReq_Body.siteQueueList,
+    196: WsReq_Body.siteQueuePut,
+    197: WsReq_Body.siteQueueAdvance,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3624,7 +3657,15 @@ class WsReq extends $pb.GeneratedMessage {
       186,
       187,
       188,
-      189
+      189,
+      190,
+      191,
+      192,
+      193,
+      194,
+      195,
+      196,
+      197
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -3919,6 +3960,25 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $17.ReqSitePostPut.$_createMessage)
     ..aOM<$17.ReqSitePostDelete>(189, _omitFieldNames ? '' : 'sitePostDelete',
         subBuilder: $17.ReqSitePostDelete.$_createMessage)
+    ..aOM<$17.ReqSiteProductDelete>(
+        190, _omitFieldNames ? '' : 'siteProductDelete',
+        subBuilder: $17.ReqSiteProductDelete.$_createMessage)
+    ..aOM<$17.ReqSiteProductReorder>(
+        191, _omitFieldNames ? '' : 'siteProductReorder',
+        subBuilder: $17.ReqSiteProductReorder.$_createMessage)
+    ..aOM<$17.ReqSiteGrantList>(192, _omitFieldNames ? '' : 'siteGrantList',
+        subBuilder: $17.ReqSiteGrantList.$_createMessage)
+    ..aOM<$17.ReqSiteGrantPut>(193, _omitFieldNames ? '' : 'siteGrantPut',
+        subBuilder: $17.ReqSiteGrantPut.$_createMessage)
+    ..aOM<$17.ReqSiteGrantDelete>(194, _omitFieldNames ? '' : 'siteGrantDelete',
+        subBuilder: $17.ReqSiteGrantDelete.$_createMessage)
+    ..aOM<$17.ReqSiteQueueList>(195, _omitFieldNames ? '' : 'siteQueueList',
+        subBuilder: $17.ReqSiteQueueList.$_createMessage)
+    ..aOM<$17.ReqSiteQueuePut>(196, _omitFieldNames ? '' : 'siteQueuePut',
+        subBuilder: $17.ReqSiteQueuePut.$_createMessage)
+    ..aOM<$17.ReqSiteQueueAdvance>(
+        197, _omitFieldNames ? '' : 'siteQueueAdvance',
+        subBuilder: $17.ReqSiteQueueAdvance.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4070,6 +4130,14 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(187)
   @$pb.TagNumber(188)
   @$pb.TagNumber(189)
+  @$pb.TagNumber(190)
+  @$pb.TagNumber(191)
+  @$pb.TagNumber(192)
+  @$pb.TagNumber(193)
+  @$pb.TagNumber(194)
+  @$pb.TagNumber(195)
+  @$pb.TagNumber(196)
+  @$pb.TagNumber(197)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4200,6 +4268,14 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(187)
   @$pb.TagNumber(188)
   @$pb.TagNumber(189)
+  @$pb.TagNumber(190)
+  @$pb.TagNumber(191)
+  @$pb.TagNumber(192)
+  @$pb.TagNumber(193)
+  @$pb.TagNumber(194)
+  @$pb.TagNumber(195)
+  @$pb.TagNumber(196)
+  @$pb.TagNumber(197)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -5660,6 +5736,96 @@ class WsReq extends $pb.GeneratedMessage {
   void clearSitePostDelete() => $_clearField(189);
   @$pb.TagNumber(189)
   $17.ReqSitePostDelete ensureSitePostDelete() => $_ensure(129);
+
+  @$pb.TagNumber(190)
+  $17.ReqSiteProductDelete get siteProductDelete => $_getN(130);
+  @$pb.TagNumber(190)
+  set siteProductDelete($17.ReqSiteProductDelete value) =>
+      $_setField(190, value);
+  @$pb.TagNumber(190)
+  $core.bool hasSiteProductDelete() => $_has(130);
+  @$pb.TagNumber(190)
+  void clearSiteProductDelete() => $_clearField(190);
+  @$pb.TagNumber(190)
+  $17.ReqSiteProductDelete ensureSiteProductDelete() => $_ensure(130);
+
+  @$pb.TagNumber(191)
+  $17.ReqSiteProductReorder get siteProductReorder => $_getN(131);
+  @$pb.TagNumber(191)
+  set siteProductReorder($17.ReqSiteProductReorder value) =>
+      $_setField(191, value);
+  @$pb.TagNumber(191)
+  $core.bool hasSiteProductReorder() => $_has(131);
+  @$pb.TagNumber(191)
+  void clearSiteProductReorder() => $_clearField(191);
+  @$pb.TagNumber(191)
+  $17.ReqSiteProductReorder ensureSiteProductReorder() => $_ensure(131);
+
+  @$pb.TagNumber(192)
+  $17.ReqSiteGrantList get siteGrantList => $_getN(132);
+  @$pb.TagNumber(192)
+  set siteGrantList($17.ReqSiteGrantList value) => $_setField(192, value);
+  @$pb.TagNumber(192)
+  $core.bool hasSiteGrantList() => $_has(132);
+  @$pb.TagNumber(192)
+  void clearSiteGrantList() => $_clearField(192);
+  @$pb.TagNumber(192)
+  $17.ReqSiteGrantList ensureSiteGrantList() => $_ensure(132);
+
+  @$pb.TagNumber(193)
+  $17.ReqSiteGrantPut get siteGrantPut => $_getN(133);
+  @$pb.TagNumber(193)
+  set siteGrantPut($17.ReqSiteGrantPut value) => $_setField(193, value);
+  @$pb.TagNumber(193)
+  $core.bool hasSiteGrantPut() => $_has(133);
+  @$pb.TagNumber(193)
+  void clearSiteGrantPut() => $_clearField(193);
+  @$pb.TagNumber(193)
+  $17.ReqSiteGrantPut ensureSiteGrantPut() => $_ensure(133);
+
+  @$pb.TagNumber(194)
+  $17.ReqSiteGrantDelete get siteGrantDelete => $_getN(134);
+  @$pb.TagNumber(194)
+  set siteGrantDelete($17.ReqSiteGrantDelete value) => $_setField(194, value);
+  @$pb.TagNumber(194)
+  $core.bool hasSiteGrantDelete() => $_has(134);
+  @$pb.TagNumber(194)
+  void clearSiteGrantDelete() => $_clearField(194);
+  @$pb.TagNumber(194)
+  $17.ReqSiteGrantDelete ensureSiteGrantDelete() => $_ensure(134);
+
+  @$pb.TagNumber(195)
+  $17.ReqSiteQueueList get siteQueueList => $_getN(135);
+  @$pb.TagNumber(195)
+  set siteQueueList($17.ReqSiteQueueList value) => $_setField(195, value);
+  @$pb.TagNumber(195)
+  $core.bool hasSiteQueueList() => $_has(135);
+  @$pb.TagNumber(195)
+  void clearSiteQueueList() => $_clearField(195);
+  @$pb.TagNumber(195)
+  $17.ReqSiteQueueList ensureSiteQueueList() => $_ensure(135);
+
+  @$pb.TagNumber(196)
+  $17.ReqSiteQueuePut get siteQueuePut => $_getN(136);
+  @$pb.TagNumber(196)
+  set siteQueuePut($17.ReqSiteQueuePut value) => $_setField(196, value);
+  @$pb.TagNumber(196)
+  $core.bool hasSiteQueuePut() => $_has(136);
+  @$pb.TagNumber(196)
+  void clearSiteQueuePut() => $_clearField(196);
+  @$pb.TagNumber(196)
+  $17.ReqSiteQueuePut ensureSiteQueuePut() => $_ensure(136);
+
+  @$pb.TagNumber(197)
+  $17.ReqSiteQueueAdvance get siteQueueAdvance => $_getN(137);
+  @$pb.TagNumber(197)
+  set siteQueueAdvance($17.ReqSiteQueueAdvance value) => $_setField(197, value);
+  @$pb.TagNumber(197)
+  $core.bool hasSiteQueueAdvance() => $_has(137);
+  @$pb.TagNumber(197)
+  void clearSiteQueueAdvance() => $_clearField(197);
+  @$pb.TagNumber(197)
+  $17.ReqSiteQueueAdvance ensureSiteQueueAdvance() => $_ensure(137);
 }
 
 enum WsRes_Body {
@@ -5803,6 +5969,14 @@ enum WsRes_Body {
   sitePostList,
   sitePostPut,
   sitePostDelete,
+  siteProductDelete,
+  siteProductReorder,
+  siteGrantList,
+  siteGrantPut,
+  siteGrantDelete,
+  siteQueueList,
+  siteQueuePut,
+  siteQueueAdvance,
   notSet
 }
 
@@ -5950,6 +6124,14 @@ class WsRes extends $pb.GeneratedMessage {
     $17.ResSitePostList? sitePostList,
     $17.ResSitePostPut? sitePostPut,
     $17.ResSitePostDelete? sitePostDelete,
+    $17.ResSiteProductDelete? siteProductDelete,
+    $17.ResSiteProductReorder? siteProductReorder,
+    $17.ResSiteGrantList? siteGrantList,
+    $17.ResSiteGrantPut? siteGrantPut,
+    $17.ResSiteGrantDelete? siteGrantDelete,
+    $17.ResSiteQueueList? siteQueueList,
+    $17.ResSiteQueuePut? siteQueuePut,
+    $17.ResSiteQueueAdvance? siteQueueAdvance,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -6116,6 +6298,15 @@ class WsRes extends $pb.GeneratedMessage {
     if (sitePostList != null) result.sitePostList = sitePostList;
     if (sitePostPut != null) result.sitePostPut = sitePostPut;
     if (sitePostDelete != null) result.sitePostDelete = sitePostDelete;
+    if (siteProductDelete != null) result.siteProductDelete = siteProductDelete;
+    if (siteProductReorder != null)
+      result.siteProductReorder = siteProductReorder;
+    if (siteGrantList != null) result.siteGrantList = siteGrantList;
+    if (siteGrantPut != null) result.siteGrantPut = siteGrantPut;
+    if (siteGrantDelete != null) result.siteGrantDelete = siteGrantDelete;
+    if (siteQueueList != null) result.siteQueueList = siteQueueList;
+    if (siteQueuePut != null) result.siteQueuePut = siteQueuePut;
+    if (siteQueueAdvance != null) result.siteQueueAdvance = siteQueueAdvance;
     return result;
   }
 
@@ -6269,6 +6460,14 @@ class WsRes extends $pb.GeneratedMessage {
     187: WsRes_Body.sitePostList,
     188: WsRes_Body.sitePostPut,
     189: WsRes_Body.sitePostDelete,
+    190: WsRes_Body.siteProductDelete,
+    191: WsRes_Body.siteProductReorder,
+    192: WsRes_Body.siteGrantList,
+    193: WsRes_Body.siteGrantPut,
+    194: WsRes_Body.siteGrantDelete,
+    195: WsRes_Body.siteQueueList,
+    196: WsRes_Body.siteQueuePut,
+    197: WsRes_Body.siteQueueAdvance,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -6415,7 +6614,15 @@ class WsRes extends $pb.GeneratedMessage {
       186,
       187,
       188,
-      189
+      189,
+      190,
+      191,
+      192,
+      193,
+      194,
+      195,
+      196,
+      197
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -6734,6 +6941,25 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $17.ResSitePostPut.$_createMessage)
     ..aOM<$17.ResSitePostDelete>(189, _omitFieldNames ? '' : 'sitePostDelete',
         subBuilder: $17.ResSitePostDelete.$_createMessage)
+    ..aOM<$17.ResSiteProductDelete>(
+        190, _omitFieldNames ? '' : 'siteProductDelete',
+        subBuilder: $17.ResSiteProductDelete.$_createMessage)
+    ..aOM<$17.ResSiteProductReorder>(
+        191, _omitFieldNames ? '' : 'siteProductReorder',
+        subBuilder: $17.ResSiteProductReorder.$_createMessage)
+    ..aOM<$17.ResSiteGrantList>(192, _omitFieldNames ? '' : 'siteGrantList',
+        subBuilder: $17.ResSiteGrantList.$_createMessage)
+    ..aOM<$17.ResSiteGrantPut>(193, _omitFieldNames ? '' : 'siteGrantPut',
+        subBuilder: $17.ResSiteGrantPut.$_createMessage)
+    ..aOM<$17.ResSiteGrantDelete>(194, _omitFieldNames ? '' : 'siteGrantDelete',
+        subBuilder: $17.ResSiteGrantDelete.$_createMessage)
+    ..aOM<$17.ResSiteQueueList>(195, _omitFieldNames ? '' : 'siteQueueList',
+        subBuilder: $17.ResSiteQueueList.$_createMessage)
+    ..aOM<$17.ResSiteQueuePut>(196, _omitFieldNames ? '' : 'siteQueuePut',
+        subBuilder: $17.ResSiteQueuePut.$_createMessage)
+    ..aOM<$17.ResSiteQueueAdvance>(
+        197, _omitFieldNames ? '' : 'siteQueueAdvance',
+        subBuilder: $17.ResSiteQueueAdvance.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -6896,6 +7122,14 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(187)
   @$pb.TagNumber(188)
   @$pb.TagNumber(189)
+  @$pb.TagNumber(190)
+  @$pb.TagNumber(191)
+  @$pb.TagNumber(192)
+  @$pb.TagNumber(193)
+  @$pb.TagNumber(194)
+  @$pb.TagNumber(195)
+  @$pb.TagNumber(196)
+  @$pb.TagNumber(197)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -7037,6 +7271,14 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(187)
   @$pb.TagNumber(188)
   @$pb.TagNumber(189)
+  @$pb.TagNumber(190)
+  @$pb.TagNumber(191)
+  @$pb.TagNumber(192)
+  @$pb.TagNumber(193)
+  @$pb.TagNumber(194)
+  @$pb.TagNumber(195)
+  @$pb.TagNumber(196)
+  @$pb.TagNumber(197)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -8617,6 +8859,96 @@ class WsRes extends $pb.GeneratedMessage {
   void clearSitePostDelete() => $_clearField(189);
   @$pb.TagNumber(189)
   $17.ResSitePostDelete ensureSitePostDelete() => $_ensure(140);
+
+  @$pb.TagNumber(190)
+  $17.ResSiteProductDelete get siteProductDelete => $_getN(141);
+  @$pb.TagNumber(190)
+  set siteProductDelete($17.ResSiteProductDelete value) =>
+      $_setField(190, value);
+  @$pb.TagNumber(190)
+  $core.bool hasSiteProductDelete() => $_has(141);
+  @$pb.TagNumber(190)
+  void clearSiteProductDelete() => $_clearField(190);
+  @$pb.TagNumber(190)
+  $17.ResSiteProductDelete ensureSiteProductDelete() => $_ensure(141);
+
+  @$pb.TagNumber(191)
+  $17.ResSiteProductReorder get siteProductReorder => $_getN(142);
+  @$pb.TagNumber(191)
+  set siteProductReorder($17.ResSiteProductReorder value) =>
+      $_setField(191, value);
+  @$pb.TagNumber(191)
+  $core.bool hasSiteProductReorder() => $_has(142);
+  @$pb.TagNumber(191)
+  void clearSiteProductReorder() => $_clearField(191);
+  @$pb.TagNumber(191)
+  $17.ResSiteProductReorder ensureSiteProductReorder() => $_ensure(142);
+
+  @$pb.TagNumber(192)
+  $17.ResSiteGrantList get siteGrantList => $_getN(143);
+  @$pb.TagNumber(192)
+  set siteGrantList($17.ResSiteGrantList value) => $_setField(192, value);
+  @$pb.TagNumber(192)
+  $core.bool hasSiteGrantList() => $_has(143);
+  @$pb.TagNumber(192)
+  void clearSiteGrantList() => $_clearField(192);
+  @$pb.TagNumber(192)
+  $17.ResSiteGrantList ensureSiteGrantList() => $_ensure(143);
+
+  @$pb.TagNumber(193)
+  $17.ResSiteGrantPut get siteGrantPut => $_getN(144);
+  @$pb.TagNumber(193)
+  set siteGrantPut($17.ResSiteGrantPut value) => $_setField(193, value);
+  @$pb.TagNumber(193)
+  $core.bool hasSiteGrantPut() => $_has(144);
+  @$pb.TagNumber(193)
+  void clearSiteGrantPut() => $_clearField(193);
+  @$pb.TagNumber(193)
+  $17.ResSiteGrantPut ensureSiteGrantPut() => $_ensure(144);
+
+  @$pb.TagNumber(194)
+  $17.ResSiteGrantDelete get siteGrantDelete => $_getN(145);
+  @$pb.TagNumber(194)
+  set siteGrantDelete($17.ResSiteGrantDelete value) => $_setField(194, value);
+  @$pb.TagNumber(194)
+  $core.bool hasSiteGrantDelete() => $_has(145);
+  @$pb.TagNumber(194)
+  void clearSiteGrantDelete() => $_clearField(194);
+  @$pb.TagNumber(194)
+  $17.ResSiteGrantDelete ensureSiteGrantDelete() => $_ensure(145);
+
+  @$pb.TagNumber(195)
+  $17.ResSiteQueueList get siteQueueList => $_getN(146);
+  @$pb.TagNumber(195)
+  set siteQueueList($17.ResSiteQueueList value) => $_setField(195, value);
+  @$pb.TagNumber(195)
+  $core.bool hasSiteQueueList() => $_has(146);
+  @$pb.TagNumber(195)
+  void clearSiteQueueList() => $_clearField(195);
+  @$pb.TagNumber(195)
+  $17.ResSiteQueueList ensureSiteQueueList() => $_ensure(146);
+
+  @$pb.TagNumber(196)
+  $17.ResSiteQueuePut get siteQueuePut => $_getN(147);
+  @$pb.TagNumber(196)
+  set siteQueuePut($17.ResSiteQueuePut value) => $_setField(196, value);
+  @$pb.TagNumber(196)
+  $core.bool hasSiteQueuePut() => $_has(147);
+  @$pb.TagNumber(196)
+  void clearSiteQueuePut() => $_clearField(196);
+  @$pb.TagNumber(196)
+  $17.ResSiteQueuePut ensureSiteQueuePut() => $_ensure(147);
+
+  @$pb.TagNumber(197)
+  $17.ResSiteQueueAdvance get siteQueueAdvance => $_getN(148);
+  @$pb.TagNumber(197)
+  set siteQueueAdvance($17.ResSiteQueueAdvance value) => $_setField(197, value);
+  @$pb.TagNumber(197)
+  $core.bool hasSiteQueueAdvance() => $_has(148);
+  @$pb.TagNumber(197)
+  void clearSiteQueueAdvance() => $_clearField(197);
+  @$pb.TagNumber(197)
+  $17.ResSiteQueueAdvance ensureSiteQueueAdvance() => $_ensure(148);
 }
 
 const $core.bool _omitFieldNames =

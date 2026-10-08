@@ -4,7 +4,6 @@ import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/pb/c35/catalog.pb.dart';
@@ -91,7 +90,7 @@ class ChatConn {
   var _manualDisconnect = false;
   var _retryCount = 0;
   var _socketGen = 0;
-  static const _wsReadyTimeout = Duration(seconds: 20);
+  static const _wsReadyTimeout = Duration(seconds: 8);
   var _locale = 'en';
   var _tz = '';
   var _appBuild = 0;
@@ -99,14 +98,7 @@ class ChatConn {
   final status = ValueNotifier<ChatConnStatus>(ChatConnStatus.disconnected);
   void _statusSet(ChatConnStatus next) {
     if (status.value == next) return;
-    final binding = SchedulerBinding.instance;
-    if (binding.schedulerPhase == SchedulerPhase.idle) {
-      status.value = next;
-      return;
-    }
-    binding.addPostFrameCallback((_) {
-      if (status.value != next) status.value = next;
-    });
+    status.value = next;
   }
 
   final _reconnectedCtrl = StreamController<void>.broadcast();
@@ -146,7 +138,7 @@ class ChatConn {
   /// Fires after auto-reconnect attaches a socket (before first frame); run session init.
   Stream<void> get onSocketAttached => _socketAttachedCtrl.stream;
 
-  bool get connected => _ch != null;
+  bool get connected => _ch != null && status.value == ChatConnStatus.connected;
 
   String _wsUrl({String locale = 'en', String tz = '', int appBuild = 0, String appVersionName = ''}) {
     final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
@@ -295,12 +287,11 @@ class ChatConn {
 
   void _markConnected(int gen) {
     if (gen != _socketGen || _ch == null) return;
-    if (status.value == ChatConnStatus.connected && _retryCount == 0) return;
-    final wasReconnecting = _retryCount > 0 || status.value == ChatConnStatus.reconnecting;
+    final wasOffline = status.value != ChatConnStatus.connected;
     _retryCount = 0;
     _statusSet(ChatConnStatus.connected);
-    if (wasReconnecting) {
-      l('chat ws reconnected');
+    if (wasOffline) {
+      l('chat ws connected');
       if (!_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
     }
   }
@@ -334,8 +325,8 @@ class ChatConn {
     if (_reconnectTimer != null) return;
     _statusSet(ChatConnStatus.reconnecting);
     _retryCount++;
-    // Exponential backoff capped at 30 seconds to prevent socket exhaustion
-    final sec = (1 << (_retryCount - 1).clamp(0, 5)).clamp(1, 30);
+    // Exponential backoff capped at 16 seconds to prevent socket exhaustion and ensure quick recovery
+    final sec = (1 << (_retryCount - 1).clamp(0, 4)).clamp(1, 16);
     final delay = Duration(seconds: sec);
     l('chat ws reconnect attempt $_retryCount in ${delay.inSeconds}s');
     _reconnectTimer = Timer(delay, () async {
@@ -408,7 +399,13 @@ class ChatConn {
         }
         rethrow;
       }
-      final res = await completer.future;
+      final res = await completer.future.timeout(
+        const Duration(seconds: 25),
+        onTimeout: () {
+          _rpcPending.remove(reqId);
+          throw TimeoutException('rpc timeout: $reqId');
+        },
+      );
       return parse(res);
     }
     throw lastSendErr ?? StateError('rpc send failed');
@@ -1040,6 +1037,17 @@ class ChatConn {
         (res) => res.siteProductPut,
       );
 
+  Future<ResSiteProductDelete> siteProductDelete(int siteIid, int productId) => _rpc<ResSiteProductDelete>(
+        WsReq(siteProductDelete: ReqSiteProductDelete(siteIid: Int64(siteIid), productId: Int64(productId))),
+        (res) => res.siteProductDelete,
+      );
+
+  Future<ResSiteProductReorder> siteProductReorder(int siteIid, List<SiteProductReorderEntry> entries) =>
+      _rpc<ResSiteProductReorder>(
+        WsReq(siteProductReorder: ReqSiteProductReorder(siteIid: Int64(siteIid), entries: entries)),
+        (res) => res.siteProductReorder,
+      );
+
   Future<ResSiteContactList> siteContactList(int siteIid) => _rpc<ResSiteContactList>(
         WsReq(siteContactList: ReqSiteContactList(siteIid: Int64(siteIid))),
         (res) => res.siteContactList,
@@ -1058,6 +1066,59 @@ class ChatConn {
   Future<ResSiteObjectPut> siteObjectPut(int siteIid, SiteObject obj) => _rpc<ResSiteObjectPut>(
         WsReq(siteObjectPut: ReqSiteObjectPut(siteIid: Int64(siteIid), obj: obj)),
         (res) => res.siteObjectPut,
+      );
+
+  Future<ResSiteLinkList> siteLinkList(int siteIid) => _rpc<ResSiteLinkList>(
+        WsReq(siteLinkList: ReqSiteLinkList(siteIid: Int64(siteIid))),
+        (res) => res.siteLinkList,
+      );
+
+  Future<ResSiteLinkPut> siteLinkPut(int siteIid, SiteLink link) => _rpc<ResSiteLinkPut>(
+        WsReq(siteLinkPut: ReqSiteLinkPut(siteIid: Int64(siteIid), link: link)),
+        (res) => res.siteLinkPut,
+      );
+
+  Future<ResSiteLinkDelete> siteLinkDelete(int siteIid, int linkId) => _rpc<ResSiteLinkDelete>(
+        WsReq(siteLinkDelete: ReqSiteLinkDelete(siteIid: Int64(siteIid), linkId: Int64(linkId))),
+        (res) => res.siteLinkDelete,
+      );
+
+  Future<ResSiteGrantList> siteGrantList(int siteIid) => _rpc<ResSiteGrantList>(
+        WsReq(siteGrantList: ReqSiteGrantList(siteIid: Int64(siteIid))),
+        (res) => res.siteGrantList,
+      );
+
+  Future<ResSiteGrantPut> siteGrantPut(int siteIid, {Int64 granteeIid = Int64.ZERO, String granteeAlienId = '', required String role}) =>
+      _rpc<ResSiteGrantPut>(
+        WsReq(
+          siteGrantPut: ReqSiteGrantPut(
+            siteIid: Int64(siteIid),
+            granteeIid: granteeIid,
+            granteeAlienId: granteeAlienId,
+            role: role,
+          ),
+        ),
+        (res) => res.siteGrantPut,
+      );
+
+  Future<ResSiteGrantDelete> siteGrantDelete(int siteIid, int granteeIid) => _rpc<ResSiteGrantDelete>(
+        WsReq(siteGrantDelete: ReqSiteGrantDelete(siteIid: Int64(siteIid), granteeIid: Int64(granteeIid))),
+        (res) => res.siteGrantDelete,
+      );
+
+  Future<ResSiteQueueList> siteQueueList(int siteIid) => _rpc<ResSiteQueueList>(
+        WsReq(siteQueueList: ReqSiteQueueList(siteIid: Int64(siteIid))),
+        (res) => res.siteQueueList,
+      );
+
+  Future<ResSiteQueuePut> siteQueuePut(int siteIid, SiteQueue queue) => _rpc<ResSiteQueuePut>(
+        WsReq(siteQueuePut: ReqSiteQueuePut(siteIid: Int64(siteIid), queue: queue)),
+        (res) => res.siteQueuePut,
+      );
+
+  Future<ResSiteQueueAdvance> siteQueueAdvance(int siteIid, {int queueId = 1}) => _rpc<ResSiteQueueAdvance>(
+        WsReq(siteQueueAdvance: ReqSiteQueueAdvance(siteIid: Int64(siteIid), queueId: Int64(queueId))),
+        (res) => res.siteQueueAdvance,
       );
 
   Future<ResSiteDomainList> siteDomainList(int siteIid) => _rpc<ResSiteDomainList>(
@@ -1294,7 +1355,18 @@ class ChatConn {
     String? reqId,
     bool talk = false,
   }) async* {
-    if (_ch == null) await connect(locale: locale);
+    if (_ch == null || status.value != ChatConnStatus.connected) {
+      if (_ch != null && (status.value == ChatConnStatus.connecting || status.value == ChatConnStatus.reconnecting)) {
+        try {
+          await _waitSocketReady(_socketGen);
+        } catch (_) {}
+      }
+      if (_ch == null || status.value != ChatConnStatus.connected) {
+        try {
+          await reconnect();
+        } catch (_) {}
+      }
+    }
     final id = reqId != null && reqId.isNotEmpty ? reqId : const Uuid().v4();
     lastPromptReqId = id;
     final ctrl = StreamController<PromptStreamEvent>();

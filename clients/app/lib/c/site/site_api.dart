@@ -6,6 +6,10 @@ import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/site/collection_def.dart';
+import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/site/site_commerce_cache.dart';
+import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:fixnum/fixnum.dart';
 
 SiteRow siteRowFromIdentity(IdentityListRow row) {
@@ -134,7 +138,9 @@ class SiteApi {
 
   Future<List<SiteProductEmbed>> productEmbedList(int siteIid) async {
     final res = await conn.sync(collections: const ['site_product_embed']);
-    return res.siteProductEmbeds.where((e) => e.siteIid.toInt() == siteIid).toList(growable: false);
+    return res.siteProductEmbeds
+        .where((e) => e.siteIid.toInt() == siteIid && !e.hasDeletedTsMs())
+        .toList(growable: false);
   }
 
   Future<ResSitePublish> publish(int siteIid) => conn.sitePublish(siteIid);
@@ -149,9 +155,20 @@ class SiteApi {
       conn.siteBootGet(siteIid, mode: mode);
 
   Future<SiteConfig> configGet(int siteIid) async {
-    final res = await conn.siteDraftGet(siteIid);
-    if (!res.hasConfig()) throw 'site config not found';
-    return res.config;
+    final uid = Session.instance.uid;
+    try {
+      final res = await conn.siteDraftGet(siteIid);
+      if (!res.hasConfig()) throw 'site config not found';
+      final config = res.config;
+      await siteCapabilitiesCacheSave(uid, siteIid, config.capabilitiesJson);
+      return config;
+    } catch (e) {
+      final cached = await siteCapabilitiesCacheRestore(uid, siteIid);
+      if (cached != null) {
+        return SiteConfig(siteIid: Int64(siteIid), capabilitiesJson: cached);
+      }
+      rethrow;
+    }
   }
 
   Future<SiteConfig> configPut(int siteIid, {required String capabilitiesJson}) async {
@@ -161,14 +178,33 @@ class SiteApi {
   }
 
   Future<List<SiteProduct>> productList(int siteIid) async {
-    final res = await conn.siteProductList(siteIid);
-    return res.products;
+    final uid = Session.instance.uid;
+    try {
+      final res = await conn.siteProductList(siteIid);
+      await siteProductCacheSave(uid, siteIid, res.products);
+      return res.products;
+    } catch (e) {
+      final cached = await siteProductCacheRestore(uid, siteIid);
+      if (cached.isNotEmpty) return cached;
+      rethrow;
+    }
+  }
+
+  Future<SiteDraft> draftGet(int siteIid) async {
+    final res = await conn.siteDraftGet(siteIid);
+    if (!res.hasDraft()) throw 'site draft not found';
+    return res.draft;
+  }
+
+  Future<SiteDraft> draftPut(SiteDraft draft, {bool skipPublish = false}) async {
+    await conn.siteDraftPut(draft, skipPublish: skipPublish);
+    return draft;
   }
 
   Future<SiteProduct> productPut(int siteIid, SiteProduct product, {List<SiteProductEmbed>? embeds}) async {
     final payload = product.clone();
     if (embeds != null) {
-      final base = _productJsonMap(payload.productJson);
+      final base = siteProductJsonMap(payload.productJson);
       base['_embeds'] = embeds
           .map((e) => {'embed_id': e.embedId.toInt(), 'label': e.label})
           .toList(growable: false);
@@ -184,19 +220,51 @@ class SiteApi {
     return out;
   }
 
-  Map<String, dynamic> _productJsonMap(String raw) {
-    if (raw.trim().isEmpty) return {};
-    try {
-      final decoded = jsonDecode(raw);
-      return decoded is Map<String, dynamic> ? decoded : {};
-    } catch (_) {
-      return {};
-    }
+  Future<void> productDelete(int siteIid, Int64 productId) async {
+    final res = await conn.siteProductDelete(siteIid, productId.toInt());
+    if (!res.ok) throw 'product delete failed';
+  }
+
+  Future<void> productReorder(int siteIid, List<({Int64 id, int sortOrder})> entries) async {
+    final payload = entries
+        .map((e) => SiteProductReorderEntry(productId: e.id, sortOrder: e.sortOrder))
+        .toList(growable: false);
+    final res = await conn.siteProductReorder(siteIid, payload);
+    if (!res.ok) throw 'product reorder failed';
+  }
+
+  Future<SiteDraftMeta> draftGetMeta(int siteIid) async {
+    final res = await conn.siteDraftGet(siteIid);
+    if (!res.hasDraft()) throw 'site draft not found';
+    return siteDraftMetaParse(res.draft.doc.metaJson);
+  }
+
+  Future<void> draftPutMeta(
+    int siteIid, {
+    List<SiteTaxDraft>? taxes,
+    SiteProductDesignDraft? productDesign,
+  }) async {
+    final res = await conn.siteDraftGet(siteIid);
+    if (!res.hasDraft()) throw 'site draft not found';
+    final draft = res.draft.clone();
+    draft.doc = siteDocWithMetaJson(
+      draft.doc,
+      siteDraftMetaMerge(draft.doc.metaJson, taxes: taxes, productDesign: productDesign),
+    );
+    await conn.siteDraftPut(draft);
   }
 
   Future<List<SiteContact>> contactList(int siteIid) async {
-    final res = await conn.siteContactList(siteIid);
-    return res.contacts;
+    final uid = Session.instance.uid;
+    try {
+      final res = await conn.siteContactList(siteIid);
+      await siteContactCacheSave(uid, siteIid, res.contacts);
+      return res.contacts;
+    } catch (e) {
+      final cached = await siteContactCacheRestore(uid, siteIid);
+      if (cached.isNotEmpty) return cached;
+      return const [];
+    }
   }
 
   Future<SiteContact> contactPut(int siteIid, SiteContact contact) async {
@@ -226,6 +294,65 @@ class SiteApi {
     return out;
   }
 
+  Future<List<SiteLink>> linkList(int siteIid) async {
+    final res = await conn.siteLinkList(siteIid);
+    return res.links;
+  }
+
+  Future<SiteLink> linkPut(int siteIid, SiteLink link) async {
+    final res = await conn.siteLinkPut(siteIid, link);
+    final out = link.clone();
+    if (res.hasLinkId()) {
+      out.linkId = res.linkId;
+    } else if (out.linkId <= Int64.ZERO) {
+      throw 'link put failed';
+    }
+    return out;
+  }
+
+  Future<void> linkDelete(int siteIid, int linkId) async {
+    final res = await conn.siteLinkDelete(siteIid, linkId);
+    if (!res.ok) throw 'link delete failed';
+  }
+
+  Future<List<SiteGrant>> grantList(int siteIid) async {
+    final res = await conn.siteGrantList(siteIid);
+    return res.grants;
+  }
+
+  Future<void> grantPut(int siteIid, {Int64 granteeIid = Int64.ZERO, String granteeAlienId = '', required String role}) async {
+    final res = await conn.siteGrantPut(siteIid, granteeIid: granteeIid, granteeAlienId: granteeAlienId, role: role);
+    if (!res.ok) throw 'grant put failed';
+  }
+
+  Future<void> grantDelete(int siteIid, int granteeIid) async {
+    final res = await conn.siteGrantDelete(siteIid, granteeIid);
+    if (!res.ok) throw 'grant delete failed';
+  }
+
+  Future<List<SiteQueue>> queueList(int siteIid) async {
+    final res = await conn.siteQueueList(siteIid);
+    return res.queues;
+  }
+
+  Future<SiteQueue> queuePut(int siteIid, SiteQueue queue) async {
+    final res = await conn.siteQueuePut(siteIid, queue);
+    final out = queue.clone();
+    if (res.hasQueueId()) {
+      out.queueId = res.queueId;
+    } else if (out.queueId <= Int64.ZERO) {
+      out.queueId = Int64(1);
+    }
+    return out;
+  }
+
+  Future<int> queueAdvanceServing(int siteIid, {int queueId = 1}) async {
+    final res = await conn.siteQueueAdvance(siteIid, queueId: queueId);
+    return res.servingTicketNo;
+  }
+
+  SiteQueue queueNew(int siteIid) => SiteQueue(siteIid: Int64(siteIid), queueId: Int64(1), name: 'Main', isActive: true);
+
   Future<List<SiteDomain>> domainList(int siteIid) async {
     final res = await conn.siteDomainList(siteIid);
     return res.domains;
@@ -253,6 +380,8 @@ class SiteApi {
   SiteContact contactNew(int siteIid) => SiteContact(siteIid: Int64(siteIid), name: 'New contact');
 
   SiteObject objectNew(int siteIid) => SiteObject(siteIid: Int64(siteIid), name: 'New object', isActive: true);
+
+  SiteLink linkNew(int siteIid) => SiteLink(siteIid: Int64(siteIid), label: 'New link', url: 'https://', active: true);
 
   SiteDomain domainNew(int siteIid) => SiteDomain(siteIid: Int64(siteIid), hostname: 'example.com');
 

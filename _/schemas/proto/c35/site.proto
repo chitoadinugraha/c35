@@ -102,6 +102,7 @@ message SiteProduct {
   string category = 15;
   string product_json = 16;
   bool is_archived = 17;
+  int32 sort_order = 19;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
@@ -260,6 +261,30 @@ message ReqSiteProductPut {
 
 message ResSiteProductPut {
   int64 product_id = 1;
+}
+
+message ReqSiteProductDelete {
+  int64 site_iid = 1;
+  int64 product_id = 2;
+}
+
+message ResSiteProductDelete {
+  int64 product_id = 1;
+  bool ok = 2;
+}
+
+message SiteProductReorderEntry {
+  int64 product_id = 1;
+  int32 sort_order = 2;
+}
+
+message ReqSiteProductReorder {
+  int64 site_iid = 1;
+  repeated SiteProductReorderEntry entries = 2;
+}
+
+message ResSiteProductReorder {
+  bool ok = 1;
 }
 
 message ReqSiteContactList {
@@ -475,5 +500,93 @@ message ReqSiteGuestProductList {
 message ResSiteGuestProductList {
   repeated SiteGuestProductItem items = 1;
   string next_cursor = 2;
+}
+
+// ================================= Staff grants (identity_grant on site_iid)
+
+message SiteGrant {
+  int64 site_iid = 1;
+  int64 grantee_iid = 2;
+  string grantee_alien_id = 3;
+  string grantee_name = 4;
+  string role = 5;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+}
+
+message ReqSiteGrantList {
+  int64 site_iid = 1;
+}
+
+message ResSiteGrantList {
+  repeated SiteGrant grants = 1;
+}
+
+message ReqSiteGrantPut {
+  int64 site_iid = 1;
+  int64 grantee_iid = 2;
+  string grantee_alien_id = 3;
+  string role = 4;
+}
+
+message ResSiteGrantPut {
+  int64 grantee_iid = 1;
+  bool ok = 2;
+}
+
+message ReqSiteGrantDelete {
+  int64 site_iid = 1;
+  int64 grantee_iid = 2;
+}
+
+message ResSiteGrantDelete {
+  int64 grantee_iid = 1;
+  bool ok = 2;
+}
+
+// ================================= Queue admin (site.queue)
+
+message SiteQueue {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+  int64 owner_iid = 3;
+  string name = 4;
+  string mode = 5;
+  string prefix = 6;
+  int32 last_ticket_no = 7;
+  int32 serving_ticket_no = 8;
+  bool is_active = 9;
+  string meta_json = 10;
+
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 deleted_ts_ms = 22;
+}
+
+message ReqSiteQueueList {
+  int64 site_iid = 1;
+}
+
+message ResSiteQueueList {
+  repeated SiteQueue queues = 1;
+}
+
+message ReqSiteQueuePut {
+  int64 site_iid = 1;
+  SiteQueue queue = 2;
+}
+
+message ResSiteQueuePut {
+  int64 queue_id = 1;
+}
+
+message ReqSiteQueueAdvance {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+}
+
+message ResSiteQueueAdvance {
+  int32 serving_ticket_no = 1;
 }
 

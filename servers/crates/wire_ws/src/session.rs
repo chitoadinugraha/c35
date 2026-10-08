@@ -301,7 +301,7 @@ fn prompt_req_put(
                         duration_ms: turn.duration_ms,
                         model: turn.model,
                         req_id: req_id_spawn.clone(),
-                        trace_json: String::new(),
+                        trace_json: c35_mod_chat::prompt_end_trace_json(turn.billing_included, turn.cost_usd),
                         error_message: turn.error_text,
                         prompt_tokens: turn.prompt_tokens,
                         context_window: turn.context_window,
@@ -893,6 +893,24 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("site_product_put_failed", e.to_string())),
             }
         }
+        Some(ws_req::Body::SiteProductDelete(r)) => {
+            match c35_mod_site::site_product_delete(&state.pool, ctx.caller_iid, r, Some(out_tx)).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteProductDelete(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_product_delete_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteProductReorder(r)) => {
+            match c35_mod_site::site_product_reorder(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteProductReorder(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_product_reorder_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::SiteContactList(r)) => {
             match c35_mod_site::site_contact_list(&state.pool, ctx.caller_iid, r).await {
                 Ok(body) => WsRes {
@@ -1237,6 +1255,60 @@ async fn dispatch(
                     body: Some(ws_res::Body::SiteBootGet(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("site_boot_get_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteGrantList(r)) => {
+            match c35_mod_site::site_grant_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteGrantList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_grant_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteGrantPut(r)) => {
+            match c35_mod_site::site_grant_put_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteGrantPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_grant_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteGrantDelete(r)) => {
+            match c35_mod_site::site_grant_delete_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteGrantDelete(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_grant_delete_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteQueueList(r)) => {
+            match c35_mod_site::site_queue_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueueList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_queue_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteQueuePut(r)) => {
+            match c35_mod_site::site_queue_put(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueuePut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_queue_put_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteQueueAdvance(r)) => {
+            match c35_mod_site::site_queue_advance_serving(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueueAdvance(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_queue_advance_failed", e.to_string())),
             }
         }
         Some(ws_req::Body::TxGet(r)) => match c35_mod_tx::tx_get(&state.pool, ctx.caller_iid, r).await {

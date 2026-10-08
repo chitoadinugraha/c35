@@ -316,6 +316,14 @@ message WsReq {
     ReqSitePostList site_post_list = 187;
     ReqSitePostPut site_post_put = 188;
     ReqSitePostDelete site_post_delete = 189;
+    ReqSiteProductDelete site_product_delete = 190;
+    ReqSiteProductReorder site_product_reorder = 191;
+    ReqSiteGrantList site_grant_list = 192;
+    ReqSiteGrantPut site_grant_put = 193;
+    ReqSiteGrantDelete site_grant_delete = 194;
+    ReqSiteQueueList site_queue_list = 195;
+    ReqSiteQueuePut site_queue_put = 196;
+    ReqSiteQueueAdvance site_queue_advance = 197;
   }
 }
 
@@ -482,5 +490,13 @@ message WsRes {
     ResSitePostList site_post_list = 187;
     ResSitePostPut site_post_put = 188;
     ResSitePostDelete site_post_delete = 189;
+    ResSiteProductDelete site_product_delete = 190;
+    ResSiteProductReorder site_product_reorder = 191;
+    ResSiteGrantList site_grant_list = 192;
+    ResSiteGrantPut site_grant_put = 193;
+    ResSiteGrantDelete site_grant_delete = 194;
+    ResSiteQueueList site_queue_list = 195;
+    ResSiteQueuePut site_queue_put = 196;
+    ResSiteQueueAdvance site_queue_advance = 197;
   }
 }

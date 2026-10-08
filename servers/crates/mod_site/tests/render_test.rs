@@ -13,7 +13,7 @@ fn render_block(
     caps: &Value,
     grid_ctx: Option<&ProductGridCtx>,
 ) -> String {
-    block_html_render(block_type, props, products, caps, grid_ctx, 0, &[], &[])
+    block_html_render(block_type, props, products, caps, grid_ctx, 0, &[], &[], None)
 }
 
 fn render_block_site(
@@ -23,8 +23,9 @@ fn render_block_site(
     caps: &Value,
     grid_ctx: Option<&ProductGridCtx>,
     site_iid: i64,
+    product_design: Option<&Value>,
 ) -> String {
-    block_html_render(block_type, props, products, caps, grid_ctx, site_iid, &[], &[])
+    block_html_render(block_type, props, products, caps, grid_ctx, site_iid, &[], &[], product_design)
 }
 
 fn sample_doc() -> SiteDoc {
@@ -219,9 +220,27 @@ fn block_product_grid_renders_products() {
         block_id: "g1".into(),
         next_cursor: "0:102".into(),
     };
-    let html =
-        render_block_site("product_grid", &json!({}), &products, &json!({}), Some(&grid_ctx), 42);
+    let design = json!({
+        "titleFontSize": 20,
+        "titleFontWeight": "w700",
+        "titleColor": "#ff00aa",
+        "priceFontSize": 16,
+        "priceFontWeight": "w800",
+        "priceColor": "#00cc88"
+    });
+    let html = render_block_site(
+        "product_grid",
+        &json!({}),
+        &products,
+        &json!({}),
+        Some(&grid_ctx),
+        42,
+        Some(&design),
+    );
     assert!(html.contains("class=\"block product-grid\""));
+    assert!(html.contains("font-size:20px"));
+    assert!(html.contains("color:#ff00aa"));
+    assert!(html.contains("font-weight:700"));
     assert!(html.contains("data-pid=\"101\""));
     assert!(html.contains("Kopi Susu"));
     assert!(html.contains("Rp 15.000"));
@@ -363,6 +382,7 @@ fn social_feed_block_renders_hub_posts() {
         0,
         &[],
         &[post],
+        None,
     );
     assert!(html.contains("posts/7"));
     assert!(html.contains("News"));

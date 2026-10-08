@@ -51,6 +51,7 @@ import 'package:alienai_c35/pages/page_live_call.dart';
 import 'package:alienai_c35/pages/page_bots.dart';
 import 'package:alienai_c35/pages/page_devices.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
+import 'package:alienai_c35/pages/page_site_pos.dart';
 import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/mail/page_mail.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
@@ -98,6 +99,7 @@ import 'package:fixnum/fixnum.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 class PageAIHome extends StatefulWidget {
@@ -214,7 +216,16 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _promptWatchdogCancel();
     _talkTtsQueue?.cancel();
     _store.msgStreamFail(uiConnectionFailed, chatId: cid);
-    if (mounted) setState(() {});
+    if (mounted) {
+      final phase = SchedulerBinding.instance.schedulerPhase;
+      if (phase == SchedulerPhase.idle || phase == SchedulerPhase.postFrameCallbacks) {
+        setState(() {});
+      } else {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() {});
+        });
+      }
+    }
   }
 
   Future<void> _connConnect() async {
@@ -342,6 +353,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             tokensOut: end.tokensOut,
             costUsd: end.costUsd,
             durationMs: end.durationMs,
+            traceJson: end.traceJson,
             reqId: end.reqId,
             model: end.model,
             error: end.hasErrorMessage() ? end.errorMessage : '',
@@ -838,7 +850,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         context: context,
         chatConn: _conn,
         onEdit: (siteIid) => _openSiteAdmin(siteIid, initialTabRoute: null),
-        onPos: (siteIid) => _openSiteAdmin(siteIid, initialTabRoute: 'site.pos'),
+        onPos: (siteIid) => sitePosOpen(context: context, chatConn: _conn, siteIid: siteIid),
       );
 
   void _openSiteAdmin(String siteIid, {String? initialTabRoute}) => Navigator.push(
@@ -970,12 +982,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (route != 'site.pos' || !mounted) return;
     final siteIid = '${payload['site_iid'] ?? ''}'.trim();
     if (siteIid.isEmpty) return;
-    await Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (_) => PageSites(chatConn: _conn, siteIid: siteIid, initialTabRoute: route),
-      ),
-    );
+    await sitePosOpen(context: context, chatConn: _conn, siteIid: siteIid);
   }
 
   Future<void> _imageUpgradeHd(ChatBlock block) async {
@@ -1189,6 +1196,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             tokensOut: end.tokensOut,
             costUsd: end.costUsd,
             durationMs: end.durationMs,
+            traceJson: end.traceJson,
             reqId: end.reqId,
             model: end.model,
             error: err,
@@ -1479,15 +1487,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  static const _contextWindowDefault = 131072;
-  static const _contextWindowCap = 131072;
+  int get _contextLimit => contextWindowResolve(_model.contextTokens, _activeChat?.contextWindow ?? 0);
 
-  int get _contextLimit {
-    final stored = _activeChat?.contextWindow ?? 0;
-    return stored > 0 ? stored : _contextWindowDefault;
-  }
-
-  List<int> get _contextWindowOptions => _model.wideContextWindow ? contextWindowChoices : [for (final w in contextWindowChoices) if (w <= _contextWindowCap) w];
+  List<int> get _contextWindowOptions => contextWindowOptionsForModel(_model.contextTokens);
 
   ContextUsageParts _usageParts(ContextUsage u) => ContextUsageParts(
         instructions: u.instructions,

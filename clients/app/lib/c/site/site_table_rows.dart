@@ -23,6 +23,23 @@ Map<String, bool> siteCapabilitiesParse(String raw) {
   }
 }
 
+class SiteEditorCaps {
+  const SiteEditorCaps({this.commerce = true, this.booking = true, this.queue = true});
+
+  final bool commerce;
+  final bool booking;
+  final bool queue;
+
+  factory SiteEditorCaps.parse(String capabilitiesJson) {
+    final m = siteCapabilitiesParse(capabilitiesJson);
+    return SiteEditorCaps(
+      commerce: m['commerce'] ?? true,
+      booking: m['booking'] ?? true,
+      queue: m['queue'] ?? true,
+    );
+  }
+}
+
 String siteCapabilitiesEncode(Map<String, bool> caps) =>
     jsonEncode({for (final k in _capabilityKeys) k: caps[k] ?? true});
 
@@ -77,6 +94,7 @@ Map<String, String> siteProductCells(SiteProduct p) => {
       'can_reserve': p.canReserve ? 'yes' : 'no',
       'track_stock': p.trackStock ? 'yes' : 'no',
       'is_archived': p.isArchived ? 'yes' : 'no',
+      'sort_order': '${p.sortOrder}',
       'product_json': p.productJson,
       'updated_ts_ms': _fmtTs(p.updatedTsMs),
     };
@@ -141,6 +159,8 @@ SiteProduct siteProductApplyCell(SiteProduct base, ColDef col, String value) {
       p.trackStock = value.toLowerCase() == 'yes' || value == '1' || value.toLowerCase() == 'true';
     case 'is_archived':
       p.isArchived = value.toLowerCase() == 'yes' || value == '1' || value.toLowerCase() == 'true';
+    case 'sort_order':
+      p.sortOrder = int.tryParse(value) ?? 0;
   }
   return p;
 }

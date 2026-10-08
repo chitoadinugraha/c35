@@ -155,6 +155,7 @@ class _GuestSiteBody extends StatelessWidget {
               accent: accent,
               siteName: boot.name,
               siteIid: boot.siteIid,
+              productDesign: boot.productDesign,
               productRows: boot.productsForBlock(blocks[i]['id']?.toString() ?? ''),
               productNextCursor:
                   boot.nextProductCursorForBlock(blocks[i]['id']?.toString() ?? ''),

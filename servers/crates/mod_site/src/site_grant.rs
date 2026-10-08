@@ -1,8 +1,13 @@
 use anyhow::{anyhow, bail, Result};
+use c35_proto::{
+    ReqSiteGrantDelete, ReqSiteGrantList, ReqSiteGrantPut, ResSiteGrantDelete, ResSiteGrantList,
+    ResSiteGrantPut,
+};
 use c35_store::snowflake_id;
 use sqlx::PgPool;
 
 use crate::grant::site_grant_check;
+use crate::rows::grant_from_row;
 
 pub fn site_grant_role_staff_manage(role: &str) -> Result<&'static str> {
     match role.trim().to_lowercase().as_str() {
@@ -53,6 +58,59 @@ async fn site_grant_invalidate(pool: &PgPool, site_iid: i64, grantee_iid: i64) -
     let _ = c35_mod_hint::hint_invalidate(pool, grantee_iid).await;
     let _ = c35_mod_hint::mention_invalidate(pool, grantee_iid).await;
     Ok(())
+}
+
+pub async fn site_grant_list(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteGrantList,
+) -> Result<ResSiteGrantList> {
+    let _ = site_grant_check(pool, caller_iid, req.site_iid, true).await?;
+    let rows = sqlx::query(
+        r#"
+        SELECT g.resource_iid AS site_iid, g.grantee_iid, g.role,
+               g.created_ts, g.updated_ts,
+               COALESCE(i.alien_id, '') AS grantee_alien_id,
+               COALESCE(i.name, '') AS grantee_name
+        FROM ai.identity_grant g
+        JOIN ai.identity i ON i.id = g.grantee_iid AND i.deleted_ts IS NULL
+        WHERE g.resource_iid = $1 AND g.deleted_ts IS NULL
+          AND g.role IN ('staff', 'manage')
+        ORDER BY g.updated_ts DESC, g.grantee_iid
+        "#,
+    )
+    .bind(req.site_iid)
+    .fetch_all(pool)
+    .await?;
+    Ok(ResSiteGrantList {
+        grants: rows.iter().map(grant_from_row).collect(),
+    })
+}
+
+pub async fn site_grant_put_rpc(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteGrantPut,
+) -> Result<ResSiteGrantPut> {
+    let grantee_iid =
+        site_grantee_resolve(pool, req.grantee_iid, &req.grantee_alien_id).await?;
+    site_grant_put(pool, caller_iid, req.site_iid, grantee_iid, &req.role).await?;
+    Ok(ResSiteGrantPut {
+        grantee_iid,
+        ok: true,
+    })
+}
+
+pub async fn site_grant_delete_rpc(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteGrantDelete,
+) -> Result<ResSiteGrantDelete> {
+    site_grant_delete(pool, caller_iid, req.site_iid, req.grantee_iid).await?;
+    Ok(ResSiteGrantDelete {
+        grantee_iid: req.grantee_iid,
+        ok: true,
+    })
 }
 
 pub async fn site_grant_put(

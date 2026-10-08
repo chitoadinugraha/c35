@@ -2516,6 +2516,78 @@ const WsReq$json = {
       '9': 0,
       '10': 'sitePostDelete'
     },
+    {
+      '1': 'site_product_delete',
+      '3': 190,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteProductDelete',
+      '9': 0,
+      '10': 'siteProductDelete'
+    },
+    {
+      '1': 'site_product_reorder',
+      '3': 191,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteProductReorder',
+      '9': 0,
+      '10': 'siteProductReorder'
+    },
+    {
+      '1': 'site_grant_list',
+      '3': 192,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteGrantList',
+      '9': 0,
+      '10': 'siteGrantList'
+    },
+    {
+      '1': 'site_grant_put',
+      '3': 193,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteGrantPut',
+      '9': 0,
+      '10': 'siteGrantPut'
+    },
+    {
+      '1': 'site_grant_delete',
+      '3': 194,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteGrantDelete',
+      '9': 0,
+      '10': 'siteGrantDelete'
+    },
+    {
+      '1': 'site_queue_list',
+      '3': 195,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteQueueList',
+      '9': 0,
+      '10': 'siteQueueList'
+    },
+    {
+      '1': 'site_queue_put',
+      '3': 196,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteQueuePut',
+      '9': 0,
+      '10': 'siteQueuePut'
+    },
+    {
+      '1': 'site_queue_advance',
+      '3': 197,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteQueueAdvance',
+      '9': 0,
+      '10': 'siteQueueAdvance'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2678,7 +2750,17 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     '9wb3N0X2xpc3QYuwEgASgLMhQuYzM1LlJlcVNpdGVQb3N0TGlzdEgAUgxzaXRlUG9zdExpc3QS'
     'OgoNc2l0ZV9wb3N0X3B1dBi8ASABKAsyEy5jMzUuUmVxU2l0ZVBvc3RQdXRIAFILc2l0ZVBvc3'
     'RQdXQSQwoQc2l0ZV9wb3N0X2RlbGV0ZRi9ASABKAsyFi5jMzUuUmVxU2l0ZVBvc3REZWxldGVI'
-    'AFIOc2l0ZVBvc3REZWxldGVCBgoEYm9keQ==');
+    'AFIOc2l0ZVBvc3REZWxldGUSTAoTc2l0ZV9wcm9kdWN0X2RlbGV0ZRi+ASABKAsyGS5jMzUuUm'
+    'VxU2l0ZVByb2R1Y3REZWxldGVIAFIRc2l0ZVByb2R1Y3REZWxldGUSTwoUc2l0ZV9wcm9kdWN0'
+    'X3Jlb3JkZXIYvwEgASgLMhouYzM1LlJlcVNpdGVQcm9kdWN0UmVvcmRlckgAUhJzaXRlUHJvZH'
+    'VjdFJlb3JkZXISQAoPc2l0ZV9ncmFudF9saXN0GMABIAEoCzIVLmMzNS5SZXFTaXRlR3JhbnRM'
+    'aXN0SABSDXNpdGVHcmFudExpc3QSPQoOc2l0ZV9ncmFudF9wdXQYwQEgASgLMhQuYzM1LlJlcV'
+    'NpdGVHcmFudFB1dEgAUgxzaXRlR3JhbnRQdXQSRgoRc2l0ZV9ncmFudF9kZWxldGUYwgEgASgL'
+    'MhcuYzM1LlJlcVNpdGVHcmFudERlbGV0ZUgAUg9zaXRlR3JhbnREZWxldGUSQAoPc2l0ZV9xdW'
+    'V1ZV9saXN0GMMBIAEoCzIVLmMzNS5SZXFTaXRlUXVldWVMaXN0SABSDXNpdGVRdWV1ZUxpc3QS'
+    'PQoOc2l0ZV9xdWV1ZV9wdXQYxAEgASgLMhQuYzM1LlJlcVNpdGVRdWV1ZVB1dEgAUgxzaXRlUX'
+    'VldWVQdXQSSQoSc2l0ZV9xdWV1ZV9hZHZhbmNlGMUBIAEoCzIYLmMzNS5SZXFTaXRlUXVldWVB'
+    'ZHZhbmNlSABSEHNpdGVRdWV1ZUFkdmFuY2VCBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -3937,6 +4019,78 @@ const WsRes$json = {
       '9': 0,
       '10': 'sitePostDelete'
     },
+    {
+      '1': 'site_product_delete',
+      '3': 190,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteProductDelete',
+      '9': 0,
+      '10': 'siteProductDelete'
+    },
+    {
+      '1': 'site_product_reorder',
+      '3': 191,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteProductReorder',
+      '9': 0,
+      '10': 'siteProductReorder'
+    },
+    {
+      '1': 'site_grant_list',
+      '3': 192,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteGrantList',
+      '9': 0,
+      '10': 'siteGrantList'
+    },
+    {
+      '1': 'site_grant_put',
+      '3': 193,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteGrantPut',
+      '9': 0,
+      '10': 'siteGrantPut'
+    },
+    {
+      '1': 'site_grant_delete',
+      '3': 194,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteGrantDelete',
+      '9': 0,
+      '10': 'siteGrantDelete'
+    },
+    {
+      '1': 'site_queue_list',
+      '3': 195,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteQueueList',
+      '9': 0,
+      '10': 'siteQueueList'
+    },
+    {
+      '1': 'site_queue_put',
+      '3': 196,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteQueuePut',
+      '9': 0,
+      '10': 'siteQueuePut'
+    },
+    {
+      '1': 'site_queue_advance',
+      '3': 197,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteQueueAdvance',
+      '9': 0,
+      '10': 'siteQueueAdvance'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4111,4 +4265,14 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'i7ASABKAsyFC5jMzUuUmVzU2l0ZVBvc3RMaXN0SABSDHNpdGVQb3N0TGlzdBI6Cg1zaXRlX3Bv'
     'c3RfcHV0GLwBIAEoCzITLmMzNS5SZXNTaXRlUG9zdFB1dEgAUgtzaXRlUG9zdFB1dBJDChBzaX'
     'RlX3Bvc3RfZGVsZXRlGL0BIAEoCzIWLmMzNS5SZXNTaXRlUG9zdERlbGV0ZUgAUg5zaXRlUG9z'
-    'dERlbGV0ZUIGCgRib2R5');
+    'dERlbGV0ZRJMChNzaXRlX3Byb2R1Y3RfZGVsZXRlGL4BIAEoCzIZLmMzNS5SZXNTaXRlUHJvZH'
+    'VjdERlbGV0ZUgAUhFzaXRlUHJvZHVjdERlbGV0ZRJPChRzaXRlX3Byb2R1Y3RfcmVvcmRlchi/'
+    'ASABKAsyGi5jMzUuUmVzU2l0ZVByb2R1Y3RSZW9yZGVySABSEnNpdGVQcm9kdWN0UmVvcmRlch'
+    'JACg9zaXRlX2dyYW50X2xpc3QYwAEgASgLMhUuYzM1LlJlc1NpdGVHcmFudExpc3RIAFINc2l0'
+    'ZUdyYW50TGlzdBI9Cg5zaXRlX2dyYW50X3B1dBjBASABKAsyFC5jMzUuUmVzU2l0ZUdyYW50UH'
+    'V0SABSDHNpdGVHcmFudFB1dBJGChFzaXRlX2dyYW50X2RlbGV0ZRjCASABKAsyFy5jMzUuUmVz'
+    'U2l0ZUdyYW50RGVsZXRlSABSD3NpdGVHcmFudERlbGV0ZRJACg9zaXRlX3F1ZXVlX2xpc3QYww'
+    'EgASgLMhUuYzM1LlJlc1NpdGVRdWV1ZUxpc3RIAFINc2l0ZVF1ZXVlTGlzdBI9Cg5zaXRlX3F1'
+    'ZXVlX3B1dBjEASABKAsyFC5jMzUuUmVzU2l0ZVF1ZXVlUHV0SABSDHNpdGVRdWV1ZVB1dBJJCh'
+    'JzaXRlX3F1ZXVlX2FkdmFuY2UYxQEgASgLMhguYzM1LlJlc1NpdGVRdWV1ZUFkdmFuY2VIAFIQ'
+    'c2l0ZVF1ZXVlQWR2YW5jZUIGCgRib2R5');

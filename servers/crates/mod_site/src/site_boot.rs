@@ -10,6 +10,7 @@ use crate::guest_product::{
 };
 use crate::site_config::site_capabilities_get;
 use crate::site_link::site_link_boot_rows;
+use crate::product_design::product_design_from_site_meta;
 use crate::site_post::{post_boot_summary_json, site_post_boot_summaries};
 
 fn avatar_url(pic: &str) -> String {
@@ -56,6 +57,7 @@ pub fn site_boot_json_assemble(
 ) -> Value {
     let theme = doc_json.get("theme").cloned().unwrap_or_else(|| json!({}));
     let meta = doc_json.get("meta").cloned().unwrap_or_else(|| json!({}));
+    let product_design = product_design_from_site_meta(&meta).unwrap_or_else(|| json!({}));
     let pages = doc_json.get("pages").cloned().unwrap_or_else(|| json!([]));
     json!({
         "site_id": site_iid,
@@ -65,6 +67,7 @@ pub fn site_boot_json_assemble(
         "avatar_url": avatar_url(pic),
         "mode": mode_label(mode),
         "meta": meta,
+        "product_design": product_design,
         "theme": theme,
         "pages": pages,
         "capabilities": capabilities,
@@ -185,7 +188,7 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
     .ok_or_else(|| anyhow!("site identity not found"))?;
     let alien_id: String = id_row.get("alien_id");
     let name: String = id_row.get("name");
-    let pic: String = id_row.get("pic");
+    let pic: String = id_row.get::<Option<String>, _>("pic").unwrap_or_default();
     let doc_json = load_doc_json(pool, req.site_iid, mode).await?;
     let capabilities = site_capabilities_get(pool, req.site_iid).await;
     let product_preload = product_preload_for_doc(pool, req.site_iid, &doc_json).await?;
