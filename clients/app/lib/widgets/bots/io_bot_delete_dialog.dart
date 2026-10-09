@@ -8,6 +8,7 @@ import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_slide_confirm.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 const _dangerColor = Color(0xFFEF4444);
 const _border = Color(0xFF27272A);
@@ -89,6 +90,18 @@ class _IoBotDeleteDialogState extends State<IoBotDeleteDialog> {
     });
   }
 
+  void _copyExpectedName() {
+    if (_phase != _DeletePhase.input) return;
+    Clipboard.setData(ClipboardData(text: _expectedName));
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+      const SnackBar(
+        content: Text('Copied'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   Future<void> _delete() async {
     if (_phase != _DeletePhase.ready) return;
     setState(() {
@@ -160,9 +173,22 @@ class _IoBotDeleteDialogState extends State<IoBotDeleteDialog> {
                 style: const TextStyle(color: _muted, fontSize: 12),
                 children: [
                   const TextSpan(text: 'To confirm, type '),
-                  TextSpan(
-                    text: name,
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: _dangerColor),
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.baseline,
+                    baseline: TextBaseline.alphabetic,
+                    child: MouseRegion(
+                      cursor: _phase == _DeletePhase.input ? SystemMouseCursors.click : SystemMouseCursors.basic,
+                      child: GestureDetector(
+                        onTap: _phase == _DeletePhase.input ? _copyExpectedName : null,
+                        child: Tooltip(
+                          message: 'Copy',
+                          child: Text(
+                            name,
+                            style: const TextStyle(fontWeight: FontWeight.w700, color: _dangerColor, fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   const TextSpan(text: ' below:'),
                 ],

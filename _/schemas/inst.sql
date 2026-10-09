@@ -1068,7 +1068,7 @@ INSERT INTO ai.inst (
     '[SITE.COMPARE] User wants to compare profitability or performance across mentioned sites. \
 Call site.query.run with query_id tx.profit_summary and pass ALL site_iids from [SITE CONTEXTS]. \
 Do not call write tools for compare — readonly query only. Summarize results side-by-side in the user language.',
-    ARRAY['compare', 'compare profit', 'lebih untung', 'which is more profitable', 'profit warung'],
+    ARRAY['compare', 'compare profit', 'lebih untung', 'which is more profitable', 'profit warung', 'bandingkan omzet', 'omzet warung'],
     ARRAY['tool_include:site.query.run'],
     129,
     'seed',
@@ -1090,13 +1090,121 @@ INSERT INTO ai.inst (
     'global',
     'task',
     '',
-    ARRAY['web.builder', 'site.commerce'],
-    '[SITE.REPORT] User wants sales, profit, or transaction reports. Call site.query.run only. Profit / untung / laba => query_id tx.profit_summary. Revenue / penjualan / omzet => query_id tx.sales_summary. When they say hari ini / today, params.range = "today". this week => "this_week". this month / bulan ini => "this_month". If no period, use "today". Pass site_iids from [SITE CONTEXTS]. Readonly. Do not call web.search or transaction write tools.',
-    ARRAY['laporan', 'report', 'sales today', 'untung', 'laba', 'berapa untung', 'untung hari ini', 'keuntungan', 'profit today'],
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.REPORT] User wants sales, profit, or transaction count reports. Call site.query.run only. Profit / untung / laba => query_id tx.profit_summary. Revenue / penjualan / omzet / pendapatan => query_id tx.sales_summary (tx_count = number of sales). When they say hari ini / today, params.range = "today". kemarin => "yesterday". this week / minggu ini => "this_week". this month / bulan ini => "this_month". If no period, use "today". Omit site_iids to use all granted sites. Readonly. Do not call web.search or transaction write tools.',
+    ARRAY['laporan', 'report', 'sales today', 'untung', 'laba', 'berapa untung', 'untung hari ini', 'keuntungan', 'profit today', 'omzet', 'penjualan', 'pendapatan', 'minggu ini', 'bulan ini', 'berapa transaksi', 'omzet kemarin'],
     ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
     ARRAY['site.query.run'],
     ARRAY['web.search', 'web.visit'],
     140,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.tx_browse',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.TX.BROWSE] User wants a transaction list (not a revenue total). Server may return a site.tx_list block. Prefer site.query.run query_id tx.sales_list with params.range (today/yesterday/this_week/this_month), limit, open_only, state. Do not paste the full grid in prose. Do not call web.search.',
+    ARRAY['daftar transaksi', 'apa saja transaksi', 'list transaksi', 'transaksi terakhir', 'nota terakhir', 'belum lunas', 'transaksi batal'],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit'],
+    145,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.period_compare',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.PERIOD.COMPARE] User compares sales or revenue across two periods (e.g. today vs yesterday). Call site.query.run query_id tx.sales_period_compare with params.period_a (default today) and period_b (default yesterday). Summarize revenue_delta_pct per site. Readonly.',
+    ARRAY['dibanding kemarin', 'vs kemarin', 'naik berapa', 'turun berapa', 'kemajuan', 'bandingkan hari ini', 'dibandingkan kemarin'],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit'],
+    141,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.product_sales',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.PRODUCT.SALES] User asks how much of a product sold. Call site.query.run query_id tx.product_compare with params.q set to the product name and params.range when they name a period.',
+    ARRAY['terjual berapa', 'qty terjual', 'quantity sold', 'sold how many'],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit'],
+    137,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.tx_detail',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.TX.DETAIL] User wants one receipt / transaction detail. Call site.tx.get with tx_id when known, or site.tx.list with limit 1 for the latest nota.',
+    ARRAY['detail transaksi', 'struk', 'nota #', 'transaksi nomor', 'struk terakhir'],
+    ARRAY['tool_include:site.tx.get', 'tool_include:site.tx.list', 'tool_exclude:web.search'],
+    ARRAY['site.tx.get', 'site.tx.list'],
+    ARRAY['web.search', 'web.visit'],
+    136,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET

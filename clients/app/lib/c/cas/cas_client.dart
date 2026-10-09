@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:http/http.dart' as http;
 
 class CasUploadRes {
@@ -25,7 +26,22 @@ Future<CasUploadRes?> casUpload({required List<int> bytes, required String mime,
     },
     body: bytes,
   );
-  if (res.statusCode < 200 || res.statusCode >= 300) return null;
+  if (res.statusCode < 200 || res.statusCode >= 300) {
+    final raw = res.body.trim();
+    if (raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          final msg = (decoded['error'] ?? decoded['message'] ?? '').toString().trim();
+          if (msg.isNotEmpty) throw ApiException(msg);
+        }
+      } catch (e) {
+        if (e is ApiException) rethrow;
+      }
+      if (raw.length <= 200) throw ApiException(raw);
+    }
+    throw ApiException('upload failed (${res.statusCode})');
+  }
   final body = jsonDecode(res.body) as Map<String, dynamic>;
   onProgress?.call(1.0);
   return CasUploadRes(hash: body['hash'] as String? ?? '', url: body['url'] as String? ?? '', mimeType: body['mime_type'] as String? ?? mime);

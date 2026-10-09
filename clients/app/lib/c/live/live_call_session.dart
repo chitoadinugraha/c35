@@ -49,6 +49,7 @@ class LiveCallSession {
   int _audioSampleRate = 24000;
   var _playBusy = false;
   var _disposed = false;
+  var _userHungUp = false;
 
   // Track D: Client-Side VAD (Voice Activity Detection)
   static const int _vadSampleRate = 16000;
@@ -174,6 +175,7 @@ class LiveCallSession {
   Future<void> connect(ResLiveStart res) async {
     await disconnect();
     if (_disposed) return;
+    _userHungUp = false;
     await initAudioContext();
     final url = liveWsUri(res);
     _ch = WebSocketChannel.connect(Uri.parse(url));
@@ -189,8 +191,12 @@ class LiveCallSession {
       },
       onDone: () {
         if (_disposed) return;
+        final wasConnected = connected.value;
         connected.value = false;
         ready.value = false;
+        if (wasConnected && !_userHungUp && error.value == null) {
+          error.value = 'Call disconnected';
+        }
       },
     );
     await _startMic();
@@ -266,6 +272,17 @@ class LiveCallSession {
         if (!_disposed) error.value = text;
       }
       return;
+    }
+    if (text.contains('"error"') || text.contains('"error":')) {
+      try {
+        final m = jsonDecode(text) as Map<String, dynamic>;
+        final err = m['error'];
+        final msg = (err is Map ? err['message'] : err)?.toString();
+        if (msg != null && msg.isNotEmpty && !_disposed) {
+          error.value = msg;
+          return;
+        }
+      } catch (_) {}
     }
     if (text.contains('liveTurnCommitted')) {
       try {
@@ -816,6 +833,7 @@ class LiveCallSession {
   }
 
   Future<void> hangup() async {
+    _userHungUp = true;
     try {
       _ch?.sink.add('{"type":"hangup"}');
     } catch (_) {}

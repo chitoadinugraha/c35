@@ -465,6 +465,15 @@ pub async fn live_google_proxy_run(
                             .await;
                         }
                         if let Ok(v) = serde_json::from_str::<Value>(&t) {
+                            if let Some(err) = v.pointer("/error/message").and_then(|x| x.as_str()) {
+                                warn!(%err, "live: gemini returned error message");
+                                let _ = client
+                                    .send(Message::Text(
+                                        json!({"liveError": err}).to_string().into(),
+                                    ))
+                                    .await;
+                                break;
+                            }
                             resume.note_server_msg(&v);
                             live_turn_flags(&v, &mut generation_open);
                             if !generation_open && handover_task.is_none() {
@@ -602,11 +611,28 @@ pub async fn live_google_proxy_run(
                             .await;
                         }
                     }
-                    Some(Ok(GMsg::Close(_))) | None => break,
-                    Some(Err(e)) => {
-                        warn!(?e, "live: google ws err");
+                    Some(Ok(GMsg::Close(cf))) => {
+                        warn!(?cf, "live: google ws closed");
+                        let reason = cf.as_ref().map(|c| c.reason.to_string()).unwrap_or_default();
+                        if !reason.is_empty() {
+                            let _ = client
+                                .send(Message::Text(
+                                    json!({"liveError": reason}).to_string().into(),
+                                ))
+                                .await;
+                        }
                         break;
                     }
+                    Some(Err(e)) => {
+                        warn!(?e, "live: google ws err");
+                        let _ = client
+                            .send(Message::Text(
+                                json!({"liveError": format!("Voice service error: {e}")}).to_string().into(),
+                            ))
+                            .await;
+                        break;
+                    }
+                    None => break,
                     _ => {}
                 }
             }
@@ -878,10 +904,11 @@ async fn live_handle_tool_call(
         let call_id = fc.get("id").and_then(|i| i.as_str()).unwrap_or("").to_string();
         let call_name = fc.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
         let call_args = fc.get("args").cloned().unwrap_or(json!({}));
+        let norm_name = call_name.replace('.', "_");
 
         tracing::info!(tool = %call_name, call_id = %call_id, req_id = %sid, "live: executing tool call");
 
-        if call_name == "call.end" {
+        if norm_name == "call_end" {
             let result = json!({
                 "status": "ok",
                 "message": "Live call ending"
@@ -909,7 +936,7 @@ async fn live_handle_tool_call(
             continue;
         }
 
-        if call_name == "topic_reset" {
+        if norm_name == "topic_reset" {
             let result = json!({
                 "status": "ok",
                 "message": "Returned to general conversation"

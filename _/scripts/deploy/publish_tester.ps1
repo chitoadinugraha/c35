@@ -1,4 +1,4 @@
-# Tester publish: optional git push, cluster server, Play internal AAB only (no production promote).
+# Tester publish: optional git commit+push, cluster server, Play internal AAB only (no production promote).
 # Usage (repo root):
 #   .\_\scripts\deploy\publish_tester.ps1
 #   .\_\scripts\deploy\publish_tester.ps1 -SkipGit
@@ -15,27 +15,10 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverScript = Join-Path $PSScriptRoot 'publish_server.ps1'
 $appScript = Join-Path $PSScriptRoot 'publish_app_release.ps1'
 
-function Invoke-RepoGitPush {
-    Push-Location $repoRoot
-    try {
-        $status = git status --porcelain
-        if ($status) {
-            throw @"
-Working tree has uncommitted changes. Commit (or stash) before publish_tester, or pass -SkipGit.
-$status
-"@
-        }
-        $branch = (git rev-parse --abbrev-ref HEAD).Trim()
-        Write-Host "==> git push origin $branch"
-        git push origin $branch
-        if ($LASTEXITCODE -ne 0) { throw 'git push failed' }
-    } finally {
-        Pop-Location
-    }
-}
+. (Join-Path $repoRoot '_\deployments\_lib\publish_git.ps1')
 
 if (-not $SkipGit) {
-    Invoke-RepoGitPush
+    Invoke-RepoGitCommitAndPush -RepoRoot $repoRoot -CommitMessage 'chore: pre-publish tester'
 }
 
 if (-not $SkipServer) {
@@ -44,11 +27,11 @@ if (-not $SkipServer) {
     if ($LASTEXITCODE -ne 0) { throw 'publish_server failed' }
 }
 
-$appExtra = @('-Tester')
-if ($SkipDartGet) { $appExtra += '-SkipDartGet' }
+$appParams = @{ Tester = $true }
+if ($SkipDartGet) { $appParams.SkipDartGet = $true }
 
 Write-Host '==> Android: Play internal (tester) AAB only — no production promote, no /version/android'
-& $appScript @appExtra
+& $appScript @appParams
 if ($LASTEXITCODE -ne 0) { throw 'Android tester publish failed' }
 
 Write-Host '==> publish_tester done'

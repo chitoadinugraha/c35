@@ -9,8 +9,21 @@ import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_reserve_dialog.dar
 import 'package:alienai_c35/widgets/io/in_site_contact.dart';
 import 'package:alienai_c35/widgets/sites/tx/section_tx_cart_pay.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_product_thumb.dart';
+import 'dart:math' as math;
+
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
+
+/// Below this width, POS uses full-width catalog + end drawer for cart (see [SectionTxItemsState.openCartDrawer]).
+const double kPosInlineCartMinWidth = 720;
+
+bool posTxShowsInlineCartForWidth(double width, {required bool posShell}) =>
+    !posShell || width >= kPosInlineCartMinWidth;
+
+bool posTxShowsInlineCart(BuildContext context, {required bool posShell}) {
+  final fromMedia = MediaQuery.sizeOf(context).width;
+  return posTxShowsInlineCartForWidth(fromMedia, posShell: posShell);
+}
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -54,14 +67,18 @@ class SectionTxItems extends StatefulWidget {
   final VoidCallback? onPrintUnpaidReceipt;
 
   @override
-  State<SectionTxItems> createState() => _SectionTxItemsState();
+  State<SectionTxItems> createState() => SectionTxItemsState();
 }
 
-class _SectionTxItemsState extends State<SectionTxItems> {
+class SectionTxItemsState extends State<SectionTxItems> {
   final _searchCtrl = TextEditingController();
   final _searchFocus = FocusNode();
+  final _posScaffoldKey = GlobalKey<ScaffoldState>();
   var _searchQuery = '';
   String? _selectedCategory;
+
+  /// Opens the POS cart end drawer on compact layouts ([kPosInlineCartMinWidth]).
+  void openCartDrawer() => _posScaffoldKey.currentState?.openEndDrawer();
 
   @override
   void initState() {
@@ -492,273 +509,315 @@ class _SectionTxItemsState extends State<SectionTxItems> {
         ? (itemsNetTotal - cartDiscountTotal)
         : Int64.ZERO;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Left Column: Catalog & Quick Search
-        Expanded(
-          flex: 5,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Search & Barcode Scan Bar
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                child: TextField(
-                  controller: _searchCtrl,
-                  focusNode: _searchFocus,
-                  style: const TextStyle(color: _text, fontSize: 13),
-                  onSubmitted: _submitBarcode,
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: 'Cari produk / scan barcode',
-                    hintStyle: const TextStyle(color: _muted, fontSize: 13),
-                    prefixIcon: const Icon(Icons.qr_code_scanner_outlined, size: 18, color: _accent),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.close, size: 16, color: _muted),
-                            onPressed: () => _searchCtrl.clear(),
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: const Color(0xFF141417),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
-                  ),
-                ),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layoutW = constraints.maxWidth.isFinite && constraints.maxWidth > 0
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final inlineCart = posTxShowsInlineCartForWidth(layoutW, posShell: widget.posShell);
+        final catalog = _buildCatalogColumn(filtered, categories);
+        final cart = _buildCartColumn(
+          grossSubtotal: grossSubtotal,
+          itemsDiscountTotal: itemsDiscountTotal,
+          cartDiscountTotal: cartDiscountTotal,
+          finalTotal: finalTotal,
+          drawerHeader: !inlineCart && widget.posShell,
+        );
 
-              // Category filter pills
-              if (categories.isNotEmpty)
-                SizedBox(
-                  height: 38,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ChoiceChip(
-                          selected: _selectedCategory == null,
-                          label: const Text('Semua', style: TextStyle(fontSize: 12)),
-                          selectedColor: _accent,
-                          backgroundColor: const Color(0xFF18181B),
-                          side: BorderSide(color: _selectedCategory == null ? _accent : _border),
-                          labelStyle: TextStyle(
-                            color: _selectedCategory == null ? const Color(0xFF052E1B) : _text,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          onSelected: (s) => setState(() => _selectedCategory = null),
-                        ),
-                      ),
-                      for (final cat in categories)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: ChoiceChip(
-                            selected: _selectedCategory == cat,
-                            label: Text(cat, style: const TextStyle(fontSize: 12)),
-                            selectedColor: _accent,
-                            backgroundColor: const Color(0xFF18181B),
-                            side: BorderSide(color: _selectedCategory == cat ? _accent : _border),
-                            labelStyle: TextStyle(
-                              color: _selectedCategory == cat ? const Color(0xFF052E1B) : _text,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            onSelected: (s) => setState(() => _selectedCategory = s ? cat : null),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+        if (!inlineCart && widget.posShell) {
+          final drawerW = math.min(480.0, layoutW * 0.92);
+          return Scaffold(
+            key: _posScaffoldKey,
+            backgroundColor: Colors.transparent,
+            endDrawer: Drawer(
+              backgroundColor: const Color(0xFF08080A),
+              width: drawerW,
+              child: SafeArea(child: cart),
+            ),
+            body: catalog,
+          );
+        }
 
-              // Product Catalog List
-              Expanded(
-                child: filtered.isEmpty
-                    ? const Center(child: Text('Tidak ada produk yang cocok', style: TextStyle(color: _muted)))
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-                        itemCount: filtered.length,
-                        itemBuilder: (_, i) => _catalogProductRow(filtered[i], _productQtyInCart(filtered[i].productId)),
-                      ),
-              ),
-            ],
-          ),
-        ),
-
-        const VerticalDivider(width: 1, color: _border),
-
-        // Right Column: Cart & Direct Bayar Button
-        Expanded(
-          flex: 4,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (!widget.posShell)
-                      Row(
-                        children: [
-                          const Text('Keranjang', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
-                          const Spacer(),
-                          Text('${widget.items.length} item', style: const TextStyle(color: _muted, fontSize: 12)),
-                        ],
-                      ),
-                    if (widget.posShell && widget.onContactChanged != null) ...[
-                      if (!widget.posShell) const SizedBox(height: 6),
-                      InSiteContact(
-                        value: widget.selectedContact == null ? '' : '${widget.selectedContact!.contactId}',
-                        contacts: {for (final c in widget.contacts) '${c.contactId}': c},
-                        onAddCustomer: widget.onAddCustomer == null
-                            ? null
-                            : (name) async {
-                                final c = await widget.onAddCustomer!(name);
-                                if (c != null) widget.onContactChanged!(c);
-                                return c == null ? null : '${c.contactId}';
-                              },
-                        onCommit: (id) async {
-                          if (id.isEmpty) {
-                            widget.onContactChanged!(null);
-                            return;
-                          }
-                          final picked = widget.contacts.where((c) => '${c.contactId}' == id).firstOrNull;
-                          if (picked != null) widget.onContactChanged!(picked);
-                        },
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              // Cart items list
-              Expanded(
-                child: widget.items.isEmpty
-                    ? const Center(child: Text('Ketuk produk untuk menambahkan', style: TextStyle(color: _muted)))
-                    : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        itemCount: widget.items.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1, color: _border),
-                        itemBuilder: (_, i) => _cartLine(i),
-                      ),
-              ),
-
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF101013),
-                  border: Border(top: BorderSide(color: _border)),
-                ),
-                child: widget.posShell
-                    ? SectionTxCartPay(
-                        grossSubtotal: grossSubtotal,
-                        itemsDiscountTotal: itemsDiscountTotal,
-                        cartDiscountTotal: cartDiscountTotal,
-                        finalTotal: finalTotal,
-                        paid: widget.payments.fold(Int64.ZERO, (s, p) => s + p.amount),
-                        payments: widget.payments,
-                        lineCount: widget.items.length,
-                        onCartDiscount: widget.items.isEmpty ? null : (widget.onCartDiscount ?? _editCartDiscount),
-                        onRemovePayment: widget.onRemovePayment ?? (_) {},
-                        onCheckout: widget.items.isEmpty ? null : widget.onCheckout,
-                        onPrintUnpaid: widget.items.isEmpty ? null : widget.onPrintUnpaidReceipt,
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Subtotal (${moneyFmtIdrGrouped(widget.items.length)}) produk',
-                                style: const TextStyle(color: _muted, fontSize: 12),
-                              ),
-                              Text(moneyFmtIdr(grossSubtotal.toInt()), style: const TextStyle(color: _text, fontSize: 12)),
-                            ],
-                          ),
-                          if (itemsDiscountTotal > Int64.ZERO) ...[
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text('Diskon Produk', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
-                                Text(
-                                  '- ${moneyFmtIdr(itemsDiscountTotal.toInt())}',
-                                  style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    'Diskon',
-                                    style: TextStyle(
-                                      color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  if (widget.items.isNotEmpty) ...[
-                                    const SizedBox(width: 2),
-                                    InkWell(
-                                      onTap: _editCartDiscount,
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(2),
-                                        child: Icon(
-                                          Icons.add,
-                                          size: 16,
-                                          color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                              Text(
-                                cartDiscountTotal > Int64.ZERO ? '- ${moneyFmtIdr(cartDiscountTotal.toInt())}' : 'Rp 0',
-                                style: TextStyle(color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _muted, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: _border)),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('Total Pembayaran', style: TextStyle(color: _muted, fontSize: 13)),
-                              Text(
-                                moneyFmtIdr(finalTotal.toInt()),
-                                style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                          FilledButton.icon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _accent,
-                              foregroundColor: const Color(0xFF052E1B),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: finalTotal < Int64.ZERO || widget.items.isEmpty || widget.onCheckout == null ? null : widget.onCheckout,
-                            icon: const Icon(Icons.payments_outlined, size: 20),
-                            label: Text('Bayar  •  ${moneyFmtIdr(finalTotal.toInt())}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: 5, child: catalog),
+            const VerticalDivider(width: 1, color: _border),
+            Expanded(flex: 4, child: cart),
+          ],
+        );
+      },
     );
   }
+
+  Widget _buildCatalogColumn(List<SiteProduct> filtered, List<String> categories) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            child: TextField(
+              controller: _searchCtrl,
+              focusNode: _searchFocus,
+              style: const TextStyle(color: _text, fontSize: 13),
+              onSubmitted: _submitBarcode,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Cari produk / scan barcode',
+                hintStyle: const TextStyle(color: _muted, fontSize: 13),
+                prefixIcon: const Icon(Icons.qr_code_scanner_outlined, size: 18, color: _accent),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close, size: 16, color: _muted),
+                        onPressed: () => _searchCtrl.clear(),
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFF141417),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _border)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _accent)),
+              ),
+            ),
+          ),
+          if (categories.isNotEmpty)
+            SizedBox(
+              height: 38,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      selected: _selectedCategory == null,
+                      label: const Text('Semua', style: TextStyle(fontSize: 12)),
+                      selectedColor: _accent,
+                      backgroundColor: const Color(0xFF18181B),
+                      side: BorderSide(color: _selectedCategory == null ? _accent : _border),
+                      labelStyle: TextStyle(
+                        color: _selectedCategory == null ? const Color(0xFF052E1B) : _text,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      onSelected: (s) => setState(() => _selectedCategory = null),
+                    ),
+                  ),
+                  for (final cat in categories)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: ChoiceChip(
+                        selected: _selectedCategory == cat,
+                        label: Text(cat, style: const TextStyle(fontSize: 12)),
+                        selectedColor: _accent,
+                        backgroundColor: const Color(0xFF18181B),
+                        side: BorderSide(color: _selectedCategory == cat ? _accent : _border),
+                        labelStyle: TextStyle(
+                          color: _selectedCategory == cat ? const Color(0xFF052E1B) : _text,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        onSelected: (s) => setState(() => _selectedCategory = s ? cat : null),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: filtered.isEmpty
+                ? const Center(child: Text('Tidak ada produk yang cocok', style: TextStyle(color: _muted)))
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                    itemCount: filtered.length,
+                    itemBuilder: (_, i) => _catalogProductRow(filtered[i], _productQtyInCart(filtered[i].productId)),
+                  ),
+          ),
+        ],
+      );
+
+  Widget _buildCartColumn({
+    required Int64 grossSubtotal,
+    required Int64 itemsDiscountTotal,
+    required Int64 cartDiscountTotal,
+    required Int64 finalTotal,
+    bool drawerHeader = false,
+  }) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (drawerHeader)
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Keranjang', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
+                      ),
+                      IconButton(
+                        tooltip: 'Tutup',
+                        icon: const Icon(Icons.close, color: _muted),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                if (!widget.posShell)
+                  Row(
+                    children: [
+                      const Text('Keranjang', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                      const Spacer(),
+                      Text('${widget.items.length} item', style: const TextStyle(color: _muted, fontSize: 12)),
+                    ],
+                  ),
+                if (widget.posShell && widget.onContactChanged != null) ...[
+                  if (!widget.posShell) const SizedBox(height: 6),
+                  InSiteContact(
+                    value: widget.selectedContact == null ? '' : '${widget.selectedContact!.contactId}',
+                    contacts: {for (final c in widget.contacts) '${c.contactId}': c},
+                    onAddCustomer: widget.onAddCustomer == null
+                        ? null
+                        : (name) async {
+                            final c = await widget.onAddCustomer!(name);
+                            if (c != null) widget.onContactChanged!(c);
+                            return c == null ? null : '${c.contactId}';
+                          },
+                    onCommit: (id) async {
+                      if (id.isEmpty) {
+                        widget.onContactChanged!(null);
+                        return;
+                      }
+                      final picked = widget.contacts.where((c) => '${c.contactId}' == id).firstOrNull;
+                      if (picked != null) widget.onContactChanged!(picked);
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Expanded(
+            child: widget.items.isEmpty
+                ? const Center(child: Text('Ketuk produk untuk menambahkan', style: TextStyle(color: _muted)))
+                : ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    itemCount: widget.items.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, color: _border),
+                    itemBuilder: (_, i) => _cartLine(i),
+                  ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: const BoxDecoration(
+              color: Color(0xFF101013),
+              border: Border(top: BorderSide(color: _border)),
+            ),
+            child: widget.posShell
+                ? SectionTxCartPay(
+                    grossSubtotal: grossSubtotal,
+                    itemsDiscountTotal: itemsDiscountTotal,
+                    cartDiscountTotal: cartDiscountTotal,
+                    finalTotal: finalTotal,
+                    paid: widget.payments.fold(Int64.ZERO, (s, p) => s + p.amount),
+                    payments: widget.payments,
+                    lineCount: widget.items.length,
+                    onCartDiscount: widget.items.isEmpty ? null : (widget.onCartDiscount ?? _editCartDiscount),
+                    onRemovePayment: widget.onRemovePayment ?? (_) {},
+                    onCheckout: widget.items.isEmpty
+                        ? null
+                        : () {
+                            widget.onCheckout?.call();
+                            if (drawerHeader && mounted) Navigator.of(context).pop();
+                          },
+                    onPrintUnpaid: widget.items.isEmpty ? null : widget.onPrintUnpaidReceipt,
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Subtotal (${moneyFmtIdrGrouped(widget.items.length)}) produk',
+                            style: const TextStyle(color: _muted, fontSize: 12),
+                          ),
+                          Text(moneyFmtIdr(grossSubtotal.toInt()), style: const TextStyle(color: _text, fontSize: 12)),
+                        ],
+                      ),
+                      if (itemsDiscountTotal > Int64.ZERO) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('Diskon Produk', style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                            Text(
+                              '- ${moneyFmtIdr(itemsDiscountTotal.toInt())}',
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Diskon',
+                                style: TextStyle(
+                                  color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (widget.items.isNotEmpty) ...[
+                                const SizedBox(width: 2),
+                                InkWell(
+                                  onTap: _editCartDiscount,
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(2),
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 16,
+                                      color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _accent,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          Text(
+                            cartDiscountTotal > Int64.ZERO ? '- ${moneyFmtIdr(cartDiscountTotal.toInt())}' : 'Rp 0',
+                            style: TextStyle(color: cartDiscountTotal > Int64.ZERO ? Colors.redAccent : _muted, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                      const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: _border)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Pembayaran', style: TextStyle(color: _muted, fontSize: 13)),
+                          Text(
+                            moneyFmtIdr(finalTotal.toInt()),
+                            style: const TextStyle(color: _accent, fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _accent,
+                          foregroundColor: const Color(0xFF052E1B),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: finalTotal < Int64.ZERO || widget.items.isEmpty || widget.onCheckout == null ? null : widget.onCheckout,
+                        icon: const Icon(Icons.payments_outlined, size: 20),
+                        label: Text('Bayar  •  ${moneyFmtIdr(finalTotal.toInt())}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      );
 }

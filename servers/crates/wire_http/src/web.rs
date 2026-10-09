@@ -291,8 +291,42 @@ async fn platform_home_get(State(state): State<AppState>) -> Response {
     }
 }
 
+async fn voucher_public_get(State(st): State<AppState>, Path(code): Path<String>) -> Response {
+    match c35_mod_billing::billing_voucher_public(&st.pool, &code).await {
+        Ok(view) => (
+            StatusCode::OK,
+            [
+                (header::CONTENT_TYPE, "application/json"),
+                (header::CACHE_CONTROL, "private, no-store"),
+            ],
+            Json(view),
+        )
+            .into_response(),
+        Err(c35_mod_billing::VoucherPublicFail::NotFound) => (
+            StatusCode::NOT_FOUND,
+            [
+                (header::CONTENT_TYPE, "application/json"),
+                (header::CACHE_CONTROL, "private, no-store"),
+            ],
+            Json(serde_json::json!({ "error": "not found" })),
+        )
+            .into_response(),
+        Err(c35_mod_billing::VoucherPublicFail::Unavailable(e)) => {
+            tracing::warn!("voucher public: {e}");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "application/json")],
+                Json(serde_json::json!({ "error": "unavailable" })),
+            )
+                .into_response()
+        }
+    }
+}
+
 pub fn web_router() -> Router<AppState> {
     Router::new()
+        .route("/v1/voucher/{code}", get(voucher_public_get))
+        .route("/voucher/{code}", get(|| page_get("voucher.html")))
         .route("/v1/site/platform-home", get(platform_home_get))
         .route("/terms", get(|| page_get("terms.html")))
         .route("/terms.html", get(|| page_get("terms.html")))
@@ -373,6 +407,7 @@ mod tests {
         assert!(dir.join("delete.html").is_file(), "delete.html must exist");
         assert!(dir.join("tts.html").is_file(), "tts.html must exist");
         assert!(dir.join("status.html").is_file(), "status.html must exist");
+        assert!(dir.join("voucher.html").is_file(), "voucher.html must exist");
         assert!(dir.join("search.html").is_file(), "search.html must exist");
         assert!(
             dir.join("device-pair-chrome-extension.html").is_file(),

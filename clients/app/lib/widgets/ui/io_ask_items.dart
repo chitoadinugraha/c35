@@ -1,4 +1,5 @@
 import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
+import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:flutter/material.dart';
 
 class IoAskItemAction {
@@ -20,6 +21,7 @@ class IoAskItem {
     this.actions = const [],
     this.trailingLabel,
     this.trailingIcon,
+    this.trailing,
   });
 
   final String id;
@@ -31,6 +33,7 @@ class IoAskItem {
   final List<IoAskItemAction> actions;
   final String? trailingLabel;
   final IconData? trailingIcon;
+  final Widget? trailing;
 }
 
 Future<IoAskItem?> ioAskItemsShow(
@@ -172,6 +175,7 @@ Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}
   final accent = item.accent ?? uiDialogAccent;
   final hasLeading = item.imageUrl != null && item.imageUrl!.isNotEmpty || item.icon != null;
   final trailingBadge = item.trailingLabel != null;
+  final hasTrailingMenu = item.trailing != null;
   return Material(
     color: Colors.transparent,
     child: InkWell(
@@ -180,7 +184,7 @@ Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}
       child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         child: Row(
-          crossAxisAlignment: trailingBadge ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+          crossAxisAlignment: trailingBadge || hasTrailingMenu ? CrossAxisAlignment.center : CrossAxisAlignment.start,
           children: [
             if (hasLeading) ...[
               ioAskItemLeading(item: item, accent: accent),
@@ -205,6 +209,7 @@ Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}
               ),
             ),
             if (trailingBadge) IgnorePointer(child: ioAskItemTrailingBadge(item.trailingLabel!, accent: accent, leadingIcon: item.trailingIcon)),
+            if (hasTrailingMenu) item.trailing!,
           ],
         ),
       ),
@@ -236,13 +241,14 @@ Widget ioAskItemTrailingBadge(String label, {Color? accent, IconData? leadingIco
 
 Widget ioAskItemLeading({required IoAskItem item, required Color accent}) {
   final url = item.imageUrl?.trim() ?? '';
+  final fallback = ioAskItemIconBox(icon: item.icon ?? Icons.language_outlined, accent: accent);
   if (url.isNotEmpty) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(9),
-      child: Image.network(url, width: 34, height: 34, fit: BoxFit.cover, errorBuilder: (_, __, ___) => ioAskItemIconBox(icon: item.icon ?? Icons.language_outlined, accent: accent)),
+      child: UiImg(src: url, width: 34, height: 34, fit: BoxFit.cover, fallback: fallback),
     );
   }
-  return ioAskItemIconBox(icon: item.icon ?? Icons.language_outlined, accent: accent);
+  return fallback;
 }
 
 Widget ioAskItemIconBox({required IconData icon, required Color accent}) => Container(

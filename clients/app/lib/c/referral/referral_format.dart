@@ -6,6 +6,45 @@ const referralCodeHint = 'ABCD-1234-EFGH-IJKL-MNOP';
 
 String referralCodeNorm(String code) => code.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase();
 
+const voucherPublicOrigin = 'https://alienai.id';
+
+String voucherPublicUrl(String code) => '$voucherPublicOrigin/voucher/${referralCodeNorm(code)}';
+
+String voucherAppWebUrl(String code) => '$voucherPublicOrigin/app/voucher/${referralCodeNorm(code)}';
+
+String voucherAppSchemeUrl(String code) => 'id.alienai://voucher/${referralCodeNorm(code)}';
+
+/// Code from `https://alienai.id/voucher/<code>`, `/app/voucher/<code>`, or `id.alienai://voucher/<code>`.
+String? voucherCodeFromUri(Uri uri) {
+  final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  if (uri.scheme == 'id.alienai' && uri.host.toLowerCase() == 'voucher') {
+    if (segs.isEmpty) return null;
+    final norm = referralCodeNorm(segs.first);
+    return norm.isEmpty ? null : norm;
+  }
+  final i = segs.indexWhere((s) => s.toLowerCase() == 'voucher');
+  if (i >= 0 && i + 1 < segs.length) {
+    final norm = referralCodeNorm(segs[i + 1]);
+    return norm.isEmpty ? null : norm;
+  }
+  return null;
+}
+
+/// QR payload or a typed code.
+String? voucherCodeFromScan(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  final uri = Uri.tryParse(trimmed);
+  if (uri != null && (uri.hasScheme || trimmed.contains('/'))) {
+    final fromUri = voucherCodeFromUri(uri);
+    if (fromUri != null) return fromUri;
+  }
+  final norm = referralCodeNorm(trimmed);
+  if (norm.isEmpty) return null;
+  if (referralPackageCodeFormValidate(norm) != null) return null;
+  return norm;
+}
+
 String? referralCodeFormValidate(String code) => referralCodeNorm(code).isEmpty ? 'Code required' : null;
 
 bool referralCodeIsVoucher(String norm) => norm.startsWith('V') && norm.length > 1;

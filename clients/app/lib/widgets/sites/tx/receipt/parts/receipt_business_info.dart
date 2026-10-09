@@ -1,6 +1,8 @@
 import 'package:alienai_c35/c/media/media_disk_cache.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
 import 'package:pdf/widgets.dart' as pw;
 
 class ReceiptBusinessInfo {
@@ -40,7 +42,7 @@ class ReceiptBusinessInfo {
         !loadPath.startsWith('fs/')) {
       try {
         final data = await rootBundle.load(loadPath);
-        return data.buffer.asUint8List();
+        return _pdfSafeImageBytes(data.buffer.asUint8List());
       } catch (_) {
         return null;
       }
@@ -48,9 +50,23 @@ class ReceiptBusinessInfo {
     try {
       final file = await mediaDiskCacheFetch(loadPath);
       if (file == null) return null;
-      return await file.readAsBytes();
+      return _pdfSafeImageBytes(await file.readAsBytes());
     } catch (_) {
       return null;
     }
+  }
+
+  @visibleForTesting
+  static Uint8List? pdfSafeImageBytesForReceipt(Uint8List raw) => _pdfSafeImageBytes(raw);
+
+  /// PDF `MemoryImage` mishandles PNG alpha (logo prints as a black square).
+  static Uint8List? _pdfSafeImageBytes(Uint8List raw) {
+    if (raw.isEmpty) return null;
+    final decoded = img.decodeImage(raw);
+    if (decoded == null) return raw;
+    final flat = img.Image(width: decoded.width, height: decoded.height);
+    img.fill(flat, color: img.ColorRgb8(255, 255, 255));
+    img.compositeImage(flat, decoded);
+    return Uint8List.fromList(img.encodeJpg(flat, quality: 92));
   }
 }

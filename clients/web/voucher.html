@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Voucher — Alien AI</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/svg+xml" href="/alien.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 400: '#22ec9e', 500: '#00e599' },
+            dark: { bg: '#0f1014', card: '#181924' }
+          },
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-dark-bg text-slate-200 font-sans antialiased min-h-screen flex flex-col">
+  <header class="border-b border-white/5">
+    <div class="max-w-lg mx-auto px-4 h-14 flex items-center">
+      <a href="/" class="flex items-center gap-2.5">
+        <img src="/alien.svg" alt="" class="w-4 h-4">
+        <span class="text-base font-bold text-white">Alien AI</span>
+      </a>
+    </div>
+  </header>
+  <main class="flex-grow flex items-center justify-center px-4 py-10">
+    <div class="w-full max-w-md rounded-2xl bg-dark-card border border-white/10 p-6 sm:p-8">
+      <p id="status" class="text-xs font-semibold uppercase tracking-wider text-slate-400">Voucher</p>
+      <h1 id="name" class="mt-2 text-2xl font-bold text-white">Loading…</h1>
+      <p id="amount" class="mt-3 text-3xl font-extrabold text-brand-400"></p>
+      <p id="detail" class="mt-3 text-sm text-slate-400"></p>
+      <div id="actions" class="mt-8 hidden">
+        <a id="redeem" class="flex items-center justify-center w-full rounded-xl bg-brand-500 text-black font-semibold py-3 hover:bg-brand-400 transition">Redeem</a>
+        <a id="openApp" class="hidden mt-3 block text-center text-sm text-slate-300 underline underline-offset-4" href="#">Open in the app</a>
+      </div>
+    </div>
+  </main>
+  <script>
+    (function () {
+      var parts = location.pathname.split('/').filter(Boolean);
+      var idx = parts.indexOf('voucher');
+      var code = idx >= 0 && parts[idx + 1] ? parts[idx + 1] : '';
+      var nameEl = document.getElementById('name');
+      var amountEl = document.getElementById('amount');
+      var detailEl = document.getElementById('detail');
+      var statusEl = document.getElementById('status');
+      var actions = document.getElementById('actions');
+      var redeem = document.getElementById('redeem');
+      var openApp = document.getElementById('openApp');
+
+      function fail(msg) {
+        nameEl.textContent = 'Voucher unavailable';
+        detailEl.textContent = msg;
+        amountEl.textContent = '';
+      }
+
+      if (!code) {
+        fail('This link has no voucher code.');
+        return;
+      }
+
+      var web = 'https://alienai.id/app/voucher/' + encodeURIComponent(code);
+      var app = 'id.alienai://voucher/' + encodeURIComponent(code);
+      var ua = navigator.userAgent || '';
+      var android = /Android/i.test(ua);
+      var ios = /iPad|iPhone|iPod/i.test(ua);
+
+      fetch('/v1/voucher/' + encodeURIComponent(code), { headers: { 'Accept': 'application/json' } })
+        .then(function (res) {
+          if (!res.ok) throw new Error('missing');
+          return res.json();
+        })
+        .then(function (view) {
+          var status = String(view.status || '');
+          nameEl.textContent = view.name || 'Voucher';
+          var face = Number(view.face_value_idr || 0);
+          amountEl.textContent = face > 0 ? ('Rp ' + Math.round(face).toLocaleString('id-ID')) : '';
+          if (view.redeemable) {
+            statusEl.textContent = 'Ready to redeem';
+            detailEl.textContent = 'Redeem adds this voucher to your Alien AI account.';
+            actions.classList.remove('hidden');
+            if (android) {
+              redeem.href = 'intent://voucher/' + encodeURIComponent(code) + '#Intent;scheme=id.alienai;package=id.alienai;S.browser_fallback_url=' + encodeURIComponent(web) + ';end';
+            } else {
+              redeem.href = web;
+            }
+            if (ios) {
+              openApp.classList.remove('hidden');
+              openApp.href = app;
+            }
+          } else if (status === 'redeemed') {
+            statusEl.textContent = 'Redeemed';
+            detailEl.textContent = 'This voucher has already been used.';
+          } else if (status === 'void') {
+            statusEl.textContent = 'Void';
+            detailEl.textContent = 'This voucher was cancelled.';
+          } else if (status === 'expired') {
+            statusEl.textContent = 'Expired';
+            detailEl.textContent = 'This voucher is past its end date.';
+          } else {
+            statusEl.textContent = 'Unavailable';
+            detailEl.textContent = 'This voucher cannot be redeemed.';
+          }
+        })
+        .catch(function () {
+          fail('This voucher was not found.');
+        });
+    })();
+  </script>
+</body>
+</html>

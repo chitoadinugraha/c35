@@ -1,17 +1,8 @@
-use anyhow::{Context, Result};
-use c35_mod_file::{cas_bytes_get, cas_dir_default};
+use anyhow::Result;
 use serde_json::json;
 use sqlx::PgPool;
 
-use super::parse::{pdf_extract_pages, pdf_structure};
 use super::types::attachment_pdf_items;
-
-pub async fn pdf_bytes_load(pool: &PgPool, hash: &str) -> Result<Vec<u8>> {
-    let (bytes, _) = cas_bytes_get(pool, &cas_dir_default(), hash)
-        .await
-        .context("load PDF from CAS")?;
-    Ok(bytes)
-}
 
 pub async fn pdf_structure_for_hash(
     pool: &PgPool,
@@ -48,27 +39,6 @@ pub async fn pdf_structure_for_hash(
         "page_count": page_count,
         "outline_from_bookmarks": !sections.is_empty(),
         "sections": sections,
-    }))
-}
-
-pub async fn pdf_extract_for_hash(
-    pool: &PgPool,
-    hash: &str,
-    page_from: u32,
-    page_to: u32,
-    max_chars: usize,
-) -> Result<serde_json::Value> {
-    let bytes = pdf_bytes_load(pool, hash).await?;
-    let structure = pdf_structure(&bytes)?;
-    let text = pdf_extract_pages(&bytes, page_from, page_to, max_chars)?;
-    Ok(json!({
-        "ok": true,
-        "file_hash": hash,
-        "page_from": page_from,
-        "page_to": page_to,
-        "page_count": structure.page_count,
-        "char_count": text.chars().count(),
-        "text": text,
     }))
 }
 

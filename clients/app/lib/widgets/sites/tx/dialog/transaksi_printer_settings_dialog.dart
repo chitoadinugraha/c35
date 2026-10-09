@@ -1,5 +1,10 @@
+import 'dart:io' show Platform;
+
+import 'package:alienai_c35/c/hardware/thermal_printer_bluetooth.dart';
 import 'package:alienai_c35/c/hardware/thermal_printer_manager.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -35,6 +40,12 @@ class _TransaksiPrinterSettingsDialogState
   var _testingDrawer = false;
   String? _statusMsg;
   bool _statusSuccess = false;
+  List<BluetoothInfo> _pairedBt = [];
+  var _loadingBt = false;
+  String _bluetoothMac = '';
+  String _bluetoothName = '';
+
+  bool get _bluetoothModeAvailable => !kIsWeb && Platform.isAndroid;
 
   @override
   void initState() {
@@ -46,6 +57,11 @@ class _TransaksiPrinterSettingsDialogState
     _paperWidth = mgr.paperWidth;
     _autoKickDrawer = mgr.autoKickDrawer;
     _autoPrintReceipt = mgr.autoPrintReceipt;
+    _bluetoothMac = mgr.bluetoothMac;
+    _bluetoothName = mgr.bluetoothName;
+    if (_bluetoothModeAvailable && _printerType == ThermalPrinterType.bluetooth) {
+      _refreshPairedBluetooth();
+    }
   }
 
   @override
@@ -66,6 +82,29 @@ class _TransaksiPrinterSettingsDialogState
     mgr.paperWidth = _paperWidth;
     mgr.autoKickDrawer = _autoKickDrawer;
     mgr.autoPrintReceipt = _autoPrintReceipt;
+    mgr.bluetoothMac = _bluetoothMac;
+    mgr.bluetoothName = _bluetoothName;
+  }
+
+  Future<void> _refreshPairedBluetooth() async {
+    if (!_bluetoothModeAvailable) return;
+    setState(() => _loadingBt = true);
+    final list = await ThermalPrinterBluetooth.pairedDevices();
+    if (!mounted) return;
+    setState(() {
+      _loadingBt = false;
+      _pairedBt = list;
+      if (_bluetoothMac.isNotEmpty &&
+          !list.any((d) => d.macAdress == _bluetoothMac)) {
+        if (list.isNotEmpty) {
+          _bluetoothMac = list.first.macAdress;
+          _bluetoothName = list.first.name;
+        }
+      } else if (_bluetoothMac.isEmpty && list.isNotEmpty) {
+        _bluetoothMac = list.first.macAdress;
+        _bluetoothName = list.first.name;
+      }
+    });
   }
 
   Future<void> _testPrint() async {
@@ -81,7 +120,9 @@ class _TransaksiPrinterSettingsDialogState
         _statusSuccess = ok;
         _statusMsg = ok
             ? 'Test print sent successfully!'
-            : 'Failed to connect to printer at ${_ipCtrl.text.trim()}:${_portCtrl.text.trim()}';
+            : (_printerType == ThermalPrinterType.bluetooth
+                ? 'Failed to print via Bluetooth (${_bluetoothMac.isEmpty ? 'no printer selected' : _bluetoothMac})'
+                : 'Failed to connect to printer at ${_ipCtrl.text.trim()}:${_portCtrl.text.trim()}');
       });
     }
   }
@@ -99,7 +140,9 @@ class _TransaksiPrinterSettingsDialogState
         _statusSuccess = ok;
         _statusMsg = ok
             ? 'Cash drawer pulse sent!'
-            : 'Failed to trigger drawer at ${_ipCtrl.text.trim()}:${_portCtrl.text.trim()}';
+            : (_printerType == ThermalPrinterType.bluetooth
+                ? 'Failed to open drawer via Bluetooth'
+                : 'Failed to trigger drawer at ${_ipCtrl.text.trim()}:${_portCtrl.text.trim()}');
       });
     }
   }
@@ -121,6 +164,8 @@ class _TransaksiPrinterSettingsDialogState
   @override
   Widget build(BuildContext context) {
     final isNetwork = _printerType == ThermalPrinterType.network;
+    final isBluetooth = _printerType == ThermalPrinterType.bluetooth;
+    final isRawEscPos = isNetwork || isBluetooth;
 
     return AlertDialog(
       backgroundColor: const Color(0xFF121215),
@@ -186,14 +231,119 @@ class _TransaksiPrinterSettingsDialogState
                     child: _modeOption(
                       title: 'System / PDF',
                       subtitle: 'Preview & system print',
-                      selected: !isNetwork,
+                      selected: _printerType == ThermalPrinterType.pdfPreview,
                       onTap: () => setState(
                           () => _printerType = ThermalPrinterType.pdfPreview),
                     ),
                   ),
                 ],
               ),
+              if (_bluetoothModeAvailable) ...[
+                const SizedBox(height: 8),
+                _modeOption(
+                  title: 'Bluetooth ESC/POS',
+                  subtitle: 'Paired thermal printer (Android)',
+                  selected: isBluetooth,
+                  onTap: () {
+                    setState(() => _printerType = ThermalPrinterType.bluetooth);
+                    _refreshPairedBluetooth();
+                  },
+                ),
+              ],
               const SizedBox(height: 16),
+
+              if (isBluetooth) ...[
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Paired printer',
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _loadingBt ? null : _refreshPairedBluetooth,
+                      icon: _loadingBt
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh, size: 16),
+                      label: const Text('Refresh'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                if (_pairedBt.isEmpty)
+                  Text(
+                    _loadingBt
+                        ? 'Loading paired devices…'
+                        : 'No paired printers. Pair in Android Settings → Bluetooth, then tap Refresh.',
+                    style: TextStyle(color: _muted.withValues(alpha: 0.9), fontSize: 11),
+                  )
+                else
+                  DropdownButtonFormField<String>(
+                    // ignore: deprecated_member_use — controlled selection updates on refresh
+                    value: _bluetoothMac.isNotEmpty ? _bluetoothMac : null,
+                    dropdownColor: const Color(0xFF18181B),
+                    style: const TextStyle(color: _text, fontSize: 13),
+                    decoration: _inputDecoration('Select printer'),
+                    items: _pairedBt
+                        .map(
+                          (d) => DropdownMenuItem(
+                            value: d.macAdress,
+                            child: Text(
+                              d.name.isNotEmpty ? '${d.name} (${d.macAdress})' : d.macAdress,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (mac) {
+                      if (mac == null) return;
+                      final match = _pairedBt.where((d) => d.macAdress == mac).toList();
+                      setState(() {
+                        _bluetoothMac = mac;
+                        _bluetoothName = match.isNotEmpty ? match.first.name : '';
+                      });
+                    },
+                  ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Paper Width',
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _choiceChip(
+                        label: '58 mm (32 col)',
+                        selected: _paperWidth == 32,
+                        onTap: () => setState(() => _paperWidth = 32),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _choiceChip(
+                        label: '80 mm (48 col)',
+                        selected: _paperWidth == 48,
+                        onTap: () => setState(() => _paperWidth = 48),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Network inputs (if network selected)
               if (isNetwork) ...[
@@ -299,8 +449,8 @@ class _TransaksiPrinterSettingsDialogState
                 ),
               ),
 
-              // Test Buttons (if network)
-              if (isNetwork) ...[
+              // Test Buttons (raw ESC/POS)
+              if (isRawEscPos) ...[
                 const SizedBox(height: 16),
                 Row(
                   children: [

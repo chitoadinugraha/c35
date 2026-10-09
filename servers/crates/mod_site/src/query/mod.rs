@@ -2,6 +2,7 @@ mod params;
 mod product;
 mod stock_report;
 mod tx;
+mod tx_browse;
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
@@ -46,9 +47,11 @@ fn query_registry() -> &'static Vec<Arc<dyn QueryDef>> {
             Arc::new(tx::ProfitSummaryQuery),
             Arc::new(tx::TopProductsQuery),
             Arc::new(tx::ProductCompareQuery),
+            Arc::new(tx::SalesPeriodCompareQuery),
             Arc::new(stock_report::StockListQuery),
             Arc::new(stock_report::StockCardQuery),
             Arc::new(stock_report::StockMovementQuery),
+            Arc::new(tx_browse::SalesListQuery),
         ]
     })
 }
@@ -56,6 +59,10 @@ fn query_registry() -> &'static Vec<Arc<dyn QueryDef>> {
 pub use stock_report::{
     stock_report_from_query, stock_report_preview, stock_report_query_id, StockReport,
     STOCK_EXPORT_CAP, STOCK_PREVIEW_ROWS,
+};
+pub use tx_browse::{
+    tx_browse_from_query, tx_browse_preview, tx_browse_query_id, TxBrowseReport, TX_EXPORT_CAP,
+    TX_PREVIEW_ROWS,
 };
 
 pub fn query_def_get(query_id: &str) -> Option<Arc<dyn QueryDef>> {

@@ -643,6 +643,10 @@ where
             .matched_ids
             .iter()
             .any(|id| id == "inst.site.stock_report"),
+        tx_browse: composed
+            .matched_ids
+            .iter()
+            .any(|id| id == "inst.site.tx_browse"),
     };
     let attachments_json = req.attachments_json.as_str();
     let mut turn_ctx = TurnCtx {

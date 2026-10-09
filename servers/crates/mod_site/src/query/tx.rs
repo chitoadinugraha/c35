@@ -4,7 +4,10 @@ use c35_proto::SiteQueryRow;
 use serde_json::json;
 use sqlx::Row;
 
-use super::params::{query_param_i32, query_param_str, query_param_str_vec, query_time_range};
+use super::params::{
+    named_utc_range_at, query_param_i32, query_param_str, query_param_str_vec, query_time_range,
+};
+use chrono::Utc;
 use super::{query_register, site_query_rows_with_names, QueryResult};
 
 query_register! {
@@ -435,6 +438,115 @@ query_register! {
                 "count": count,
                 "time_from_ms": time_from.map(|t| t.timestamp_millis()).unwrap_or(0),
                 "time_to_ms": time_to.map(|t| t.timestamp_millis()).unwrap_or(0),
+            })
+            .to_string(),
+        })
+    }
+}
+
+async fn sales_revenue_for_range(
+    pool: &sqlx::PgPool,
+    site_iids: &[i64],
+    from: chrono::DateTime<Utc>,
+    to: chrono::DateTime<Utc>,
+) -> Result<HashMap<i64, (i64, i64)>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT
+            site_iid,
+            COUNT(*) FILTER (WHERE ty IN ('sale', 'return_sale')) AS tx_count,
+            COALESCE(SUM(
+                CASE
+                    WHEN ty = 'sale' THEN total
+                    WHEN ty = 'return_sale' THEN -total
+                    ELSE 0
+                END
+            ), 0) AS revenue
+        FROM site.tx
+        WHERE site_iid = ANY($1)
+          AND deleted_ts IS NULL
+          AND is_archived = false
+          AND state = 'ok'
+          AND ty IN ('sale', 'return_sale')
+          AND time_ts >= $2
+          AND time_ts <= $3
+        GROUP BY site_iid
+        "#,
+    )
+    .bind(site_iids)
+    .bind(from)
+    .bind(to)
+    .fetch_all(pool)
+    .await?;
+    Ok(rows
+        .into_iter()
+        .map(|r| {
+            let site_iid: i64 = r.get("site_iid");
+            let tx_count: i64 = r.get("tx_count");
+            let revenue: i64 = r.get("revenue");
+            (site_iid, (tx_count, revenue))
+        })
+        .collect())
+}
+
+query_register! {
+    struct: SalesPeriodCompareQuery,
+    id: "tx.sales_period_compare",
+    label: "Sales revenue period compare",
+    run: |pool, _caller_iid, site_iids, params| {
+        if site_iids.is_empty() {
+            return Ok(QueryResult {
+                rows: vec![],
+                result_json: "{}".into(),
+            });
+        }
+        let now = Utc::now();
+        let period_a = query_param_str(params, "period_a", "today");
+        let period_b = query_param_str(params, "period_b", "yesterday");
+        let (a_from, a_to) = named_utc_range_at(period_a, now)
+            .ok_or_else(|| anyhow::anyhow!("unknown period_a: {period_a}"))?;
+        let (b_from, b_to) = named_utc_range_at(period_b, now)
+            .ok_or_else(|| anyhow::anyhow!("unknown period_b: {period_b}"))?;
+        let map_a = sales_revenue_for_range(pool, site_iids, a_from, a_to).await?;
+        let map_b = sales_revenue_for_range(pool, site_iids, b_from, b_to).await?;
+        let mut out: Vec<SiteQueryRow> = site_iids
+            .iter()
+            .map(|site_iid| {
+                let (tx_a, rev_a) = map_a.get(site_iid).copied().unwrap_or((0, 0));
+                let (tx_b, rev_b) = map_b.get(site_iid).copied().unwrap_or((0, 0));
+                let delta = rev_a - rev_b;
+                let delta_pct = if rev_b != 0 {
+                    (delta as f64 / rev_b as f64) * 100.0
+                } else if rev_a != 0 {
+                    100.0
+                } else {
+                    0.0
+                };
+                let mut cells = HashMap::new();
+                cells.insert("tx_count_a".into(), tx_a.to_string());
+                cells.insert("tx_count_b".into(), tx_b.to_string());
+                cells.insert("revenue_a".into(), rev_a.to_string());
+                cells.insert("revenue_b".into(), rev_b.to_string());
+                cells.insert("revenue_delta".into(), delta.to_string());
+                cells.insert("revenue_delta_pct".into(), format!("{:.1}", delta_pct));
+                SiteQueryRow {
+                    site_iid: *site_iid,
+                    site_name: String::new(),
+                    cells,
+                }
+            })
+            .collect();
+        out = site_query_rows_with_names(pool, site_iids, out).await?;
+        Ok(QueryResult {
+            rows: out,
+            result_json: json!({
+                "query_id": "tx.sales_period_compare",
+                "period_a": period_a,
+                "period_b": period_b,
+                "time_a_from_ms": a_from.timestamp_millis(),
+                "time_a_to_ms": a_to.timestamp_millis(),
+                "time_b_from_ms": b_from.timestamp_millis(),
+                "time_b_to_ms": b_to.timestamp_millis(),
             })
             .to_string(),
         })

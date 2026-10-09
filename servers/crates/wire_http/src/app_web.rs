@@ -117,7 +117,7 @@ pub fn mime_type_for_path(path: &str) -> Option<&'static str> {
 
 pub fn cache_control_for_path(path: &str) -> &'static str {
     let name = path.rsplit('/').next().unwrap_or(path);
-    if name.is_empty() || name == "index.html" || name == "flutter_service_worker.js" {
+    if name.is_empty() || name == "index.html" || name == "flutter_service_worker.js" || name == "flutter_bootstrap.js" {
         "public, max-age=60"
     } else {
         "public, max-age=31536000, immutable"
@@ -187,6 +187,10 @@ mod tests {
         assert_eq!(cache_control_for_path("index.html"), "public, max-age=60");
         assert_eq!(
             cache_control_for_path("flutter_service_worker.js"),
+            "public, max-age=60"
+        );
+        assert_eq!(
+            cache_control_for_path("flutter_bootstrap.js"),
             "public, max-age=60"
         );
         assert_eq!(

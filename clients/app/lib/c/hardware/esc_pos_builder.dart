@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:alienai_c35/c/hardware/esc_pos_raster.dart';
+
 /// Text alignment modes for ESC/POS printers.
 enum EscPosAlign {
   left,
@@ -209,6 +211,27 @@ class EscPosBuilder {
     final c2 = col2.padLeft(w2);
     final c3 = col3.padLeft(w3);
     return textLine('$c1$c2$c3');
+  }
+
+  /// GS v 0: print raster bit image (see [escPosRasterFromImageBytes]).
+  EscPosBuilder rasterBitImage(EscPosRaster raster, {EscPosAlign align = EscPosAlign.center}) {
+    if (raster.data.isEmpty || raster.height <= 0 || raster.widthBytes <= 0) return this;
+    setAlign(align);
+    final w = raster.widthBytes;
+    final h = raster.height;
+    _buffer.add([
+      0x1D,
+      0x76,
+      0x30,
+      0x00,
+      w & 0xFF,
+      (w >> 8) & 0xFF,
+      h & 0xFF,
+      (h >> 8) & 0xFF,
+    ]);
+    _buffer.add(raster.data);
+    alignLeft();
+    return this;
   }
 
   /// Appends a horizontal divider line of [totalWidth] characters.

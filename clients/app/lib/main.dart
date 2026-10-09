@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alienai_c35/c/api/settings_conn.dart';
+import 'package:alienai_c35/c/billing/voucher_link.dart';
+import 'package:alienai_c35/c/site/pos_link.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/conn/server_host.dart';
@@ -17,6 +19,7 @@ import 'package:alienai_c35/c/update/app_update_service.dart';
 import 'package:alienai_c35/pages/auth/page_sign_in.dart';
 import 'package:alienai_c35/pages/auth/ui_session_lock_gate.dart';
 import 'package:alienai_c35/pages/page_ai_home.dart';
+import 'package:alienai_c35/widgets/referral/ui_voucher_redeem_host.dart';
 import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
@@ -29,7 +32,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 
-bool get _desktop => defaultTargetPlatform == TargetPlatform.windows || defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.macOS;
+bool get _desktop =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS);
 
 String _windowsIconPath() {
   final bundled = File('${File(Platform.resolvedExecutable).parent.path}${Platform.pathSeparator}data${Platform.pathSeparator}flutter_assets${Platform.pathSeparator}assets${Platform.pathSeparator}icons${Platform.pathSeparator}app_icon.ico');
@@ -93,7 +100,9 @@ class _C35AppState extends State<C35App> {
   void initState() {
     super.initState();
     _auth.addListener(_onAuth);
-    if (defaultTargetPlatform == TargetPlatform.windows) {
+    unawaited(voucherLinkBind());
+    unawaited(posLinkBind());
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
       AppUpdateService.instance.registerAutoUpdatePrompt(_autoUpdatePrompt);
     }
     _boot();
@@ -102,7 +111,7 @@ class _C35AppState extends State<C35App> {
   void _markBootDone({String error = ''}) {
     _bootError = error;
     _bootReady.value = true;
-    if (defaultTargetPlatform == TargetPlatform.windows && error.isEmpty) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && error.isEmpty) {
       AppUpdateService.instance.start();
     }
   }
@@ -129,7 +138,7 @@ class _C35AppState extends State<C35App> {
   @override
   void dispose() {
     _bootReady.dispose();
-    if (defaultTargetPlatform == TargetPlatform.windows) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
       AppUpdateService.instance.registerAutoUpdatePrompt(null);
       AppUpdateService.instance.dispose();
     }
@@ -215,6 +224,6 @@ class _HomeShell extends StatelessWidget {
   Widget build(BuildContext context) => UiSessionLockGate(
         auth: auth,
         conn: SettingsConn(),
-        child: UiUpdateForceGate(child: PageAIHome(auth: auth)),
+        child: VoucherRedeemHost(child: UiUpdateForceGate(child: PageAIHome(auth: auth))),
       );
 }

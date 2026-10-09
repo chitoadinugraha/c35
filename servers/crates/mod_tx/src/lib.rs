@@ -19,7 +19,9 @@ mod tx_put;
 
 pub use finalize::{acc_signed_amount, tx_finalize, tx_preview_coa_names};
 pub use guest_order::{guest_order_get, guest_order_put};
-pub use tx_json::{tx_debt_payment_json_parse, tx_json_parse, tx_result_json, tx_to_json};
+pub use tx_json::{
+    tx_debt_payment_json_parse, tx_header_compact_json, tx_json_parse, tx_result_json, tx_to_json,
+};
 pub use tx_debt_pay::tx_debt_pay;
 pub use tx_get::tx_get;
 pub use tx_list::tx_list;

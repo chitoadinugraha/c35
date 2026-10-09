@@ -84,7 +84,8 @@ pub use site::{
 pub use site_pic::SitePicGenerateTool;
 pub use site_query::SiteQueryRunTool;
 pub use site_tx::{
-    SiteOrderStatusTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
+    SiteOrderStatusTool, SiteTxDebtPayTool, SiteTxGetTool, SiteTxListTool, SiteTxPreviewTool,
+    SiteTxPutTool,
 };
 pub use staff::{
     AdminBotListTool, AdminChatMessagesTool, AdminChatSearchTool, AdminClientListTool,

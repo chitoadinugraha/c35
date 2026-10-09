@@ -32,6 +32,8 @@ pub struct ChatReq {
     pub skip_web_prefetch: bool,
     /// `inst.site.stock_report` matched. The tool loop may answer from SQL with no model hop.
     pub stock_report: bool,
+    /// `inst.site.tx_browse` matched. The tool loop may list transactions with no model hop.
+    pub tx_browse: bool,
 }
 
 #[derive(Debug, Clone, Default)]

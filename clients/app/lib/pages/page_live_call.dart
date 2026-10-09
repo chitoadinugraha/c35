@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/live/live_call_session.dart';
 import 'package:alienai_c35/c/live/live_offer.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
+import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/settings/live_call_prefs.dart';
@@ -65,6 +67,16 @@ class _PageLiveCallState extends State<PageLiveCall> {
     _session.error.addListener(_onSessionError);
     _session.onTurnCommitted = _onTurnCommitted;
     if (widget.mentionLabel.trim().isNotEmpty) _session.mentionLabel.value = widget.mentionLabel;
+    _refreshWallet();
+  }
+
+  void _refreshWallet() {
+    final uid = Session.instance.uid;
+    if (uid > 0) {
+      billingStoreRefresh(ReferralConn(uid: uid)).catchError((e) {
+        return AppStore.instance.billing ?? BillingAccount();
+      });
+    }
   }
 
   void _onTurnCommitted(Map<String, dynamic> committed) {
@@ -132,12 +144,32 @@ class _PageLiveCallState extends State<PageLiveCall> {
 
   Future<void> _connect() async {
     if (_busy) return;
+    final wallet = AppStore.instance.wallet;
+    final retailUsdPerMin = widget.offer.retailUsdPerMin;
+    final f5h = (wallet.frontierAllow5hLimit - wallet.frontierAllow5hUsed).clamp(0.0, double.infinity);
+    final fW = (wallet.frontierAllowWeeklyLimit - wallet.frontierAllowWeeklyUsed).clamp(0.0, double.infinity);
+    final allowRem = (wallet.frontierAllow5hLimit > 0 && wallet.frontierAllowWeeklyLimit > 0)
+        ? math.min(f5h, fW)
+        : (wallet.frontierAllow5hLimit > 0 ? f5h : (wallet.frontierAllowWeeklyLimit > 0 ? fW : 0.0));
+    final isIdr = wallet.billingCurrency.toUpperCase() == 'IDR';
+    final fxRate = wallet.fxMicroPerUsd > 0 ? (wallet.fxMicroPerUsd / 1000000.0) : 17630.0;
+    final balUsd = isIdr
+        ? (wallet.balanceIdr > 0 && fxRate > 0 ? wallet.balanceIdr / fxRate : 0.0)
+        : (wallet.balanceUsd > 0 ? wallet.balanceUsd : 0.0);
+    final totalMins = retailUsdPerMin > 0 ? ((allowRem + balUsd) / retailUsdPerMin) : 0.0;
+    if (totalMins <= 0.0) {
+      setState(() => _error = 'No call time available. Top up your balance or upgrade your plan to continue.');
+      showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid));
+      return;
+    }
+
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
       final perm = await sttMicPermissionEnsure();
+      if (!mounted || !_busy) return;
       if (!perm) {
         setState(() => _error = sttMicErrorMessage());
         return;
@@ -148,15 +180,18 @@ class _PageLiveCallState extends State<PageLiveCall> {
         chatId: widget.chatId,
         mentionIds: widget.mentionIds,
       );
+      if (!mounted || !_busy) return;
       if (res.error.isNotEmpty) {
+        _refreshWallet();
         setState(() => _error = uiFriendlyError(res.error));
       } else {
         await LiveCallPrefs.setLastOfferId(widget.offer.id);
+        if (!mounted || !_busy) return;
         await _session.connect(res);
-        if (_session.error.value != null) setState(() => _error = uiFriendlyError(_session.error.value!));
+        if (_session.error.value != null && mounted) setState(() => _error = uiFriendlyError(_session.error.value!));
       }
     } catch (e) {
-      setState(() => _error = uiFriendlyError(e));
+      if (mounted && _busy) setState(() => _error = uiFriendlyError(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -168,6 +203,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
   }
 
   Future<void> _hangup() async {
+    _busy = false;
     await _session.hangup();
     if (mounted) Navigator.of(context).pop();
   }
@@ -199,33 +235,23 @@ class _PageLiveCallState extends State<PageLiveCall> {
           );
 
           final retailUsdPerMin = widget.offer.retailUsdPerMin;
-
-          final double includedMinutes;
-          final double quotaRemainingRatio;
-          final bool showQuotaBar;
-
-          double frontierRemainRatio(double rem, double limit) => limit > 0 ? (rem / limit).clamp(0.0, 1.0) : 0.0;
-          final ratio5h = frontierRemainRatio(frontier5hRem, wallet.frontierAllow5hLimit);
-          final ratio7d = frontierRemainRatio(frontierWeeklyRem, wallet.frontierAllowWeeklyLimit);
           final hasFrontierRings = wallet.frontierAllow5hLimit > 0 || wallet.frontierAllowWeeklyLimit > 0;
+          final double quotaMinutes = (hasFrontierRings && retailUsdPerMin > 0)
+              ? allowanceRem / retailUsdPerMin
+              : 0.0;
 
-          if (hasFrontierRings && retailUsdPerMin > 0) {
-            includedMinutes = allowanceRem / retailUsdPerMin;
-            quotaRemainingRatio = wallet.frontierAllow5hLimit > 0 && wallet.frontierAllowWeeklyLimit > 0
-                ? math.min(ratio5h, ratio7d)
-                : (wallet.frontierAllow5hLimit > 0 ? ratio5h : ratio7d);
-            showQuotaBar = true;
-          } else {
-            includedMinutes = 0.0;
-            quotaRemainingRatio = 0.0;
-            showQuotaBar = false;
-          }
+          final isIdr = wallet.billingCurrency.toUpperCase() == 'IDR';
+          final fxRate = wallet.fxMicroPerUsd > 0 ? (wallet.fxMicroPerUsd / 1000000.0) : 17630.0;
+          final balanceUsd = isIdr
+              ? (wallet.balanceIdr > 0 && fxRate > 0 ? wallet.balanceIdr / fxRate : 0.0)
+              : (wallet.balanceUsd > 0 ? wallet.balanceUsd : 0.0);
+          final double balanceMinutes = (retailUsdPerMin > 0) ? (balanceUsd / retailUsdPerMin) : 0.0;
+          final double totalAvailableMinutes = quotaMinutes + balanceMinutes;
 
           final on = _session.connected.value;
           final ready = _session.ready.value;
-          final status = on
-              ? (ready ? '' : 'Connecting to voice…')
-              : (!widget.offer.enabled ? liveOfferSoonTag() : '');
+          final inCall = on || _busy;
+          final status = !inCall && !widget.offer.enabled ? liveOfferSoonTag() : '';
 
           return Scaffold(
             backgroundColor: const Color(0xFF09090B),
@@ -259,7 +285,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  _stageVisual(on: on, ready: ready),
+                                  _stageVisual(inCall: inCall, ready: ready),
                                   const SizedBox(height: 18),
                                   Text(
                                     liveOfferActionTitle(widget.offer),
@@ -325,7 +351,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
                                       padding: EdgeInsets.only(top: 8),
                                       child: Text('Switching mention…', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 13)),
                                     ),
-                                  if (on && ready) ...[
+                                  if (inCall && ready) ...[
                                     const SizedBox(height: 6),
                                     Text(
                                       _formatDuration(_callElapsedSeconds),
@@ -363,8 +389,19 @@ class _PageLiveCallState extends State<PageLiveCall> {
                                         );
                                       },
                                     ),
+                                  ] else if (inCall && !ready) ...[
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _tr('live.call.calling', 'Calling…'),
+                                      style: const TextStyle(
+                                        color: Color(0xFF22C55E),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: 0.3,
+                                      ),
+                                    ),
                                   ],
-                                  if (pricePerSec.isNotEmpty && (!on || !ready)) ...[
+                                  if (pricePerSec.isNotEmpty && !inCall) ...[
                                     const SizedBox(height: 10),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -383,65 +420,17 @@ class _PageLiveCallState extends State<PageLiveCall> {
                                         ),
                                       ),
                                     ),
-                                    if (showQuotaBar) ...[
-                                      const SizedBox(height: 12),
-                                      Container(
-                                        width: 260,
-                                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF121215),
-                                          borderRadius: BorderRadius.circular(14),
-                                          border: Border.all(color: const Color(0xFF27272A)),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF60A5FA)),
-                                                const SizedBox(width: 6),
-                                                const Text(
-                                                  'Frontier quota',
-                                                  style: TextStyle(
-                                                    color: Color(0xFFA1A1AA),
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                                const Spacer(),
-                                                Text(
-                                                  _formatIncludedMinutes(includedMinutes),
-                                                  style: TextStyle(
-                                                    color: includedMinutes > 0 ? const Color(0xFF60A5FA) : const Color(0xFFEF4444),
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
-                                                    fontFeatures: const [FontFeature.tabularFigures()],
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 6),
-                                            ClipRRect(
-                                              borderRadius: BorderRadius.circular(999),
-                                              child: LinearProgressIndicator(
-                                                value: quotaRemainingRatio,
-                                                minHeight: 4,
-                                                backgroundColor: const Color(0xFF60A5FA).withValues(alpha: 0.15),
-                                                valueColor: const AlwaysStoppedAnimation(Color(0xFF60A5FA)),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
+                                    _callLimitsCard(
+                                      context: context,
+                                      totalMinutes: totalAvailableMinutes,
+                                    ),
                                   ],
-                                  if (status.isNotEmpty) ...[
+                                  if (status.isNotEmpty && !inCall) ...[
                                     const SizedBox(height: 12),
                                     Text(status, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF71717A), fontSize: 13)),
                                   ],
-                                  _transcriptBubbles(on: on, ready: ready),
-                                  _toolExecutingIndicator(on: on, ready: ready),
+                                  _transcriptBubbles(on: inCall, ready: ready),
+                                  _toolExecutingIndicator(on: inCall, ready: ready),
                                   if (PromptUsagePrefs.instance.showUsageStats)
                                     ValueListenableBuilder<LiveUsage?>(
                                       valueListenable: _session.usage,
@@ -466,7 +455,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      _callControls(on: on),
+                      _callControls(inCall: inCall),
                       const SizedBox(height: 8),
                     ],
                   ),
@@ -477,30 +466,99 @@ class _PageLiveCallState extends State<PageLiveCall> {
         },
       );
 
-  static String _formatIncludedMinutes(double totalMins) {
-    if (totalMins <= 0) return 'Exhausted';
+  Widget _callLimitsCard({
+    required BuildContext context,
+    required double totalMinutes,
+  }) {
+    final hasTime = totalMinutes > 0;
+    final limitLabel = _tr('live.call.limit', 'Call limit');
+    final availableLabel = _formatAvailableTime(totalMinutes);
+    final accentColor = hasTime ? const Color(0xFF22C55E) : const Color(0xFFEF4444);
+
+    return InkWell(
+      onTap: hasTime ? null : () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid)),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 280,
+        margin: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131316),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: hasTime ? const Color(0xFF22C55E).withValues(alpha: 0.28) : const Color(0xFF27272A),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: accentColor.withValues(alpha: 0.15),
+              ),
+              child: Icon(
+                Icons.hourglass_top_rounded,
+                size: 13,
+                color: accentColor,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              limitLabel,
+              style: const TextStyle(
+                color: Color(0xFFA1A1AA),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              availableLabel,
+              style: TextStyle(
+                color: accentColor,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            if (!hasTime) ...[
+              const SizedBox(width: 6),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFF71717A)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _formatAvailableTime(double totalMins) {
+    if (totalMins <= 0) return '0m available';
     if (totalMins < 1.0) {
       final secs = (totalMins * 60).round();
-      return '${secs}s included';
+      return '${secs}s available';
     }
     final totalRoundMins = totalMins.round();
     final hours = totalRoundMins ~/ 60;
     final mins = totalRoundMins % 60;
     if (hours > 0) {
-      if (mins > 0) {
-        return '${hours}h ${mins}m included';
-      } else {
-        return '${hours}h included';
-      }
+      return mins > 0 ? '${hours}h ${mins}m available' : '${hours}h available';
     }
-    return '${mins}m included';
+    return '${mins}m available';
   }
 
-  Widget _stageVisual({required bool on, required bool ready}) {
+  Widget _stageVisual({required bool inCall, required bool ready}) {
     return ListenableBuilder(
       listenable: _session.cameraActive,
       builder: (context, _) {
-        if (on && _session.cameraActive.value && _session.cameraRenderer != null) {
+        if (inCall && _session.cameraActive.value && _session.cameraRenderer != null) {
           return ClipRRect(
             borderRadius: BorderRadius.circular(20),
             child: Container(
@@ -548,14 +606,14 @@ class _PageLiveCallState extends State<PageLiveCall> {
             ),
           );
         }
-        return _avatarRing(on: on, ready: ready);
+        return _avatarRing(inCall: inCall, ready: ready);
       },
     );
   }
 
-  Widget _avatarRing({required bool on, required bool ready}) {
-    final ring = on
-        ? (ready ? const Color(0xFF22C55E) : const Color(0xFFEAB308))
+  Widget _avatarRing({required bool inCall, required bool ready}) {
+    final ring = inCall
+        ? const Color(0xFF22C55E)
         : const Color(0xFF3F3F46);
     return Container(
       width: 104,
@@ -765,9 +823,12 @@ class _PageLiveCallState extends State<PageLiveCall> {
 
   Widget _errorBanner(String message) {
     final quota = uiIsQuotaError(message);
-    final displayMsg = quota && message == uiCannotConnectToAlienAi
+    var displayMsg = quota && message == uiCannotConnectToAlienAi
         ? 'Out of call quota. Upgrade your plan to continue.'
         : message;
+    if (quota && (message.contains("insufficient safe balance") || message.contains("out of quota") || message.contains("No call time available"))) {
+      displayMsg = "Insufficient balance or call quota. Top up your balance or upgrade your plan to continue.";
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -810,7 +871,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
               onPressed: () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid)),
               icon: const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF38BDF8)),
               label: const Text(
-                'Upgrade plan',
+                'Top up / Upgrade plan',
                 style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600),
               ),
               style: TextButton.styleFrom(
@@ -830,15 +891,8 @@ class _PageLiveCallState extends State<PageLiveCall> {
     );
   }
 
-  Widget _callControls({required bool on}) {
-    if (!on) {
-      if (_busy) {
-        return const SizedBox(
-          width: 76,
-          height: 76,
-          child: Center(child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFFFAFAFA))),
-        );
-      }
+  Widget _callControls({required bool inCall}) {
+    if (!inCall) {
       return _roundCallButton(
         color: widget.offer.enabled ? const Color(0xFF16A34A) : const Color(0xFF3F3F46),
         icon: Icons.phone_rounded,
@@ -860,53 +914,70 @@ class _PageLiveCallState extends State<PageLiveCall> {
         final camActive = _session.cameraActive.value;
         final hasAttachment = _session.activeAttachmentName.value != null;
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // Mic mute toggle
-            _controlCircleButton(
-              icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-              label: muted ? 'Unmute' : 'Mute',
-              active: muted,
-              activeColor: const Color(0xFFEF4444),
-              onTap: _session.toggleMicMute,
+            // 2x2 grid of feature controls
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 240),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Mic mute toggle
+                      _controlCircleButton(
+                        icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                        label: muted ? 'Unmute' : 'Mute',
+                        active: muted,
+                        activeColor: const Color(0xFFEF4444),
+                        onTap: _session.toggleMicMute,
+                      ),
+                      // Loudspeaker toggle
+                      _controlCircleButton(
+                        icon: speakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+                        label: speakerOn ? 'Speaker' : 'Earpiece',
+                        active: speakerOn,
+                        activeColor: const Color(0xFF10B981),
+                        onTap: _session.toggleSpeaker,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Media attachment (Send File)
+                      _controlCircleButton(
+                        icon: Icons.add_rounded,
+                        label: _tr('live.attach.file_send', 'Send File'),
+                        active: hasAttachment,
+                        activeColor: const Color(0xFF38BDF8),
+                        onTap: _pickAndAttachMedia,
+                      ),
+                      // Camera video toggle
+                      _controlCircleButton(
+                        icon: camActive ? Icons.videocam_rounded : Icons.videocam_outlined,
+                        label: camActive ? 'Video On' : 'Video',
+                        active: camActive,
+                        activeColor: const Color(0xFF3B82F6),
+                        onTap: () async {
+                          await _session.toggleCamera();
+                          if (mounted) setState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 12),
-            // Loudspeaker toggle
-            _controlCircleButton(
-              icon: speakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-              label: speakerOn ? 'Speaker' : 'Earpiece',
-              active: speakerOn,
-              activeColor: const Color(0xFF10B981),
-              onTap: _session.toggleSpeaker,
-            ),
-            const SizedBox(width: 12),
-            // Media attachment (Klip)
-            _controlCircleButton(
-              icon: Icons.attach_file_rounded,
-              label: _tr('live.attach.clip', 'Clip'),
-              active: hasAttachment,
-              activeColor: const Color(0xFF38BDF8),
-              onTap: _pickAndAttachMedia,
-            ),
-            const SizedBox(width: 12),
-            // Camera video toggle
-            _controlCircleButton(
-              icon: camActive ? Icons.videocam_rounded : Icons.videocam_outlined,
-              label: camActive ? 'Video On' : 'Video',
-              active: camActive,
-              activeColor: const Color(0xFF3B82F6),
-              onTap: () async {
-                await _session.toggleCamera();
-                if (mounted) setState(() {});
-              },
-            ),
-            const SizedBox(width: 12),
-            // End call
+            const SizedBox(height: 28),
+            // Centered End call button at the bottom
             _roundCallButton(
               color: const Color(0xFFDC2626),
               icon: Icons.call_end_rounded,
-              size: 58,
+              size: 68,
               onTap: _hangup,
             ),
           ],
@@ -922,43 +993,49 @@ class _PageLiveCallState extends State<PageLiveCall> {
     required Color activeColor,
     required VoidCallback onTap,
   }) =>
-      Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Material(
-            color: active ? activeColor.withValues(alpha: 0.18) : const Color(0xFF27272A),
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: onTap,
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: active ? activeColor : const Color(0xFF3F3F46),
-                    width: 1.5,
+      SizedBox(
+        width: 84,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Material(
+              color: active ? activeColor.withValues(alpha: 0.18) : const Color(0xFF27272A),
+              shape: const CircleBorder(),
+              child: InkWell(
+                customBorder: const CircleBorder(),
+                onTap: onTap,
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: active ? activeColor : const Color(0xFF3F3F46),
+                      width: 1.5,
+                    ),
                   ),
-                ),
-                child: Icon(
-                  icon,
-                  color: active ? activeColor : const Color(0xFFD4D4D8),
-                  size: 24,
+                  child: Icon(
+                    icon,
+                    color: active ? activeColor : const Color(0xFFD4D4D8),
+                    size: 26,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: active ? activeColor : const Color(0xFFA1A1AA),
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: active ? activeColor : const Color(0xFFA1A1AA),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
 
   Widget _roundCallButton({

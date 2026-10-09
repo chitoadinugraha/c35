@@ -14,18 +14,21 @@ import 'package:alienai_c35/widgets/ui/ui_error.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
-Future<bool> billingPackageRedeemDialog(BuildContext context, {required ReferralConn conn}) async {
+import 'ui_voucher_scan.dart';
+
+Future<bool> billingPackageRedeemDialog(BuildContext context, {required ReferralConn conn, String initialCode = ''}) async {
   final res = await showDialog<bool>(
     context: context,
-    builder: (ctx) => _BillingPackageRedeemDialog(conn: conn),
+    builder: (ctx) => _BillingPackageRedeemDialog(conn: conn, initialCode: initialCode),
   );
   return res == true;
 }
 
 class _BillingPackageRedeemDialog extends StatefulWidget {
-  const _BillingPackageRedeemDialog({required this.conn});
+  const _BillingPackageRedeemDialog({required this.conn, this.initialCode = ''});
 
   final ReferralConn conn;
+  final String initialCode;
 
   @override
   State<_BillingPackageRedeemDialog> createState() => _BillingPackageRedeemDialogState();
@@ -47,9 +50,25 @@ class _BillingPackageRedeemDialogState extends State<_BillingPackageRedeemDialog
   String _codeNorm = '';
 
   @override
+  void initState() {
+    super.initState();
+    final norm = referralCodeNorm(widget.initialCode);
+    if (norm.isNotEmpty) {
+      _codeNorm = norm;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadPreview());
+    }
+  }
+
+  @override
   void dispose() {
     _debounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _scan() async {
+    final code = await voucherScanCode(context);
+    if (!mounted || code == null || code.isEmpty) return;
+    _codeKey.currentState?.setCode(code);
   }
 
   void _onCodeChanged(String norm) {
@@ -167,9 +186,11 @@ class _BillingPackageRedeemDialogState extends State<_BillingPackageRedeemDialog
                 children: [
                   InFormattedReferralCodeField(
                     key: _codeKey,
-                    autofocus: true,
+                    autofocus: widget.initialCode.trim().isEmpty,
+                    initial: widget.initialCode,
                     labelText: 'Voucher or package code',
                     onChanged: _onCodeChanged,
+                    onScan: _redeeming ? null : _scan,
                   ),
                   if (_loading)
                     const Padding(

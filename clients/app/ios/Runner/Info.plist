@@ -4,5 +4,18 @@
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Alien AI uses your approximate location to suggest nearby places, local weather, and events where you are.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Alien AI uses the camera to scan a voucher QR code.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>id.alienai</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>id.alienai</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -3,6 +3,7 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  app_links
   audioplayers_windows
   desktop_drop
   file_selector_windows
@@ -13,6 +14,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   geolocator_windows
   pasteboard
   permission_handler_windows
+  print_bluetooth_thermal
   printing
   record_windows
   screen_retriever_windows

@@ -603,7 +603,6 @@ dependencies = [
  "chrono-tz",
  "dashmap",
  "futures-util",
- "lopdf",
  "prost 0.13.5",
  "reqwest",
  "serde",

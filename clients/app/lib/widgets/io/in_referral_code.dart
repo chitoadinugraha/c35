@@ -27,21 +27,27 @@ class InFormattedReferralCodeField extends StatefulWidget {
     super.key,
     this.autofocus = false,
     this.labelText,
+    this.initial = '',
     this.onChanged,
+    this.onScan,
   });
 
   final bool autofocus;
   final String? labelText;
+  final String initial;
   final void Function(String norm)? onChanged;
+  final VoidCallback? onScan;
 
   @override
   State<InFormattedReferralCodeField> createState() => InFormattedReferralCodeFieldState();
 }
 
 class InFormattedReferralCodeFieldState extends State<InFormattedReferralCodeField> {
-  late final TextEditingController _codeCtrl = TextEditingController();
+  late final TextEditingController _codeCtrl = TextEditingController(text: referralCodeFormat(referralCodeNorm(widget.initial)));
 
   String get codeNorm => referralCodeNorm(_codeCtrl.text);
+
+  void setCode(String raw) => _onCodeChanged(raw);
 
   void clear() {
     _codeCtrl.clear();
@@ -78,9 +84,20 @@ class InFormattedReferralCodeFieldState extends State<InFormattedReferralCodeFie
         context,
         labelText: widget.labelText ?? 'referral.label'.tr(),
         hintText: referralCodeHint,
-        suffixIcon: _codeCtrl.text.isEmpty
-            ? null
-            : uiIconButton(tooltip: 'referral.clear'.tr(), onPressed: clear, icon: const Icon(Icons.clear, size: 18)),
+        suffixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.onScan != null)
+              uiIconButton(
+                tooltip: 'Scan QR',
+                onPressed: widget.onScan,
+                icon: const Icon(Icons.qr_code_scanner, size: 20),
+              ),
+            if (_codeCtrl.text.isNotEmpty)
+              uiIconButton(tooltip: 'referral.clear'.tr(), onPressed: clear, icon: const Icon(Icons.clear, size: 18)),
+          ],
+        ),
       ),
       maxLength: referralCodeDisplayMaxLen(),
       buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,

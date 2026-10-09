@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/pb/c35/hint.pb.dart' as hint_pb;
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_commerce_media_prefetch.dart';
@@ -18,9 +19,12 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SiteStore extends ChangeNotifier {
-  SiteStore({ChatConn? conn}) : _conn = conn ?? ChatConn();
+  SiteStore({ChatConn? conn, ChatStore? shellStore}) : _conn = conn ?? ChatConn(), _shellStore = shellStore;
 
   final ChatConn _conn;
+  final ChatStore? _shellStore;
+
+  void _shellSitesCountSync() => unawaited(_shellStore?.navCountsSitesPut(_rows.length));
   late final SiteApi _api = SiteApi(_conn);
 
   ChatConn get conn => _conn;
@@ -134,6 +138,7 @@ class SiteStore extends ChangeNotifier {
         if (row.pic.trim().isNotEmpty) unawaited(siteCommerceMediaPrefetch(sitePic: row.pic));
       }
       _refreshError = null;
+      _shellSitesCountSync();
     } catch (e) {
       if (_refreshGen != gen) return;
       lError('site refresh: $e');
@@ -151,6 +156,29 @@ class SiteStore extends ChangeNotifier {
   }
 
   Future<void> pinPut(String id, bool pinned) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), isPinned: pinned));
+
+  Future<void> archivePut(String id, bool archived) =>
+      _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), archived: archived));
+
+  Future<void> deletePut(String id) async {
+    final row = rowById(id);
+    if (row == null) throw 'Site not found';
+    final iid = row.siteIid.toInt();
+    try {
+      await ensureConnected();
+      await identityDelete(_conn, iid);
+      _rows.removeWhere((r) => r.siteIid.toString() == id);
+      if (_selectedId == id) {
+        _selectedId = _rows.isEmpty ? null : _rows.first.siteIid.toString();
+      }
+      notifyListeners();
+      await _siteListCacheSave(Session.instance.uid, _rows);
+      _shellSitesCountSync();
+    } catch (e) {
+      lError('site delete: $e');
+      rethrow;
+    }
+  }
 
   Future<void> renamePut(String id, String name) async {
     final row = rowById(id);
@@ -188,8 +216,15 @@ class SiteStore extends ChangeNotifier {
       if (i >= 0) {
         _rows[i].isPinned = res.row.isPinned;
         _rows[i].sortOrder = res.row.sortOrder;
+        _rows[i].isArchived = res.row.archivedTsMs > Int64.ZERO;
       } else {
         return;
+      }
+      if (req.hasArchived() && req.archived) {
+        _rows.removeWhere((r) => r.siteIid.toString() == id);
+        if (_selectedId == id) {
+          _selectedId = _rows.isEmpty ? null : _rows.first.siteIid.toString();
+        }
       }
       _rows.sort((a, b) {
         final pin = (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0);
@@ -200,6 +235,7 @@ class SiteStore extends ChangeNotifier {
       });
       notifyListeners();
       await _siteListCacheSave(Session.instance.uid, _rows);
+      _shellSitesCountSync();
     } catch (e) {
       lError('site grant patch: $e');
       rethrow;
@@ -245,6 +281,7 @@ class SiteStore extends ChangeNotifier {
       _refreshError = null;
       await _siteListCacheSave(Session.instance.uid, _rows);
       notifyListeners();
+      _shellSitesCountSync();
       return siteIid.toInt();
     } catch (e) {
       lError('site create: $e');

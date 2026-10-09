@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/config.dart';
@@ -14,7 +15,6 @@ import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_info_sync.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
 import 'package:alienai_c35/widgets/io/in_geo_point.dart';
 import 'package:alienai_c35/widgets/io/in_site_schedule.dart';
@@ -22,6 +22,7 @@ import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/io_site_handle_claim_dialog.dart';
+import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:flutter/material.dart';
 
@@ -60,6 +61,8 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   var _loading = true;
   var _taglinePick = 0;
   var _pic = '';
+  Uint8List? _picPreviewBytes;
+  var _picUploading = false;
   var _locationLabel = '';
   double? _lat;
   double? _lng;
@@ -83,6 +86,8 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     if (oldWidget.row.siteIid != widget.row.siteIid) {
       _nameCtrl.text = widget.row.name;
       _pic = widget.row.pic;
+      _picPreviewBytes = null;
+      _picUploading = false;
       unawaited(_load());
     } else if (oldWidget.row.name != widget.row.name || oldWidget.row.alienId != widget.row.alienId || oldWidget.row.pic != widget.row.pic) {
       _suppressSave = true;
@@ -242,13 +247,30 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   }
 
   Future<void> _pickAvatar() async {
-    final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false, maxCount: 1);
-    if (staged == null || staged.isEmpty) return;
-    final file = staged.first;
-    final up = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
-    if (up == null || up.hash.isEmpty) return;
-    if (!mounted) return;
-    await _commitPic(fileStoragePath(up.hash));
+    try {
+      final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false, maxCount: 1);
+      if (staged == null || staged.isEmpty) return;
+      final file = staged.first;
+      if (file.bytes.isEmpty) return;
+      setState(() {
+        _picPreviewBytes = Uint8List.fromList(file.bytes);
+        _picUploading = true;
+      });
+      final up = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
+      if (up == null || up.hash.isEmpty) {
+        if (mounted) setState(() => _picUploading = false);
+        return;
+      }
+      if (!mounted) return;
+      await _commitPic(fileStoragePath(up.hash));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating),
+      );
+    } finally {
+      if (mounted) setState(() => _picUploading = false);
+    }
   }
 
   Future<void> _generateAvatar() async {
@@ -260,7 +282,61 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       desc: _taglineCtrl.text,
     );
     if (result == null || result.hash.isEmpty || !mounted) return;
-    await _commitPic(fileStoragePath(result.hash));
+    setState(() => _picUploading = true);
+    try {
+      await _commitPic(fileStoragePath(result.hash));
+    } finally {
+      if (mounted) setState(() => _picUploading = false);
+    }
+  }
+
+  static const _avatarRadius = 32.0;
+
+  Widget _avatarPlaceholder() => const Icon(Icons.storefront_outlined, color: _muted, size: 28);
+
+  Widget _avatarImage() {
+    final side = _avatarRadius * 2;
+    if (_picPreviewBytes != null && _picPreviewBytes!.isNotEmpty) {
+      return Image.memory(_picPreviewBytes!, width: side, height: side, fit: BoxFit.cover);
+    }
+    if (_pic.isNotEmpty) {
+      return UiImg(
+        src: _pic,
+        width: side,
+        height: side,
+        fit: BoxFit.cover,
+        fallback: _avatarPlaceholder(),
+      );
+    }
+    return ColoredBox(
+      color: _border,
+      child: Center(child: _avatarPlaceholder()),
+    );
+  }
+
+  Widget _siteAvatar() {
+    final side = _avatarRadius * 2;
+    final ring = _picUploading ? 3.0 : 0.0;
+    return InkWell(
+      onTap: _picUploading ? null : () => unawaited(_chooseAvatar()),
+      customBorder: const CircleBorder(),
+      child: SizedBox(
+        width: side + ring * 2,
+        height: side + ring * 2,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (_picUploading)
+              SizedBox(
+                width: side + ring * 2,
+                height: side + ring * 2,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: _accent),
+              ),
+            ClipOval(child: SizedBox(width: side, height: side, child: _avatarImage())),
+          ],
+        ),
+      ),
+    );
   }
 
   void _onLocationChanged(GeoPointValue v) {
@@ -297,7 +373,6 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
         ],
       );
     }
-    final picUrl = _pic.isNotEmpty ? guestSitePicUrl(_pic) : '';
     final handle = widget.row.alienId.trim();
     final platformHome = isPlatformSiteAlienId(handle);
     final handlePreview = platformHome
@@ -312,16 +387,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            InkWell(
-              onTap: () => unawaited(_chooseAvatar()),
-              customBorder: const CircleBorder(),
-              child: CircleAvatar(
-                radius: 32,
-                backgroundColor: _border,
-                backgroundImage: picUrl.isNotEmpty ? NetworkImage(picUrl) : null,
-                child: picUrl.isEmpty ? const Icon(Icons.storefront_outlined, color: _muted) : null,
-              ),
-            ),
+            _siteAvatar(),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

@@ -168,6 +168,18 @@ pub async fn prompt_cluster_turn(
         }
     }
 
+    if req.tx_browse {
+        if let Some(ctx) = turn_ctx.as_deref() {
+            if let Some(done) = crate::tx_browse_run::tx_browse_prefetch(ctx, &req.user).await? {
+                if !done.text.is_empty() {
+                    on_delta(false, done.text.clone());
+                }
+                on_blocks(done.blocks_json.clone());
+                return Ok(done);
+            }
+        }
+    }
+
     if tools.is_empty() {
         let hop_started = Instant::now();
         let (out, _provider_model, _) = llm_stream_chain(

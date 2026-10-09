@@ -2,9 +2,11 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:alienai_c35/c/hardware/esc_pos_builder.dart';
+import 'package:alienai_c35/c/hardware/esc_pos_raster.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_business_info.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_calc.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config_of.dart';
@@ -17,7 +19,7 @@ class EscPosReceiptFormatter {
   const EscPosReceiptFormatter();
 
   /// Formats a transaction into raw ESC/POS printer bytes.
-  Uint8List format(
+  Future<Uint8List> format(
     Tx tx, {
     ReceiptConfig? config,
     SiteRow? site,
@@ -39,7 +41,7 @@ class EscPosReceiptFormatter {
   /// Formats a transaction [tx] into raw ESC/POS bytes.
   ///
   /// Can be invoked statically via [EscPosReceiptFormatter.formatReceipt].
-  static Uint8List formatReceipt(
+  static Future<Uint8List> formatReceipt(
     Tx tx, {
     ReceiptConfig? config,
     SiteRow? site,
@@ -47,7 +49,7 @@ class EscPosReceiptFormatter {
     int paperWidth = 32,
     bool kickDrawer = false,
     String? watermark,
-  }) {
+  }) async {
     final builder = EscPosBuilder();
     builder.reset();
 
@@ -64,6 +66,21 @@ class EscPosReceiptFormatter {
     // 1. Header Section
     if (cfg.receiptHeader.isNotEmpty) {
       builder.textLine(cfg.receiptHeader, align: EscPosAlign.center);
+    }
+
+    final logoPath = cfg.projectLogo.trim();
+    if (logoPath.isNotEmpty) {
+      final logoBytes = await ReceiptBusinessInfo.loadLogo(logoPath);
+      if (logoBytes != null) {
+        final raster = escPosRasterFromImageBytes(
+          logoBytes,
+          maxWidthDots: escPosMaxWidthDots(paperWidth),
+        );
+        if (raster != null) {
+          builder.rasterBitImage(raster);
+          builder.feed(1);
+        }
+      }
     }
 
     // Business Name (double-size centered)

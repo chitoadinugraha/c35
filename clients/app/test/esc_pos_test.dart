@@ -1,5 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:alienai_c35/c/hardware/esc_pos_builder.dart';
+import 'package:alienai_c35/c/hardware/esc_pos_raster.dart';
+import 'package:image/image.dart' as img;
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/esc_pos_receipt_formatter.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
@@ -7,6 +11,31 @@ import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  group('EscPosRaster', () {
+    test('packRasterImage and rasterBitImage emit GS v 0', () {
+      final src = img.Image(width: 16, height: 8);
+      img.fill(src, color: img.ColorRgb8(0, 0, 0));
+      final raster = packRasterImage(src);
+      expect(raster.widthBytes, 2);
+      expect(raster.height, 8);
+
+      final out = (EscPosBuilder()..rasterBitImage(raster)).bytes();
+      final gs = out.indexOf(0x1D);
+      expect(out.sublist(gs, gs + 4), equals([0x1D, 0x76, 0x30, 0x00]));
+      expect(out[gs + 4], equals(2));
+      expect(out[gs + 6], equals(8));
+    });
+
+    test('escPosRasterFromImageBytes accepts PNG bytes', () {
+      final src = img.Image(width: 24, height: 24);
+      img.fill(src, color: img.ColorRgba8(0, 0, 0, 255));
+      final png = Uint8List.fromList(img.encodePng(src));
+      final raster = escPosRasterFromImageBytes(png, maxWidthDots: 384);
+      expect(raster, isNotNull);
+      expect(raster!.height, greaterThan(0));
+    });
+  });
+
   group('EscPosBuilder Command Constants and Bytes', () {
     test('reset emits ESC @ ([0x1B, 0x40])', () {
       final builder = EscPosBuilder()..reset();
@@ -118,7 +147,7 @@ void main() {
   });
 
   group('EscPosReceiptFormatter Thermal Receipt Generation', () {
-    test('formats complete 58mm (32 chars) receipt with cash drawer kick and payments', () {
+    test('formats complete 58mm (32 chars) receipt with cash drawer kick and payments', () async {
       final tx = Tx(
         txId: Int64(1001),
         cashierName: 'Budi',
@@ -168,7 +197,7 @@ void main() {
         '20': 'Ice Americano',
       };
 
-      final bytes = EscPosReceiptFormatter.formatReceipt(
+      final bytes = await EscPosReceiptFormatter.formatReceipt(
         tx,
         config: config,
         productNames: productNames,
@@ -213,7 +242,7 @@ void main() {
       expect(receiptText.contains('Terima Kasih atas Kunjungan Anda'), isTrue);
     });
 
-    test('formats 80mm (48 chars) receipt without drawer kick', () {
+    test('formats 80mm (48 chars) receipt without drawer kick', () async {
       final tx = Tx(
         txId: Int64(2002),
         items: [
@@ -228,7 +257,7 @@ void main() {
         ],
       );
 
-      final bytes = EscPosReceiptFormatter.formatReceipt(
+      final bytes = await EscPosReceiptFormatter.formatReceipt(
         tx,
         paperWidth: 48,
         kickDrawer: false,

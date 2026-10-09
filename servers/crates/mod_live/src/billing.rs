@@ -73,18 +73,14 @@ pub async fn live_user_available_funds_usd(
     pool: &PgPool,
     owner_iid: i64,
     account_id: i64,
-    offer: &LiveOfferRow,
+    _offer: &LiveOfferRow,
 ) -> Result<f64> {
     let profile_row = c35_mod_billing::billing_profile_fetch(pool, owner_iid).await?;
     let allowance_rem = if let Some(profile) = profile_row {
         if c35_mod_billing::profile_has_rings(&profile) {
             let profile = c35_mod_billing::billing_profile_windows_roll(pool, profile).await?;
-            let (alien_rem, frontier_rem) = c35_mod_billing::profile_ring_remaining_usd(&profile.rings);
-            if offer.family == "alienai" {
-                alien_rem + frontier_rem
-            } else {
-                frontier_rem
-            }
+            let (_alien_rem, frontier_rem) = c35_mod_billing::profile_ring_remaining_usd(&profile.rings);
+            frontier_rem
         } else {
             0.0
         }

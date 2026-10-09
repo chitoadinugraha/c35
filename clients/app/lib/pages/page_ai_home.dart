@@ -29,6 +29,11 @@ import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/share/share_inbound_listen.dart';
+import 'package:alienai_c35/c/share/share_inbound_payload.dart';
+import 'package:alienai_c35/c/share/share_inbound_present.dart';
+import 'package:alienai_c35/c/share/share_inbound_staged.dart';
+import 'package:alienai_c35/c/share/share_to_home_bridge.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/settings/ai_disclaimer_prefs.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
@@ -67,6 +72,7 @@ import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_talk_stage.dart';
+import 'package:alienai_c35/widgets/ai/composer_stage_host.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
@@ -90,6 +96,7 @@ import 'package:alienai_c35/widgets/ai/ui_user_bubble.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_history_sheet.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_plan_sheet.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
+import 'package:alienai_c35/widgets/sites/ui_pos_link_host.dart';
 import 'package:alienai_c35/widgets/sites/ui_sites_picker_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
@@ -127,6 +134,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   final _canvasStore = CanvasStore();
   final _composerCtrl = TextEditingController();
   final _composerFocus = FocusNode();
+  final _composerStageHost = ComposerStageHost();
   final _conn = ChatConn();
   late final VoiceApi _voiceApi = VoiceApi(_conn);
   final _consumptionApi = ConsumptionApi();
@@ -210,10 +218,81 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     VoicePrefs.instance.addListener(_onTalkPrefs);
     SttService.instance.isTranscribing.addListener(_onTalkSttUi);
     serverHostTick.addListener(_onServerHostChanged);
+    ShareToHomeBridge.instance.addListener(_onShareToHome);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      ShareToHomeBridge.instance.setHomeReady(true);
+      shareInboundBindPresenter();
+      unawaited(shareInboundStart());
       unawaited(_boot());
       unawaited(_checkPostSignInPrompts());
     });
+  }
+
+  bool _homeSurfaceIsTop() => !Navigator.of(context).canPop();
+
+  void _onShareToHome() {
+    unawaited(_consumeInboundShare());
+  }
+
+  Future<void> _consumeInboundShare() async {
+    final payload = ShareToHomeBridge.instance.takeQueued();
+    if (payload == null || !mounted) return;
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
+    await _applyInboundShare(payload);
+  }
+
+  void _mergeInboundShareText(String shared) {
+    final t = shared.trim();
+    if (t.isEmpty) return;
+    final cur = _composerCtrl.text;
+    if (cur.trim().isEmpty) {
+      _composerCtrl.text = t;
+    } else {
+      _composerCtrl.text = '$cur\n$t';
+    }
+    _composerCtrl.selection = TextSelection.collapsed(offset: _composerCtrl.text.length);
+  }
+
+  void _snackShare(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), behavior: SnackBarBehavior.floating));
+  }
+
+  Future<void> _applyInboundShare(ShareInboundPayload payload) async {
+    if (!mounted) return;
+    final atHome = _homeSurfaceIsTop();
+    if (!atHome) {
+      final nav = Navigator.of(context);
+      if (nav.canPop()) nav.popUntil((route) => route.isFirst);
+      _newChat();
+    }
+
+    final talk = VoicePrefs.instance.talkEnabled;
+    final alreadyStaged = talk ? _talkStaged.length : 0;
+    final result = await stagedMediaFromShareInbound(payload, alreadyStaged: alreadyStaged);
+    final text = payload.text.trim();
+    if (result.staged.isEmpty && text.isEmpty) {
+      _snackShare('share.inboundNothingUsable'.tr());
+      return;
+    }
+    if (result.skippedTotal > 0) {
+      _snackShare('share.inboundPartialSkipped'.tr(namedArgs: {'count': '${result.skippedTotal}'}));
+    }
+
+    if (text.isNotEmpty) _mergeInboundShareText(text);
+
+    if (result.staged.isNotEmpty) {
+      if (talk) {
+        _talkStageItems(result.staged);
+      } else if (!_composerStageHost.stage(result.staged)) {
+        _snackShare('share.inboundComposerNotReady'.tr());
+        return;
+      }
+    }
+
+    if (!talk) _composerFocus.requestFocus();
+    _closeHistoryDrawerIfNarrow();
   }
 
   void _onServerHostChanged() {
@@ -587,6 +666,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _timeline.dispose();
     _conn.disconnect();
     _canvasStore.dispose();
+    ShareToHomeBridge.instance.removeListener(_onShareToHome);
+    ShareToHomeBridge.instance.setHomeReady(false);
+    ShareInbound.instance.onPayload = null;
+    ShareInbound.instance.stop();
     _composerCtrl.dispose();
     _composerFocus.dispose();
     super.dispose();
@@ -953,6 +1036,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void _openSites() => uiSitesPickerOpen(
         context: context,
         chatConn: _conn,
+        shellStore: _store,
         onEdit: (siteIid) => _openSiteAdmin(siteIid, initialTabRoute: null),
         onPos: (siteIid) => sitePosOpen(context: context, chatConn: _conn, siteIid: siteIid),
       );
@@ -999,15 +1083,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Future<void> _avatarMenu(BuildContext anchorCtx) async {
-    try {
-      final res = await _conn.notifyList(unreadOnly: true, limit: 50);
-      _notifyUnread = res.items.length;
-    } catch (_) {}
     if (!mounted || !anchorCtx.mounted) return;
     uiAccountMenuShow(
         anchorCtx,
         action: UiAccountMenuAction(
           conn: ReferralConn(uid: Session.instance.uid),
+          fetchNotifyUnread: () async {
+            final res = await _conn.notifyList(unreadOnly: true, limit: 50);
+            final n = res.items.length;
+            if (mounted) _notifyUnread = n;
+            return n;
+          },
           onSettings: _openSettings,
           onReferralTree: _openReferralTree,
           onBalance: () => billingHistorySheet(
@@ -1879,6 +1965,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           padding: EdgeInsets.fromLTRB(16, 0, 16, uiSafeBottomInset(context, 16)),
           child: InComposer(
               key: const ValueKey('chat_composer'),
+              stageHost: _composerStageHost,
               controller: _composerCtrl,
               focusNode: _composerFocus,
               model: _model,
@@ -2304,7 +2391,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 720;
-    return ListenableBuilder(
+    return UiPosLinkHost(
+      chatConn: _conn,
+      child: ListenableBuilder(
       listenable: Listenable.merge([_store, _canvasStore]),
       builder: (context, _) {
         return Scaffold(
@@ -2353,6 +2442,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               : _chatColumn(wide: false),
         );
       },
+    ),
     );
   }
 }

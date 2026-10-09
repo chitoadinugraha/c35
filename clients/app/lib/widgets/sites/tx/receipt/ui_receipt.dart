@@ -73,12 +73,12 @@ class UIReceipt extends StatelessWidget {
       );
 
   Future<_ReceiptPreviewData> _previewData() async {
-    final base = config ?? const ReceiptConfig();
     SiteConfig? siteConfig;
     try {
       siteConfig = await siteApi.configGet(tx.siteIid.toInt());
     } catch (_) {}
     final fromSite = receiptConfigOf(site, config: siteConfig);
+    final base = config ?? ReceiptConfig(showQrLink: fromSite.showQrLink);
     final cfg = receiptConfigMerge(base, fromSite);
     final names = productNames ?? await _productNames(tx);
     return _ReceiptPreviewData(config: cfg, productNames: names, alienId: site?.alienId);
@@ -151,6 +151,7 @@ Future<void> showPosReceiptAfterSale(
   required SiteApi siteApi,
   SiteRow? site,
   Map<String, String>? productNames,
+  ReceiptConfig? config,
 }) =>
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
@@ -160,6 +161,7 @@ Future<void> showPosReceiptAfterSale(
           siteApi: siteApi,
           site: site,
           productNames: productNames,
+          config: config,
           posDoneBar: true,
         ),
       ),

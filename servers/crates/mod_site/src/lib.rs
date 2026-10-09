@@ -92,7 +92,8 @@ pub use site_object::{site_object_list, site_object_put, site_object_upsert};
 pub use site_preview::{site_draft_html_render, site_preview_token, site_preview_token_issue, site_preview_token_verify};
 pub use query::{
     site_query_run, stock_report_from_query, stock_report_preview, stock_report_query_id,
-    StockReport, STOCK_EXPORT_CAP, STOCK_PREVIEW_ROWS,
+    tx_browse_from_query, tx_browse_preview, tx_browse_query_id, StockReport, TxBrowseReport,
+    STOCK_EXPORT_CAP, STOCK_PREVIEW_ROWS, TX_EXPORT_CAP, TX_PREVIEW_ROWS,
 };
 pub use site_product::{
     site_product_delete, site_product_list, site_product_put, site_product_reorder,

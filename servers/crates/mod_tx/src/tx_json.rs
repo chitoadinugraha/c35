@@ -565,6 +565,21 @@ pub fn tx_to_json(tx: &Tx) -> Value {
     Value::Object(out)
 }
 
+pub fn tx_header_compact_json(tx: &Tx) -> Value {
+    json!({
+        "site_iid": tx.site_iid,
+        "tx_id": tx.tx_id,
+        "type": tx_type_str(tx_type(tx.r#type)),
+        "state": tx_state_str(tx_state(tx.state)),
+        "desc": tx.desc,
+        "time_ts_ms": tx.time_ts_ms,
+        "total": tx.total,
+        "total_paid": tx.total_paid,
+        "cashier_name": tx.cashier_name,
+        "subject_name": tx.subject_name,
+    })
+}
+
 pub fn tx_result_json(tx: &Tx) -> Value {
     json!({
         "ok": true,

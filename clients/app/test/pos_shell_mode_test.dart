@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('pos shell shows compact cart pay footer', (tester) async {
+  testWidgets('pos shell wide layout shows inline cart pay footer', (tester) async {
     final product = SiteProduct(productId: Int64(1), name: 'Kopi', price: Int64(15000), canSell: true);
     await tester.pumpWidget(
       MaterialApp(
@@ -28,6 +28,37 @@ void main() {
       ),
     );
     expect(find.text('Total'), findsOneWidget);
+    expect(find.text('Cari produk / scan barcode'), findsOneWidget);
+  });
+
+  testWidgets('pos shell narrow layout hides inline cart', (tester) async {
+    final product = SiteProduct(productId: Int64(1), name: 'Kopi', price: Int64(15000), canSell: true);
+    final key = GlobalKey<SectionTxItemsState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 700,
+            width: 400,
+            child: SectionTxItems(
+              key: key,
+              items: const [],
+              products: [product],
+              onChanged: (_) {},
+              posShell: true,
+              payments: const [],
+              onCheckout: () {},
+              onRemovePayment: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Total'), findsNothing);
+    expect(find.text('Cari produk / scan barcode'), findsOneWidget);
+    key.currentState!.openCartDrawer();
+    await tester.pumpAndSettle();
+    expect(find.text('Total'), findsOneWidget);
     expect(find.text('Keranjang'), findsOneWidget);
   });
 
@@ -39,6 +70,6 @@ void main() {
         ),
       ),
     );
-    expect(find.byIcon(Icons.shopping_bag_outlined), findsOneWidget);
+    expect(find.byType(UiSiteProductThumb), findsOneWidget);
   });
 }

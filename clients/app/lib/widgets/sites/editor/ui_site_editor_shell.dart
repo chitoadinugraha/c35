@@ -61,7 +61,8 @@ class UiSiteEditorShell extends StatefulWidget {
 }
 
 class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
-  late String? _section = widget.initialSection;
+  /// Null on narrow = section menu. Wide layout falls back to [widget.initialSection].
+  String? _section;
   late SiteRow _row = widget.row.clone();
   final _saveBus = SiteEditorSaveBus();
   String? _catalogDetailId;
@@ -88,11 +89,13 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     if (next != current) _section = next;
   }
 
+  String get _resolvedInitialSection => _coerceSection(widget.initialSection);
+
   @override
   void initState() {
     super.initState();
-    final next = _coerceSection(widget.initialSection);
-    if (next != widget.initialSection) _section = next;
+    final initial = _resolvedInitialSection;
+    if (initial != siteEditorMenuDefaultId) _section = initial;
     unawaited(_loadCaps());
   }
 
@@ -428,7 +431,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     _coerceStoredSection();
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= siteEditorWideBreakpoint;
-    final active = _section ?? (wide ? widget.initialSection : '');
+    final active = _section ?? (wide ? _resolvedInitialSection : '');
     final onMenu = !wide && (_section == null || _section!.isEmpty);
 
     return SiteEditorSaveScope(
@@ -501,7 +504,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
             );
           }
 
-          final section = active.isEmpty ? widget.initialSection : active;
+          final section = active.isEmpty ? _resolvedInitialSection : active;
           final sub = _chromeSubtitleState(section);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

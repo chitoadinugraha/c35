@@ -58,7 +58,8 @@ use builtin::{
     SiteLinkDeleteTool, SiteLinkPutTool, SiteListTool, SiteObjectDeleteTool, SiteObjectPutTool,
     SiteOrderStatusTool, SitePatchTool, SitePicGenerateTool, SiteProductDeleteTool,
     SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool,
-    SiteQueryRunTool, SiteTxDebtPayTool, SiteTxListTool, SiteTxPreviewTool, SiteTxPutTool,
+    SiteQueryRunTool, SiteTxDebtPayTool, SiteTxGetTool, SiteTxListTool, SiteTxPreviewTool,
+    SiteTxPutTool,
     TaskCreateTool, TaskDeleteTool, TaskListTool, TaskRunCancelDeviceTool, TaskRunCancelTool,
     TaskRunStartTool, TaskRunStatusTool, VidGenerateTool, WebResearchTool, WebSearchTool,
     WebVisitTool,
@@ -215,6 +216,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(SiteTxPreviewTool));
     dispatcher.register(Arc::new(SiteOrderStatusTool));
     dispatcher.register(Arc::new(SiteTxDebtPayTool));
+    dispatcher.register(Arc::new(SiteTxGetTool));
     dispatcher.register(Arc::new(SiteTxListTool));
     dispatcher.register(Arc::new(ReferralCodePutTool));
     dispatcher.register(Arc::new(ReferralCodeListTool));
@@ -302,14 +304,29 @@ pub fn cluster_tool_name(name: &str) -> String {
         .unwrap_or_else(|| name.replace('_', "."))
 }
 
+fn strip_additional_properties(v: &mut Value) {
+    if let Value::Object(map) = v {
+        map.remove("additionalProperties");
+        for child in map.values_mut() {
+            strip_additional_properties(child);
+        }
+    } else if let Value::Array(arr) = v {
+        for child in arr.iter_mut() {
+            strip_additional_properties(child);
+        }
+    }
+}
+
 pub fn tool_decls(tools: &[ToolDef]) -> Value {
     let decls = tools
         .iter()
         .map(|t| {
+            let mut params = t.parameters.clone();
+            strip_additional_properties(&mut params);
             json!({
                 "name": t.name.replace('.', "_"),
                 "description": t.description,
-                "parameters": t.parameters
+                "parameters": params
             })
         })
         .collect::<Vec<_>>();

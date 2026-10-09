@@ -59,11 +59,29 @@ fn query_time_range_explicit_bounds_win_over_range() {
 
 #[test]
 fn query_time_range_unknown_and_empty_stay_unset() {
-    for params in [json!({}), json!({ "range": "" }), json!({ "range": "yesterday" })] {
+    for params in [json!({}), json!({ "range": "" }), json!({ "range": "not_a_range" })] {
         let (from, to) = query_time_range(&params).expect("unset");
         assert!(from.is_none());
         assert!(to.is_none());
     }
+}
+
+#[test]
+fn query_time_range_yesterday_utc() {
+    let (from, to) = query_time_range(&json!({ "range": "yesterday" })).expect("yesterday");
+    let (from, to) = (from.unwrap(), to.unwrap());
+    let now = Utc::now();
+    assert_eq!(from.date_naive(), now.date_naive() - Duration::days(1));
+    assert_midnight(from);
+    assert_eq!(to, from + Duration::days(1) - Duration::milliseconds(1));
+}
+
+#[test]
+fn named_range_last_week_monday() {
+    let now = Utc.with_ymd_and_hms(2026, 3, 15, 12, 0, 0).unwrap();
+    let (from, _) = super::named_utc_range_at("last_week", now).unwrap();
+    assert_eq!(from.weekday(), chrono::Weekday::Mon);
+    assert_eq!(from.date_naive(), NaiveDate::from_ymd_opt(2026, 3, 2).unwrap());
 }
 
 #[test]

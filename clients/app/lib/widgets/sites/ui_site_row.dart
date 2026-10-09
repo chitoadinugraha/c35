@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:flutter/material.dart';
 
 const _muted = Color(0xFF71717A);
@@ -33,7 +34,7 @@ class UiSiteRow extends StatelessWidget {
                   radius: 16,
                   backgroundColor: const Color(0xFF27272A),
                   child: row.pic.isNotEmpty
-                      ? ClipOval(child: Image.network(row.pic, width: 32, height: 32, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _icon()))
+                      ? ClipOval(child: UiImg(src: row.pic, width: 32, height: 32, fit: BoxFit.cover, fallback: _icon()))
                       : _icon(),
                 ),
                 const SizedBox(width: 10),

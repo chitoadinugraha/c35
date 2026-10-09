@@ -249,7 +249,11 @@ pub async fn billing_gate_with_hold_model(
     if req_id.is_empty() {
         anyhow::bail!("req_id required");
     }
-    if crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await? {
+    let freemium_eligible = match model {
+        None => true,
+        Some(m) => crate::billing_profile::model_uses_alien_pool(m),
+    };
+    if freemium_eligible && crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await? {
         crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
         return Ok(());
     }

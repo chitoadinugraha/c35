@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use c35_mod_tx::enum_map::{tx_state_from_str, tx_type_from_str};
 use c35_mod_tx::{
-    tx_debt_pay, tx_debt_payment_json_parse, tx_json_parse, tx_list, tx_preview, tx_put,
-    tx_result_json, tx_to_json,
+    tx_debt_pay, tx_debt_payment_json_parse, tx_get, tx_header_compact_json, tx_json_parse, tx_list,
+    tx_preview, tx_put, tx_result_json, tx_to_json,
 };
 use c35_proto::{ReqTxDebtPay, ReqTxList, ReqTxPreview, ReqTxPut, TxInputSource, TxState, TxType};
 use serde_json::{json, Value};
@@ -120,12 +120,44 @@ pub async fn site_tx_list_exec(ctx: &ToolContext, args: &Value) -> Result<Value>
         },
     )
     .await?;
-    let txs = res.txs.iter().map(tx_to_json).collect::<Vec<_>>();
+    let compact = args
+        .get("compact")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let txs = if compact {
+        res.txs.iter().map(tx_header_compact_json).collect::<Vec<_>>()
+    } else {
+        res.txs.iter().map(tx_to_json).collect::<Vec<_>>()
+    };
     Ok(json!({
         "ok": true,
         "site_iid": site_iid,
         "txs": txs,
         "count": txs.len(),
+    }))
+}
+
+pub async fn site_tx_get_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let site_iid = site_iid_resolve(ctx, args)?;
+    let tx_id = args
+        .get("tx_id")
+        .and_then(|v| v.as_i64())
+        .filter(|i| *i > 0)
+        .ok_or_else(|| anyhow!("tx_id is required"))?;
+    let res = tx_get(
+        &ctx.pool,
+        ctx.owner_iid,
+        c35_proto::ReqTxGet { site_iid, tx_id },
+    )
+    .await?;
+    let tx = res.tx.ok_or_else(|| anyhow!("transaction {} not found", tx_id))?;
+    let compact = tx_header_compact_json(&tx);
+    Ok(json!({
+        "ok": true,
+        "site_iid": site_iid,
+        "tx_id": tx_id,
+        "llm": compact,
+        "tx": tx_to_json(&tx),
     }))
 }
 
@@ -191,6 +223,26 @@ tool! {
 }
 
 tool! {
+    struct: SiteTxGetTool,
+    name: "site.tx.get",
+    aliases: ["site_tx_get"],
+    description: "Get one transaction with line items (readonly).",
+    topics: ["site.commerce"],
+    requires_kinds: ["site"],
+    requires_capability: "commerce",
+    ui_calling_key: "tool.site.tx.get.calling",
+    ui_done_key: "tool.site.tx.get.done",
+    readonly: true,
+    parameters: {
+        site_iid: (integer, "Site identity ID (resolved from @site when exactly one mentioned)", optional),
+        tx_id: (integer, "Transaction ID", required),
+    },
+    execute: |args, ctx| {
+        site_tx_get_exec(ctx, &args).await
+    }
+}
+
+tool! {
     struct: SiteTxListTool,
     name: "site.tx.list",
     aliases: ["site_tx_list"],
@@ -213,6 +265,7 @@ tool! {
         time_to_ms: (integer, "Time range end (epoch ms)", optional),
         subject_contact_id: (integer, "Filter by contact", optional),
         include_archived: (boolean, "Include archived rows", optional),
+        compact: (boolean, "Header fields only (no line items)", optional),
     },
     execute: |args, ctx| {
         site_tx_list_exec(ctx, &args).await

@@ -48,6 +48,9 @@ mod site_capability;
 mod stock_report;
 mod stock_report_render;
 mod stock_report_run;
+mod tx_browse;
+mod tx_browse_render;
+mod tx_browse_run;
 mod memory;
 mod memory_rpc;
 mod context_billing;
@@ -129,7 +132,8 @@ pub use inst_cache::{
     inst_cache_init, inst_cache_nats_subscribe, inst_cache_reload_all, inst_cache_reload_one,
     inst_list_cached, inst_list_for_turn, NATS_SUBJECT_WILDCARD,
 };
-pub use inst_macro::{InstMatchCtx, InstRow};
+pub use inst_macro::{inst_pick, inst_tool_directives, InstMatchCtx, InstRow};
+pub use tx_browse::tx_browse_parse;
 pub use chat_history::{chat_messages, chat_search, ChatHistoryQuery};
 pub use context_billing::ContextBillingExtra;
 pub use context_compact::{chat_compact_manual, chat_context_window_set, prepare_prompt_history, CONTEXT_COMPACT_MODEL};

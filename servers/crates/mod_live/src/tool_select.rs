@@ -16,8 +16,7 @@ pub fn call_end_tool() -> ToolDef {
                     "type": "string",
                     "description": "Brief reason the user wanted to end the call (optional)."
                 }
-            },
-            "additionalProperties": false
+            }
         }),
     )
 }
@@ -29,8 +28,7 @@ pub fn topic_reset_tool() -> ToolDef {
         "Resets the active topic or mention focus back to general conversation when the discussion naturally transitions away from the focused subject.".into(),
         serde_json::json!({
             "type": "object",
-            "properties": {},
-            "additionalProperties": false
+            "properties": {}
         }),
     )
 }

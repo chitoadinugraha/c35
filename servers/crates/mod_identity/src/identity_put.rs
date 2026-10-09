@@ -117,10 +117,25 @@ fn meta_bot_finalize(meta: &mut Value) {
     }
 }
 
+/// Mirrors `c35_mod_site::grant::site_role_rank` (this crate cannot depend on `c35_mod_site`).
+fn site_role_rank(role: &str) -> i32 {
+    match role {
+        "owner" => 4,
+        "manage" => 3,
+        "staff" => 2,
+        "guest" => 1,
+        _ => 0,
+    }
+}
+
+fn site_grant_write_allowed(role: &str) -> bool {
+    site_role_rank(role) >= site_role_rank("manage")
+}
+
 async fn identity_mutate_allowed(pool: &PgPool, caller_iid: i64, resource_iid: i64) -> Result<i64> {
     let row = sqlx::query(
         r#"
-        SELECT i.owner_iid, g.role
+        SELECT i.owner_iid, i.kind, g.role
         FROM ai.identity i
         LEFT JOIN ai.identity_grant g
           ON g.resource_iid = i.id AND g.grantee_iid = $2 AND g.deleted_ts IS NULL
@@ -133,8 +148,16 @@ async fn identity_mutate_allowed(pool: &PgPool, caller_iid: i64, resource_iid: i
     .await?
     .ok_or_else(|| anyhow!("identity not found"))?;
     let owner_iid: i64 = row.get("owner_iid");
+    let kind: String = row.get("kind");
     let role: Option<String> = row.try_get("role").ok().flatten();
-    let allowed = owner_iid == caller_iid || role.as_deref() == Some("admin");
+    if owner_iid == caller_iid {
+        return Ok(owner_iid);
+    }
+    let role = role.as_deref().unwrap_or("");
+    let allowed = match kind.as_str() {
+        "site" => site_grant_write_allowed(role),
+        _ => role == "admin",
+    };
     if !allowed {
         return Err(anyhow!("forbidden"));
     }
@@ -320,4 +343,18 @@ pub async fn identity_put(
     }
     let row = identity_list_row_get(pool, caller_iid, iid).await?;
     Ok(ResIdentityPut { row: Some(row) })
+}
+
+#[cfg(test)]
+mod mutate_allowed_tests {
+    use super::{site_grant_write_allowed, site_role_rank};
+
+    #[test]
+    fn site_grant_write_requires_manage_or_owner() {
+        assert!(site_grant_write_allowed("owner"));
+        assert!(site_grant_write_allowed("manage"));
+        assert!(!site_grant_write_allowed("staff"));
+        assert!(!site_grant_write_allowed("guest"));
+        assert_eq!(site_role_rank("manage"), 3);
+    }
 }

@@ -467,5 +467,10 @@
         "searchFonts": "Search fonts",
         "theme": "Theme",
         "underline": "Underline"
+    },
+    "share": {
+        "inboundNothingUsable": "Could not use anything from that share.",
+        "inboundPartialSkipped": "Some items were skipped (size, type, or limit). Skipped: {count}.",
+        "inboundComposerNotReady": "Composer is not ready yet. Try again."
     }
 }

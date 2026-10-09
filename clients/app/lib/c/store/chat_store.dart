@@ -1669,6 +1669,19 @@ class ChatStore extends ChangeNotifier {
     await _navCountsPersistShell();
   }
 
+  Future<void> navCountsSitesPut(int sites) async {
+    if (navCounts.sites == sites) return;
+    navCounts = NavCounts(
+      bots: navCounts.bots,
+      devices: navCounts.devices,
+      sites: sites,
+      mailInboxUnread: navCounts.mailInboxUnread,
+      mailMenuVisible: navCounts.mailMenuVisible,
+    );
+    notifyListeners();
+    await _navCountsPersistShell();
+  }
+
   Future<void> _navCountsPersistShell() async {
     final cached = await SessionInitCache.load();
     if (cached == null) return;

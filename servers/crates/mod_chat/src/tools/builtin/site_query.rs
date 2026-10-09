@@ -1,5 +1,9 @@
 use anyhow::{anyhow, Result};
-use c35_mod_site::{site_granted_iids, site_query_run, stock_report_from_query, stock_report_query_id};
+use c35_mod_site::{
+    site_granted_iids, site_query_run, stock_report_from_query, stock_report_query_id,
+    tx_browse_from_query, tx_browse_query_id,
+};
+use crate::tx_browse_render::tx_browse_llm_payload;
 use serde_json::{json, Value};
 
 use crate::stock_report_run::{formats_from_params, materialize};
@@ -59,6 +63,18 @@ pub async fn site_query_run_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
         };
         let built = materialize(&ctx.pool, ctx.chat_id, &report, &formats_from_params(&params)).await?;
         return Ok(built.llm);
+    }
+    if tx_browse_query_id(query_id) {
+        let Some(report) = tx_browse_from_query(query_id, &res.rows, &res.result_json) else {
+            return Ok(json!({ "ok": false, "query_id": query_id, "error": "tx browse failed" }));
+        };
+        let llm = tx_browse_llm_payload(&report);
+        let blocks = crate::tx_browse_render::tx_browse_blocks(&report);
+        return Ok(json!({
+            "ok": true,
+            "llm": llm,
+            "block": blocks.first().cloned().unwrap_or(json!({})),
+        }));
     }
     let rows: Vec<Value> = res
         .rows

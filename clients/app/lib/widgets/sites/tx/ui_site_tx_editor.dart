@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/tx/section_tx_items.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
+import 'package:alienai_c35/widgets/sites/tx/tx_offline_queue.dart';
 import 'package:alienai_c35/c/site/site_commerce_media_prefetch.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_offline_queue.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
@@ -18,6 +19,8 @@ import 'package:alienai_c35/widgets/sites/tx/payment/ask_transaksi_payment_metho
 import 'package:alienai_c35/c/hardware/thermal_printer_manager.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/esc_pos_receipt_formatter.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_calc.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config_of.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/ui_receipt.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_parked_orders.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_tx_save_menu.dart';
@@ -54,12 +57,14 @@ class UiSiteTxEditor extends StatefulWidget {
 }
 
 class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStateMixin {
+  final _posItemsKey = GlobalKey<SectionTxItemsState>();
   late final TxApi _txApi = TxApi(widget.api.conn);
   TabController? _tabs;
   var _loading = true;
   var _busy = false;
   var _previewLoading = false;
   var _printReceipt = false;
+  var _showTrackingQrOnReceipt = true;
   Object? _error;
   late Tx _tx;
   var _products = <SiteProduct>[];
@@ -135,12 +140,18 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
       if (widget.txId != null && widget.txId! > Int64.ZERO) {
         _tx = await _txApi.get(widget.siteIid, widget.txId!);
       } else {
-        _tx = _txApi.newSale(widget.siteIid);
+        _tx = await _txApi.newSale(widget.siteIid);
       }
       await ThermalPrinterManager.instance.ensureLoaded();
       if (mounted) {
         _printReceipt = ThermalPrinterManager.instance.autoPrintReceipt;
       }
+      try {
+        final siteConfig = await widget.api.configGet(widget.siteIid);
+        if (mounted) {
+          _showTrackingQrOnReceipt = receiptShowQrLinkFromCapabilities(siteConfig.capabilitiesJson);
+        }
+      } catch (_) {}
       await _refreshPreview();
       _catalogOffline = widget.api.conn.status.value != ChatConnStatus.connected;
       if (widget.api.conn.status.value == ChatConnStatus.connected) {
@@ -255,61 +266,65 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
           siteApi: widget.api,
           site: widget.site,
           productNames: _productNameMap(),
+          config: _receiptConfigOverride(),
         );
         if (!mounted) return;
         final printerMgr = ThermalPrinterManager.instance;
-        if (printerMgr.printerType == ThermalPrinterType.network) {
-          final bytes = EscPosReceiptFormatter.formatReceipt(
+        if (printerMgr.usesRawEscPos) {
+          final bytes = await EscPosReceiptFormatter.formatReceipt(
             saved,
             site: widget.site,
             productNames: _productNameMap(),
             paperWidth: printerMgr.paperWidth,
+            config: _receiptConfigOverride(),
           );
           final ok = await printerMgr.printRaw(bytes);
           if (!ok && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Gagal cetak ke printer jaringan'),
+                content: Text('Gagal cetak ke printer'),
                 behavior: SnackBarBehavior.floating,
               ),
             );
           }
         }
-        setState(() {
-          _tx = _txApi.newSale(widget.siteIid);
-          _printReceipt = ThermalPrinterManager.instance.autoPrintReceipt;
-        });
+        await _startNewSale();
         return;
       }
 
       if (_printReceipt) {
         final printerMgr = ThermalPrinterManager.instance;
-        if (printerMgr.printerType == ThermalPrinterType.network) {
-          final bytes = EscPosReceiptFormatter.formatReceipt(
+        if (printerMgr.usesRawEscPos) {
+          final bytes = await EscPosReceiptFormatter.formatReceipt(
             saved,
             site: widget.site,
             productNames: _productNameMap(),
             paperWidth: printerMgr.paperWidth,
+            config: _receiptConfigOverride(),
           );
           final ok = await printerMgr.printRaw(bytes);
           if (!ok && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Failed to print receipt to network printer'),
+                content: Text('Failed to print receipt to printer'),
                 behavior: SnackBarBehavior.floating,
               ),
             );
           }
         } else {
-          await showPrintReceipt(context, saved, siteApi: widget.api, site: widget.site, productNames: _productNameMap());
+          await showPrintReceipt(
+            context,
+            saved,
+            siteApi: widget.api,
+            site: widget.site,
+            productNames: _productNameMap(),
+            config: _receiptConfigOverride(),
+          );
         }
       }
       if (!mounted) return;
       if (openNew) {
-        setState(() {
-          _tx = _txApi.newSale(widget.siteIid);
-          _printReceipt = ThermalPrinterManager.instance.autoPrintReceipt;
-        });
+        await _startNewSale();
         await _refreshPreview();
       } else {
         Navigator.of(context).pop(saved);
@@ -405,6 +420,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
       siteApi: widget.api,
       site: widget.site,
       productNames: _productNameMap(),
+      config: _receiptConfigOverride(),
     );
   }
 
@@ -434,23 +450,49 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
         for (final p in _products) p.productId.toString(): p.name,
       };
 
+  ReceiptConfig _receiptConfigOverride() => ReceiptConfig(showQrLink: _showTrackingQrOnReceipt);
+
+  Future<void> _setShowTrackingQrOnReceipt(bool value) async {
+    setState(() => _showTrackingQrOnReceipt = value);
+    try {
+      final siteConfig = await widget.api.configGet(widget.siteIid);
+      final nextJson = capabilitiesJsonSetReceiptShowQrLink(siteConfig.capabilitiesJson, value);
+      await widget.api.configPut(widget.siteIid, capabilitiesJson: nextJson);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
   void _viewReceipt() => showViewReceipt(
         context,
         txEnsureCashPayment(_tx),
         siteApi: widget.api,
         site: widget.site,
         productNames: _productNameMap(),
+        config: _receiptConfigOverride(),
       );
+
+  Future<void> _startNewSale() async {
+    final tx = await _txApi.newSale(widget.siteIid);
+    if (!mounted) return;
+    setState(() {
+      _tx = tx;
+      _printReceipt = ThermalPrinterManager.instance.autoPrintReceipt;
+    });
+  }
 
   Future<void> _holdOrder() async {
     if (_tx.items.isEmpty) return;
     if (_tx.timeTsMs <= Int64.ZERO) {
       _tx.timeTsMs = Int64(DateTime.now().millisecondsSinceEpoch);
     }
+    await TxOfflineQueue.txEnsureClientTxId(_tx);
     final parked = TxParkedOrders.instance.add(widget.siteIid, _tx);
-    setState(() {
-      _tx = _txApi.newSale(widget.siteIid);
-    });
+    await _startNewSale();
     await _refreshPreview();
     if (mounted) {
       final customer = parkedTxCustomerLabel(parked.tx);
@@ -575,7 +617,13 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
         : Session.instance.isRoot
             ? const [Tab(text: 'Items'), Tab(text: 'Payments'), Tab(text: 'Acc'), Tab(text: 'Stock')]
             : const [Tab(text: 'Items'), Tab(text: 'Payments')];
-    return Scaffold(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layoutW = constraints.maxWidth.isFinite && constraints.maxWidth > 0
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final compactPosCart = widget.posEntry && !posTxShowsInlineCartForWidth(layoutW, posShell: true);
+        return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: _bg,
@@ -590,6 +638,23 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
               )
             : null,
         actions: [
+          if (compactPosCart)
+            Builder(
+              builder: (context) {
+                final cartQty = _tx.items.fold<int>(0, (sum, item) => sum + item.qty);
+                return IconButton(
+                  tooltip: cartQty > 0 ? 'Keranjang ($cartQty)' : 'Keranjang',
+                  onPressed: () => _posItemsKey.currentState?.openCartDrawer(),
+                  icon: Badge.count(
+                    count: cartQty,
+                    isLabelVisible: cartQty > 0,
+                    backgroundColor: _accent,
+                    textColor: const Color(0xFF052E1B),
+                    child: const Icon(Icons.shopping_cart_outlined),
+                  ),
+                );
+              },
+            ),
           ListenableBuilder(
             listenable: TxParkedOrders.instance,
             builder: (context, _) {
@@ -617,6 +682,8 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
             onHold: _tx.items.isNotEmpty ? _holdOrder : null,
             printReceipt: _printReceipt,
             onPrintReceiptChanged: (v) => setState(() => _printReceipt = v),
+            showTrackingQrOnReceipt: _showTrackingQrOnReceipt,
+            onShowTrackingQrOnReceiptChanged: _setShowTrackingQrOnReceipt,
             onViewReceipt: _viewReceipt,
             onSave: () => _save(),
             onSaveNew: () => _save(openNew: true),
@@ -644,6 +711,8 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
         ],
       ),
     );
+      },
+    );
   }
 
   Widget _offlineBanner() => Container(
@@ -665,6 +734,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
       );
 
   Widget _itemsSection() => SectionTxItems(
+        key: widget.posEntry ? _posItemsKey : null,
         items: _tx.items,
         products: _products,
         onChanged: _itemsChanged,

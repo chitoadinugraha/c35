@@ -70,21 +70,34 @@ pub fn query_time_range(params: &Value) -> Result<(Option<DateTime<Utc>>, Option
         return Ok((ts_from_ms(from_ms), ts_from_ms(to_ms)));
     }
     let range = query_param_str(params, "range", "").to_ascii_lowercase();
-    Ok(match named_utc_range(&range) {
+    Ok(match named_utc_range_at(&range, Utc::now()) {
         Some((from, to)) => (Some(from), Some(to)),
         None => (None, None),
     })
 }
 
-/// UTC calendar window for `today` / `this_week` / `this_month`.
+/// UTC calendar window for `today`, `yesterday`, `this_week`, `last_week`, `this_month`.
 /// Upper bound is the next boundary minus 1ms so SQL `time_ts <= $3` stays inclusive.
-fn named_utc_range(range: &str) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
-    let today = Utc::now().date_naive();
+pub fn named_utc_range_at(
+    range: &str,
+    now: DateTime<Utc>,
+) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
+    let today = now.date_naive();
     let (start_date, next_boundary) = match range {
         "today" => (today, today + Duration::days(1)),
+        "yesterday" => {
+            let y = today - Duration::days(1);
+            (y, y + Duration::days(1))
+        }
         "this_week" => {
             let monday = today - Duration::days(today.weekday().num_days_from_monday() as i64);
             (monday, monday + Duration::days(7))
+        }
+        "last_week" => {
+            let monday_this =
+                today - Duration::days(today.weekday().num_days_from_monday() as i64);
+            let monday_last = monday_this - Duration::days(7);
+            (monday_last, monday_this)
         }
         "this_month" => {
             let start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1)?;

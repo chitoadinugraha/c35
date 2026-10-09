@@ -518,6 +518,66 @@ async fn voucher_settle_expired_for_issuer(pool: &PgPool, issuer_iid: i64) -> Re
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct VoucherPublicView {
+    pub code: String,
+    pub name: String,
+    pub face_value_idr: f64,
+    pub kind: String,
+    pub status: String,
+    pub redeemable: bool,
+}
+
+pub enum VoucherPublicFail {
+    NotFound,
+    Unavailable(String),
+}
+
+/// Public card for a prepaid voucher. Omits issuer, commission, and payment reference.
+pub async fn billing_voucher_public(pool: &PgPool, raw_code: &str) -> Result<VoucherPublicView, VoucherPublicFail> {
+    let code = normalize_code(raw_code);
+    if code.is_empty() || code.len() > 32 {
+        return Err(VoucherPublicFail::NotFound);
+    }
+    if voucher_settle_expired_code(pool, &code).await.is_err() {
+        tracing::warn!("voucher public settle failed");
+    }
+    let row = sqlx::query(
+        r#"
+        SELECT code, used_count, expires_at, COALESCE(meta, '{}'::jsonb) AS meta
+        FROM ai.referral_code
+        WHERE code = $1
+        "#,
+    )
+    .bind(&code)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| VoucherPublicFail::Unavailable(e.to_string()))?;
+    let Some(row) = row else {
+        return Err(VoucherPublicFail::NotFound);
+    };
+    let meta: serde_json::Value = row.try_get("meta").unwrap_or(json!({}));
+    if !voucher_is_prepaid(&meta) {
+        return Err(VoucherPublicFail::NotFound);
+    }
+    let used_count: i32 = row.try_get("used_count").unwrap_or(0);
+    let expires_at: Option<chrono::DateTime<chrono::Utc>> = row.try_get("expires_at").ok().flatten();
+    let status = voucher_doc_status(&meta, used_count, expires_at);
+    let mut name = voucher_meta_str(&meta, "name");
+    if name.is_empty() {
+        name = "Voucher".into();
+    }
+    let kind = voucher_meta_str(&meta, "type");
+    Ok(VoucherPublicView {
+        code,
+        name,
+        face_value_idr: voucher_meta_f64(&meta, "face_value_idr"),
+        kind,
+        redeemable: status == "active",
+        status,
+    })
+}
+
 fn voucher_doc_status(meta: &serde_json::Value, used_count: i32, expires_at: Option<chrono::DateTime<chrono::Utc>>) -> String {
     if voucher_meta_bool(meta, "void") {
         return "void".into();

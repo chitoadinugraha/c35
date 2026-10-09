@@ -34,18 +34,27 @@
       serviceWorkerVersion: {{flutter_service_worker_version}},
     },
     onEntrypointLoaded: async function (engineInitializer) {
-      setLoadProgress(0.22, 'Loading engine...');
-      const appRunner = await engineInitializer.initializeEngine();
-      setLoadProgress(0.72, 'Starting app...');
-      await appRunner.runApp();
-      setLoadProgress(0.96, 'Almost ready...');
-      if (typeof removeSplashFromWeb === 'function') removeSplashFromWeb();
-      if (label) {
-        label.dataset.done = '1';
-        label.textContent = 'Ready';
+      try {
+        setLoadProgress(0.22, 'Loading engine...');
+        const appRunner = await engineInitializer.initializeEngine();
+        setLoadProgress(0.72, 'Starting app...');
+        await appRunner.runApp();
+        setLoadProgress(0.96, 'Almost ready...');
+        if (typeof removeSplashFromWeb === 'function') removeSplashFromWeb();
+        if (label) {
+          label.dataset.done = '1';
+          label.textContent = 'Ready';
+        }
+        setLoadProgress(1, 'Ready');
+        cancelAnimationFrame(raf);
+      } catch (err) {
+        console.error('Flutter web boot failed:', err);
+        if (label) {
+          label.dataset.done = '1';
+          label.textContent = 'Failed to start. Try a hard refresh or another browser.';
+        }
+        setLoadProgress(0, 'Failed to start');
       }
-      setLoadProgress(1, 'Ready');
-      cancelAnimationFrame(raf);
     },
   };
 

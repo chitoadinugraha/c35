@@ -13,6 +13,7 @@ import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/widgets/ai/composer_attachment_history.dart';
+import 'package:alienai_c35/widgets/ai/composer_stage_host.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
@@ -115,6 +116,7 @@ class InComposer extends StatefulWidget {
     this.viewerIsRoot = false,
     this.onTestMultitask,
     this.compact = false,
+    this.stageHost,
   });
 
   /// Bot / simple chat: attach + mic only — no @ mentions, model chip, slash menu, or follow-ups.
@@ -145,6 +147,7 @@ class InComposer extends StatefulWidget {
   final void Function(PromptFollowupRow row)? onFollowupRemove;
   final bool viewerIsRoot;
   final VoidCallback? onTestMultitask;
+  final ComposerStageHost? stageHost;
 
   @override
   State<InComposer> createState() => _InComposerState();
@@ -615,12 +618,14 @@ class _InComposerState extends State<InComposer> {
   @override
   void initState() {
     super.initState();
+    widget.stageHost?.attach(_stageItems);
     _focus.addListener(_onFocusChange);
     _focus.onKeyEvent = _onKeyEvent;
   }
 
   @override
   void dispose() {
+    widget.stageHost?.detach();
     _mentionListScrollController.dispose();
     _mentionMenuHighlight.dispose();
     _removeMentionMenuOverlay();

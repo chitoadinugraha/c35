@@ -95,6 +95,14 @@ class UiErrorFallback extends StatelessWidget {
                 Text(_title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFF4F4F5))),
                 const SizedBox(height: 8),
                 Text(_subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFFA1A1AA))),
+                if (error != null && (kDebugMode || kIsWeb)) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    uiErrorDetailText(error!),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 11, height: 1.35, color: Color(0xFF71717A)),
+                  ),
+                ],
                 if (error != null && sessionViewerIsRoot()) ...[
                   const SizedBox(height: 12),
                   UiRootErrorDetail(detail: uiErrorDetailText(error!)),

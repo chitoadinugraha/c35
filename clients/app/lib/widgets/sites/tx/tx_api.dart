@@ -32,6 +32,7 @@ class TxApi {
 
   Future<Tx> putSale(int siteIid, Tx tx, {bool queueOffline = true}) async {
     final payload = txEnsureCashPayment(tx.clone()..siteIid = Int64(siteIid));
+    await TxOfflineQueue.txEnsureClientTxId(payload);
     final err = txValidateSale(payload);
     if (err != null) throw err;
     if (!isConnected && queueOffline) return _putSaleOffline(siteIid, payload);
@@ -54,5 +55,10 @@ class TxApi {
 
   Future<int> offlinePendingCount(int siteIid) => TxOfflineQueue.pendingCount(siteIid);
 
-  Tx newSale(int siteIid) => txNewSale(siteIid);
+  /// New sale with a stable client [Tx.txId] for draft receipts and offline sync.
+  Future<Tx> newSale(int siteIid) async {
+    final tx = txNewSale(siteIid);
+    await TxOfflineQueue.txEnsureClientTxId(tx);
+    return tx;
+  }
 }

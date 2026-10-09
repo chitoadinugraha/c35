@@ -1,9 +1,15 @@
 # Publish all (server + app)
 
-Run the full c35 release wave from the **repo root**. Do not publish the remote agent unless the user adds `-RemoteAgent`.
+Run the full c35 release wave from the **repo root**: git commit (if needed) and push, then parallel server + app. Do not publish the remote agent unless the user adds `-RemoteAgent`.
 
 ```powershell
 .\_\scripts\deploy\publish_all.ps1
+```
+
+If git should be left unchanged:
+
+```powershell
+.\_\scripts\deploy\publish_all.ps1 -SkipGit
 ```
 
 Run from the workspace / repo root (where `_\scripts\deploy` exists).

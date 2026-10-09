@@ -57,7 +57,7 @@ class _ReferralCodesVouchersDialog extends StatefulWidget {
 }
 
 class _ReferralCodesVouchersDialogState extends State<_ReferralCodesVouchersDialog> with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 3, vsync: this);
+  late final TabController _tabs = TabController(length: 2, vsync: this);
   var _voucherReloadKey = 0;
 
   @override
@@ -120,7 +120,6 @@ class _ReferralCodesVouchersDialogState extends State<_ReferralCodesVouchersDial
                         tabs: const [
                           Tab(text: 'Referral codes'),
                           Tab(text: 'Vouchers'),
-                          Tab(text: 'Redeem history'),
                         ],
                       ),
                     ],
@@ -132,7 +131,6 @@ class _ReferralCodesVouchersDialogState extends State<_ReferralCodesVouchersDial
                     children: [
                       UiReferralAffiliateCodesPanel(conn: widget.conn),
                       _VouchersTab(key: ValueKey(_voucherReloadKey), conn: widget.conn, canIssue: widget.canIssue, onIssue: _openWizard),
-                      _RedeemHistoryTab(conn: widget.conn),
                     ],
                   ),
                 ),
@@ -155,9 +153,13 @@ class _VouchersTab extends StatefulWidget {
 }
 
 class _VouchersTabState extends State<_VouchersTab> {
+  static const _statusFilters = ['', 'active', 'redeemed', 'void'];
+
   var _loading = true;
   String? _error;
   String _statusFilter = '';
+  String _searchQuery = '';
+  final _searchCtrl = TextEditingController();
   String _copiedCode = '';
   Timer? _copiedClear;
   List<BillingVoucherDoc> _items = [];
@@ -171,15 +173,27 @@ class _VouchersTabState extends State<_VouchersTab> {
 
   @override
   void dispose() {
+    _searchCtrl.dispose();
     _copiedClear?.cancel();
     super.dispose();
+  }
+
+  String _statusFilterLabel(String value) => value.isEmpty ? 'All' : value[0].toUpperCase() + value.substring(1);
+
+  bool _matchesSearch(BillingVoucherDoc v) {
+    final q = _searchQuery.trim();
+    if (q.isEmpty) return true;
+    final qNorm = referralCodeNorm(q);
+    if (qNorm.isNotEmpty && referralCodeNorm(v.code).contains(qNorm)) return true;
+    final name = v.name.trim().toLowerCase();
+    return name.isNotEmpty && name.contains(q.toLowerCase());
   }
 
   List<BillingVoucherDoc> get _filtered => _items.where((v) {
         final status = v.status.isEmpty ? 'active' : v.status;
         if (status == 'expired') return false;
-        if (_statusFilter.isEmpty) return true;
-        return status == _statusFilter;
+        if (_statusFilter.isNotEmpty && status != _statusFilter) return false;
+        return _matchesSearch(v);
       }).toList();
 
   Future<void> _load() async {
@@ -243,12 +257,14 @@ class _VouchersTabState extends State<_VouchersTab> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                  child: QrImageView(data: code, size: 200, backgroundColor: Colors.white),
+                  child: QrImageView(data: voucherPublicUrl(code), size: 200, backgroundColor: Colors.white),
                 ),
                 const SizedBox(height: 12),
-                Text('Scan to redeem in Plans → Redeem', textAlign: TextAlign.center, style: const TextStyle(color: _ReferralDialogPalette.muted, fontSize: 11, height: 1.35)),
+                const Text('Scan to open this voucher', textAlign: TextAlign.center, style: TextStyle(color: _ReferralDialogPalette.muted, fontSize: 11, height: 1.35)),
                 const SizedBox(height: 10),
                 SelectableText(referralCodeFormat(code), textAlign: TextAlign.center, style: const TextStyle(color: _ReferralDialogPalette.text, fontFamily: 'monospace', fontWeight: FontWeight.w700, letterSpacing: 1.1, fontSize: 13)),
+                const SizedBox(height: 8),
+                SelectableText(voucherPublicUrl(code), textAlign: TextAlign.center, style: const TextStyle(color: _ReferralDialogPalette.muted, fontSize: 11)),
               ],
             ),
           ),
@@ -314,35 +330,75 @@ class _VouchersTabState extends State<_VouchersTab> {
           child: Row(
             children: [
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final s in ['', 'active', 'redeemed', 'void'])
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: FilterChip(
-                            label: Text(s.isEmpty ? 'All' : s[0].toUpperCase() + s.substring(1)),
-                            selected: _statusFilter == s,
-                            onSelected: (_) => setState(() => _statusFilter = s),
-                            selectedColor: _ReferralDialogPalette.accent.withValues(alpha: 0.25),
-                            labelStyle: TextStyle(color: _statusFilter == s ? _ReferralDialogPalette.text : _ReferralDialogPalette.muted, fontSize: 12),
-                            side: const BorderSide(color: _ReferralDialogPalette.border),
-                            backgroundColor: const Color(0xFF27272A),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF27272A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _ReferralDialogPalette.border),
+                  ),
+                  child: SizedBox(
+                    height: 44,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _statusFilter,
+                            isDense: true,
+                            icon: const Icon(Icons.arrow_drop_down_rounded, size: 20, color: _ReferralDialogPalette.muted),
+                            style: const TextStyle(color: _ReferralDialogPalette.text, fontSize: 12, fontWeight: FontWeight.w600),
+                            dropdownColor: const Color(0xFF27272A),
+                            borderRadius: BorderRadius.circular(10),
+                            padding: const EdgeInsets.only(left: 10, right: 2),
+                            items: [
+                              for (final s in _statusFilters)
+                                DropdownMenuItem(
+                                  value: s,
+                                  child: Text(_statusFilterLabel(s)),
+                                ),
+                            ],
+                            onChanged: (v) => setState(() => _statusFilter = v ?? ''),
                           ),
                         ),
-                    ],
+                        Container(width: 1, height: 24, color: _ReferralDialogPalette.border),
+                        Expanded(
+                          child: Center(
+                            child: TextField(
+                              controller: _searchCtrl,
+                              style: const TextStyle(color: _ReferralDialogPalette.text, fontSize: 14, height: 1),
+                              decoration: const InputDecoration(
+                                hintText: 'Search vouchers…',
+                                hintStyle: TextStyle(color: Color(0xFF71717A), fontSize: 14, height: 1),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                isCollapsed: true,
+                                contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                              ),
+                              onChanged: (v) => setState(() => _searchQuery = v),
+                            ),
+                          ),
+                        ),
+                        uiIconButton(
+                        onPressed: _loading ? null : _load,
+                        tooltip: 'Refresh',
+                        icon: _loading
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _ReferralDialogPalette.muted))
+                            : const Icon(Icons.refresh, size: 20, color: _ReferralDialogPalette.muted),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              if (widget.canIssue)
-                FilledButton.icon(
+              if (widget.canIssue) ...[
+                const SizedBox(width: 4),
+                uiIconButton(
                   onPressed: widget.onIssue,
-                  style: FilledButton.styleFrom(backgroundColor: _ReferralDialogPalette.accent, foregroundColor: const Color(0xFF09090B), visualDensity: VisualDensity.compact),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Issue'),
+                  tooltip: 'Issue voucher',
+                  icon: const Icon(Icons.add_rounded, size: 22, color: _ReferralDialogPalette.text),
                 ),
-              uiIconButton(onPressed: _loading ? null : _load, tooltip: 'Refresh', icon: const Icon(Icons.refresh, size: 20, color: _ReferralDialogPalette.muted)),
+              ],
             ],
           ),
         ),
@@ -355,7 +411,12 @@ class _VouchersTabState extends State<_VouchersTab> {
           child: _loading
               ? const UILoading(message: 'Loading vouchers…')
               : filtered.isEmpty
-                  ? Center(child: Text(_statusFilter.isEmpty ? 'No vouchers yet' : 'No vouchers match', style: const TextStyle(color: _ReferralDialogPalette.muted)))
+                  ? Center(
+                      child: Text(
+                        _searchQuery.trim().isEmpty && _statusFilter.isEmpty ? 'No vouchers yet' : 'No vouchers match',
+                        style: const TextStyle(color: _ReferralDialogPalette.muted),
+                      ),
+                    )
                   : ListView.separated(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                       itemCount: filtered.length,
@@ -399,6 +460,20 @@ class _VoucherTile extends StatelessWidget {
     return parts.join(' · ');
   }
 
+  String _redeemedLine(BillingVoucherDoc v) {
+    final ms = v.redeemedTsMs.toInt();
+    var when = '';
+    if (ms > 0) {
+      final at = DateTime.fromMillisecondsSinceEpoch(ms);
+      when = '${at.year}-${at.month.toString().padLeft(2, '0')}-${at.day.toString().padLeft(2, '0')} ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+    }
+    final who = v.redeemedByName.trim().isNotEmpty ? v.redeemedByName.trim() : (v.redeemedByIid > 0 ? 'User ${v.redeemedByIid}' : '');
+    if (who.isEmpty && when.isEmpty) return '';
+    if (when.isEmpty) return 'Redeemed by $who';
+    if (who.isEmpty) return 'Redeemed $when';
+    return 'Redeemed by $who · $when';
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = doc.status.isEmpty ? 'active' : doc.status;
@@ -407,6 +482,7 @@ class _VoucherTile extends StatelessWidget {
     final title = doc.name.trim().isNotEmpty ? doc.name.trim() : 'Voucher';
     final formatted = referralCodeFormat(doc.code);
     final meta = _metaLine(doc);
+    final redeemedLine = status == 'redeemed' ? _redeemedLine(doc) : '';
     return Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -442,6 +518,10 @@ class _VoucherTile extends StatelessWidget {
                         if (meta.isNotEmpty) ...[
                           const SizedBox(height: 3),
                           Text(meta, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ReferralDialogPalette.muted, fontSize: 10)),
+                        ],
+                        if (redeemedLine.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(redeemedLine, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ReferralDialogPalette.muted, fontSize: 10)),
                         ],
                       ],
                     ),
@@ -570,87 +650,3 @@ class _VoucherDashedLinePainter extends CustomPainter {
   bool shouldRepaint(covariant _VoucherDashedLinePainter oldDelegate) => oldDelegate.color != color;
 }
 
-class _RedeemHistoryTab extends StatefulWidget {
-  const _RedeemHistoryTab({required this.conn});
-
-  final ReferralConn conn;
-
-  @override
-  State<_RedeemHistoryTab> createState() => _RedeemHistoryTabState();
-}
-
-class _RedeemHistoryTabState extends State<_RedeemHistoryTab> {
-  var _loading = true;
-  String? _error;
-  List<BillingVoucherRedeemDoc> _items = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final res = await billingVoucherRedeemList(widget.conn);
-      if (!mounted) return;
-      setState(() {
-        _items = List<BillingVoucherRedeemDoc>.from(res.items);
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = uiReferralError(e, fallback: 'Failed to load redeem history');
-      });
-    }
-  }
-
-  String _when(BillingVoucherRedeemDoc row) {
-    final ms = row.redeemedTsMs.toInt();
-    if (ms <= 0) return '';
-    final at = DateTime.fromMillisecondsSinceEpoch(ms);
-    return '${at.year}-${at.month.toString().padLeft(2, '0')}-${at.day.toString().padLeft(2, '0')} ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: uiIconButton(onPressed: _loading ? null : _load, tooltip: 'Refresh', icon: const Icon(Icons.refresh, size: 20, color: _ReferralDialogPalette.muted)),
-          ),
-          if (_error != null)
-            Padding(padding: const EdgeInsets.all(12), child: Text(_error!, style: const TextStyle(color: _ReferralDialogPalette.error, fontSize: 12))),
-          Expanded(
-            child: _loading
-                ? const UILoading(message: 'Loading history…')
-                : _items.isEmpty
-                    ? const Center(child: Text('No redemptions yet', style: TextStyle(color: _ReferralDialogPalette.muted)))
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: _items.length,
-                        separatorBuilder: (_, __) => const Divider(height: 16, color: _ReferralDialogPalette.border),
-                        itemBuilder: (context, i) {
-                          final row = _items[i];
-                          final buyer = row.buyerName.trim().isNotEmpty ? row.buyerName.trim() : 'User ${row.buyerIid}';
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(row.code, style: const TextStyle(color: _ReferralDialogPalette.text, fontFamily: 'monospace', fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 4),
-                              Text('$buyer · ${moneyFmtIdr(row.faceValueIdr)}', style: const TextStyle(color: _ReferralDialogPalette.muted, fontSize: 12)),
-                              if (_when(row).isNotEmpty) Text(_when(row), style: const TextStyle(color: _ReferralDialogPalette.muted, fontSize: 11)),
-                            ],
-                          );
-                        },
-                      ),
-          ),
-        ],
-      );
-}

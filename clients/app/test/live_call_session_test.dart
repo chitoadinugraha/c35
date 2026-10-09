@@ -211,7 +211,7 @@ void main() {
     });
   });
 
-  group('LiveCallSession - server hangup', () {
+  group('LiveCallSession - server hangup and errors', () {
     test('live hangup message disconnects session', () async {
       final session = LiveCallSession();
       session.connected.value = true;
@@ -220,6 +220,15 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(session.connected.value, isFalse);
       expect(session.ready.value, isFalse);
+    });
+
+    test('parses liveError and error object messages into error notifier', () {
+      final session = LiveCallSession();
+      session.dispatchWsMessageForTesting('{"liveError":"Rate limit reached"}');
+      expect(session.error.value, 'Rate limit reached');
+
+      session.dispatchWsMessageForTesting('{"error":{"code":400,"message":"Invalid argument: voice not found"}}');
+      expect(session.error.value, 'Invalid argument: voice not found');
     });
   });
 }

@@ -205,6 +205,102 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore = "needs GEMINI_API_KEY"]
+    async fn test_gemini_live_production_flow() {
+        let key = gemini_api_key();
+        assert!(!key.is_empty(), "set GEMINI_API_KEY");
+        let all_tools = c35_mod_chat::tools::cluster_tools();
+        let topics = vec!["general".to_string(), "live".to_string()];
+        let eligible = crate::live_tool_select(
+            &all_tools,
+            &topics,
+            &c35_mod_chat::MentionContext::empty(),
+            &c35_mod_admin::StaffView::permit_all(),
+            &c35_mod_chat::SiteCapabilityView::empty(),
+            false,
+        );
+        let tools_val = c35_mod_chat::tools::tool_decls(&eligible);
+        let resume = crate::LiveResume::default();
+        let mut setup_obj = json!({
+            "model": "models/gemini-3.8-live",
+            "generationConfig": {
+                "responseModalities": ["AUDIO"],
+                "speechConfig": {
+                    "voiceConfig": { "prebuiltVoiceConfig": { "voiceName": "Callirrhoe" } }
+                }
+            },
+            "inputAudioTranscription": {},
+            "outputAudioTranscription": {},
+            "systemInstruction": {
+                "parts": [{ "text": "You are Alien AI." }]
+            },
+            "tools": tools_val
+        });
+        if let Some(fields) = resume.setup_fields().as_object() {
+            for (k, v) in fields {
+                setup_obj[k] = v.clone();
+            }
+        }
+        let setup = json!({ "setup": setup_obj });
+        let url = format!("{GEMINI_LIVE_WS}?key={key}");
+        let (ws, _) = connect_async(&url).await.expect("connect");
+        let (mut tx, mut rx) = ws.split();
+        tx.send(GMsg::Text(setup.to_string().into())).await.expect("send setup");
+
+        let mut ready = false;
+        while let Some(msg) = rx.next().await {
+            match msg {
+                Ok(m) => {
+                    let s = gemini_ws_payload(&m).unwrap_or_default();
+                    println!("[full test msg] {s}");
+                    if s.contains("setupComplete") {
+                        ready = true;
+                        break;
+                    }
+                }
+                Err(e) => {
+                    panic!("setup error: {e:?}");
+                }
+            }
+        }
+        assert!(ready, "must receive setupComplete for all eligible tools");
+
+        // Now test sending history rows
+        let history = vec![
+            ("user".to_string(), "halo".to_string()),
+            ("assistant".to_string(), "halo! apa kabar?".to_string()),
+        ];
+        for seed_msg in crate::live_text_seed(&history) {
+            println!("[sending seed] {}", seed_msg);
+            tx.send(GMsg::Text(seed_msg.to_string().into())).await.expect("send seed");
+        }
+
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while Instant::now() < deadline {
+            let res = tokio::time::timeout(Duration::from_secs(2), rx.next()).await;
+            match res {
+                Ok(Some(Ok(m))) => {
+                    let s = gemini_ws_payload(&m).unwrap_or_default();
+                    println!("[after seed msg] {s}");
+                }
+                Ok(Some(Err(e))) => {
+                    println!("[after seed err] {e:?}");
+                    break;
+                }
+                Ok(None) => {
+                    println!("[after seed] stream closed by server!");
+                    break;
+                }
+                Err(_) => {
+                    println!("[after seed] timeout (stream still open and healthy)");
+                    break;
+                }
+            }
+        }
+        return;
+    }
+
+    #[tokio::test]
     async fn gemini_live_tts_audio_turn() {
         let key = gemini_api_key();
         if key.is_empty() {

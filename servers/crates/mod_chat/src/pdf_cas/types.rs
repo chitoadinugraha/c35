@@ -1,20 +1,4 @@
-use serde::Serialize;
-
 pub const PDF_EXTRACT_DEFAULT_MAX_CHARS: usize = 14_000;
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PdfSection {
-    pub title: String,
-    pub page: u32,
-    pub level: u8,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct PdfStructure {
-    pub page_count: u32,
-    pub sections: Vec<PdfSection>,
-    pub outline_from_bookmarks: bool,
-}
 
 pub fn pdf_mime_ok(mime: &str, name: &str) -> bool {
     name.to_ascii_lowercase().ends_with(".pdf") || mime.to_ascii_lowercase().contains("pdf")

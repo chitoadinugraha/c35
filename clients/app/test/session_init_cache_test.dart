@@ -58,6 +58,22 @@ void main() {
     expect(store.models.length, 2);
   });
 
+  test('navCountsSitesPut updates shell and persisted cache', () async {
+    SharedPreferences.setMockInitialValues({});
+    Session.instance.uid = 99000;
+    Session.instance.token = 't';
+    await SessionInitCache.persist(ResSessionInit(
+      serverTimeMs: Int64(1),
+      nav: NavCounts(bots: 1, devices: 1, sites: 0),
+    ));
+    final store = ChatStore();
+    await store.sessionInitCacheRestore();
+    await store.navCountsSitesPut(2);
+    expect(store.navCounts.sites, 2);
+    final cached = await SessionInitCache.load();
+    expect(cached?.nav.sites, 2);
+  });
+
   test('navCountsBotPut updates shell and persisted cache', () async {
     SharedPreferences.setMockInitialValues({});
     Session.instance.uid = 99000;

@@ -51,16 +51,36 @@ void main() {
       expect(mgr.autoPrintReceipt, isTrue);
     });
 
-    test('kickCashDrawer returns false when not network printer', () async {
+    test('kickCashDrawer returns false when not raw ESC/POS printer', () async {
       mgr.printerType = ThermalPrinterType.pdfPreview;
       final ok = await mgr.kickCashDrawer();
       expect(ok, isFalse);
     });
 
-    test('printRaw returns false when not network printer', () async {
+    test('printRaw returns false when pdf preview mode', () async {
       mgr.printerType = ThermalPrinterType.pdfPreview;
       final ok = await mgr.printRaw(Uint8List.fromList([0x1B, 0x40]));
       expect(ok, isFalse);
+    });
+
+    test('printRaw returns false for bluetooth without mac on test host', () async {
+      mgr.printerType = ThermalPrinterType.bluetooth;
+      mgr.bluetoothMac = '';
+      final ok = await mgr.printRaw(Uint8List.fromList([0x1B, 0x40]));
+      expect(ok, isFalse);
+    });
+
+    test('save and load persists bluetooth fields', () async {
+      mgr.printerType = ThermalPrinterType.bluetooth;
+      mgr.bluetoothMac = 'AA:BB:CC:DD:EE:FF';
+      mgr.bluetoothName = 'Test Printer';
+      await mgr.save();
+      mgr.bluetoothMac = '';
+      mgr.bluetoothName = '';
+      await mgr.load();
+      expect(mgr.printerType, ThermalPrinterType.bluetooth);
+      expect(mgr.bluetoothMac, 'AA:BB:CC:DD:EE:FF');
+      expect(mgr.bluetoothName, 'Test Printer');
     });
 
     test('printRaw handles unreachable socket gracefully without throwing', () async {

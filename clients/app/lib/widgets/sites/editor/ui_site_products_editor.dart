@@ -321,7 +321,7 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
         if (widget.masterDetail) {
           setState(() {});
         } else {
-          widget.onDetailIdChanged?.call(_firstId);
+          widget.onDetailIdChanged?.call(null);
         }
       },
       onEmbedsChanged: () async {

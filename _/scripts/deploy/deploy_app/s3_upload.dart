@@ -72,7 +72,9 @@ String _mimeFor(String path) {
 
 String _cacheControlFor(String relPath) {
   final name = p.basename(relPath).toLowerCase();
-  if (name == 'index.html' || name == 'flutter_service_worker.js') return 'public, max-age=60';
+  if (name == 'index.html' || name == 'flutter_service_worker.js' || name == 'flutter_bootstrap.js') {
+    return 'public, max-age=60';
+  }
   return 'public, max-age=31536000, immutable';
 }
 

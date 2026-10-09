@@ -64,7 +64,8 @@ class AppUpdateService {
   }
 
   void start() {
-    if (!Platform.isWindows || kDebugMode) return;
+    if (kIsWeb || kDebugMode) return;
+    if (!Platform.isWindows) return;
     _timer?.cancel();
     _idleTimer?.cancel();
     unawaited(checkNow());
@@ -112,7 +113,7 @@ class AppUpdateService {
   }
 
   Future<void> checkNow() async {
-    if (kDebugMode) return;
+    if (kIsWeb || kDebugMode) return;
     if (Platform.isAndroid) {
       await _androidCheck?.call();
       return;

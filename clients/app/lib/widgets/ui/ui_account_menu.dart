@@ -16,7 +16,6 @@ import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
-import 'package:alienai_c35/widgets/billing/billing_plan_format.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
 import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -58,6 +57,7 @@ class UiAccountMenuAction {
     this.sitesCount,
     this.mailInboxCount,
     this.notifyUnreadCount,
+    this.fetchNotifyUnread,
   });
 
   final ReferralConn? conn;
@@ -85,6 +85,7 @@ class UiAccountMenuAction {
   final int? sitesCount;
   final int? mailInboxCount;
   final int? notifyUnreadCount;
+  final Future<int> Function()? fetchNotifyUnread;
 }
 
 Future<void> uiAccountMenuShow(BuildContext anchorCtx, {UiAccountMenuAction? action}) async {
@@ -141,6 +142,7 @@ class _UiAccountMenuDialog extends StatefulWidget {
 
 class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
   var _billingHydrating = false;
+  int? _notifyUnread;
 
   bool _billingPlanTrustedPaid(BillingAccount? billing) =>
       billing != null && billingAccountPaidEntitlement(billing);
@@ -148,8 +150,18 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
   @override
   void initState() {
     super.initState();
+    _notifyUnread = widget.action.notifyUnreadCount;
+    final fetchNotify = widget.action.fetchNotifyUnread;
+    if (fetchNotify != null) {
+      unawaited(() async {
+        try {
+          final n = await fetchNotify();
+          if (mounted) setState(() => _notifyUnread = n);
+        } catch (_) {}
+      }());
+    }
     final conn = widget.action.conn;
-    _billingHydrating = conn != null && !_billingPlanTrustedPaid(AppStore.instance.billing);
+    _billingHydrating = conn != null && AppStore.instance.billing == null;
     unawaited(_billingEnsure());
   }
 
@@ -222,10 +234,10 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
               listenable: Listenable.merge([AppStore.instance, mailInboxBus]),
               builder: (context, _) {
                 final billing = AppStore.instance.billing;
-                final trustedPaid = _billingPlanTrustedPaid(billing);
-                final planTierLoading = _billingHydrating && !trustedPaid;
-                final showBillingPanel = billing != null && (!_billingHydrating || trustedPaid);
+                final showBillingPanel = billing != null;
+                final planTierLoading = _billingHydrating && !showBillingPanel;
                 final billingRow = billing;
+                final notifyUnread = _notifyUnread ?? acts.notifyUnreadCount ?? 0;
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -272,7 +284,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                               onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
                             )
                           : uiQuotaPackagePanelLimitPlaceholder(
-                              planTierLoading: true,
+                              planTierLoading: _billingHydrating,
                               onPackageTap: acts.onPackage == null ? null : () => _popThen(acts.onPackage),
                             ),
                     ),
@@ -344,34 +356,20 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                         );
                       },
                     ),
-                    if (acts.onNotifications != null)
-                      InkWell(
-                        onTap: () => _popThen(acts.onNotifications),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 12, 10),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                              const SizedBox(width: 10),
-                              const Expanded(
-                                child: Text('Notifications', style: TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w500)),
-                              ),
-                              if ((acts.notifyUnreadCount ?? 0) > 0) ...[
-                                Text('${acts.notifyUnreadCount}', style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w700)),
-                                const SizedBox(width: 4),
-                              ],
-                              const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
-                            ],
-                          ),
-                        ),
-                      ),
                     const Divider(height: 1, color: _border),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          if (acts.onNotifications != null) ...[
+                            _NotifyFooterBtn(
+                              count: notifyUnread,
+                              onTap: () => _popThen(acts.onNotifications),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          const Spacer(),
                           if (acts.onMail != null) ...[
                             _MailFooterBtn(
                               count: acts.mailInboxCount ?? mailInboxBus.inboxCount,
@@ -433,6 +431,45 @@ class _NavCountBtn extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _NotifyFooterBtn extends StatelessWidget {
+  const _NotifyFooterBtn({required this.count, this.onTap});
+
+  final int count;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final badge = count > 0 ? (count > 99 ? '99+' : '$count') : '';
+    return uiTooltip(
+      message: 'Notifications',
+      child: Material(
+        color: _hoverBg,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(badge.isEmpty ? 8 : 10, 0, 8, 0),
+            child: SizedBox(
+              height: 32,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (badge.isNotEmpty) ...[
+                    Text(badge, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 6),
+                  ],
+                  const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MailFooterBtn extends StatelessWidget {

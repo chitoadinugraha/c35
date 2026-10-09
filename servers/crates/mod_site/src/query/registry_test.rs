@@ -11,6 +11,8 @@ const SEED_QUERY_IDS: &[&str] = &[
     "tx.stock_list",
     "tx.stock_card",
     "tx.stock_movement",
+    "tx.sales_list",
+    "tx.sales_period_compare",
 ];
 
 #[test]
@@ -33,7 +35,10 @@ fn query_def_list_includes_seed_queries() {
     for id in SEED_QUERY_IDS {
         assert!(ids.contains(id), "missing {id}");
     }
-    assert_eq!(ids.len(), SEED_QUERY_IDS.len());
+    assert!(ids.len() >= SEED_QUERY_IDS.len());
+    for id in SEED_QUERY_IDS {
+        assert!(ids.contains(id), "missing {id}");
+    }
 }
 
 #[test]

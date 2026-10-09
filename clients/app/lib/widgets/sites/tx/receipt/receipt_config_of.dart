@@ -17,6 +17,31 @@ Map<String, dynamic>? _receiptJsonFromCapabilities(String raw) {
 
 String _receiptStr(Map<String, dynamic>? json, String key) => (json?[key] as String?)?.trim() ?? '';
 
+bool receiptShowQrLinkFromCapabilities(String capabilitiesJson) {
+  final receipt = _receiptJsonFromCapabilities(capabilitiesJson);
+  return receipt?['show_qr_link'] is bool ? receipt!['show_qr_link'] as bool : true;
+}
+
+/// Updates `receipt.show_qr_link` without dropping other capability keys.
+String capabilitiesJsonSetReceiptShowQrLink(String capabilitiesJson, bool showQrLink) {
+  Map<String, dynamic> root;
+  final trimmed = capabilitiesJson.trim();
+  if (trimmed.isEmpty) {
+    root = <String, dynamic>{};
+  } else {
+    try {
+      final decoded = jsonDecode(trimmed);
+      root = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+    } catch (_) {
+      root = <String, dynamic>{};
+    }
+  }
+  final receipt = Map<String, dynamic>.from(root['receipt'] is Map ? root['receipt'] as Map : {});
+  receipt['show_qr_link'] = showQrLink;
+  root['receipt'] = receipt;
+  return jsonEncode(root);
+}
+
 ReceiptConfig receiptConfigOf(SiteRow? site, {SiteConfig? config}) {
   final receipt = _receiptJsonFromCapabilities(config?.capabilitiesJson ?? '');
   return ReceiptConfig(

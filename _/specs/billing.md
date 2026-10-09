@@ -378,3 +378,18 @@ Push after any `billing_wallet` or `billing_profile` mutation.
 | `en_US`, default | `USD` |
 
 Override in settings; creating a wallet in a new currency does not change default unless user selects it.
+
+---
+
+## Prepaid voucher link
+
+The issuer QR encodes `https://alienai.id/voucher/<code>` (prepaid rows in `ai.referral_code` only).
+
+| Route | Auth | Behavior |
+|-------|------|----------|
+| `GET /voucher/{code}` | No | Public page: name, face value (IDR), status. Button label **Redeem**. |
+| `GET /v1/voucher/{code}` | No | JSON: `code`, `name`, `face_value_idr`, `kind`, `status`, `redeemable`. No issuer, commission, or payment reference. Missing or non-prepaid codes are 404. |
+
+**Redeem** on a computer opens `https://alienai.id/app/voucher/<code>`. The web app reads that path and opens the signed-in Redeem dialog with the code filled in. On Android the button is an intent link: `id.alienai://voucher/<code>` when the app is installed, otherwise the same web app URL. On iPhone, Redeem opens the web app, and **Open in the app** uses `id.alienai://voucher/<code>`.
+
+The Redeem dialog has a scan control on phone and web. It reads a voucher URL or a bare code into the field. Redeem itself stays the signed-in `billing_package_redeem` call.

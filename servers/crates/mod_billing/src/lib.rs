@@ -49,8 +49,9 @@ pub use billing_package::{billing_package_preview, billing_package_redeem};
 pub use billing_play::{billing_play_product_list, billing_play_verify, play_price_idr, PLAY_MARKUP};
 pub use billing_voucher::{
     billing_voucher_before_code_delete, billing_voucher_issue, billing_voucher_limit_get,
-    billing_voucher_limit_put, billing_voucher_list, billing_voucher_redeem_list, billing_voucher_void,
-    voucher_log_redeem, voucher_on_redeemed, voucher_settle_expired_code,
+    billing_voucher_limit_put, billing_voucher_list, billing_voucher_public, billing_voucher_redeem_list,
+    billing_voucher_void, voucher_log_redeem, voucher_on_redeemed, voucher_settle_expired_code,
+    VoucherPublicFail, VoucherPublicView,
 };
 pub use billing_pool::{
     pool_alien_deduct_idr, pool_alien_deduct_usd, pool_apply_deduct, pool_deduct_apply,

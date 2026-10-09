@@ -1,5 +1,6 @@
 # Parallel server + app publish. Remote Windows agent is opt-in: pass -RemoteAgent only when needed.
 param(
+    [switch]$SkipGit,
     [switch]$SkipServer,
     [switch]$SkipApp,
     [switch]$RemoteAgent,
@@ -15,6 +16,7 @@ $serverScript = Join-Path $PSScriptRoot 'publish_server.ps1'
 $appScript = Join-Path $PSScriptRoot 'publish_app_release.ps1'
 
 . (Join-Path $repoRoot '_\deployments\_lib\publish_perf.ps1')
+. (Join-Path $repoRoot '_\deployments\_lib\publish_git.ps1')
 
 function Read-DotEnvLine([string]$Path) {
     if (-not (Test-Path $Path)) { return }
@@ -79,6 +81,10 @@ function Merge-PublishPerfFromLogFile([string]$Path) {
 }
 
 Read-DotEnvLine $envFile
+
+if (-not $SkipGit) {
+    Invoke-RepoGitCommitAndPush -RepoRoot $repoRoot -CommitMessage 'chore: pre-publish all'
+}
 
 if (-not $SkipApp -and -not $env:YB_PASSWORD) {
     throw 'YB_PASSWORD required (repo-root .env.local or shell).'

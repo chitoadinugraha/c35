@@ -467,5 +467,10 @@
         "searchFonts": "Cari font",
         "theme": "Tema",
         "underline": "Garis bawah"
+    },
+    "share": {
+        "inboundNothingUsable": "Tidak ada yang bisa dipakai dari share itu.",
+        "inboundPartialSkipped": "Beberapa item dilewati (ukuran, tipe, atau batas). Dilewati: {count}.",
+        "inboundComposerNotReady": "Composer belum siap. Coba lagi."
     }
 }

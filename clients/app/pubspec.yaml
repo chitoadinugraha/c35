@@ -1,7 +1,7 @@
 name: alienai_c35
 description: "Alien AI — c35 client (auth + referral)"
 publish_to: 'none'
-version: 20.283.0+283
+version: 20.284.0+284
 
 environment:
   sdk: ^3.5.0
@@ -45,6 +45,8 @@ dependencies:
   flutter_tts: ^4.2.5
   audioplayers: ^6.8.1
   qr_flutter: ^4.1.0
+  app_links: ^6.4.1
+  mobile_scanner: ^7.0.1
   flutter_webrtc: ^1.6.2+hotfix.3
   ulid: ^2.2.0
   pdf: ^3.12.0
@@ -66,6 +68,9 @@ dependencies:
   flutter_local_notifications: ^22.3.1
   firebase_messaging: ^16.7.0
   firebase_core: ^4.15.0
+  share_handler: ^0.0.25
+  zxing2: ^0.2.4
+  print_bluetooth_thermal: ^1.2.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
