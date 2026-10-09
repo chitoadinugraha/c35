@@ -53,7 +53,7 @@ class SectionTxItems extends StatefulWidget {
   final List<TxItem> items;
   final List<SiteProduct> products;
   final ValueChanged<List<TxItem>> onChanged;
-  final VoidCallback? onCheckout;
+  final Future<void> Function()? onCheckout;
   final List<TxDiscount> discounts;
   final ValueChanged<List<TxDiscount>>? onDiscountsChanged;
   final bool posShell;
@@ -722,9 +722,13 @@ class SectionTxItemsState extends State<SectionTxItems> {
                     onRemovePayment: widget.onRemovePayment ?? (_) {},
                     onCheckout: widget.items.isEmpty
                         ? null
-                        : () {
-                            widget.onCheckout?.call();
-                            if (drawerHeader && mounted) Navigator.of(context).pop();
+                        : () async {
+                            if (drawerHeader && mounted) {
+                              Navigator.of(context).pop();
+                              await WidgetsBinding.instance.endOfFrame;
+                            }
+                            if (!mounted) return;
+                            await widget.onCheckout?.call();
                           },
                     onPrintUnpaid: widget.items.isEmpty ? null : widget.onPrintUnpaidReceipt,
                   )

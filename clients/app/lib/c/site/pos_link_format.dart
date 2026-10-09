@@ -30,10 +30,10 @@ String? _normSiteIid(String raw) {
   return id;
 }
 
-/// Desktop / launcher label: `<Site> - POS`.
+/// Desktop / launcher label: `<Site> - Alien AI POS`.
 String posShortcutLabel(String siteName) {
   final base = siteName.trim().isEmpty ? 'Site' : siteName.trim();
-  return '$base - POS';
+  return '$base - Alien AI POS';
 }
 
 /// Safe file name stem for `.lnk` (no extension).
@@ -41,7 +41,7 @@ String posShortcutFileStem(String siteName) {
   var stem = posShortcutLabel(siteName);
   stem = stem.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
   stem = stem.replaceAll(RegExp(r'\s+'), ' ').trim();
-  if (stem.isEmpty) stem = 'Site - POS';
+  if (stem.isEmpty) stem = 'Site - Alien AI POS';
   const max = 120;
   if (stem.length > max) stem = '${stem.substring(0, max - 3)}...';
   return stem;

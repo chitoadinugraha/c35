@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_business_info.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_calc.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/esc_pos_receipt_branding.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config_of.dart';
 import 'package:fixnum/fixnum.dart';
 
@@ -83,13 +84,14 @@ class EscPosReceiptFormatter {
       }
     }
 
-    // Business Name (double-size centered)
-    builder.textLine(
-      businessName,
-      bold: true,
-      align: EscPosAlign.center,
-      size: 2,
-    );
+    if (cfg.showSiteName) {
+      builder.textLine(
+        businessName,
+        bold: true,
+        align: EscPosAlign.center,
+        size: 2,
+      );
+    }
 
     // Business Address & Contact
     if (cfg.projectAddress.isNotEmpty) {
@@ -214,12 +216,23 @@ class EscPosReceiptFormatter {
       builder.row('Kembalian', receiptMoney(totals.paid - totals.total), totalWidth: paperWidth);
     }
 
-    // Unpaid / Sisa Tagihan
     if (totals.due > 0) {
-      builder.row('Sisa Tagihan', receiptMoney(totals.due), totalWidth: paperWidth);
+      builder.bold(true);
+      builder.row('Belum Dibayar', receiptMoney(totals.due), totalWidth: paperWidth);
+      builder.bold(false);
     }
 
-    builder.hr(totalWidth: paperWidth);
+    // Payment status (matches PDF ReceiptStatus)
+    final isPaid = totals.paid >= totals.total;
+    builder.feed(1);
+    builder.bold(true);
+    builder.textLine(
+      isPaid ? 'LUNAS' : 'BELUM LUNAS',
+      align: EscPosAlign.center,
+      size: 2,
+    );
+    builder.bold(false);
+    builder.feed(1);
 
     // 6. Footer Section
     if (cfg.receiptFooter.isNotEmpty) {
@@ -228,12 +241,11 @@ class EscPosReceiptFormatter {
       builder.textLine('Terima Kasih atas Kunjungan Anda', align: EscPosAlign.center);
     }
 
-    final mark = watermark?.trim();
-    if (mark != null && mark.isNotEmpty) {
-      builder.textLine(mark, align: EscPosAlign.center);
-    } else {
-      builder.textLine('Alien AI POS', align: EscPosAlign.center);
+    if (watermark != null && watermark!.trim().isNotEmpty) {
+      builder.textLine(watermark!.trim(), align: EscPosAlign.center);
     }
+
+    await escPosAppendPoweredFooter(builder, paperWidth: paperWidth);
 
     // 7. Feed & Cut
     builder.feed(4);

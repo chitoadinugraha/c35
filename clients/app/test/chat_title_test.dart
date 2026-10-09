@@ -71,4 +71,31 @@ void main() {
       'First message',
     );
   });
+
+  test('chatTitleOnPromptStart keeps resolved mention label in title', () {
+    const siteId = 'iid:12345';
+    const mentions = [
+      CatalogMention(
+        id: siteId,
+        topicId: 'web.builder',
+        icon: '',
+        color: '',
+        labelKey: '',
+        captionKey: '',
+        label: 'Gucicha',
+        kind: 'identity',
+      ),
+    ];
+    final token = composerMentionToken(siteId);
+    expect(
+      chatTitleOnPromptStart(
+        localChatId: 1,
+        serverChatId: 99,
+        existingTitle: 'New chat',
+        previewLine: 'berapa untung $token hari ini?',
+        mentions: mentions,
+      ),
+      'Berapa untung gucicha hari ini?',
+    );
+  });
 }

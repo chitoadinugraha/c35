@@ -85,15 +85,32 @@ pub fn prompt_models() -> Vec<PromptModelOption> {
         .collect()
 }
 
-pub fn catalog_price(model: &str) -> Option<(i64, i64)> {
+/// Lookup keys for billing: exact id, then base before `@` (embed cache tags `model@dims`).
+fn catalog_price_keys(model: &str) -> Vec<String> {
     let key = model.trim();
-    cache()
-        .read()
-        .unwrap()
-        .price_by_id
-        .get(key)
-        .copied()
-        .or_else(|| provider_fallback_price(key))
+    if key.is_empty() {
+        return Vec::new();
+    }
+    if let Some((base, _)) = key.split_once('@') {
+        let base = base.trim();
+        if !base.is_empty() && !base.eq_ignore_ascii_case(key) {
+            return vec![key.to_string(), base.to_string()];
+        }
+    }
+    vec![key.to_string()]
+}
+
+pub fn catalog_price(model: &str) -> Option<(i64, i64)> {
+    let cache = cache().read().unwrap();
+    for id in catalog_price_keys(model) {
+        if let Some(p) = cache.price_by_id.get(&id).copied() {
+            return Some(p);
+        }
+        if let Some(p) = provider_fallback_price(&id) {
+            return Some(p);
+        }
+    }
+    None
 }
 
 pub fn catalog_models() -> Vec<LlmModelRow> {
@@ -372,6 +389,15 @@ mod tests {
     #[test]
     fn provider_fallback_local_is_free() {
         assert_eq!(provider_fallback_price("local"), Some((0, 0)));
+    }
+
+    #[test]
+    fn catalog_price_keys_strip_embed_dimensions() {
+        assert_eq!(
+            catalog_price_keys("gemini-embedding-2@768"),
+            vec!["gemini-embedding-2@768".to_string(), "gemini-embedding-2".to_string()]
+        );
+        assert_eq!(catalog_price_keys("gemini-2.5-flash"), vec!["gemini-2.5-flash".to_string()]);
     }
 
     #[test]

@@ -4,7 +4,6 @@ import 'package:alienai_c35/c/hardware/thermal_printer_bluetooth.dart';
 import 'package:alienai_c35/c/hardware/thermal_printer_manager.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
 const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
@@ -40,7 +39,7 @@ class _TransaksiPrinterSettingsDialogState
   var _testingDrawer = false;
   String? _statusMsg;
   bool _statusSuccess = false;
-  List<BluetoothInfo> _pairedBt = [];
+  List<ThermalBluetoothDevice> _pairedBt = [];
   var _loadingBt = false;
   String _bluetoothMac = '';
   String _bluetoothName = '';
@@ -95,13 +94,13 @@ class _TransaksiPrinterSettingsDialogState
       _loadingBt = false;
       _pairedBt = list;
       if (_bluetoothMac.isNotEmpty &&
-          !list.any((d) => d.macAdress == _bluetoothMac)) {
+          !list.any((d) => d.macAddress == _bluetoothMac)) {
         if (list.isNotEmpty) {
-          _bluetoothMac = list.first.macAdress;
+          _bluetoothMac = list.first.macAddress;
           _bluetoothName = list.first.name;
         }
       } else if (_bluetoothMac.isEmpty && list.isNotEmpty) {
-        _bluetoothMac = list.first.macAdress;
+        _bluetoothMac = list.first.macAddress;
         _bluetoothName = list.first.name;
       }
     });
@@ -296,9 +295,9 @@ class _TransaksiPrinterSettingsDialogState
                     items: _pairedBt
                         .map(
                           (d) => DropdownMenuItem(
-                            value: d.macAdress,
+                            value: d.macAddress,
                             child: Text(
-                              d.name.isNotEmpty ? '${d.name} (${d.macAdress})' : d.macAdress,
+                              d.name.isNotEmpty ? '${d.name} (${d.macAddress})' : d.macAddress,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
@@ -306,7 +305,7 @@ class _TransaksiPrinterSettingsDialogState
                         .toList(),
                     onChanged: (mac) {
                       if (mac == null) return;
-                      final match = _pairedBt.where((d) => d.macAdress == mac).toList();
+                      final match = _pairedBt.where((d) => d.macAddress == mac).toList();
                       setState(() {
                         _bluetoothMac = mac;
                         _bluetoothName = match.isNotEmpty ? match.first.name : '';

@@ -33,6 +33,8 @@ class SiteStore extends ChangeNotifier {
   var _refreshing = false;
   var _refreshGen = 0;
   var _search = '';
+  var _archivedView = false;
+  var _hasArchivedSites = false;
   final _rows = <SiteRow>[];
   String? _selectedId;
   var _cacheRestored = false;
@@ -41,6 +43,8 @@ class SiteStore extends ChangeNotifier {
   bool get refreshing => _refreshing;
   bool get loading => _refreshing && _rows.isEmpty;
   String? get refreshError => _refreshError;
+  bool get archivedView => _archivedView;
+  bool get hasArchivedSites => _hasArchivedSites;
   String get search => _search;
   String? get selectedId => _selectedId;
   List<SiteRow> get rows => _rows;
@@ -117,8 +121,31 @@ class SiteStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> refresh({bool archived = false}) async {
+  Future<void> archivedViewPut(bool value) async {
+    if (_archivedView == value) return;
+    _archivedView = value;
+    _search = '';
+    notifyListeners();
+    await refresh();
+  }
+
+  Future<void> probeArchivedSites() async {
+    if (_hasArchivedSites) return;
+    try {
+      await ensureConnected();
+      final sites = await _api.list(archived: true);
+      if (sites.isNotEmpty) {
+        _hasArchivedSites = true;
+        notifyListeners();
+      }
+    } catch (e) {
+      lError('site archived probe: $e');
+    }
+  }
+
+  Future<void> refresh({bool? archived}) async {
     await _restoreCacheIfNeeded();
+    final listArchived = archived ?? _archivedView;
     _refreshGen++;
     final gen = _refreshGen;
     _refreshing = true;
@@ -126,7 +153,7 @@ class SiteStore extends ChangeNotifier {
     try {
       await ensureConnected();
       if (_refreshGen != gen) return;
-      final sites = await _api.list(archived: archived);
+      final sites = await _api.list(archived: listArchived);
       if (_refreshGen != gen) return;
       _rows
         ..clear()
@@ -138,6 +165,11 @@ class SiteStore extends ChangeNotifier {
         if (row.pic.trim().isNotEmpty) unawaited(siteCommerceMediaPrefetch(sitePic: row.pic));
       }
       _refreshError = null;
+      if (listArchived) {
+        _hasArchivedSites = sites.isNotEmpty;
+      } else {
+        unawaited(_probeArchivedAfterActiveRefresh(gen));
+      }
       _shellSitesCountSync();
     } catch (e) {
       if (_refreshGen != gen) return;
@@ -152,6 +184,20 @@ class SiteStore extends ChangeNotifier {
         _refreshing = false;
         notifyListeners();
       }
+    }
+  }
+
+  Future<void> _probeArchivedAfterActiveRefresh(int gen) async {
+    if (_hasArchivedSites || _archivedView) return;
+    try {
+      final sites = await _api.list(archived: true);
+      if (_refreshGen != gen) return;
+      if (sites.isNotEmpty) {
+        _hasArchivedSites = true;
+        notifyListeners();
+      }
+    } catch (e) {
+      lError('site archived probe: $e');
     }
   }
 
@@ -220,10 +266,18 @@ class SiteStore extends ChangeNotifier {
       } else {
         return;
       }
-      if (req.hasArchived() && req.archived) {
-        _rows.removeWhere((r) => r.siteIid.toString() == id);
-        if (_selectedId == id) {
-          _selectedId = _rows.isEmpty ? null : _rows.first.siteIid.toString();
+      if (req.hasArchived()) {
+        if (req.archived) {
+          _hasArchivedSites = true;
+          _rows.removeWhere((r) => r.siteIid.toString() == id);
+          if (_selectedId == id) {
+            _selectedId = _rows.isEmpty ? null : _rows.first.siteIid.toString();
+          }
+        } else if (_archivedView) {
+          _rows.removeWhere((r) => r.siteIid.toString() == id);
+          if (_selectedId == id) {
+            _selectedId = _rows.isEmpty ? null : _rows.first.siteIid.toString();
+          }
         }
       }
       _rows.sort((a, b) {

@@ -34,7 +34,7 @@ class SectionTxCartPay extends StatelessWidget {
   final List<TxPayment> payments;
   final VoidCallback? onCartDiscount;
   final ValueChanged<int> onRemovePayment;
-  final VoidCallback? onCheckout;
+  final Future<void> Function()? onCheckout;
   final VoidCallback? onPrintUnpaid;
   final bool cartDiscountEnabled;
   final int lineCount;

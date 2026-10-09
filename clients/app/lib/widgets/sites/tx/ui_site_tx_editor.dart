@@ -9,15 +9,15 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/tx/section_tx_items.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_api.dart';
-import 'package:alienai_c35/widgets/sites/tx/tx_offline_queue.dart';
 import 'package:alienai_c35/c/site/site_commerce_media_prefetch.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_offline_queue.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_discount_dialog.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_parked_dialog.dart';
+import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_receipt_settings_dialog.dart';
 import 'package:alienai_c35/widgets/sites/tx/payment/ask_transaksi_payment_method.dart';
 import 'package:alienai_c35/c/hardware/thermal_printer_manager.dart';
-import 'package:alienai_c35/widgets/sites/tx/receipt/esc_pos_receipt_formatter.dart';
+import 'package:alienai_c35/c/hardware/thermal_tx_print.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_calc.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config_of.dart';
@@ -269,44 +269,32 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
           config: _receiptConfigOverride(),
         );
         if (!mounted) return;
-        final printerMgr = ThermalPrinterManager.instance;
-        if (printerMgr.usesRawEscPos) {
-          final bytes = await EscPosReceiptFormatter.formatReceipt(
-            saved,
-            site: widget.site,
-            productNames: _productNameMap(),
-            paperWidth: printerMgr.paperWidth,
-            config: _receiptConfigOverride(),
-          );
-          final ok = await printerMgr.printRaw(bytes);
-          if (!ok && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Gagal cetak ke printer'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
         await _startNewSale();
         return;
       }
 
       if (_printReceipt) {
         final printerMgr = ThermalPrinterManager.instance;
-        if (printerMgr.usesRawEscPos) {
-          final bytes = await EscPosReceiptFormatter.formatReceipt(
-            saved,
+        if (printerMgr.isRawEscPosConfigured) {
+          final ok = await printTxToThermalPrinter(
+            tx: saved,
             site: widget.site,
             productNames: _productNameMap(),
-            paperWidth: printerMgr.paperWidth,
             config: _receiptConfigOverride(),
           );
-          final ok = await printerMgr.printRaw(bytes);
           if (!ok && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Failed to print receipt to printer'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } else if (printerMgr.usesRawEscPos) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Printer not configured — open Printer settings'),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -414,13 +402,14 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
     if (_tx.items.isEmpty) return;
     final preview = _tx.clone();
     receiptStampCashier(preview, Session.instance.name);
-    await showViewReceipt(
+    await showNotaPage(
       context,
       preview,
       siteApi: widget.api,
       site: widget.site,
       productNames: _productNameMap(),
       config: _receiptConfigOverride(),
+      doneLabel: 'Tutup',
     );
   }
 
@@ -452,12 +441,22 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
 
   ReceiptConfig _receiptConfigOverride() => ReceiptConfig(showQrLink: _showTrackingQrOnReceipt);
 
-  Future<void> _setShowTrackingQrOnReceipt(bool value) async {
-    setState(() => _showTrackingQrOnReceipt = value);
+  Future<void> _openReceiptSettings() async {
     try {
       final siteConfig = await widget.api.configGet(widget.siteIid);
-      final nextJson = capabilitiesJsonSetReceiptShowQrLink(siteConfig.capabilitiesJson, value);
-      await widget.api.configPut(widget.siteIid, capabilitiesJson: nextJson);
+      if (!mounted) return;
+      final saved = await showTransaksiReceiptSettingsDialog(
+        context: context,
+        siteApi: widget.api,
+        siteIid: widget.siteIid,
+        site: widget.site,
+        capabilitiesJson: siteConfig.capabilitiesJson,
+      );
+      if (saved != true || !mounted) return;
+      final updated = await widget.api.configGet(widget.siteIid);
+      setState(() {
+        _showTrackingQrOnReceipt = receiptShowQrLinkFromCapabilities(updated.capabilitiesJson);
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -682,8 +681,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
             onHold: _tx.items.isNotEmpty ? _holdOrder : null,
             printReceipt: _printReceipt,
             onPrintReceiptChanged: (v) => setState(() => _printReceipt = v),
-            showTrackingQrOnReceipt: _showTrackingQrOnReceipt,
-            onShowTrackingQrOnReceiptChanged: _setShowTrackingQrOnReceipt,
+            onReceiptSettings: _openReceiptSettings,
             onViewReceipt: _viewReceipt,
             onSave: () => _save(),
             onSaveNew: () => _save(openNew: true),
@@ -852,7 +850,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
             const SizedBox(width: 10),
             Expanded(
               child: _statCard(
-                remaining <= 0 ? 'Lunas' : 'Sisa Tagihan',
+                remaining <= 0 ? 'Lunas' : 'Belum Dibayar',
                 remaining <= 0 ? 'Rp 0' : moneyFmtIdr(remaining.toInt()),
                 remaining <= 0 ? _accent : Colors.orangeAccent,
               ),

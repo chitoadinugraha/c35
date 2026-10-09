@@ -59,8 +59,9 @@ bool _mentionQueryShowsImage(String q) => q.isEmpty || 'image'.contains(q.toLowe
 bool _mentionQueryShowsFile(String q) => q.isEmpty || 'file'.contains(q.toLowerCase());
 
 Widget _mentionLeadingIcon(CatalogMention m) {
-  if (m.isDevice) return catalogMentionDeviceIcon(m, size: 16, iconColor: _mentionIconGrey);
-  if (m.isSite) return const Icon(Icons.language_rounded, size: 16, color: _mentionIconGrey);
+  if (m.isDevice || m.isSite || mentionIdentityPicPath(m.icon) != null) {
+    return catalogMentionIdentityIcon(m, size: 16, iconColor: _mentionIconGrey);
+  }
   if (m.id == 'image_high' || m.topicId == 'image') {
     return const Icon(Icons.image_outlined, size: 16, color: _mentionIconGrey);
   }

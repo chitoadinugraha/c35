@@ -26,6 +26,15 @@ void main() {
       mgr.printerType = ThermalPrinterType.bluetooth;
       expect(mgr.usesRawEscPos, isTrue);
     });
+
+    test('isRawEscPosConfigured requires bluetooth MAC', () {
+      final mgr = ThermalPrinterManager.instance;
+      mgr.printerType = ThermalPrinterType.bluetooth;
+      mgr.bluetoothMac = '';
+      expect(mgr.isRawEscPosConfigured, isFalse);
+      mgr.bluetoothMac = 'AA:BB:CC:DD:EE:FF';
+      expect(mgr.isRawEscPosConfigured, isTrue);
+    });
   });
 
   group('ThermalPrinterBluetooth', () {

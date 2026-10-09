@@ -1,9 +1,9 @@
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_calc.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_pdf_format.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_pdf_generator.dart';
 import 'package:flutter/material.dart';
-import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 class ReceiptPdfPreview extends StatefulWidget {
@@ -15,6 +15,8 @@ class ReceiptPdfPreview extends StatefulWidget {
     this.alienId,
     this.print = false,
     this.embedded = false,
+    this.allowSystemPrint = true,
+    this.showPreviewActions = true,
   });
 
   final Tx tx;
@@ -23,6 +25,8 @@ class ReceiptPdfPreview extends StatefulWidget {
   final String? alienId;
   final bool print;
   final bool embedded;
+  final bool allowSystemPrint;
+  final bool showPreviewActions;
 
   @override
   State<ReceiptPdfPreview> createState() => _ReceiptPdfPreviewState();
@@ -36,6 +40,8 @@ class _ReceiptPdfPreviewState extends State<ReceiptPdfPreview> {
 
   String get _filename => 'receipt_${_title.toLowerCase().replaceAll(' ', '_')}.pdf';
 
+  double get _maxPageWidth => receiptMmToPt(widget.config.paperWidthMm == 58 ? 58 : 80);
+
   Widget _pdfPreview() => PdfPreview(
         build: (format) => ReceiptPdfGenerator.generate(
           widget.tx,
@@ -44,13 +50,16 @@ class _ReceiptPdfPreviewState extends State<ReceiptPdfPreview> {
           alienId: widget.alienId,
         ),
         canDebug: false,
-        allowPrinting: true,
-        allowSharing: true,
+        allowPrinting: widget.allowSystemPrint && widget.showPreviewActions,
+        allowSharing: widget.showPreviewActions,
+        useActions: widget.showPreviewActions,
         canChangePageFormat: false,
         canChangeOrientation: false,
-        maxPageWidth: 300,
-        initialPageFormat: const PdfPageFormat(227, 800, marginTop: 10, marginLeft: 10, marginRight: 10, marginBottom: 10),
+        dynamicLayout: false,
+        maxPageWidth: _maxPageWidth,
+        initialPageFormat: receiptPdfPageFormat(widget.config, tx: widget.tx),
         pdfFileName: _filename,
+        padding: widget.embedded ? const EdgeInsets.symmetric(horizontal: 16, vertical: 8) : null,
         pdfPreviewPageDecoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(8),
@@ -62,7 +71,9 @@ class _ReceiptPdfPreviewState extends State<ReceiptPdfPreview> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.embedded) return _pdfPreview();
+    if (widget.embedded) {
+      return Center(child: _pdfPreview());
+    }
     return Scaffold(appBar: AppBar(title: Text(_title)), body: _pdfPreview());
   }
 }

@@ -115,30 +115,30 @@ pub fn chat_title_from_text(text: &str) -> String {
     format!("{}{}", first.to_uppercase(), chars.as_str())
 }
 
-pub async fn chat_title_from_prompt(pool: &PgPool, text: &str, mention_ids: &[String]) -> String {
+pub async fn chat_title_from_prompt(
+    pool: &PgPool,
+    owner_iid: i64,
+    text: &str,
+    mention_ids: &[String],
+) -> String {
     use crate::mention_content::{
         mention_bracket_for_id, mention_content_normalize, mention_plain_for_title,
     };
+    use crate::mention_registry::mention_resolve_one;
+
     let normalized = mention_content_normalize(text, mention_ids);
     let mut plain = normalized;
     for id in mention_ids {
-        let iid = id.strip_prefix("iid:").and_then(|s| s.parse::<i64>().ok());
-        if iid.is_none() {
-            continue;
-        }
-        let iid = iid.unwrap();
         let bracket = mention_bracket_for_id(id);
         if !plain.contains(&bracket) {
             continue;
         }
-        let name: Option<String> =
-            sqlx::query_scalar("SELECT name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL")
-                .bind(iid)
-                .fetch_optional(pool)
-                .await
-                .unwrap_or(None);
-        if let Some(n) = name.filter(|s| !s.trim().is_empty()) {
-            plain = plain.replace(&bracket, n.trim());
+        let label = mention_resolve_one(pool, owner_iid, id)
+            .await
+            .map(|r| r.item.label.trim().to_string())
+            .filter(|s| !s.is_empty());
+        if let Some(label) = label {
+            plain = plain.replace(&bracket, &label);
         }
     }
     chat_title_from_text(&mention_plain_for_title(&plain))
@@ -266,7 +266,7 @@ where
     let title = if req.chat_id != 0 {
         String::new()
     } else {
-        chat_title_from_prompt(pool, &req.text, &req.mention_ids).await
+        chat_title_from_prompt(pool, owner_iid, &req.text, &req.mention_ids).await
     };
     let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
     bound_device_prompt_prepare(pool, owner_iid, chat_id, &mut req).await?;
@@ -647,6 +647,10 @@ where
             .matched_ids
             .iter()
             .any(|id| id == "inst.site.tx_browse"),
+        site_report: composed
+            .matched_ids
+            .iter()
+            .any(|id| id == "inst.site.report"),
     };
     let attachments_json = req.attachments_json.as_str();
     let mut turn_ctx = TurnCtx {

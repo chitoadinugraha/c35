@@ -3,6 +3,8 @@ import 'package:alienai_c35/c/media/image_generate_api.dart';
 import 'package:alienai_c35/c/media/image_generate_prompt.dart';
 import 'package:alienai_c35/c/settings/media_generation_prefs.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
+import 'package:alienai_c35/widgets/ai/ui_assistant_provider_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:flutter/material.dart';
 
@@ -79,6 +81,28 @@ class _AskImageGenerateDialogState extends State<_AskImageGenerateDialog> {
 
   bool get _promptEmpty => _promptCtrl.text.trim().isEmpty;
 
+  static const _providerChoices = <(String value, String label)>[
+    (MediaGenerationPrefs.auto, 'Auto'),
+    (MediaGenerationPrefs.gemini, 'Gemini'),
+    (MediaGenerationPrefs.grok, 'Grok'),
+  ];
+
+  Widget _providerRow(String value, String label) {
+    final Widget icon = switch (value) {
+      MediaGenerationPrefs.auto => const UiAlienIcon(size: 18, color: _text),
+      MediaGenerationPrefs.gemini => const UiAssistantProviderIcon(provider: 'google', size: 18),
+      MediaGenerationPrefs.grok => const UiAssistantProviderIcon(provider: 'xai', size: 18),
+      _ => const SizedBox(width: 18, height: 18),
+    };
+    return Row(
+      children: [
+        icon,
+        const SizedBox(width: 10),
+        Text(label, style: const TextStyle(color: _text, fontSize: 13)),
+      ],
+    );
+  }
+
   InputDecoration _fieldDecoration(String label) => InputDecoration(
         labelText: label,
         alignLabelWithHint: true,
@@ -153,10 +177,12 @@ class _AskImageGenerateDialogState extends State<_AskImageGenerateDialog> {
               dropdownColor: const Color(0xFF27272A),
               style: const TextStyle(color: _text, fontSize: 13),
               decoration: _fieldDecoration('Provider'),
-              items: const [
-                DropdownMenuItem(value: MediaGenerationPrefs.auto, child: Text('Auto')),
-                DropdownMenuItem(value: MediaGenerationPrefs.gemini, child: Text('Gemini')),
-                DropdownMenuItem(value: MediaGenerationPrefs.grok, child: Text('Grok')),
+              selectedItemBuilder: (context) => [
+                for (final (value, label) in _providerChoices) Align(alignment: Alignment.centerLeft, child: _providerRow(value, label)),
+              ],
+              items: [
+                for (final (value, label) in _providerChoices)
+                  DropdownMenuItem(value: value, child: _providerRow(value, label)),
               ],
               onChanged: _busy
                   ? null

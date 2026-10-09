@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config_of.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -5,6 +6,29 @@ void main() {
   test('receiptShowQrLinkFromCapabilities defaults to true', () {
     expect(receiptShowQrLinkFromCapabilities(''), isTrue);
     expect(receiptShowQrLinkFromCapabilities('{"commerce":true}'), isTrue);
+  });
+
+  test('capabilitiesJsonSetReceipt stores layout fields', () {
+    const raw = '{"commerce":true}';
+    final next = capabilitiesJsonSetReceipt(
+      capabilitiesJson: raw,
+      header: 'Welcome',
+      footer: 'Thanks',
+      marginMm: 12,
+      paperWidthMm: 58,
+      logoSizePx: 72,
+      showQrLink: false,
+      showSiteName: false,
+    );
+    final cfg = receiptConfigOf(null, config: SiteConfig(capabilitiesJson: next));
+    expect(cfg.receiptHeader, 'Welcome');
+    expect(cfg.receiptFooter, 'Thanks');
+    expect(cfg.marginMm, 12);
+    expect(cfg.paperWidthMm, 58);
+    expect(cfg.logoSizePx, 72);
+    expect(cfg.showQrLink, isFalse);
+    expect(cfg.showSiteName, isFalse);
+    expect(next.contains('"commerce":true'), isTrue);
   });
 
   test('capabilitiesJsonSetReceiptShowQrLink preserves other keys', () {

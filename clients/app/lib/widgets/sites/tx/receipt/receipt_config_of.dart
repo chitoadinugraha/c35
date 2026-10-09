@@ -17,6 +17,13 @@ Map<String, dynamic>? _receiptJsonFromCapabilities(String raw) {
 
 String _receiptStr(Map<String, dynamic>? json, String key) => (json?[key] as String?)?.trim() ?? '';
 
+int _receiptInt(Map<String, dynamic>? json, String key, int fallback) {
+  final v = json?[key];
+  if (v is int) return v;
+  if (v is num) return v.round();
+  return fallback;
+}
+
 bool receiptShowQrLinkFromCapabilities(String capabilitiesJson) {
   final receipt = _receiptJsonFromCapabilities(capabilitiesJson);
   return receipt?['show_qr_link'] is bool ? receipt!['show_qr_link'] as bool : true;
@@ -42,6 +49,45 @@ String capabilitiesJsonSetReceiptShowQrLink(String capabilitiesJson, bool showQr
   return jsonEncode(root);
 }
 
+Map<String, dynamic> _capabilitiesRoot(String capabilitiesJson) {
+  final trimmed = capabilitiesJson.trim();
+  if (trimmed.isEmpty) return <String, dynamic>{};
+  try {
+    final decoded = jsonDecode(trimmed);
+    return decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+  } catch (_) {
+    return <String, dynamic>{};
+  }
+}
+
+/// Persist receipt block under site `capabilities_json`.
+String capabilitiesJsonSetReceipt({
+  required String capabilitiesJson,
+  String? header,
+  String? footer,
+  String? address,
+  String? contact,
+  bool? showQrLink,
+  bool? showSiteName,
+  int? marginMm,
+  int? paperWidthMm,
+  int? logoSizePx,
+}) {
+  final root = _capabilitiesRoot(capabilitiesJson);
+  final receipt = Map<String, dynamic>.from(root['receipt'] is Map ? root['receipt'] as Map : {});
+  if (header != null) receipt['header'] = header;
+  if (footer != null) receipt['footer'] = footer;
+  if (address != null) receipt['address'] = address;
+  if (contact != null) receipt['contact'] = contact;
+  if (showQrLink != null) receipt['show_qr_link'] = showQrLink;
+  if (showSiteName != null) receipt['show_site_name'] = showSiteName;
+  if (marginMm != null) receipt['margin_mm'] = marginMm;
+  if (paperWidthMm != null) receipt['paper_width_mm'] = paperWidthMm;
+  if (logoSizePx != null) receipt['logo_size_px'] = logoSizePx;
+  root['receipt'] = receipt;
+  return jsonEncode(root);
+}
+
 ReceiptConfig receiptConfigOf(SiteRow? site, {SiteConfig? config}) {
   final receipt = _receiptJsonFromCapabilities(config?.capabilitiesJson ?? '');
   return ReceiptConfig(
@@ -52,6 +98,10 @@ ReceiptConfig receiptConfigOf(SiteRow? site, {SiteConfig? config}) {
     projectAddress: _receiptStr(receipt, 'address'),
     projectContact: _receiptStr(receipt, 'contact'),
     showQrLink: receipt?['show_qr_link'] is bool ? receipt!['show_qr_link'] as bool : true,
+    showSiteName: receipt?['show_site_name'] is bool ? receipt!['show_site_name'] as bool : true,
+    marginMm: _receiptInt(receipt, 'margin_mm', 0),
+    paperWidthMm: _receiptInt(receipt, 'paper_width_mm', 80) == 58 ? 58 : 80,
+    logoSizePx: _receiptInt(receipt, 'logo_size_px', 60).clamp(32, 96),
   );
 }
 
@@ -62,5 +112,9 @@ ReceiptConfig receiptConfigMerge(ReceiptConfig base, ReceiptConfig fromSite) => 
       receiptFooter: base.receiptFooter.isNotEmpty ? base.receiptFooter : fromSite.receiptFooter,
       projectAddress: base.projectAddress.isNotEmpty ? base.projectAddress : fromSite.projectAddress,
       projectContact: base.projectContact.isNotEmpty ? base.projectContact : fromSite.projectContact,
+      marginMm: fromSite.marginMm,
+      paperWidthMm: fromSite.paperWidthMm,
+      logoSizePx: fromSite.logoSizePx,
       showQrLink: base.showQrLink,
+      showSiteName: fromSite.showSiteName,
     );

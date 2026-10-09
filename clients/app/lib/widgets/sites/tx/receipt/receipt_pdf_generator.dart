@@ -9,6 +9,7 @@ import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_status.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_totals.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_branding.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
+import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_pdf_format.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -21,12 +22,17 @@ class ReceiptPdfGenerator {
     String? alienId,
   }) async {
     final pdf = pw.Document();
-    final logoData = await ReceiptBusinessInfo.loadLogo(config.projectLogo.isNotEmpty ? config.projectLogo : null);
-    final alienIcon = await ReceiptBranding.loadAlienIcon();
+    final logoPath = config.projectLogo.isNotEmpty ? config.projectLogo : null;
+    final loaded = await Future.wait<Uint8List?>([
+      ReceiptBusinessInfo.loadLogo(logoPath),
+      ReceiptBranding.loadAlienIcon(),
+    ]);
+    final logoData = loaded[0];
+    final alienIcon = loaded[1];
     final qrWidget = await ReceiptQr.build(tx, config, alienId: alienId);
 
-    const rollPaperFormat = PdfPageFormat(227, 800, marginTop: 10, marginLeft: 10, marginRight: 10, marginBottom: 10);
-    final pageTheme = pw.PageTheme(pageFormat: rollPaperFormat, theme: pw.ThemeData.base());
+    final pageFormat = receiptPdfPageFormat(config, tx: tx);
+    final pageTheme = pw.PageTheme(pageFormat: pageFormat, theme: pw.ThemeData.base());
 
     pdf.addPage(
       pw.Page(

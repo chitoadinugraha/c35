@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/files/file_path.dart';
@@ -89,6 +90,8 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   late final _skuCtrl = TextEditingController(text: widget.product.sku);
   late final _unitCtrl = TextEditingController(text: widget.product.unit);
   late final _priceCtrl = TextEditingController(text: _priceDisplay(widget.product));
+  Uint8List? _picPreviewBytes;
+  var _picUploading = false;
 
   static String _priceDisplay(SiteProduct p) =>
       p.price <= Int64.ZERO ? '' : moneyFmtIdrGrouped(p.price.toInt());
@@ -103,6 +106,8 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   void didUpdateWidget(covariant UiSiteProductDetail oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.product.productId != widget.product.productId) {
+      _picPreviewBytes = null;
+      _picUploading = false;
       _syncCtrlsFromProduct();
       unawaited(_loadObjects());
     }
@@ -387,6 +392,7 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
       desc: _descCtrl.text,
     );
     if (image == null || image.hash.isEmpty || !mounted) return;
+    setState(() => _picUploading = true);
     widget.onBusy(true);
     try {
       final pic = fileStoragePath(image.hash);
@@ -395,17 +401,23 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
     } finally {
+      if (mounted) setState(() => _picUploading = false);
       widget.onBusy(false);
     }
   }
 
   Future<void> _pickPic(SiteProduct product) async {
-    if (widget.busy) return;
+    if (widget.busy || _picUploading) return;
     final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false, maxCount: 1);
     if (staged == null || staged.isEmpty) return;
+    final file = staged.first;
+    if (file.bytes.isEmpty) return;
+    setState(() {
+      _picPreviewBytes = Uint8List.fromList(file.bytes);
+      _picUploading = true;
+    });
     widget.onBusy(true);
     try {
-      final file = staged.first;
       final up = await casUpload(bytes: file.bytes, mime: file.mime, name: file.name);
       if (up == null || up.hash.isEmpty) throw 'upload failed';
       final pic = fileStoragePath(up.hash);
@@ -414,6 +426,7 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
     } finally {
+      if (mounted) setState(() => _picUploading = false);
       widget.onBusy(false);
     }
   }
@@ -630,6 +643,8 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
         children: [
           _ProductPicTile(
             pic: product.pic,
+            previewBytes: _picPreviewBytes,
+            uploading: _picUploading,
             icon: product.icon,
             busy: widget.busy,
             onTap: () => _pickPic(product),
@@ -833,60 +848,105 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
 }
 
 class _ProductPicTile extends StatelessWidget {
-  const _ProductPicTile({required this.pic, required this.icon, required this.busy, required this.onTap, required this.onGenerate});
+  const _ProductPicTile({
+    required this.pic,
+    required this.previewBytes,
+    required this.uploading,
+    required this.icon,
+    required this.busy,
+    required this.onTap,
+    required this.onGenerate,
+  });
+
+  static const _side = 88.0;
 
   final String pic;
+  final Uint8List? previewBytes;
+  final bool uploading;
   final String icon;
   final bool busy;
   final VoidCallback onTap;
   final VoidCallback onGenerate;
 
-  @override
-  Widget build(BuildContext context) => Material(
-        color: siteEditorFieldFill,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: BorderSide(color: siteEditorFieldBorder.withValues(alpha: 0.9)),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: busy ? null : onTap,
-          child: SizedBox(
-            width: 88,
-            height: 88,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (pic.isEmpty)
-                  Center(
-                    child: UiIcon(
-                      'iconify://${icon.trim().isEmpty ? 'mdi:shopping' : icon.trim()}',
-                      size: 36,
-                      color: _muted,
-                    ),
-                  )
-                else
-                  UiImg(src: pic, fit: BoxFit.cover, fallback: const Icon(Icons.broken_image_outlined, color: _muted)),
-                Positioned(
-                  right: 4,
-                  bottom: 4,
-                  child: InkWell(
-                    onTap: busy ? null : onGenerate,
-                    borderRadius: BorderRadius.circular(6),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(6)),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: UiAlienIcon(size: 14, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+  bool get _locked => busy || uploading;
+
+  Widget _imageContent() {
+    if (previewBytes != null && previewBytes!.isNotEmpty) {
+      return Image.memory(previewBytes!, width: _side, height: _side, fit: BoxFit.cover);
+    }
+    if (pic.isEmpty) {
+      return Center(
+        child: UiIcon(
+          'iconify://${icon.trim().isEmpty ? 'mdi:shopping' : icon.trim()}',
+          size: 36,
+          color: _muted,
         ),
       );
+    }
+    return UiImg(
+      src: pic,
+      width: _side,
+      height: _side,
+      fit: BoxFit.cover,
+      fallback: const Icon(Icons.broken_image_outlined, color: _muted),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const ring = 3.0;
+    return SizedBox(
+      width: _side + ring * 2,
+      height: _side + ring * 2,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (uploading)
+            SizedBox(
+              width: _side + ring * 2,
+              height: _side + ring * 2,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: _accent),
+            ),
+          Material(
+            color: siteEditorFieldFill,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: siteEditorFieldBorder.withValues(alpha: 0.9)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: _locked ? null : onTap,
+              child: SizedBox(
+                width: _side,
+                height: _side,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _imageContent(),
+                    Positioned(
+                      right: 4,
+                      bottom: 4,
+                      child: InkWell(
+                        onTap: _locked ? null : onGenerate,
+                        borderRadius: BorderRadius.circular(6),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(6)),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4),
+                            child: UiAlienIcon(size: 14, color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StockStepper extends StatelessWidget {

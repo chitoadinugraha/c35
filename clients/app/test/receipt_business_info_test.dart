@@ -17,6 +17,12 @@ void main() {
     expect(out[1], 0xD8);
   });
 
+  test('loadLogo returns null for empty path without network', () async {
+    ReceiptBusinessInfo.clearLogoCacheForTest();
+    expect(await ReceiptBusinessInfo.loadLogo(''), isNull);
+    expect(await ReceiptBusinessInfo.loadLogo(null), isNull);
+  });
+
   test('pdfSafeImageBytesForReceipt encodes opaque PNG as JPEG', () {
     final src = img.Image(width: 2, height: 2);
     img.fill(src, color: img.ColorRgb8(10, 20, 30));

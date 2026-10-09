@@ -12,7 +12,7 @@ void main() {
   });
 
   test('posShortcutLabel and file stem', () {
-    expect(posShortcutLabel('Kopi'), 'Kopi - POS');
-    expect(posShortcutFileStem('Cafe/Demo'), 'Cafe_Demo - POS');
+    expect(posShortcutLabel('Kopi'), 'Kopi - Alien AI POS');
+    expect(posShortcutFileStem('Cafe/Demo'), 'Cafe_Demo - Alien AI POS');
   });
 }

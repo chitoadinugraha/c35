@@ -1,27 +1,53 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 class ReceiptBranding {
+  static Uint8List? _alienIconCache;
+
+  @visibleForTesting
+  static void clearAlienIconCacheForTest() => _alienIconCache = null;
+
   static Future<Uint8List?> loadAlienIcon() async {
+    if (_alienIconCache != null) return _alienIconCache;
     try {
-      final data = await rootBundle.load('assets/icons/app_icon_monochrome.png');
-      return data.buffer.asUint8List();
+      final svg = await rootBundle.loadString('assets/icons/alien_receipt.svg');
+      final png = await _rasterSvg(svg, 32);
+      _alienIconCache = png;
+      return png;
     } catch (_) {
       return null;
     }
   }
 
-  static pw.Widget _brandIcon(Uint8List alienIcon) => pw.Container(
-        width: 13,
-        height: 13,
-        decoration: pw.BoxDecoration(
-          color: PdfColors.white,
-          borderRadius: pw.BorderRadius.circular(3),
-        ),
-        alignment: pw.Alignment.center,
-        child: pw.Image(pw.MemoryImage(alienIcon), width: 11, height: 11),
-      );
+  static Future<Uint8List?> _rasterSvg(String svg, int size) async {
+    final loader = SvgStringLoader(svg);
+    final pictureInfo = await vg.loadPicture(loader, null);
+    final w = pictureInfo.size.width;
+    final h = pictureInfo.size.height;
+    if (w <= 0 || h <= 0) {
+      pictureInfo.picture.dispose();
+      return null;
+    }
+    final scale = size / math.max(w, h);
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    canvas.scale(scale);
+    canvas.drawPicture(pictureInfo.picture);
+    pictureInfo.picture.dispose();
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size, size);
+    final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
+    return data?.buffer.asUint8List();
+  }
+
+  static pw.Widget _brandIcon(Uint8List alienIcon) => pw.Image(pw.MemoryImage(alienIcon), width: 11, height: 11);
 
   static pw.Widget poweredFooter({Uint8List? alienIcon}) => pw.Column(
         children: [
@@ -29,12 +55,12 @@ class ReceiptBranding {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.center,
             children: [
-              pw.Text('Powered with ', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+              pw.Text('Powered by ', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
               if (alienIcon != null && alienIcon.isNotEmpty) ...[
                 _brandIcon(alienIcon),
                 pw.SizedBox(width: 3),
               ],
-              pw.Text('Alien AI', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+              pw.Text('alien ai', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
             ],
           ),
         ],

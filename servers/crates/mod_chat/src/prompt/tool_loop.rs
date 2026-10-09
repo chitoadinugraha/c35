@@ -16,6 +16,7 @@ use super::web_grounding::{
 };
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_query_arms_web, catalog_web_after_stock, CatalogWebPhase};
+use crate::site_report::site_report_parse;
 use crate::chat_title_set;
 use crate::mention_context::{json_device_iid_field, mention_context_register_site};
 use crate::prompt::hooks::PromptHopCheckpoint;
@@ -171,6 +172,18 @@ pub async fn prompt_cluster_turn(
     if req.tx_browse {
         if let Some(ctx) = turn_ctx.as_deref() {
             if let Some(done) = crate::tx_browse_run::tx_browse_prefetch(ctx, &req.user).await? {
+                if !done.text.is_empty() {
+                    on_delta(false, done.text.clone());
+                }
+                on_blocks(done.blocks_json.clone());
+                return Ok(done);
+            }
+        }
+    }
+
+    if req.site_report {
+        if let Some(ctx) = turn_ctx.as_deref() {
+            if let Some(done) = crate::site_report_run::site_report_prefetch(ctx, &req.user).await? {
                 if !done.text.is_empty() {
                     on_delta(false, done.text.clone());
                 }
@@ -371,6 +384,21 @@ pub async fn prompt_cluster_turn(
         );
         if !out.thought.is_empty() {
             thought_push(&mut thought, &out.thought);
+        }
+        if out.function_calls.is_empty()
+            && out.text.trim().is_empty()
+            && round == 0
+            && site_report_parse(&req.user).is_some()
+        {
+            if let Some(ctx) = turn_ctx.as_deref() {
+                if let Some(done) = crate::site_report_run::site_report_prefetch(ctx, &req.user).await? {
+                    if !done.text.is_empty() {
+                        on_delta(false, done.text.clone());
+                    }
+                    on_blocks(done.blocks_json.clone());
+                    return Ok(done);
+                }
+            }
         }
         if !out.function_calls.is_empty() {
             if wrap || tool_calls_dup(&prev_calls, &out.function_calls) {

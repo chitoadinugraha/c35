@@ -66,6 +66,7 @@ class IoAskItemsDialog extends StatefulWidget {
     this.onSearchChanged,
     this.searchController,
     this.searchSuffix,
+    this.searchPrefix,
     this.beforeClose = const [],
     this.dividerBelowHeader = false,
     this.bodyGap = 10,
@@ -86,6 +87,7 @@ class IoAskItemsDialog extends StatefulWidget {
   final ValueChanged<String>? onSearchChanged;
   final TextEditingController? searchController;
   final Widget? searchSuffix;
+  final Widget? searchPrefix;
   final List<Widget> beforeClose;
   final bool dividerBelowHeader;
   final double bodyGap;
@@ -162,6 +164,7 @@ class _IoAskItemsDialogState extends State<IoAskItemsDialog> {
           hintText: widget.searchHint,
           onSearchChanged: _onSearchChanged,
           searchSuffix: widget.searchSuffix,
+          searchPrefix: widget.searchPrefix,
           beforeClose: widget.beforeClose,
           dividerBelowHeader: widget.dividerBelowHeader,
           bodyGap: widget.bodyGap,

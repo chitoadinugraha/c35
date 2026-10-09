@@ -13,8 +13,7 @@ class UiTxSaveMenu extends StatelessWidget {
     required this.onViewReceipt,
     required this.printReceipt,
     required this.onPrintReceiptChanged,
-    required this.showTrackingQrOnReceipt,
-    required this.onShowTrackingQrOnReceiptChanged,
+    this.onReceiptSettings,
     this.onPrinterSettings,
     this.onDelete,
     this.onHold,
@@ -30,8 +29,7 @@ class UiTxSaveMenu extends StatelessWidget {
   final VoidCallback onViewReceipt;
   final bool printReceipt;
   final ValueChanged<bool> onPrintReceiptChanged;
-  final bool showTrackingQrOnReceipt;
-  final ValueChanged<bool> onShowTrackingQrOnReceiptChanged;
+  final VoidCallback? onReceiptSettings;
   final VoidCallback? onPrinterSettings;
   final VoidCallback? onDelete;
   final VoidCallback? onHold;
@@ -92,14 +90,9 @@ class UiTxSaveMenu extends StatelessWidget {
               onChanged: onPrintReceiptChanged,
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: _menuSwitch(
-              icon: Icons.qr_code_2_outlined,
-              label: 'Show Tracking QR on Receipt',
-              value: showTrackingQrOnReceipt,
-              onChanged: onShowTrackingQrOnReceiptChanged,
-            ),
+          MenuItemButton(
+            onPressed: busy ? null : onReceiptSettings,
+            child: _menuRow(Icons.receipt_outlined, 'Receipt settings', enabled: onReceiptSettings != null && !busy),
           ),
           if (!posShell)
             MenuItemButton(

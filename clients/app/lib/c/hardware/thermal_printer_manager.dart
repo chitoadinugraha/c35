@@ -31,6 +31,15 @@ class ThermalPrinterManager extends ChangeNotifier {
       printerType == ThermalPrinterType.network ||
       printerType == ThermalPrinterType.bluetooth;
 
+  /// True when raw mode is selected and required target (BT MAC) is set.
+  bool get isRawEscPosConfigured {
+    if (!usesRawEscPos) return false;
+    if (printerType == ThermalPrinterType.bluetooth) {
+      return bluetoothMac.trim().isNotEmpty;
+    }
+    return networkIp.trim().isNotEmpty;
+  }
+
   static ThermalPrinterType printerTypeFromPref(String? typeStr) {
     switch (typeStr) {
       case 'network':

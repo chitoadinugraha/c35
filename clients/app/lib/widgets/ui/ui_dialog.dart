@@ -89,10 +89,11 @@ class UiDialogHeader extends StatelessWidget {
       );
 }
 
-InputDecoration uiDialogSearchDecoration({required String hintText, Widget? suffixIcon}) => InputDecoration(
+InputDecoration uiDialogSearchDecoration({required String hintText, Widget? suffixIcon, Widget? prefixIcon}) => InputDecoration(
       hintText: hintText,
       hintStyle: const TextStyle(color: uiDialogMuted),
-      prefixIcon: const Icon(Icons.search, size: 18, color: uiDialogMuted),
+      prefixIcon: prefixIcon ?? const Icon(Icons.search, size: 18, color: uiDialogMuted),
+      prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 40),
       suffixIcon: suffixIcon,
       suffixIconConstraints: const BoxConstraints(minWidth: 36, minHeight: 36),
       isDense: true,
@@ -114,6 +115,7 @@ class UiDialogSearchHeader extends StatelessWidget {
     this.closeEnabled = true,
     this.beforeClose = const [],
     this.searchSuffix,
+    this.searchPrefix,
   });
 
   final TextEditingController controller;
@@ -124,6 +126,7 @@ class UiDialogSearchHeader extends StatelessWidget {
   final bool closeEnabled;
   final List<Widget> beforeClose;
   final Widget? searchSuffix;
+  final Widget? searchPrefix;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -134,7 +137,7 @@ class UiDialogSearchHeader extends StatelessWidget {
               controller: controller,
               autofocus: autofocus,
               style: const TextStyle(color: uiDialogTitleColor, fontSize: 13),
-              decoration: uiDialogSearchDecoration(hintText: hintText, suffixIcon: searchSuffix),
+              decoration: uiDialogSearchDecoration(hintText: hintText, suffixIcon: searchSuffix, prefixIcon: searchPrefix),
               onChanged: onChanged,
             ),
           ),
@@ -157,6 +160,7 @@ class UiDialogAskShell extends StatelessWidget {
     required this.body,
     this.onSearchChanged,
     this.searchSuffix,
+    this.searchPrefix,
     this.beforeClose = const [],
     this.onClose,
     this.closeEnabled = true,
@@ -171,6 +175,7 @@ class UiDialogAskShell extends StatelessWidget {
   final String hintText;
   final ValueChanged<String>? onSearchChanged;
   final Widget? searchSuffix;
+  final Widget? searchPrefix;
   final List<Widget> beforeClose;
   final VoidCallback? onClose;
   final bool closeEnabled;
@@ -200,6 +205,7 @@ class UiDialogAskShell extends StatelessWidget {
                 closeEnabled: closeEnabled,
                 beforeClose: beforeClose,
                 searchSuffix: searchSuffix,
+                searchPrefix: searchPrefix,
               ),
             ),
             if (dividerBelowHeader) const Divider(height: 1, color: uiDialogBorder),

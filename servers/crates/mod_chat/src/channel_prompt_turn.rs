@@ -247,6 +247,10 @@ pub async fn channel_prompt_turn(
             .matched_ids
             .iter()
             .any(|id| id == "inst.site.tx_browse"),
+        site_report: composed
+            .matched_ids
+            .iter()
+            .any(|id| id == "inst.site.report"),
     };
     let mut turn_ctx = TurnCtx {
         pool,

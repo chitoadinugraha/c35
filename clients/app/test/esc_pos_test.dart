@@ -26,6 +26,32 @@ void main() {
       expect(out[gs + 6], equals(8));
     });
 
+    test('escPosTrimReceiptBitmap removes white margins', () {
+      final src = img.Image(width: 100, height: 100);
+      img.fill(src, color: img.ColorRgb8(255, 255, 255));
+      img.fillRect(src, x1: 30, y1: 20, x2: 70, y2: 40, color: img.ColorRgb8(0, 0, 0));
+      final trimmed = escPosTrimReceiptBitmap(src);
+      expect(trimmed.width, lessThan(100));
+      expect(trimmed.height, lessThan(100));
+    });
+
+    test('escPosRastersFromImage scaleToWidth upscales narrow bitmap', () {
+      final src = img.Image(width: 200, height: 40);
+      img.fill(src, color: img.ColorRgb8(0, 0, 0));
+      final strips = escPosRastersFromImage(src, maxWidthDots: 384, scaleToWidth: true);
+      expect(strips, isNotEmpty);
+      expect(strips.first.widthBytes, equals((384 + 7) ~/ 8));
+    });
+
+    test('escPosRastersFromImage splits tall images into strips', () {
+      final src = img.Image(width: 200, height: 1000);
+      img.fill(src, color: img.ColorRgb8(0, 0, 0));
+      final strips = escPosRastersFromImage(src, maxWidthDots: 384, stripHeight: 200);
+      expect(strips.length, greaterThan(1));
+      final totalH = strips.fold<int>(0, (sum, s) => sum + s.height);
+      expect(totalH, equals(1000));
+    });
+
     test('escPosRasterFromImageBytes accepts PNG bytes', () {
       final src = img.Image(width: 24, height: 24);
       img.fill(src, color: img.ColorRgba8(0, 0, 0, 255));
@@ -240,6 +266,30 @@ void main() {
       expect(receiptText.contains('Kembalian'), isTrue);
       expect(receiptText.contains('34.000'), isTrue);
       expect(receiptText.contains('Terima Kasih atas Kunjungan Anda'), isTrue);
+      expect(receiptText.contains('LUNAS'), isTrue);
+      expect(receiptText.contains('Powered by'), isTrue);
+      expect(receiptText.contains('alien ai'), isTrue);
+    });
+
+    test('unpaid receipt shows Belum Dibayar and BELUM LUNAS', () async {
+      final tx = Tx(
+        txId: Int64(3003),
+        items: [
+          TxItem(productId: Int64(1), price: Int64(50000), qty: 1, totalNet: Int64(50000)),
+        ],
+        total: Int64(50000),
+        payments: [
+          TxPayment(
+            method: TxPaymentMethod.TX_PAYMENT_METHOD_CASH,
+            amount: Int64(20000),
+          ),
+        ],
+      );
+
+      final bytes = await EscPosReceiptFormatter.formatReceipt(tx, paperWidth: 32);
+      final receiptText = String.fromCharCodes(bytes.where((b) => b >= 32 || b == 10));
+      expect(receiptText.contains('Belum Dibayar'), isTrue);
+      expect(receiptText.contains('BELUM LUNAS'), isTrue);
     });
 
     test('formats 80mm (48 chars) receipt without drawer kick', () async {

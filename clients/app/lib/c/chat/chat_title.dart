@@ -29,13 +29,22 @@ bool chatTitleIsPlaceholder(String title) {
 }
 
 /// Client inbox title on prompt start: first user line for new chats only; keep existing title on follow-ups.
+/// [previewLine] should already use resolved mention labels (not wire brackets) so the title is a snapshot.
 String chatTitleOnPromptStart({
   required int localChatId,
   required int serverChatId,
   required String existingTitle,
   required String previewLine,
+  List<CatalogMention> mentions = const [],
 }) {
-  final first = previewLine.split('\n').first.trim();
+  var first = previewLine.split('\n').first.trim();
+  if (first.isNotEmpty && mentions.isNotEmpty && composerMentionTextHasTokens(first)) {
+    first = composerMentionTextForPrompt(
+      first,
+      mentions,
+      mentionIds: composerMentionIdsCollect(first),
+    );
+  }
   final fromPreview = first.isNotEmpty ? chatTitleFromText(first) : 'New chat';
   if (serverChatId != localChatId) return fromPreview;
   if (!chatTitleIsPlaceholder(existingTitle)) return existingTitle.trim();

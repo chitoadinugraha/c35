@@ -14,7 +14,7 @@ use crate::catalog_rank::{
     gemini_chat_eligible, is_preview_id, pick_default_provider, version_rank_of,
 };
 use crate::runtime_config::{cf_gateway_config, cf_gateway_ready};
-use crate::embed_gemini::gemini_api_key;
+use crate::embed_gemini::{gemini_api_key, EMBED_MODEL};
 use crate::catalog_types::LlmModelRow;
 use crate::model_catalog::context_tokens_from_raw;
 use crate::llm_catalog::{llm_catalog_reload, sync_enabled, sync_interval_secs, upsert_model};
@@ -130,24 +130,46 @@ fn catalog_row_context_tokens(provider: &str, id: &str, raw: Option<&Value>) -> 
     }
 }
 
+/// Wholesale $/1M input tokens for Gemini embed (matches `billing_embed_cost_usd` fallback).
+const GEMINI_EMBED_INPUT_MICRO_PER_M: i64 = 150_000;
+
 pub fn pinned_models() -> Vec<LlmModelRow> {
-    vec![LlmModelRow {
-        id: "alienai".into(),
-        provider: "alienai".into(),
-        label: "Alien AI".into(),
-        provider_model: String::new(),
-        input_micro_per_m: (ALIEN_POOL_USD_IN_PER_1M * 1_000_000.0).round() as i64,
-        input_cache_micro_per_m: 0,
-        output_micro_per_m: (ALIEN_POOL_USD_OUT_PER_1M * 1_000_000.0).round() as i64,
-        supports_thinking: true,
-        enabled: true,
-        is_default: true,
-        sort_order: 0,
-        family: "flash-lite".into(),
-        version_rank: 0,
-        source: "pinned".into(),
-        context_tokens: 1_048_576,
-    }]
+    vec![
+        LlmModelRow {
+            id: "alienai".into(),
+            provider: "alienai".into(),
+            label: "Alien AI".into(),
+            provider_model: String::new(),
+            input_micro_per_m: (ALIEN_POOL_USD_IN_PER_1M * 1_000_000.0).round() as i64,
+            input_cache_micro_per_m: 0,
+            output_micro_per_m: (ALIEN_POOL_USD_OUT_PER_1M * 1_000_000.0).round() as i64,
+            supports_thinking: true,
+            enabled: true,
+            is_default: true,
+            sort_order: 0,
+            family: "flash-lite".into(),
+            version_rank: 0,
+            source: "pinned".into(),
+            context_tokens: 1_048_576,
+        },
+        LlmModelRow {
+            id: EMBED_MODEL.into(),
+            provider: "google".into(),
+            label: "Gemini Embedding 2".into(),
+            provider_model: EMBED_MODEL.into(),
+            input_micro_per_m: GEMINI_EMBED_INPUT_MICRO_PER_M,
+            input_cache_micro_per_m: 0,
+            output_micro_per_m: 0,
+            supports_thinking: false,
+            enabled: false,
+            is_default: false,
+            sort_order: 9000,
+            family: "embed".into(),
+            version_rank: 0,
+            source: "pinned".into(),
+            context_tokens: 0,
+        },
+    ]
 }
 
 fn pricing_index_from_rows(rows: &[LlmModelRow]) -> HashMap<String, CatalogPricing> {

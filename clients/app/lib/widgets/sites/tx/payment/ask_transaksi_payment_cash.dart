@@ -10,7 +10,7 @@ const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
 
-const _quickCashNominals = [10000, 20000, 50000, 100000, 200000];
+const _quickCashNominals = [1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000];
 
 Future<TxPayment?> askTransaksiPaymentCash({
   required BuildContext context,
@@ -62,6 +62,13 @@ class _DialogCashState extends State<_DialogCash> {
     setState(() {
       _paid = amount;
       _paidCtrl.text = moneyFmtIdrGrouped(amount);
+    });
+  }
+
+  void _addPaid(int amount) {
+    setState(() {
+      _paid += amount;
+      _paidCtrl.text = moneyFmtIdrGrouped(_paid);
     });
   }
 
@@ -118,7 +125,6 @@ class _DialogCashState extends State<_DialogCash> {
                 controller: _paidCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: moneyIdrInputFormatters,
-                autofocus: true,
                 style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   labelText: 'Uang Diterima (Tendered)',
@@ -144,13 +150,12 @@ class _DialogCashState extends State<_DialogCash> {
                     onPressed: () => _setPaid(_total),
                   ),
                   for (final nom in _quickCashNominals)
-                    if (nom >= _total || _quickCashNominals.indexOf(nom) < 3)
-                      ActionChip(
-                        backgroundColor: const Color(0xFF18181B),
-                        side: const BorderSide(color: _border),
-                        label: Text(moneyFmtIdr(nom), style: const TextStyle(color: _text, fontSize: 12)),
-                        onPressed: () => _setPaid(nom),
-                      ),
+                    ActionChip(
+                      backgroundColor: const Color(0xFF18181B),
+                      side: const BorderSide(color: _border),
+                      label: Text(moneyFmtIdr(nom), style: const TextStyle(color: _text, fontSize: 12)),
+                      onPressed: () => _addPaid(nom),
+                    ),
                 ],
               ),
               const SizedBox(height: 14),
@@ -182,8 +187,13 @@ class _DialogCashState extends State<_DialogCash> {
               const SizedBox(height: 14),
               TextField(
                 controller: _noteCtrl,
+                minLines: 2,
+                maxLines: 4,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
                 style: const TextStyle(color: _text, fontSize: 13),
                 decoration: InputDecoration(
+                  alignLabelWithHint: true,
                   labelText: 'Catatan Pembayaran (Opsional)',
                   labelStyle: const TextStyle(color: _muted, fontSize: 12),
                   filled: true,

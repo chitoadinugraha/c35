@@ -1337,6 +1337,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               serverChatId: startId,
               existingTitle: existingTitle,
               previewLine: previewLine,
+              mentions: catalogMentions,
             );
             if (startId != localChatId) _store.chatIdMigrate(localChatId, startId);
             _store.chatPutFromServer(

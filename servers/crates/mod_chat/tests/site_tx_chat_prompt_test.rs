@@ -100,6 +100,16 @@ fn tx_browse_parse_unit() {
 }
 
 #[test]
+fn site_report_parse_with_mention() {
+    let i = c35_mod_chat::site_report_parse(
+        "Berapa untung [@[@iid:101836119014211584]] hari ini ?",
+    )
+    .unwrap();
+    assert_eq!(i.query_id, "tx.profit_summary");
+    assert_eq!(i.range, "today");
+}
+
+#[test]
 fn report_includes_site_query_tool() {
     let scopes = vec!["global".to_string()];
     let picked = inst_pick(

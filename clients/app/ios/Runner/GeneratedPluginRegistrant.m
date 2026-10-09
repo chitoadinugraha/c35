@@ -114,12 +114,6 @@
 @import permission_handler_apple;
 #endif
 
-#if __has_include(<print_bluetooth_thermal/PrintBluetoothThermalPlugin.h>)
-#import <print_bluetooth_thermal/PrintBluetoothThermalPlugin.h>
-#else
-@import print_bluetooth_thermal;
-#endif
-
 #if __has_include(<printing/PrintingPlugin.h>)
 #import <printing/PrintingPlugin.h>
 #else
@@ -177,7 +171,6 @@
   [OpenFilePlugin registerWithRegistrar:[registry registrarForPlugin:@"OpenFilePlugin"]];
   [PasteboardPlugin registerWithRegistrar:[registry registrarForPlugin:@"PasteboardPlugin"]];
   [PermissionHandlerPlugin registerWithRegistrar:[registry registrarForPlugin:@"PermissionHandlerPlugin"]];
-  [PrintBluetoothThermalPlugin registerWithRegistrar:[registry registrarForPlugin:@"PrintBluetoothThermalPlugin"]];
   [PrintingPlugin registerWithRegistrar:[registry registrarForPlugin:@"PrintingPlugin"]];
   [RecordIosPlugin registerWithRegistrar:[registry registrarForPlugin:@"RecordIosPlugin"]];
   [ShareHandlerIosPlatform registerWithRegistrar:[registry registrarForPlugin:@"ShareHandlerIosPlatform"]];

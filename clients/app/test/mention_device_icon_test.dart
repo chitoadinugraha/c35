@@ -7,5 +7,6 @@ void main() {
     expect(mentionDeviceIconSpec('device-kind:windows')?.type, 'windows');
     expect(mentionDeviceIconSpec('device-kind:browser:extension')?.browserEngine, 'extension');
     expect(mentionDeviceIconSpec('computer'), isNull);
+    expect(mentionIdentityPicPath('identity-pic:/fs/x'), '/fs/x');
   });
 }

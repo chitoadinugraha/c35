@@ -104,10 +104,9 @@ class _SheetPaymentMethodState extends State<_SheetPaymentMethod> {
                 controller: _amountCtrl,
                 keyboardType: TextInputType.number,
                 inputFormatters: moneyIdrInputFormatters,
-                autofocus: true,
                 style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
-                  labelText: 'Jumlah bayar',
+                  labelText: 'Nominal bayar',
                   labelStyle: const TextStyle(color: _muted, fontSize: 12),
                   prefixText: 'Rp ',
                   prefixStyle: const TextStyle(color: _accent, fontSize: 16, fontWeight: FontWeight.w600),
@@ -121,7 +120,7 @@ class _SheetPaymentMethodState extends State<_SheetPaymentMethod> {
               if (widget.totalDue > 0) ...[
                 const SizedBox(height: 6),
                 Text(
-                  'Sisa tagihan: ${moneyFmtIdr(widget.totalDue)}',
+                  'Belum dibayar: ${moneyFmtIdr(widget.totalDue)}',
                   style: const TextStyle(color: _muted, fontSize: 11),
                 ),
               ],

@@ -140,9 +140,11 @@ pub async fn site_query_run(
         serde_json::from_str(params_json)
             .map_err(|e| anyhow!("invalid params_json: {e}"))?
     };
-    let result = def
-        .run(pool, caller_iid, &site_iids, &params)
-        .await?;
+    let run_fut = def.run(pool, caller_iid, &site_iids, &params);
+    let result = match tokio::time::timeout(std::time::Duration::from_secs(90), run_fut).await {
+        Ok(r) => r?,
+        Err(_) => bail!("site query timed out after 90s (query_id={query_id})"),
+    };
     Ok(ResSiteQueryRun {
         rows: result.rows,
         result_json: result.result_json,

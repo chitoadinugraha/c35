@@ -173,7 +173,8 @@ async fn identity_rows(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
     let rows = sqlx::query(
         r#"
         SELECT i.id, i.kind, i.type, COALESCE(i.alien_id, '') AS alien_id,
-               COALESCE(i.name, '') AS name, COALESCE(i.meta, '{}'::jsonb) AS meta
+               COALESCE(i.name, '') AS name, COALESCE(i.pic, '') AS pic,
+               COALESCE(i.meta, '{}'::jsonb) AS meta
         FROM ai.identity i
         LEFT JOIN ai.identity_grant g
           ON g.resource_iid = i.id AND g.grantee_iid = $1 AND g.deleted_ts IS NULL
@@ -192,8 +193,10 @@ async fn identity_rows(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
             .map(|r| {
                 let iid: i64 = r.get("id");
                 let kind: String = r.get("kind");
+                let identity_type: String = r.get("type");
                 let alien_id: String = r.get("alien_id");
                 let name: String = r.get("name");
+                let pic: String = r.get("pic");
                 let meta: Value = r.get("meta");
                 let title = if name.is_empty() {
                     if alien_id.is_empty() {
@@ -228,12 +231,12 @@ async fn identity_rows(pool: &PgPool, caller_iid: i64) -> Vec<MentionItem> {
                     "bot" => "#a78bfa",
                     _ => "#71717a",
                 };
-                let icon = match kind.as_str() {
-                    "remote" | "iot" => "computer",
-                    "site" => "web",
-                    "bot" => "smart_toy",
-                    _ => "alternate_email",
-                };
+                let icon = c35_mod_device::mention_identity_icon(
+                    &kind,
+                    &identity_type,
+                    &meta,
+                    &pic,
+                );
                 let mut terms = vec![title.to_lowercase()];
                 if !alien_id.is_empty() {
                     terms.push(alien_id.to_lowercase());

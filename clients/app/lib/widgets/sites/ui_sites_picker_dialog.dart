@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/platform_site.dart';
+import 'package:alienai_c35/c/site/pos_link_format.dart';
 import 'package:alienai_c35/c/site/pos_shortcut_install.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
@@ -62,6 +63,7 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
   void initState() {
     super.initState();
     unawaited(_store.refresh());
+    unawaited(_store.probeArchivedSites());
   }
 
   @override
@@ -91,6 +93,26 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
     } catch (e) {
       if (mounted) await uiAlertError(context, e);
     }
+  }
+
+  Future<void> _unarchiveSite(SiteRow row) async {
+    final id = row.siteIid.toString();
+    final name = row.name.isNotEmpty ? row.name : row.alienId;
+    try {
+      await _store.archivePut(id, false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"$name" restored'), behavior: SnackBarBehavior.floating),
+      );
+    } catch (e) {
+      if (mounted) await uiAlertError(context, e);
+    }
+  }
+
+  Future<void> _toggleArchivedView() async {
+    await _store.archivedViewPut(!_store.archivedView);
+    if (!mounted) return;
+    _searchCtrl.clear();
   }
 
   Future<void> _deleteSite(SiteRow row) async {
@@ -129,10 +151,10 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
     if (!await _siteCommerceOk(row)) return;
     final name = row.name.isNotEmpty ? row.name : row.alienId;
     final siteIid = row.siteIid.toString();
-    final res = await posShortcutInstall(siteIid: siteIid, siteName: name);
+    final res = await posShortcutInstall(siteIid: siteIid, siteName: name, sitePic: row.pic);
     if (!mounted) return;
     final msg = switch (res) {
-      PosShortcutInstallResult.ok => 'Shortcut added: "$name - POS"',
+      PosShortcutInstallResult.ok => 'Shortcut added: "${posShortcutLabel(name)}"',
       PosShortcutInstallResult.unsupported => 'POS shortcuts are not supported on this device',
       PosShortcutInstallResult.failed => 'Could not add POS shortcut',
     };
@@ -146,9 +168,12 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
       context: context,
       global: global,
       items: [
-        if (showShortcut)
+        if (showShortcut && !_store.archivedView)
           uiBotMenuItem(value: 'pos_shortcut', icon: Icons.add_to_home_screen_outlined, label: 'Add POS Shortcut'),
-        uiBotMenuItem(value: 'archive', icon: Icons.archive_outlined, label: 'Archive'),
+        if (_store.archivedView)
+          uiBotMenuItem(value: 'unarchive', icon: Icons.unarchive_outlined, label: 'Restore')
+        else
+          uiBotMenuItem(value: 'archive', icon: Icons.archive_outlined, label: 'Archive'),
         if (canDelete) ...[
           uiBotMenuDivider,
           uiBotMenuItem(value: 'delete', icon: Icons.delete_outline, label: 'Delete', destructive: true),
@@ -158,7 +183,25 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
     if (action == null || !mounted) return;
     if (action == 'pos_shortcut') await _addPosShortcut(row);
     if (action == 'archive') await _archiveSite(row);
+    if (action == 'unarchive') await _unarchiveSite(row);
     if (action == 'delete') await _deleteSite(row);
+  }
+
+  Widget? _searchPrefix() {
+    if (!_store.hasArchivedSites) return null;
+    final on = _store.archivedView;
+    return IconButton(
+      tooltip: on ? 'Show active sites' : 'Show archived sites',
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.all(8),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      onPressed: () => unawaited(_toggleArchivedView()),
+      icon: Icon(
+        Icons.archive_outlined,
+        size: 18,
+        color: on ? uiDialogAccent : uiDialogMuted,
+      ),
+    );
   }
 
   Widget _siteRowMenuButton(SiteRow row) => Builder(
@@ -208,7 +251,7 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
         listenable: _store,
         builder: (context, _) => IoAskItemsDialog(
           semanticsLabel: 'Sites',
-          searchHint: 'Search sites…',
+          searchHint: _store.archivedView ? 'Search archived sites…' : 'Search sites…',
           searchController: _searchCtrl,
           onSearchChanged: _store.searchPut,
           clientSearch: false,
@@ -216,9 +259,11 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
           sourceItemCount: _store.rows.length,
           items: _items(),
           loading: _store.loading && _store.rows.isEmpty,
-          emptyText: 'No sites yet',
+          emptyText: _store.archivedView ? 'No archived sites' : 'No sites yet',
+          noMatchText: _store.archivedView ? 'No archived sites match' : 'No matches',
           dividerBelowHeader: true,
           bodyGap: 0,
+          searchPrefix: _searchPrefix(),
           searchSuffix: IconButton(
             tooltip: _store.refreshing ? 'Stop' : 'Refresh',
             onPressed: _store.refreshing ? _store.refreshStop : () => unawaited(_store.refresh()),

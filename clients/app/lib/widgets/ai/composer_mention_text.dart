@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/c/mention/mention_device_icon.dart';
-import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:extended_text/extended_text.dart';
 import 'package:flutter/material.dart';
 
@@ -425,9 +424,7 @@ class _ComposerMentionChipInline extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (mention?.isDevice == true)
-            catalogMentionDeviceIcon(mention!, size: 13, iconColor: _iconGrey)
-          else if (mention != null)
+          if (mention != null)
             SizedBox(width: 13, height: 13, child: Center(child: _mentionIcon(mention!)))
           else
             const SizedBox.shrink(),
@@ -443,14 +440,7 @@ class _ComposerMentionChipInline extends StatelessWidget {
     );
   }
 
-  Widget _mentionIcon(CatalogMention m) {
-    if (m.isSite) return const Icon(Icons.language_rounded, size: 13, color: _iconGrey);
-    final raw = m.icon.trim();
-    if (raw.startsWith('iconify://') || (raw.contains(':') && !raw.contains(' '))) {
-      return UiIcon(raw, size: 13, color: _iconGrey, recolor: true);
-    }
-    return const Icon(Icons.alternate_email_rounded, size: 13, color: _iconGrey);
-  }
+  Widget _mentionIcon(CatalogMention m) => catalogMentionIdentityIcon(m, size: 13, iconColor: _iconGrey);
 }
 
 class ComposerMentionMessageText extends StatelessWidget {

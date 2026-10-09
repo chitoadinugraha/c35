@@ -40,7 +40,7 @@ class ReceiptPayments {
       rows.add(_payRow('Kembalian', receiptMoney(totals.paid - totals.total)));
     }
 
-    if (totals.due > 0) rows.add(_payRow('Sisa Tagihan', receiptMoney(totals.due), bold: true));
+    if (totals.due > 0) rows.add(_payRow('Belum Dibayar', receiptMoney(totals.due), bold: true));
 
     return pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: rows);
   }

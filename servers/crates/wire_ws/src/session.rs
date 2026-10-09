@@ -206,7 +206,7 @@ fn prompt_req_put(
     let cancel = CancellationToken::new();
     *prompt_flight = Some(PromptFlight { cancel: cancel.clone() });
     tokio::spawn(async move {
-        let title = chat_title_from_prompt(&pool, &p.text, &p.mention_ids).await;
+        let title = chat_title_from_prompt(&pool, owner_iid, &p.text, &p.mention_ids).await;
         let chat_id = match chat_ensure(&pool, owner_iid, p.chat_id, &title).await {
             Ok(id) => id,
             Err(e) => {

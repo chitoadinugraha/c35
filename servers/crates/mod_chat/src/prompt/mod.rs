@@ -34,6 +34,8 @@ pub struct ChatReq {
     pub stock_report: bool,
     /// `inst.site.tx_browse` matched. The tool loop may list transactions with no model hop.
     pub tx_browse: bool,
+    /// `inst.site.report` matched. Profit / sales summary may run without a model tool hop.
+    pub site_report: bool,
 }
 
 #[derive(Debug, Clone, Default)]
