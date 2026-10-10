@@ -566,6 +566,24 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("memory_delete_failed", e.to_string())),
         },
+        Some(ws_req::Body::ScopeInstructionGet(r)) => {
+            match c35_mod_chat::scope_instruction_get_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ScopeInstructionGet(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("scope_instruction_get_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::ScopeInstructionPut(r)) => {
+            match c35_mod_chat::scope_instruction_put_rpc(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::ScopeInstructionPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("scope_instruction_put_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::ChatDeviceContextList(r)) => {
             match c35_mod_chat::chat_device_context_list(&state.pool, ctx.caller_iid, r).await {
                 Ok(body) => WsRes {

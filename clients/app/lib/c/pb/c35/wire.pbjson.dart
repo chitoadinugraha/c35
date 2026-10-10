@@ -2732,6 +2732,24 @@ const WsReq$json = {
       '9': 0,
       '10': 'appPresence'
     },
+    {
+      '1': 'scope_instruction_get',
+      '3': 215,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqScopeInstructionGet',
+      '9': 0,
+      '10': 'scopeInstructionGet'
+    },
+    {
+      '1': 'scope_instruction_put',
+      '3': 216,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqScopeInstructionPut',
+      '9': 0,
+      '10': 'scopeInstructionPut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2925,8 +2943,11 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'ASgLMhIuYzM1LlJlcU5vdGlmeUxpc3RIAFIKbm90aWZ5TGlzdBI2Cgtub3RpZnlfcmVhZBjTAS'
     'ABKAsyEi5jMzUuUmVxTm90aWZ5UmVhZEgAUgpub3RpZnlSZWFkEkMKEG5vdGlmeV90b2tlbl9w'
     'dXQY1AEgASgLMhYuYzM1LlJlcU5vdGlmeVRva2VuUHV0SABSDm5vdGlmeVRva2VuUHV0EjkKDG'
-    'FwcF9wcmVzZW5jZRjVASABKAsyEy5jMzUuUmVxQXBwUHJlc2VuY2VIAFILYXBwUHJlc2VuY2VC'
-    'BgoEYm9keQ==');
+    'FwcF9wcmVzZW5jZRjVASABKAsyEy5jMzUuUmVxQXBwUHJlc2VuY2VIAFILYXBwUHJlc2VuY2US'
+    'UgoVc2NvcGVfaW5zdHJ1Y3Rpb25fZ2V0GNcBIAEoCzIbLmMzNS5SZXFTY29wZUluc3RydWN0aW'
+    '9uR2V0SABSE3Njb3BlSW5zdHJ1Y3Rpb25HZXQSUgoVc2NvcGVfaW5zdHJ1Y3Rpb25fcHV0GNgB'
+    'IAEoCzIbLmMzNS5SZXFTY29wZUluc3RydWN0aW9uUHV0SABSE3Njb3BlSW5zdHJ1Y3Rpb25QdX'
+    'RCBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -4410,6 +4431,24 @@ const WsRes$json = {
       '9': 0,
       '10': 'notifyPush'
     },
+    {
+      '1': 'scope_instruction_get',
+      '3': 215,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResScopeInstructionGet',
+      '9': 0,
+      '10': 'scopeInstructionGet'
+    },
+    {
+      '1': 'scope_instruction_put',
+      '3': 216,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResScopeInstructionPut',
+      '9': 0,
+      '10': 'scopeInstructionPut'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4616,7 +4655,10 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     '5SZXNOb3RpZnlSZWFkSABSCm5vdGlmeVJlYWQSQwoQbm90aWZ5X3Rva2VuX3B1dBjUASABKAsy'
     'Fi5jMzUuUmVzTm90aWZ5VG9rZW5QdXRIAFIObm90aWZ5VG9rZW5QdXQSOQoMYXBwX3ByZXNlbm'
     'NlGNUBIAEoCzITLmMzNS5SZXNBcHBQcmVzZW5jZUgAUgthcHBQcmVzZW5jZRIzCgtub3RpZnlf'
-    'cHVzaBjWASABKAsyDy5jMzUuTm90aWZ5UHVzaEgAUgpub3RpZnlQdXNoQgYKBGJvZHk=');
+    'cHVzaBjWASABKAsyDy5jMzUuTm90aWZ5UHVzaEgAUgpub3RpZnlQdXNoElIKFXNjb3BlX2luc3'
+    'RydWN0aW9uX2dldBjXASABKAsyGy5jMzUuUmVzU2NvcGVJbnN0cnVjdGlvbkdldEgAUhNzY29w'
+    'ZUluc3RydWN0aW9uR2V0ElIKFXNjb3BlX2luc3RydWN0aW9uX3B1dBjYASABKAsyGy5jMzUuUm'
+    'VzU2NvcGVJbnN0cnVjdGlvblB1dEgAUhNzY29wZUluc3RydWN0aW9uUHV0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use notifyItemDescriptor instead')
 const NotifyItem$json = {

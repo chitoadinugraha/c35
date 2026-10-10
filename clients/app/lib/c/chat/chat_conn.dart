@@ -670,6 +670,38 @@ class ChatConn {
         (res) => res.memoryDelete,
       );
 
+  Future<ResScopeInstructionGet> scopeInstructionGet({
+    required String scopeKind,
+    required int scopeIid,
+  }) =>
+      _rpc<ResScopeInstructionGet>(
+        WsReq(
+          scopeInstructionGet: ReqScopeInstructionGet(
+            scopeKind: scopeKind,
+            scopeIid: Int64(scopeIid),
+          ),
+        ),
+        (res) => res.scopeInstructionGet,
+      );
+
+  Future<ResScopeInstructionPut> scopeInstructionPut({
+    required String scopeKind,
+    required int scopeIid,
+    required String mode,
+    String body = '',
+  }) =>
+      _rpc<ResScopeInstructionPut>(
+        WsReq(
+          scopeInstructionPut: ReqScopeInstructionPut(
+            scopeKind: scopeKind,
+            scopeIid: Int64(scopeIid),
+            mode: mode,
+            body: body,
+          ),
+        ),
+        (res) => res.scopeInstructionPut,
+      );
+
   Future<ResChatFeedbackReasonList> chatFeedbackReasonList({
     String locale = '',
     ChatFeedbackVote vote = ChatFeedbackVote.CHAT_FEEDBACK_VOTE_UNSPECIFIED,

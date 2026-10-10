@@ -7,6 +7,7 @@ use sqlx::PgPool;
 
 use crate::compose::ComposeTrace;
 use crate::memory::MemoryRetrieveTrace;
+use crate::scope_instruction::ScopeInstructionTrace;
 use crate::tools::device_screenshot_artifact::{
     tool_result_preview_trim, tool_screenshot_log_text, tool_screenshot_meta_from_result,
 };
@@ -230,6 +231,46 @@ impl TurnTracer {
             0,
             0,
             prepare_ms as i32,
+            0.0,
+        )
+        .await;
+    }
+
+    pub async fn trace_scope_instruction(&self, trace: &ScopeInstructionTrace) {
+        if trace.entries.is_empty() && !trace.injected {
+            return;
+        }
+        let applied_n = trace.entries.iter().filter(|e| e.applied).count();
+        let mut meta = Self::branch_meta(1, "scope_instruction", "prepare", "compose_parallel");
+        if let Some(obj) = meta.as_object_mut() {
+            obj.insert("topic".into(), serde_json::json!("trace_scope_instruction"));
+            obj.insert("injected".into(), serde_json::json!(trace.injected));
+            obj.insert("block_chars".into(), serde_json::json!(trace.block_chars));
+            obj.insert("block_preview".into(), serde_json::json!(trace.block_preview));
+            obj.insert(
+                "entries".into(),
+                serde_json::to_value(&trace.entries).unwrap_or_else(|_| serde_json::json!([])),
+            );
+        }
+        let label = if trace.injected {
+            format!(
+                "Scope instructions · {applied_n} applied · {} chars",
+                trace.block_chars
+            )
+        } else if applied_n > 0 {
+            format!("Scope instructions · {applied_n} matched · not injected")
+        } else {
+            format!("Scope instructions · {} configured", trace.entries.len())
+        };
+        self.put(
+            "system",
+            "trace_scope_instruction",
+            &label,
+            meta,
+            "",
+            0,
+            0,
+            0,
             0.0,
         )
         .await;

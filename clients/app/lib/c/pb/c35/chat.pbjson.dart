@@ -929,6 +929,101 @@ const ResMemoryDelete$json = {
 final $typed_data.Uint8List resMemoryDeleteDescriptor =
     $convert.base64Decode('Cg9SZXNNZW1vcnlEZWxldGUSDgoCb2sYASABKAhSAm9r');
 
+@$core.Deprecated('Use scopeInstructionDescriptor instead')
+const ScopeInstruction$json = {
+  '1': 'ScopeInstruction',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'owner_iid', '3': 2, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'scope_kind', '3': 3, '4': 1, '5': 9, '10': 'scopeKind'},
+    {'1': 'scope_iid', '3': 4, '4': 1, '5': 3, '10': 'scopeIid'},
+    {'1': 'mode', '3': 5, '4': 1, '5': 9, '10': 'mode'},
+    {'1': 'body', '3': 6, '4': 1, '5': 9, '10': 'body'},
+    {'1': 'updated_ts_ms', '3': 7, '4': 1, '5': 3, '10': 'updatedTsMs'},
+  ],
+};
+
+/// Descriptor for `ScopeInstruction`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List scopeInstructionDescriptor = $convert.base64Decode(
+    'ChBTY29wZUluc3RydWN0aW9uEg4KAmlkGAEgASgDUgJpZBIbCglvd25lcl9paWQYAiABKANSCG'
+    '93bmVySWlkEh0KCnNjb3BlX2tpbmQYAyABKAlSCXNjb3BlS2luZBIbCglzY29wZV9paWQYBCAB'
+    'KANSCHNjb3BlSWlkEhIKBG1vZGUYBSABKAlSBG1vZGUSEgoEYm9keRgGIAEoCVIEYm9keRIiCg'
+    '11cGRhdGVkX3RzX21zGAcgASgDUgt1cGRhdGVkVHNNcw==');
+
+@$core.Deprecated('Use reqScopeInstructionGetDescriptor instead')
+const ReqScopeInstructionGet$json = {
+  '1': 'ReqScopeInstructionGet',
+  '2': [
+    {'1': 'scope_kind', '3': 1, '4': 1, '5': 9, '10': 'scopeKind'},
+    {'1': 'scope_iid', '3': 2, '4': 1, '5': 3, '10': 'scopeIid'},
+  ],
+};
+
+/// Descriptor for `ReqScopeInstructionGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqScopeInstructionGetDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFTY29wZUluc3RydWN0aW9uR2V0Eh0KCnNjb3BlX2tpbmQYASABKAlSCXNjb3BlS2luZB'
+        'IbCglzY29wZV9paWQYAiABKANSCHNjb3BlSWlk');
+
+@$core.Deprecated('Use resScopeInstructionGetDescriptor instead')
+const ResScopeInstructionGet$json = {
+  '1': 'ResScopeInstructionGet',
+  '2': [
+    {
+      '1': 'instruction',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ScopeInstruction',
+      '10': 'instruction'
+    },
+  ],
+};
+
+/// Descriptor for `ResScopeInstructionGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resScopeInstructionGetDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNTY29wZUluc3RydWN0aW9uR2V0EjcKC2luc3RydWN0aW9uGAEgASgLMhUuYzM1LlNjb3'
+        'BlSW5zdHJ1Y3Rpb25SC2luc3RydWN0aW9u');
+
+@$core.Deprecated('Use reqScopeInstructionPutDescriptor instead')
+const ReqScopeInstructionPut$json = {
+  '1': 'ReqScopeInstructionPut',
+  '2': [
+    {'1': 'scope_kind', '3': 1, '4': 1, '5': 9, '10': 'scopeKind'},
+    {'1': 'scope_iid', '3': 2, '4': 1, '5': 3, '10': 'scopeIid'},
+    {'1': 'mode', '3': 3, '4': 1, '5': 9, '10': 'mode'},
+    {'1': 'body', '3': 4, '4': 1, '5': 9, '10': 'body'},
+  ],
+};
+
+/// Descriptor for `ReqScopeInstructionPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqScopeInstructionPutDescriptor = $convert.base64Decode(
+    'ChZSZXFTY29wZUluc3RydWN0aW9uUHV0Eh0KCnNjb3BlX2tpbmQYASABKAlSCXNjb3BlS2luZB'
+    'IbCglzY29wZV9paWQYAiABKANSCHNjb3BlSWlkEhIKBG1vZGUYAyABKAlSBG1vZGUSEgoEYm9k'
+    'eRgEIAEoCVIEYm9keQ==');
+
+@$core.Deprecated('Use resScopeInstructionPutDescriptor instead')
+const ResScopeInstructionPut$json = {
+  '1': 'ResScopeInstructionPut',
+  '2': [
+    {
+      '1': 'instruction',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ScopeInstruction',
+      '10': 'instruction'
+    },
+  ],
+};
+
+/// Descriptor for `ResScopeInstructionPut`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resScopeInstructionPutDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNTY29wZUluc3RydWN0aW9uUHV0EjcKC2luc3RydWN0aW9uGAEgASgLMhUuYzM1LlNjb3'
+        'BlSW5zdHJ1Y3Rpb25SC2luc3RydWN0aW9u');
+
 @$core.Deprecated('Use reqChatDeviceContextListDescriptor instead')
 const ReqChatDeviceContextList$json = {
   '1': 'ReqChatDeviceContextList',

@@ -281,7 +281,7 @@ impl SyncEngine {
             tokio::fs::create_dir_all(parent).await?;
         }
         let url = format!("{}/fs/{}", self.base_url, entry.hash);
-        let bytes = self.client.get(url).send().await?.error_for_status()?.bytes().await?;
+        let bytes = self.fetch_blob(&url).await?;
         tokio::fs::write(&abs, &bytes).await?;
         let (size, mtime_ms) = tokio::fs::metadata(&abs)
             .await
@@ -401,7 +401,7 @@ impl SyncEngine {
                 tokio::fs::create_dir_all(parent).await?;
             }
             let url = if !f.url.is_empty() { f.url.clone() } else { format!("{}/fs/{}", self.base_url, f.hash) };
-            let bytes = self.client.get(url).send().await?.error_for_status()?.bytes().await?;
+            let bytes = self.fetch_blob(&url).await?;
             tokio::fs::write(&abs, &bytes).await?;
             let (size, mtime_ms) = tokio::fs::metadata(&abs).await.map(|m| file_stamp(&m)).unwrap_or((bytes.len() as u64, 0));
             manifest.paths.insert(
@@ -540,6 +540,17 @@ impl SyncEngine {
         }
         let _ = self.save_manifest(&manifest);
         Ok(deleted)
+    }
+
+    async fn fetch_blob(&self, url: &str) -> anyhow::Result<Vec<u8>> {
+        let res = self
+            .client
+            .get(url)
+            .header("X-Device-Session", &self.token)
+            .send()
+            .await?
+            .error_for_status()?;
+        Ok(res.bytes().await?.to_vec())
     }
 
     async fn lock_path(&self, rel_path: &str) -> anyhow::Result<()> {

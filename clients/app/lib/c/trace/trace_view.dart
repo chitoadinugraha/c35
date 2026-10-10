@@ -309,14 +309,41 @@ String traceToolLabel(String toolId) {
   return toolLabelFromTemplate(catalogT('tool.$id.done'), const {});
 }
 
+String _scopeInstructionTraceDetail(Map<dynamic, dynamic> meta) {
+  final injected = meta['injected'] == true;
+  final preview = _asStr(meta['block_preview']);
+  final entries = meta['entries'];
+  final applied = <String>[];
+  final configured = <String>[];
+  if (entries is List) {
+    for (final e in entries) {
+      if (e is! Map) continue;
+      final kind = _asStr(e['scope_kind']);
+      final mode = _asStr(e['mode']);
+      final name = _asStr(e['site_name']);
+      final label = kind == 'site' && name.isNotEmpty ? 'site:$name' : kind;
+      configured.add('$label ($mode)');
+      if (e['applied'] == true) applied.add(label);
+    }
+  }
+  if (injected && preview.isNotEmpty) {
+    final head = applied.isEmpty ? 'Injected' : 'Injected: ${applied.join(', ')}';
+    return '$head · $preview';
+  }
+  if (applied.isNotEmpty) return 'Matched: ${applied.join(', ')}';
+  if (configured.isNotEmpty) return 'Configured: ${configured.join(', ')} · not injected';
+  return preview;
+}
+
 int _prepareBranchOrder(String topic) => switch (topic) {
       'trace_gate' => -2,
       'trace_setup' => -1,
       'trace_tool_embed' => 0,
       'trace_inst_enrich' => 1,
-      'trace_tool_filter' => 2,
-      'trace_prepare' => 3,
-      'trace_memory' => 4,
+      'trace_scope_instruction' => 2,
+      'trace_tool_filter' => 3,
+      'trace_prepare' => 4,
+      'trace_memory' => 5,
       _ => 9,
     };
 
@@ -426,6 +453,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           'trace_tool_embed' => 'Prompt embed',
           'trace_memory' => 'Memory',
           'trace_inst_enrich' => 'Inst enrich',
+          'trace_scope_instruction' => 'Scope instructions',
           'trace_tool_filter' => 'Tool filter',
           'trace_prepare' => 'Compose',
           _ => branch.isNotEmpty ? branch : r.topic,
@@ -437,7 +465,9 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           durationMs: r.durationMs > 0 ? r.durationMs : _asInt(r.meta['duration_ms']),
           costUsd: r.costUsd > 0 ? r.costUsd : _asDouble(r.meta['cost_retail_usd']),
           tokensIn: r.tokensIn > 0 ? r.tokensIn : _asInt(r.meta['prompt_tokens']),
-          detail: r.text.split('\n').first,
+          detail: r.topic == 'trace_scope_instruction'
+              ? _scopeInstructionTraceDetail(r.meta)
+              : r.text.split('\n').first,
           isTool: r.topic == 'trace_inst_enrich' && (instIds.isNotEmpty || enrichKeys.isNotEmpty),
           toolCandidates: r.topic == 'trace_tool_filter'
               ? _toolCandidatesFromMeta(r.meta['candidates'])

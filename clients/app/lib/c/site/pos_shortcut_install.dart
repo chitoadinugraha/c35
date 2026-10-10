@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 const _androidChannel = MethodChannel('id.alienai/pos_shortcut');
 
-enum PosShortcutInstallResult { ok, unsupported, failed }
+enum PosShortcutInstallResult { ok, alreadyExists, unsupported, failed }
 
 /// Pin POS launcher shortcut (Windows Desktop `.lnk`, Android home-screen pin).
 Future<PosShortcutInstallResult> posShortcutInstall({
@@ -101,6 +101,7 @@ Future<PosShortcutInstallResult> _androidPin({
       args['iconPng'] = iconPng;
     }
     final res = await _androidChannel.invokeMethod<Map<Object?, Object?>>('pinPos', args);
+    if (res?['already_pinned'] == true) return PosShortcutInstallResult.alreadyExists;
     final ok = res?['ok'] == true;
     return ok ? PosShortcutInstallResult.ok : PosShortcutInstallResult.unsupported;
   } on PlatformException catch (e) {
@@ -123,9 +124,10 @@ Future<PosShortcutInstallResult> _windowsDesktopLnk({
     final profile = Platform.environment['USERPROFILE'];
     if (profile == null || profile.isEmpty) return PosShortcutInstallResult.failed;
     final desktop = p.join(profile, 'Desktop');
-    await _windowsRemoveLegacyPosShortcut(desktop, siteName);
     final stem = posShortcutFileStem(siteName);
     final lnkPath = p.join(desktop, '$stem.lnk');
+    if (File(lnkPath).existsSync()) return PosShortcutInstallResult.alreadyExists;
+    await _windowsRemoveLegacyPosShortcut(desktop, siteName);
     final icoPath = p.join(desktop, '$stem.ico');
     if (iconPng != null && iconPng.isNotEmpty) {
       await File(icoPath).writeAsBytes(posShortcutCompositeIconIco(iconPng), flush: true);

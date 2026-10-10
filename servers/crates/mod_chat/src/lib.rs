@@ -55,6 +55,8 @@ mod site_query_export;
 mod site_query_present;
 mod memory;
 mod memory_rpc;
+mod scope_instruction;
+mod scope_instruction_rpc;
 mod context_billing;
 pub mod context_compact;
 mod context_idle;
@@ -150,6 +152,12 @@ pub use context_idle::{context_idle_compact_enabled, ContextIdleFetchTask};
 pub use context_pack::{context_window_options, context_window_resolve, model_context_limit, token_estimate};
 pub use memory::{memory_delete, memory_list_active, memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
 pub use memory_rpc::{memory_delete_rpc, memory_list_rpc};
+pub use scope_instruction::{
+    instruction_auto_match, scope_instruction_build_trace, scope_instruction_prompt_block,
+    ScopeInstructionRow, ScopeInstructionTrace, ScopeInstructionTraceEntry, MODE_ALWAYS, MODE_AUTO,
+    MODE_DISABLED,
+};
+pub use scope_instruction_rpc::{scope_instruction_get_rpc, scope_instruction_put_rpc};
 pub use memory_extract::memory_extract_turn_gate;
 pub use prompt::audio;
 pub use prompt::gemini::gemini_api_key;

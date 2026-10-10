@@ -155,6 +155,7 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
     if (!mounted) return;
     final msg = switch (res) {
       PosShortcutInstallResult.ok => 'Shortcut added: "${posShortcutLabel(name)}"',
+      PosShortcutInstallResult.alreadyExists => 'POS shortcut already exists: "${posShortcutLabel(name)}"',
       PosShortcutInstallResult.unsupported => 'POS shortcuts are not supported on this device',
       PosShortcutInstallResult.failed => 'Could not add POS shortcut',
     };

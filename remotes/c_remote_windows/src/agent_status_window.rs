@@ -97,7 +97,13 @@ pub fn run(
         OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, TRANSPARENT,
         CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE,
     };
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, OpenClipboard, SetClipboardData,
+    };
     use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::System::Ole::CF_UNICODETEXT;
     use windows::Win32::UI::HiDpi::GetDpiForWindow;
     use windows::Win32::UI::WindowsAndMessaging::{
         CreateWindowExW, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW,
@@ -240,6 +246,36 @@ pub fn run(
 
     fn wide(s: &str) -> Vec<u16> {
         s.encode_utf16().collect()
+    }
+
+    unsafe fn copy_text_to_clipboard(hwnd: HWND, text: &str) -> bool {
+        let wide: Vec<u16> = text.encode_utf16().chain([0]).collect();
+        let bytes = wide.len() * 2;
+        if OpenClipboard(hwnd).is_err() {
+            return false;
+        }
+        let _ = EmptyClipboard();
+        let hmem = match GlobalAlloc(GMEM_MOVEABLE, bytes) {
+            Ok(h) => h,
+            Err(_) => {
+                let _ = CloseClipboard();
+                return false;
+            }
+        };
+        let ptr = GlobalLock(hmem);
+        if ptr.is_null() {
+            let _ = CloseClipboard();
+            return false;
+        }
+        std::ptr::copy_nonoverlapping(wide.as_ptr() as *const u8, ptr as *mut u8, bytes);
+        let _ = GlobalUnlock(hmem);
+        let ok = SetClipboardData(CF_UNICODETEXT.0 as u32, HANDLE(hmem.0)).is_ok();
+        let _ = CloseClipboard();
+        ok
+    }
+
+    unsafe fn copy_logs_to_clipboard(hwnd: HWND) -> bool {
+        copy_text_to_clipboard(hwnd, &logs_clipboard_text())
     }
 
     unsafe fn draw_text(
@@ -397,8 +433,29 @@ pub fn run(
     fn footer_labels(tab: u8) -> &'static [&'static str] {
         match tab {
             TAB_STATUS => &[],
-            _ => &["Open log", "Logs"],
+            _ => &["Copy logs", "Open log", "Logs"],
         }
+    }
+
+    fn log_panel_rect(scale: &UiScale, rc: &RECT) -> RECT {
+        let ct = content_top(scale);
+        let margin = scale.px(16);
+        let log_top = ct + scale.px(8);
+        let log_bottom = rc.bottom - footer_h(scale) - scale.px(6);
+        RECT {
+            left: margin,
+            top: log_top,
+            right: rc.right - margin,
+            bottom: log_bottom,
+        }
+    }
+
+    fn logs_clipboard_text() -> String {
+        c_remote_core::log_ring::tail(40)
+            .iter()
+            .map(|l| c_remote_core::log_ring::format_line(l))
+            .collect::<Vec<_>>()
+            .join("\r\n")
     }
 
     fn resize_hit(pt: POINT, rc: &RECT) -> Option<u32> {
@@ -894,14 +951,7 @@ pub fn run(
             }
             draw_toggle(hdc, scale, &drive_switch, snap.drive_enabled, ctx.drive_toggle_hover);
         } else {
-            let log_top = ct + scale.px(8);
-            let log_bottom = rc.bottom - fh - scale.px(6);
-            let log_box = RECT {
-                left: margin,
-                top: log_top,
-                right: rc.right - margin,
-                bottom: log_bottom,
-            };
+            let log_box = log_panel_rect(scale, &rc);
             let log_bg = CreateSolidBrush(COLORREF(CLR_LOG_BG));
             let _ = FillRect(hdc, &log_box, log_bg);
             let _ = DeleteObject(HGDIOBJ(log_bg.0));
@@ -1159,11 +1209,17 @@ pub fn run(
                     }
                 }
                 let active_tab = ctx_get(hwnd).map(|c| c.active_tab).unwrap_or(TAB_STATUS);
+                if active_tab == TAB_LOGS && in_rect(pt, &log_panel_rect(&scale, &rc)) {
+                    copy_logs_to_clipboard(hwnd);
+                    return LRESULT(0);
+                }
                 let btns = btn_row(&scale, &rc, footer_labels(active_tab));
                 if active_tab != TAB_STATUS {
                     if btns.first().is_some_and(|b| in_rect(pt, b)) {
-                        let _ = c_remote_core::log_local::log_open();
+                        copy_logs_to_clipboard(hwnd);
                     } else if btns.get(1).is_some_and(|b| in_rect(pt, b)) {
+                        let _ = c_remote_core::log_local::log_open();
+                    } else if btns.get(2).is_some_and(|b| in_rect(pt, b)) {
                         let dir = c_remote_core::log_local::log_dir();
                         let _ = std::process::Command::new("explorer.exe")
                             .arg(dir.display().to_string())

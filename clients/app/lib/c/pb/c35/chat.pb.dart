@@ -3736,6 +3736,426 @@ class ResMemoryDelete extends $pb.GeneratedMessage {
   void clearOk() => $_clearField(1);
 }
 
+/// Owner / site assistant instructions (ai.scope_instruction)
+class ScopeInstruction extends $pb.GeneratedMessage {
+  factory ScopeInstruction({
+    $fixnum.Int64? id,
+    $fixnum.Int64? ownerIid,
+    $core.String? scopeKind,
+    $fixnum.Int64? scopeIid,
+    $core.String? mode,
+    $core.String? body,
+    $fixnum.Int64? updatedTsMs,
+  }) {
+    final result = ScopeInstruction._();
+    if (id != null) result.id = id;
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (scopeKind != null) result.scopeKind = scopeKind;
+    if (scopeIid != null) result.scopeIid = scopeIid;
+    if (mode != null) result.mode = mode;
+    if (body != null) result.body = body;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    return result;
+  }
+
+  ScopeInstruction._();
+
+  factory ScopeInstruction.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ScopeInstruction()..mergeFromBuffer(data, registry);
+  factory ScopeInstruction.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ScopeInstruction()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ScopeInstruction',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ScopeInstruction.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aInt64(2, _omitFieldNames ? '' : 'ownerIid')
+    ..aOS(3, _omitFieldNames ? '' : 'scopeKind')
+    ..aInt64(4, _omitFieldNames ? '' : 'scopeIid')
+    ..aOS(5, _omitFieldNames ? '' : 'mode')
+    ..aOS(6, _omitFieldNames ? '' : 'body')
+    ..aInt64(7, _omitFieldNames ? '' : 'updatedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ScopeInstruction clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ScopeInstruction copyWith(void Function(ScopeInstruction) updates) =>
+      super.copyWith((message) => updates(message as ScopeInstruction))
+          as ScopeInstruction;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ScopeInstruction() / ScopeInstruction.new instead')
+  static ScopeInstruction create() => ScopeInstruction._();
+  static $pb.GeneratedMessage $_createMessage() => ScopeInstruction._();
+  @$core.override
+  ScopeInstruction createEmptyInstance() => ScopeInstruction._();
+  @$core.pragma('dart2js:noInline')
+  static ScopeInstruction getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ScopeInstruction>(
+          ScopeInstruction.$_createMessage);
+  static ScopeInstruction? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get ownerIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasOwnerIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearOwnerIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get scopeKind => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set scopeKind($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasScopeKind() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearScopeKind() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get scopeIid => $_getI64(3);
+  @$pb.TagNumber(4)
+  set scopeIid($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasScopeIid() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearScopeIid() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get mode => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set mode($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasMode() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearMode() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get body => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set body($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasBody() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearBody() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get updatedTsMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasUpdatedTsMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearUpdatedTsMs() => $_clearField(7);
+}
+
+class ReqScopeInstructionGet extends $pb.GeneratedMessage {
+  factory ReqScopeInstructionGet({
+    $core.String? scopeKind,
+    $fixnum.Int64? scopeIid,
+  }) {
+    final result = ReqScopeInstructionGet._();
+    if (scopeKind != null) result.scopeKind = scopeKind;
+    if (scopeIid != null) result.scopeIid = scopeIid;
+    return result;
+  }
+
+  ReqScopeInstructionGet._();
+
+  factory ReqScopeInstructionGet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqScopeInstructionGet()..mergeFromBuffer(data, registry);
+  factory ReqScopeInstructionGet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqScopeInstructionGet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqScopeInstructionGet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqScopeInstructionGet.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'scopeKind')
+    ..aInt64(2, _omitFieldNames ? '' : 'scopeIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqScopeInstructionGet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqScopeInstructionGet copyWith(
+          void Function(ReqScopeInstructionGet) updates) =>
+      super.copyWith((message) => updates(message as ReqScopeInstructionGet))
+          as ReqScopeInstructionGet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqScopeInstructionGet() / ReqScopeInstructionGet.new instead')
+  static ReqScopeInstructionGet create() => ReqScopeInstructionGet._();
+  static $pb.GeneratedMessage $_createMessage() => ReqScopeInstructionGet._();
+  @$core.override
+  ReqScopeInstructionGet createEmptyInstance() => ReqScopeInstructionGet._();
+  @$core.pragma('dart2js:noInline')
+  static ReqScopeInstructionGet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqScopeInstructionGet>(
+          ReqScopeInstructionGet.$_createMessage);
+  static ReqScopeInstructionGet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get scopeKind => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set scopeKind($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasScopeKind() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearScopeKind() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get scopeIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set scopeIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasScopeIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearScopeIid() => $_clearField(2);
+}
+
+class ResScopeInstructionGet extends $pb.GeneratedMessage {
+  factory ResScopeInstructionGet({
+    ScopeInstruction? instruction,
+  }) {
+    final result = ResScopeInstructionGet._();
+    if (instruction != null) result.instruction = instruction;
+    return result;
+  }
+
+  ResScopeInstructionGet._();
+
+  factory ResScopeInstructionGet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResScopeInstructionGet()..mergeFromBuffer(data, registry);
+  factory ResScopeInstructionGet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResScopeInstructionGet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResScopeInstructionGet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResScopeInstructionGet.$_createMessage)
+    ..aOM<ScopeInstruction>(1, _omitFieldNames ? '' : 'instruction',
+        subBuilder: ScopeInstruction.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResScopeInstructionGet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResScopeInstructionGet copyWith(
+          void Function(ResScopeInstructionGet) updates) =>
+      super.copyWith((message) => updates(message as ResScopeInstructionGet))
+          as ResScopeInstructionGet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResScopeInstructionGet() / ResScopeInstructionGet.new instead')
+  static ResScopeInstructionGet create() => ResScopeInstructionGet._();
+  static $pb.GeneratedMessage $_createMessage() => ResScopeInstructionGet._();
+  @$core.override
+  ResScopeInstructionGet createEmptyInstance() => ResScopeInstructionGet._();
+  @$core.pragma('dart2js:noInline')
+  static ResScopeInstructionGet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResScopeInstructionGet>(
+          ResScopeInstructionGet.$_createMessage);
+  static ResScopeInstructionGet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  ScopeInstruction get instruction => $_getN(0);
+  @$pb.TagNumber(1)
+  set instruction(ScopeInstruction value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasInstruction() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearInstruction() => $_clearField(1);
+  @$pb.TagNumber(1)
+  ScopeInstruction ensureInstruction() => $_ensure(0);
+}
+
+class ReqScopeInstructionPut extends $pb.GeneratedMessage {
+  factory ReqScopeInstructionPut({
+    $core.String? scopeKind,
+    $fixnum.Int64? scopeIid,
+    $core.String? mode,
+    $core.String? body,
+  }) {
+    final result = ReqScopeInstructionPut._();
+    if (scopeKind != null) result.scopeKind = scopeKind;
+    if (scopeIid != null) result.scopeIid = scopeIid;
+    if (mode != null) result.mode = mode;
+    if (body != null) result.body = body;
+    return result;
+  }
+
+  ReqScopeInstructionPut._();
+
+  factory ReqScopeInstructionPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqScopeInstructionPut()..mergeFromBuffer(data, registry);
+  factory ReqScopeInstructionPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqScopeInstructionPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqScopeInstructionPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqScopeInstructionPut.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'scopeKind')
+    ..aInt64(2, _omitFieldNames ? '' : 'scopeIid')
+    ..aOS(3, _omitFieldNames ? '' : 'mode')
+    ..aOS(4, _omitFieldNames ? '' : 'body')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqScopeInstructionPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqScopeInstructionPut copyWith(
+          void Function(ReqScopeInstructionPut) updates) =>
+      super.copyWith((message) => updates(message as ReqScopeInstructionPut))
+          as ReqScopeInstructionPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqScopeInstructionPut() / ReqScopeInstructionPut.new instead')
+  static ReqScopeInstructionPut create() => ReqScopeInstructionPut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqScopeInstructionPut._();
+  @$core.override
+  ReqScopeInstructionPut createEmptyInstance() => ReqScopeInstructionPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqScopeInstructionPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqScopeInstructionPut>(
+          ReqScopeInstructionPut.$_createMessage);
+  static ReqScopeInstructionPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get scopeKind => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set scopeKind($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasScopeKind() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearScopeKind() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get scopeIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set scopeIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasScopeIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearScopeIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get mode => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set mode($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMode() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMode() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get body => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set body($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasBody() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearBody() => $_clearField(4);
+}
+
+class ResScopeInstructionPut extends $pb.GeneratedMessage {
+  factory ResScopeInstructionPut({
+    ScopeInstruction? instruction,
+  }) {
+    final result = ResScopeInstructionPut._();
+    if (instruction != null) result.instruction = instruction;
+    return result;
+  }
+
+  ResScopeInstructionPut._();
+
+  factory ResScopeInstructionPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResScopeInstructionPut()..mergeFromBuffer(data, registry);
+  factory ResScopeInstructionPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResScopeInstructionPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResScopeInstructionPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResScopeInstructionPut.$_createMessage)
+    ..aOM<ScopeInstruction>(1, _omitFieldNames ? '' : 'instruction',
+        subBuilder: ScopeInstruction.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResScopeInstructionPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResScopeInstructionPut copyWith(
+          void Function(ResScopeInstructionPut) updates) =>
+      super.copyWith((message) => updates(message as ResScopeInstructionPut))
+          as ResScopeInstructionPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResScopeInstructionPut() / ResScopeInstructionPut.new instead')
+  static ResScopeInstructionPut create() => ResScopeInstructionPut._();
+  static $pb.GeneratedMessage $_createMessage() => ResScopeInstructionPut._();
+  @$core.override
+  ResScopeInstructionPut createEmptyInstance() => ResScopeInstructionPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResScopeInstructionPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResScopeInstructionPut>(
+          ResScopeInstructionPut.$_createMessage);
+  static ResScopeInstructionPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  ScopeInstruction get instruction => $_getN(0);
+  @$pb.TagNumber(1)
+  set instruction(ScopeInstruction value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasInstruction() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearInstruction() => $_clearField(1);
+  @$pb.TagNumber(1)
+  ScopeInstruction ensureInstruction() => $_ensure(0);
+}
+
 /// Device-bound prompt contexts (Remote / Devices composer)
 class ReqChatDeviceContextList extends $pb.GeneratedMessage {
   factory ReqChatDeviceContextList({

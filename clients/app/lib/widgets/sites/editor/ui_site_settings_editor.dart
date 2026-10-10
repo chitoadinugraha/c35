@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/widgets/settings/ui_scope_instruction_editor.dart';
 import 'package:alienai_c35/c/site/site_domain.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
@@ -203,6 +204,29 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
         _capToggle('booking', 'Booking (Objects tab)'),
         _capToggle('queue', 'Queue blocks'),
         _capToggle('attendance', 'Attendance (face enroll on Team)'),
+        const SizedBox(height: 28),
+        const Text('Assistant', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        const Text(
+          'Instructions for Home chat when this site is in scope (@mention or resolved context).',
+          style: TextStyle(color: _muted, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C0C0E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF27272A)),
+          ),
+          child: UiScopeInstructionEditor(
+            conn: widget.api.conn,
+            scopeKind: 'site',
+            scopeIid: widget.siteIid,
+            title: 'Site instructions',
+            subtitle: null,
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          ),
+        ),
         const SizedBox(height: 28),
         const Text('Domains', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),

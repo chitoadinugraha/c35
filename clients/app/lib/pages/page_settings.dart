@@ -48,6 +48,7 @@ import 'package:alienai_c35/widgets/settings/ui_account_live_conns.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_password.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_pin.dart';
 import 'package:alienai_c35/widgets/settings/io_chat_history_clear_dialog.dart';
+import 'package:alienai_c35/widgets/settings/ui_scope_instruction_editor.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_tile.dart';
 import 'package:alienai_c35/widgets/settings/ui_settings_unlock_mode.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_role_badges.dart';
@@ -622,6 +623,10 @@ class _PageSettingsState extends State<PageSettings> {
                                 UiAppToggle(value: _showUsageStats, onChanged: (v) { setState(() => _showUsageStats = v); PromptUsagePrefs.instance.setShowUsageStats(v); }),
                               ]),
                             ),
+                            if (widget.chatConn != null) ...[
+                              uiSettingsDivider(),
+                              UiUserScopeInstructionEditor(conn: widget.chatConn!),
+                            ],
                             uiSettingsDivider(),
                             UiSettingsTile(
                               icon: Icons.psychology_outlined,

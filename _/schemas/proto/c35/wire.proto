@@ -340,6 +340,8 @@ message WsReq {
     ReqNotifyRead notify_read = 211;
     ReqNotifyTokenPut notify_token_put = 212;
     ReqAppPresence app_presence = 213;
+    ReqScopeInstructionGet scope_instruction_get = 215;
+    ReqScopeInstructionPut scope_instruction_put = 216;
   }
 }
 
@@ -531,6 +533,8 @@ message WsRes {
     ResNotifyTokenPut notify_token_put = 212;
     ResAppPresence app_presence = 213;
     NotifyPush notify_push = 214;
+    ResScopeInstructionGet scope_instruction_get = 215;
+    ResScopeInstructionPut scope_instruction_put = 216;
   }
 }
 

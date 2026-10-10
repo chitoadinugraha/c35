@@ -88,6 +88,10 @@ class MainActivity : FlutterActivity() {
             result.success(mapOf("ok" to false))
             return
         }
+        if (sm.pinnedShortcuts.any { it.id == id }) {
+            result.success(mapOf("ok" to true, "already_pinned" to true))
+            return
+        }
         val shortcut = buildPosShortcut(uri, label, id, iconPath, iconPng)
         try {
             sm.updateShortcuts(listOf(shortcut))

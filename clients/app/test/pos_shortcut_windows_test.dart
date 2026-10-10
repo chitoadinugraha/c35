@@ -18,6 +18,8 @@ void main() {
       final res = await posShortcutInstall(siteIid: siteIid, siteName: siteName);
       expect(res, PosShortcutInstallResult.ok);
       expect(File(lnkPath).existsSync(), isTrue);
+      final again = await posShortcutInstall(siteIid: siteIid, siteName: siteName);
+      expect(again, PosShortcutInstallResult.alreadyExists);
     } finally {
       final f = File(lnkPath);
       if (f.existsSync()) await f.delete();

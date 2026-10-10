@@ -3082,6 +3082,8 @@ enum WsReq_Body {
   notifyRead,
   notifyTokenPut,
   appPresence,
+  scopeInstructionGet,
+  scopeInstructionPut,
   notSet
 }
 
@@ -3242,6 +3244,8 @@ class WsReq extends $pb.GeneratedMessage {
     ReqNotifyRead? notifyRead,
     ReqNotifyTokenPut? notifyTokenPut,
     ReqAppPresence? appPresence,
+    $15.ReqScopeInstructionGet? scopeInstructionGet,
+    $15.ReqScopeInstructionPut? scopeInstructionPut,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3424,6 +3428,10 @@ class WsReq extends $pb.GeneratedMessage {
     if (notifyRead != null) result.notifyRead = notifyRead;
     if (notifyTokenPut != null) result.notifyTokenPut = notifyTokenPut;
     if (appPresence != null) result.appPresence = appPresence;
+    if (scopeInstructionGet != null)
+      result.scopeInstructionGet = scopeInstructionGet;
+    if (scopeInstructionPut != null)
+      result.scopeInstructionPut = scopeInstructionPut;
     return result;
   }
 
@@ -3590,6 +3598,8 @@ class WsReq extends $pb.GeneratedMessage {
     211: WsReq_Body.notifyRead,
     212: WsReq_Body.notifyTokenPut,
     213: WsReq_Body.appPresence,
+    215: WsReq_Body.scopeInstructionGet,
+    216: WsReq_Body.scopeInstructionPut,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3749,7 +3759,9 @@ class WsReq extends $pb.GeneratedMessage {
       210,
       211,
       212,
-      213
+      213,
+      215,
+      216
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -4104,6 +4116,12 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: ReqNotifyTokenPut.$_createMessage)
     ..aOM<ReqAppPresence>(213, _omitFieldNames ? '' : 'appPresence',
         subBuilder: ReqAppPresence.$_createMessage)
+    ..aOM<$15.ReqScopeInstructionGet>(
+        215, _omitFieldNames ? '' : 'scopeInstructionGet',
+        subBuilder: $15.ReqScopeInstructionGet.$_createMessage)
+    ..aOM<$15.ReqScopeInstructionPut>(
+        216, _omitFieldNames ? '' : 'scopeInstructionPut',
+        subBuilder: $15.ReqScopeInstructionPut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4279,6 +4297,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(211)
   @$pb.TagNumber(212)
   @$pb.TagNumber(213)
+  @$pb.TagNumber(215)
+  @$pb.TagNumber(216)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4433,6 +4453,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(211)
   @$pb.TagNumber(212)
   @$pb.TagNumber(213)
+  @$pb.TagNumber(215)
+  @$pb.TagNumber(216)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6168,6 +6190,30 @@ class WsReq extends $pb.GeneratedMessage {
   void clearAppPresence() => $_clearField(213);
   @$pb.TagNumber(213)
   ReqAppPresence ensureAppPresence() => $_ensure(153);
+
+  @$pb.TagNumber(215)
+  $15.ReqScopeInstructionGet get scopeInstructionGet => $_getN(154);
+  @$pb.TagNumber(215)
+  set scopeInstructionGet($15.ReqScopeInstructionGet value) =>
+      $_setField(215, value);
+  @$pb.TagNumber(215)
+  $core.bool hasScopeInstructionGet() => $_has(154);
+  @$pb.TagNumber(215)
+  void clearScopeInstructionGet() => $_clearField(215);
+  @$pb.TagNumber(215)
+  $15.ReqScopeInstructionGet ensureScopeInstructionGet() => $_ensure(154);
+
+  @$pb.TagNumber(216)
+  $15.ReqScopeInstructionPut get scopeInstructionPut => $_getN(155);
+  @$pb.TagNumber(216)
+  set scopeInstructionPut($15.ReqScopeInstructionPut value) =>
+      $_setField(216, value);
+  @$pb.TagNumber(216)
+  $core.bool hasScopeInstructionPut() => $_has(155);
+  @$pb.TagNumber(216)
+  void clearScopeInstructionPut() => $_clearField(216);
+  @$pb.TagNumber(216)
+  $15.ReqScopeInstructionPut ensureScopeInstructionPut() => $_ensure(155);
 }
 
 enum WsRes_Body {
@@ -6336,6 +6382,8 @@ enum WsRes_Body {
   notifyTokenPut,
   appPresence,
   notifyPush,
+  scopeInstructionGet,
+  scopeInstructionPut,
   notSet
 }
 
@@ -6508,6 +6556,8 @@ class WsRes extends $pb.GeneratedMessage {
     ResNotifyTokenPut? notifyTokenPut,
     ResAppPresence? appPresence,
     NotifyPush? notifyPush,
+    $15.ResScopeInstructionGet? scopeInstructionGet,
+    $15.ResScopeInstructionPut? scopeInstructionPut,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -6704,6 +6754,10 @@ class WsRes extends $pb.GeneratedMessage {
     if (notifyTokenPut != null) result.notifyTokenPut = notifyTokenPut;
     if (appPresence != null) result.appPresence = appPresence;
     if (notifyPush != null) result.notifyPush = notifyPush;
+    if (scopeInstructionGet != null)
+      result.scopeInstructionGet = scopeInstructionGet;
+    if (scopeInstructionPut != null)
+      result.scopeInstructionPut = scopeInstructionPut;
     return result;
   }
 
@@ -6882,6 +6936,8 @@ class WsRes extends $pb.GeneratedMessage {
     212: WsRes_Body.notifyTokenPut,
     213: WsRes_Body.appPresence,
     214: WsRes_Body.notifyPush,
+    215: WsRes_Body.scopeInstructionGet,
+    216: WsRes_Body.scopeInstructionPut,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -7053,7 +7109,9 @@ class WsRes extends $pb.GeneratedMessage {
       211,
       212,
       213,
-      214
+      214,
+      215,
+      216
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -7434,6 +7492,12 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: ResAppPresence.$_createMessage)
     ..aOM<NotifyPush>(214, _omitFieldNames ? '' : 'notifyPush',
         subBuilder: NotifyPush.$_createMessage)
+    ..aOM<$15.ResScopeInstructionGet>(
+        215, _omitFieldNames ? '' : 'scopeInstructionGet',
+        subBuilder: $15.ResScopeInstructionGet.$_createMessage)
+    ..aOM<$15.ResScopeInstructionPut>(
+        216, _omitFieldNames ? '' : 'scopeInstructionPut',
+        subBuilder: $15.ResScopeInstructionPut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7621,6 +7685,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(212)
   @$pb.TagNumber(213)
   @$pb.TagNumber(214)
+  @$pb.TagNumber(215)
+  @$pb.TagNumber(216)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -7787,6 +7853,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(212)
   @$pb.TagNumber(213)
   @$pb.TagNumber(214)
+  @$pb.TagNumber(215)
+  @$pb.TagNumber(216)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -9653,6 +9721,30 @@ class WsRes extends $pb.GeneratedMessage {
   void clearNotifyPush() => $_clearField(214);
   @$pb.TagNumber(214)
   NotifyPush ensureNotifyPush() => $_ensure(165);
+
+  @$pb.TagNumber(215)
+  $15.ResScopeInstructionGet get scopeInstructionGet => $_getN(166);
+  @$pb.TagNumber(215)
+  set scopeInstructionGet($15.ResScopeInstructionGet value) =>
+      $_setField(215, value);
+  @$pb.TagNumber(215)
+  $core.bool hasScopeInstructionGet() => $_has(166);
+  @$pb.TagNumber(215)
+  void clearScopeInstructionGet() => $_clearField(215);
+  @$pb.TagNumber(215)
+  $15.ResScopeInstructionGet ensureScopeInstructionGet() => $_ensure(166);
+
+  @$pb.TagNumber(216)
+  $15.ResScopeInstructionPut get scopeInstructionPut => $_getN(167);
+  @$pb.TagNumber(216)
+  set scopeInstructionPut($15.ResScopeInstructionPut value) =>
+      $_setField(216, value);
+  @$pb.TagNumber(216)
+  $core.bool hasScopeInstructionPut() => $_has(167);
+  @$pb.TagNumber(216)
+  void clearScopeInstructionPut() => $_clearField(216);
+  @$pb.TagNumber(216)
+  $15.ResScopeInstructionPut ensureScopeInstructionPut() => $_ensure(167);
 }
 
 class NotifyItem extends $pb.GeneratedMessage {

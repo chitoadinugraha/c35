@@ -471,6 +471,22 @@ where
     } else {
         mention_ctx
     };
+    let site_iids = mention_ctx.site_iids();
+    let site_names = crate::scope_instruction::mention_site_names(&mention_ctx);
+    let (scope_user_row, scope_site_rows) = crate::scope_instruction::scope_instruction_load_for_prompt(
+        pool,
+        owner_iid,
+        &site_iids,
+        &site_names,
+    )
+    .await
+    .unwrap_or((None, vec![]));
+    let scope_instruction_block = crate::scope_instruction::scope_instruction_prompt_block(
+        &req.text,
+        scope_user_row.as_ref(),
+        &scope_site_rows,
+    );
+
     let caps = site_capability_view_for_mention(pool, &mention_ctx).await;
     let commerce_site_iids = caps.commerce_site_iids(&mention_ctx.site_iids());
     let active_topics = mention_active_topics(&resolved, &explicit_topic, &commerce_site_iids);
@@ -561,7 +577,9 @@ where
     let site_iid = mention_ctx.default_site_iid;
     let instructions_base = token_estimate(&composed.inst_block);
     let topic_block = crate::topic::topics_inst_block(pool, &active_topics).await;
-    let instructions_base = instructions_base + token_estimate(&topic_block);
+    let instructions_base = instructions_base
+        + token_estimate(&topic_block)
+        + token_estimate(&scope_instruction_block);
 
     let tools = if is_simple_time {
         vec![]
@@ -602,6 +620,12 @@ where
             system.push_str("\n\n");
         }
         system.push_str(&topic_block);
+    }
+    if !scope_instruction_block.is_empty() {
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(&scope_instruction_block);
     }
     if force_web_tool_call {
         if !system.is_empty() {
@@ -674,6 +698,13 @@ where
     tracer
         .trace_prepare(&composed.trace, &req.text, prepare_ms, context_tokens_est)
         .await;
+    let scope_trace = crate::scope_instruction::scope_instruction_build_trace(
+        &req.text,
+        scope_user_row.as_ref(),
+        &scope_site_rows,
+        &scope_instruction_block,
+    );
+    tracer.trace_scope_instruction(&scope_trace).await;
     tracer.trace_memory(&memory.trace).await;
 
     let system_tokens = token_estimate(&system);

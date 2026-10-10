@@ -23,6 +23,15 @@ All platform steering lives in **`ai.inst`** (database). Seeds ship in [`../sche
 |-------|-------|---------|
 | Topic chain | `ai.topic.inst` | Inherited topic instructions (`extend` chain) |
 | Bot personality | `identity.meta_json.inst_base` | Per-bot base prompt (Bots page, or drafted by `bot.draft`) |
+| User / site instructions | `ai.scope_instruction` | Editable in Settings (user) and site editor Settings (site); modes `always` \| `auto` \| `disabled` |
+
+### `ai.scope_instruction`
+
+One row per scope (`scope_kind` + `scope_iid`). `owner_iid` is the billing owner (user id; for sites, `site.config.owner_iid`). Injected on Home `prompt_turn` after platform `inst_block` + topic block. Site rows apply only for sites in the turn's resolved site scope. **Auto** includes the body when a token (length >= 4) from the instruction appears in the user message.
+
+Wire: `ReqScopeInstructionGet` / `ReqScopeInstructionPut`. DDL: [`../schemas/scope_instruction.sql`](../schemas/scope_instruction.sql).
+
+Prepare trace: `trace_scope_instruction` on `ai.log` (topic) with `entries[]` (`scope_kind`, `scope_iid`, `mode`, `applied`, `body_preview`) and `block_preview` of text injected into the system prompt.
 
 ---
 
