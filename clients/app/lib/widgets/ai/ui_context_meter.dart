@@ -1,7 +1,11 @@
 import 'dart:async';
 
+import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/widgets/ui/ui_app_bar_chip.dart';
+import 'package:alienai_c35/widgets/ui/ui_server_host_menu.dart';
 import 'package:flutter/material.dart';
 
 const _bg = Color(0xFF18181B);
@@ -46,15 +50,52 @@ String contextWindowChoiceLabel(int tokens) => switch (tokens) {
       _ => tokens >= 1024 ? '${(tokens / 1024).round()}K' : '$tokens',
     };
 
-/// App bar label beside [UiContextMeter] (build id for support screenshots).
-class UiAppBarVersionLabel extends StatelessWidget {
+/// App bar label beside [UiContextMeter] — API server picker (dev) or build id.
+class UiAppBarVersionLabel extends StatefulWidget {
   const UiAppBarVersionLabel({super.key});
 
+  @override
+  State<UiAppBarVersionLabel> createState() => _UiAppBarVersionLabelState();
+}
+
+class _UiAppBarVersionLabelState extends State<UiAppBarVersionLabel> {
+  final _anchorKey = GlobalKey();
+  String _serverHost = serverHostProductionUrl;
+  var _menuOpen = false;
+  DateTime? _menuClosedAt;
+
   static const _labelStyle = TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w500, height: 1.0);
-  static const _versionStyle = TextStyle(color: _muted, fontSize: 9, height: 1.0, fontFeatures: [FontFeature.tabularFigures()]);
+  static const _subStyle = TextStyle(color: _muted, fontSize: 9, height: 1.0, fontFeatures: [FontFeature.tabularFigures()]);
 
   @override
-  Widget build(BuildContext context) => DefaultTextStyle.merge(
+  void initState() {
+    super.initState();
+    sessionTick.addListener(_onSession);
+    serverHostTick.addListener(_onServerHost);
+    unawaited(_loadHost());
+  }
+
+  @override
+  void dispose() {
+    sessionTick.removeListener(_onSession);
+    serverHostTick.removeListener(_onServerHost);
+    super.dispose();
+  }
+
+  void _onSession() {
+    if (mounted) setState(() {});
+    unawaited(_loadHost());
+  }
+
+  void _onServerHost() => unawaited(_loadHost());
+
+  Future<void> _loadHost() async {
+    if (!serverHostPickerVisible()) return;
+    final v = await serverHostActiveBase();
+    if (mounted) setState(() => _serverHost = v);
+  }
+
+  Widget _lines({required String subtitle}) => DefaultTextStyle.merge(
         style: const TextStyle(height: 1.0, leadingDistribution: TextLeadingDistribution.even),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -62,10 +103,44 @@ class UiAppBarVersionLabel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text('Alien AI', textAlign: TextAlign.right, style: _labelStyle),
-            Text('Version ${csaiVersionBuild()}', textAlign: TextAlign.right, style: _versionStyle),
+            Text(subtitle, textAlign: TextAlign.right, style: _subStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       );
+
+  Future<void> _openServerMenu() async {
+    if (_menuOpen) return;
+    final closedAt = _menuClosedAt;
+    if (closedAt != null && DateTime.now().difference(closedAt) < const Duration(milliseconds: 250)) return;
+    final box = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    _menuOpen = true;
+    try {
+      final selected = await uiServerHostMenuPick(anchor: box, activeHost: _serverHost);
+      if (selected != null) {
+        final next = await serverHostSet(selected);
+        if (mounted) setState(() => _serverHost = next);
+      }
+    } finally {
+      _menuOpen = false;
+      _menuClosedAt = DateTime.now();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!serverHostPickerVisible()) {
+      return _lines(subtitle: 'Version ${csaiVersionBuild()}');
+    }
+    final subtitle = serverHostLabelFromUrl(_serverHost);
+    return UiAppBarChip(
+      key: _anchorKey,
+      tooltip: 'API server',
+      padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
+      onTap: _openServerMenu,
+      child: _lines(subtitle: subtitle),
+    );
+  }
 }
 
 class UiContextMeter extends StatefulWidget {

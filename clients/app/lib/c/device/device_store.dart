@@ -10,6 +10,7 @@ import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/c/pb/c35/device.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,10 +59,19 @@ String deviceBrowserEngineFromMeta(
 }
 
 class DeviceStore extends ChangeNotifier {
-  DeviceStore({ChatConn? conn, ReferralConn? invoke}) : _conn = conn ?? ChatConn(), _invoke = invoke ?? ReferralConn();
+  DeviceStore({ChatConn? conn, ReferralConn? invoke, ChatStore? shellStore})
+      : _conn = conn ?? ChatConn(),
+        _invoke = invoke ?? ReferralConn(),
+        _shellStore = shellStore;
 
   final ChatConn _conn;
   final ReferralConn _invoke;
+  final ChatStore? _shellStore;
+
+  void _shellDevicesCountSync() {
+    final n = _rows.where((r) => r.archivedTsMs == Int64.ZERO).length;
+    unawaited(_shellStore?.navCountsDevicesPut(n));
+  }
 
   ChatConn get conn => _conn;
 
@@ -132,6 +142,7 @@ class DeviceStore extends ChangeNotifier {
     _rows.addAll(cached);
     _sortRows();
     if (_selectedId == null && _rows.isNotEmpty) _selectedId = _rows.first.identity.iid.toString();
+    _shellDevicesCountSync();
     notifyListeners();
   }
 
@@ -178,6 +189,7 @@ class DeviceStore extends ChangeNotifier {
       if (_selectedId != null && rowById(_selectedId) == null) _selectedId = null;
       if (_selectedId == null && _rows.isNotEmpty) _selectedId = _rows.first.identity.iid.toString();
       await deviceListCacheSave(Session.instance.uid, _rows);
+      _shellDevicesCountSync();
     } catch (e) {
       lError('device refresh: $e');
     } finally {
@@ -192,6 +204,7 @@ class DeviceStore extends ChangeNotifier {
       await refresh();
       final id = res.device.identity.iid.toString();
       _selectedId = id;
+      _shellDevicesCountSync();
       notifyListeners();
       await deviceListCacheSave(Session.instance.uid, _rows);
       return res.device;
@@ -219,6 +232,7 @@ class DeviceStore extends ChangeNotifier {
       if (_selectedId == id) {
         _selectedId = _rows.isEmpty ? null : _rows.first.identity.iid.toString();
       }
+      _shellDevicesCountSync();
       notifyListeners();
       await deviceListCacheSave(Session.instance.uid, _rows);
     } catch (e) {
@@ -266,6 +280,7 @@ class DeviceStore extends ChangeNotifier {
         _rows.add(res.row);
       }
       _sortRows();
+      _shellDevicesCountSync();
       notifyListeners();
       await deviceListCacheSave(Session.instance.uid, _rows);
     } catch (e) {

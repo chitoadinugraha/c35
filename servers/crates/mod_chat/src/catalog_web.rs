@@ -47,6 +47,7 @@ pub fn catalog_skip_web_prefetch(matched_ids: &[String], phase: CatalogWebPhase)
                 || id == "inst.site.catalog.add.menu"
                 || id == "inst.site.builder"
                 || id == "inst.device.facts"
+                || id == "inst.device.android"
                 || id.starts_with("inst.mention.device_")
                 || id == "inst.browser.topic"
         })

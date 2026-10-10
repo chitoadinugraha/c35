@@ -1,9 +1,12 @@
+use c35_mod_chat::StockReportFormat;
+
 pub struct TxBrowseIntent {
     pub query_id: &'static str,
     pub range: String,
     pub limit: i32,
     pub open_only: bool,
     pub state: Option<String>,
+    pub formats: Vec<StockReportFormat>,
 }
 
 pub fn tx_browse_parse(text: &str) -> Option<TxBrowseIntent> {
@@ -50,12 +53,20 @@ pub fn tx_browse_parse(text: &str) -> Option<TxBrowseIntent> {
     } else {
         None
     };
+    let mut formats = Vec::new();
+    if lower.contains("pdf") {
+        formats.push(StockReportFormat::Pdf);
+    }
+    if lower.contains("excel") || lower.contains("xlsx") || lower.contains("spreadsheet") {
+        formats.push(StockReportFormat::Xlsx);
+    }
     Some(TxBrowseIntent {
         query_id: "tx.sales_list",
         range,
         limit,
         open_only,
         state,
+        formats,
     })
 }
 
@@ -72,5 +83,11 @@ mod tests {
     #[test]
     fn rejects_unrelated() {
         assert!(tx_browse_parse("berapa stok susu").is_none());
+    }
+
+    #[test]
+    fn parses_export_formats() {
+        let i = tx_browse_parse("daftar transaksi excel hari ini").unwrap();
+        assert!(i.formats.iter().any(|f| *f == StockReportFormat::Xlsx));
     }
 }

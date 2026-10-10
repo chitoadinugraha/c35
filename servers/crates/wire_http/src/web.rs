@@ -338,6 +338,9 @@ pub fn web_router() -> Router<AppState> {
         .route("/tts.html", get(|| page_get("tts.html")))
         .route("/status", get(|| page_get("status.html")))
         .route("/status.html", get(|| page_get("status.html")))
+        .route("/docs", get(|| page_get("docs.html")))
+        .route("/docs.html", get(|| page_get("docs.html")))
+        .route("/id/docs", get(|| page_get("id/docs.html")))
         .route("/id", get(|| page_get("id/index.html")))
         .route("/id/", get(|| page_get("id/index.html")))
         .route("/id/status", get(|| page_get("id/status.html")))
@@ -407,6 +410,8 @@ mod tests {
         assert!(dir.join("delete.html").is_file(), "delete.html must exist");
         assert!(dir.join("tts.html").is_file(), "tts.html must exist");
         assert!(dir.join("status.html").is_file(), "status.html must exist");
+        assert!(dir.join("docs.html").is_file(), "docs.html must exist");
+        assert!(dir.join("id/docs.html").is_file(), "id/docs.html must exist");
         assert!(dir.join("voucher.html").is_file(), "voucher.html must exist");
         assert!(dir.join("search.html").is_file(), "search.html must exist");
         assert!(
@@ -436,6 +441,10 @@ mod tests {
         assert!(
             dir.join("static").join("site-home.js").is_file(),
             "static/site-home.js must exist"
+        );
+        assert!(
+            dir.join("static").join("docs-page.js").is_file(),
+            "static/docs-page.js must exist"
         );
         assert!(
             dir.join("static").join("locale-detect.js").is_file(),

@@ -2,7 +2,7 @@
 name = "c_remote_drive"
 version.workspace = true
 edition.workspace = true
-description = "Alien AI Drive (A:) sync and mount for Windows agent"
+description = "Alien AI Drive sync and mount for remote agents (Windows WinFsp, Linux FUSE)"
 
 [features]
 default = ["winfsp"]
@@ -28,6 +28,11 @@ windows = { version = "0.58", features = [
     "Win32_System_IO",
     "Win32_System_LibraryLoader",
 ] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+fuser = "0.15"
+inotify = "0.11"
+libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3"

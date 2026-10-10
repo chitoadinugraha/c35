@@ -7,6 +7,7 @@ use c35_mod_chat::{
     prompt_followup_start_next_queued, prompt_run_cancel_children, prompt_run_cancel_request,
     prompt_run_enqueue, prompt_run_finish, prompt_run_insert, prompt_run_row_new,
     prompt_run_concurrency_acquire, prompt_run_status_set, prompt_turn, PromptTurnHooks,
+    prompt_run_fanout_fail, prompt_run_fanout_publish, prompt_run_get, prompt_run_push_from_row,
 };
 use c35_mod_consumption::{consumption_list_rpc, consumption_put_rpc};
 use c35_mod_expense::expense_put_rpc;
@@ -347,6 +348,27 @@ fn prompt_req_put(
                     Some(err_msg.as_str()),
                 )
                 .await;
+                if let Some(nats_client) = nats.as_ref() {
+                    if let Ok(Some(row)) = prompt_run_get(&pool, &req_id_spawn).await {
+                        let _ = prompt_run_fanout_publish(
+                            nats_client,
+                            owner_iid,
+                            chat_id,
+                            prompt_run_push_from_row(&row),
+                        )
+                        .await;
+                    }
+                    let _ = prompt_run_fanout_fail(
+                        nats_client,
+                        owner_iid,
+                        chat_id,
+                        &req_id_spawn,
+                        ResPromptFail {
+                            message: c35_mod_chat::chat_user_error_message(&err_msg),
+                        },
+                    )
+                    .await;
+                }
                 let _ = out_tx.send(prompt_fail(&req_id_spawn, err_msg));
             }
         }

@@ -3,7 +3,7 @@
 use c35_mod_site::StockReport;
 use serde_json::{json, Value};
 
-use crate::stock_report::StockReportFormat;
+use crate::stock_report_format::StockReportFormat;
 
 const PREVIEW_ROWS: usize = 40;
 const SLIDE_CAP: usize = 6;

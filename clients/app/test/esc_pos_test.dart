@@ -268,7 +268,7 @@ void main() {
       expect(receiptText.contains('Terima Kasih atas Kunjungan Anda'), isTrue);
       expect(receiptText.contains('LUNAS'), isTrue);
       expect(receiptText.contains('Powered by'), isTrue);
-      expect(receiptText.contains('alien ai'), isTrue);
+      expect(receiptText.contains('alienai.id'), isTrue);
     });
 
     test('unpaid receipt shows Belum Dibayar and BELUM LUNAS', () async {

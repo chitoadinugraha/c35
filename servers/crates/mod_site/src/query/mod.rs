@@ -61,8 +61,8 @@ pub use stock_report::{
     STOCK_EXPORT_CAP, STOCK_PREVIEW_ROWS,
 };
 pub use tx_browse::{
-    tx_browse_from_query, tx_browse_preview, tx_browse_query_id, TxBrowseReport, TX_EXPORT_CAP,
-    TX_PREVIEW_ROWS,
+    tx_browse_from_query, tx_browse_preview, tx_browse_query_id, tx_browse_title, TxBrowseDisplayRow,
+    TxBrowseReport, TxBrowseStats, TX_EXPORT_CAP, TX_PREVIEW_ROWS,
 };
 
 pub fn query_def_get(query_id: &str) -> Option<Arc<dyn QueryDef>> {

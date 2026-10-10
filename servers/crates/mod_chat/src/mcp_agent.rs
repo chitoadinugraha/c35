@@ -5,6 +5,10 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
+use crate::device_context::{
+    cluster_tools_for_device_scope, device_platform_compose_signals,
+    device_platform_scope_for_prompt, device_prompt_tool_exclude,
+};
 use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::inst_pool_signal;
 use crate::inst_macro::inst_scopes_home;
@@ -19,7 +23,7 @@ use crate::prompt_run::prompt_run_concurrency_acquire;
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
-use crate::tools::{cluster_tools, default_dispatcher, http_client, ToolContext};
+use crate::tools::{default_dispatcher, http_client, ToolContext};
 
 pub const DEFAULT_DEBUG_OWNER_IID: i64 = 99000;
 pub const DEFAULT_TEST_OWNER_IID: i64 = 33000;
@@ -231,13 +235,19 @@ async fn mcp_compose_for_mentions(
     let active_topics = mention_active_topics(&resolved, "", &commerce_site_iids);
     let inst_scopes = inst_scopes_home();
     let http = http_client(std::time::Duration::from_secs(30));
-    let compose_signals = [inst_pool_signal("alienai").to_string()];
+    let platform_scope =
+        device_platform_scope_for_prompt(pool, owner_iid, &mention_ctx.devices, 0).await;
+    let device_tool_exclude =
+        device_prompt_tool_exclude(pool, owner_iid, &mention_ctx.devices, 0, &platform_scope).await;
+    let mut compose_signals = vec![inst_pool_signal("alienai").to_string()];
+    compose_signals.extend(device_platform_compose_signals(&platform_scope));
+    let tool_catalog = cluster_tools_for_device_scope(&platform_scope);
     let composed = compose_tools_and_inst_async(
         pool,
         &http,
         &inst_rows,
         text,
-        cluster_tools(),
+        tool_catalog,
         &force_tools,
         &inst_mention_ids,
         &active_topics,
@@ -248,6 +258,7 @@ async fn mcp_compose_for_mentions(
         &caps,
         ComposeTurnOpts {
             extra_signals: &compose_signals,
+            extra_tool_exclude: &device_tool_exclude,
             ..ComposeTurnOpts::default()
         },
         owner_iid,

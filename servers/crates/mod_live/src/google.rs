@@ -475,6 +475,13 @@ pub async fn live_google_proxy_run(
                                 break;
                             }
                             resume.note_server_msg(&v);
+                            if crate::LiveResume::is_go_away(&v)
+                                && handover_task.is_none()
+                                && swap_job.is_none()
+                                && resume.handle.is_some()
+                            {
+                                swap_job = Some((active_mention_ids.clone(), mention_label.clone()));
+                            }
                             live_turn_flags(&v, &mut generation_open);
                             if !generation_open && handover_task.is_none() {
                                 if let Some((ids, label)) = pending_mention.clone() {
@@ -567,6 +574,13 @@ pub async fn live_google_proxy_run(
 
                         if let Ok(v) = serde_json::from_slice::<Value>(&b) {
                             resume.note_server_msg(&v);
+                            if crate::LiveResume::is_go_away(&v)
+                                && handover_task.is_none()
+                                && swap_job.is_none()
+                                && resume.handle.is_some()
+                            {
+                                swap_job = Some((active_mention_ids.clone(), mention_label.clone()));
+                            }
                             live_turn_flags(&v, &mut generation_open);
                             if live_handle_tool_call(
                                 &v,

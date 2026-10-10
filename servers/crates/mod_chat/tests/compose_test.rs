@@ -1,6 +1,7 @@
 use c35_mod_chat::compose::{
     compose_force_account_tool_call, compose_force_catalog_menu_tool_call, compose_force_consumption_coach_tool_call,
-    compose_force_presentation_tool_call, compose_force_site_builder_tool_call, compose_force_tool_call,
+    compose_force_presentation_tool_call, compose_force_site_builder_tool_call, compose_force_site_query_tool_call,
+    compose_force_tool_call,
     compose_force_web_tool_call, compose_tools_and_inst, site_builder_bootstrap_catalog,
     site_builder_ready_to_create, tool_mention_eligible, ComposeTurnOpts,
 };
@@ -61,7 +62,6 @@ fn inst_core_assistant() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 200,
     }
 }
@@ -90,7 +90,6 @@ fn inst_web_search() -> InstRow {
         include_tools: vec!["web.search".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 100,
     }
 }
@@ -108,7 +107,6 @@ fn inst_consumption_coach() -> InstRow {
         include_tools: vec!["consumption.today".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 135,
     }
 }
@@ -131,7 +129,6 @@ fn inst_consumption() -> InstRow {
         include_tools: vec!["consumption.add".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 140,
     }
 }
@@ -154,7 +151,6 @@ fn inst_consumption_delete() -> InstRow {
         include_tools: vec!["consumption.delete".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 140,
     }
 }
@@ -315,7 +311,6 @@ fn inst_web_search_cinema() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 100,
     }
 }
@@ -369,7 +364,6 @@ fn compose_inst_exclude_drops_web_search() {
         include_tools: vec![],
         exclude_tools: vec!["web.search".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 50,
     };
     let out = compose_default(&[inst], "offline only please", pa_catalog(), &[]);
@@ -588,7 +582,6 @@ fn inst_mention_research() -> InstRow {
         ],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 125,
     }
 }
@@ -628,7 +621,6 @@ fn inst_referral_put() -> InstRow {
         include_tools: vec!["referral.code.put".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -646,7 +638,6 @@ fn inst_referral_list() -> InstRow {
         include_tools: vec!["referral.code.list".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 125,
     }
 }
@@ -720,7 +711,6 @@ fn inst_account_billing() -> InstRow {
         include_tools: vec!["account.billing.get".into(), "account.billing.history".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -748,7 +738,6 @@ fn inst_account_assets() -> InstRow {
         ],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 128,
     }
 }
@@ -816,7 +805,6 @@ fn inst_device_pair() -> InstRow {
         include_tools: vec!["device.pair".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 132,
     }
 }
@@ -1052,7 +1040,6 @@ fn inst_img_edit() -> InstRow {
         include_tools: vec!["img.edit".into()],
         exclude_tools: vec!["img.generate".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 145,
     }
 }
@@ -1070,7 +1057,6 @@ fn inst_mention_image_high() -> InstRow {
         include_tools: vec!["img.generate".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -1124,9 +1110,24 @@ fn tool_trim_ranked_drops_low_sim_gap() {
 }
 
 #[test]
+fn compose_force_web_suppressed_for_site_commerce_transaksi() {
+    let tools = vec![ToolDef::new("web.search".into(), "Web".into(), json!({}))];
+    let ids = vec!["inst.site.commerce".into(), "inst.web_search".into()];
+    assert!(!compose_force_web_tool_call(&ids, &tools, "berapa total transaksi hari ini"));
+}
+
+#[test]
+fn compose_force_tool_call_when_site_report_inst_and_query_tool() {
+    let tools = vec![ToolDef::new("site.query.run".into(), "Site query".into(), json!({}))];
+    assert!(compose_force_site_query_tool_call(&["inst.site.report".into()], &tools));
+    assert!(compose_force_tool_call(&["inst.site.report".into()], &tools));
+    assert!(!compose_force_site_query_tool_call(&["inst.core.assistant".into()], &tools));
+}
+
+#[test]
 fn compose_force_tool_call_when_web_search_inst_and_tool() {
     let tools = vec![ToolDef::new("web.search".into(), "Search".into(), json!({}))];
-    assert!(compose_force_web_tool_call(&["inst.web_search".into()], &tools));
+    assert!(compose_force_web_tool_call(&["inst.web_search".into()], &tools, "cuaca hari ini"));
     assert!(compose_force_tool_call(&["inst.web_search".into()], &tools));
     assert!(!compose_force_tool_call(&["inst.core.assistant".into()], &tools));
     assert!(!compose_force_tool_call(&["inst.web_search".into()], &[]));
@@ -1193,7 +1194,6 @@ fn inst_multitask_delegate() -> InstRow {
         include_tools: vec!["delegate.run".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 127,
     }
 }
@@ -1239,9 +1239,66 @@ fn inst_browser_device_tool_probe() -> InstRow {
             .collect(),
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 50,
     }
+}
+
+fn inst_device_android_facts() -> InstRow {
+    InstRow {
+        id: "inst.device.android".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "trigger".into(),
+        topic_id: "device".into(),
+        topics: vec![],
+        inst: "[ANDROID DEVICE FACTS]".into(),
+        phrases: vec![],
+        triggers: vec!["device:type:android".into()],
+        include_tools: vec![
+            "device.fs.list".into(),
+            "device.input".into(),
+            "shell.run".into(),
+        ],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 141,
+    }
+}
+
+#[test]
+fn compose_android_device_signal_matches_inst_device_android() {
+    let tools = cluster_tools();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![88002],
+        bots: vec![],
+        default_site_iid: None,
+    };
+    let signals = ["device:type:android".to_string()];
+    let out = compose_tools_and_inst(
+        &[inst_core_assistant(), inst_device_android_facts()],
+        "list files on my phone",
+        tools,
+        &[],
+        &[],
+        &["device".into()],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts {
+            extra_signals: &signals,
+            ..ComposeTurnOpts::default()
+        },
+    );
+    assert!(
+        out.matched_ids.contains(&"inst.device.android".into()),
+        "device:type:android signal should match inst.device.android"
+    );
+    assert!(
+        out.tools.iter().any(|t| t.name == "device.fs.list"),
+        "android inst should keep device.fs.list eligible"
+    );
 }
 
 #[test]
@@ -1334,7 +1391,6 @@ fn inst_site_catalog_price() -> InstRow {
         include_tools: vec!["site.query.run".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 130,
     }
 }
@@ -1352,7 +1408,6 @@ fn inst_web_search_fixture() -> InstRow {
         include_tools: vec!["web.search".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 100,
     }
 }
@@ -1422,7 +1477,6 @@ fn inst_bot_draft() -> InstRow {
         include_tools: vec!["bot.draft".into()],
         exclude_tools: vec!["web.search".into(), "web.visit".into(), "site.query.run".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 132,
     }
 }
@@ -1468,7 +1522,6 @@ fn inst_site_builder() -> InstRow {
         ],
         exclude_tools: vec!["web.search".into(), "web.visit".into(), "consumption.today".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 150,
     }
 }
@@ -1604,7 +1657,6 @@ fn inst_site_catalog_stock() -> InstRow {
         include_tools: vec!["site.query.run".into()],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 128,
     }
 }
@@ -1664,7 +1716,6 @@ fn inst_presentation() -> InstRow {
         include_tools: vec!["presentation.create".into(), "presentation.patch".into()],
         exclude_tools: vec!["web.search".into(), "web.visit".into()],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 150,
     }
 }
@@ -1713,7 +1764,6 @@ fn inst_pool_alien() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 180,
     }
 }
@@ -1731,7 +1781,6 @@ fn inst_pool_frontier() -> InstRow {
         include_tools: vec![],
         exclude_tools: vec![],
         requires_global_roles: vec![],
-        requires_platform_mail: false,
         priority: 180,
     }
 }

@@ -1,0 +1,157 @@
+﻿cargo :     Blocking waiting for file lock on build directory
+At C:\Users\Chito\AppData\Local\Temp\ps-script-d700f66f-cdf3-4241-a62b-5aac34714b47.ps1:81 char:65
++ ... 35\remotes; cargo build -p c_remote_linux --target x86_64-unknown-lin ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Blocking wa...build directory:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   Compiling cfg-if v1.0.5
+   Compiling libc v0.2.189
+   Compiling zeroize v1.9.0
+   Compiling memchr v2.8.3
+   Compiling pin-project-lite v0.2.17
+   Compiling typenum v1.20.1
+   Compiling smallvec v1.16.1
+   Compiling subtle v2.6.1
+   Compiling bytes v1.12.1
+   Compiling scopeguard v1.2.0
+   Compiling generic-array v0.14.7
+   Compiling lock_api v0.4.14
+   Compiling log v0.4.34
+   Compiling const-oid v0.9.6
+   Compiling futures-core v0.3.34
+   Compiling zerocopy v0.8.57
+   Compiling stable_deref_trait v1.2.1
+   Compiling thiserror v1.0.69
+   Compiling serde_core v1.0.229
+   Compiling getrandom v0.2.17
+   Compiling parking_lot_core v0.9.12
+   Compiling rand_core v0.6.4
+   Compiling errno v0.3.14
+   Compiling crypto-common v0.1.7
+   Compiling signal-hook-registry v1.4.8
+   Compiling parking_lot v0.12.5
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.3
+   Compiling tokio v1.53.1
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling num-traits v0.2.19
+   Compiling serde v1.0.229
+   Compiling futures-sink v0.3.34
+   Compiling futures-io v0.3.34
+   Compiling zerofrom v0.1.8
+   Compiling futures-channel v0.3.34
+   Compiling bitflags v2.13.2
+   Compiling yoke v0.8.3
+   Compiling futures-task v0.3.34
+   Compiling slab v0.4.12
+   Compiling lazy_static v1.5.0
+   Compiling futures-util v0.3.34
+   Compiling cpufeatures v0.2.17
+   Compiling zerovec v0.11.8
+   Compiling ppv-lite86 v0.2.21
+   Compiling once_cell v1.21.4
+   Compiling rand_chacha v0.3.1
+   Compiling ipnet v2.12.2
+   Compiling rand v0.8.8
+   Compiling ring v0.17.14
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+warning: ring@0.17.14: Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+error: failed to run custom build command for `ring v0.17.14`
+
+Caused by:
+  process didn't exit successfully: 
+`D:\c35\remotes\../.cache/c_remote\debug\build\ring-c392e3d035ff3558\build-script-build` (exit code: 1)
+  --- stdout
+  cargo:rerun-if-env-changed=CARGO_MANIFEST_DIR
+  cargo:rerun-if-env-changed=CARGO_PKG_NAME
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_MAJOR
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_MINOR
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_PATCH
+  cargo:rerun-if-env-changed=CARGO_PKG_VERSION_PRE
+  cargo:rerun-if-env-changed=CARGO_MANIFEST_LINKS
+  cargo:rerun-if-env-changed=RING_PREGENERATE_ASM
+  cargo:rerun-if-env-changed=OUT_DIR
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENV
+  cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENDIAN
+  cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
+  CC_x86_64-unknown-linux-gnu = None
+  cargo:rerun-if-env-changed=CC_x86_64_unknown_linux_gnu
+  CC_x86_64_unknown_linux_gnu = None
+  cargo:rerun-if-env-changed=TARGET_CC
+  TARGET_CC = None
+  cargo:rerun-if-env-changed=CC
+  CC = None
+  cargo:rerun-if-env-changed=CROSS_COMPILE
+  CROSS_COMPILE = None
+  PATH = Some(D:\c35\remotes\../.cache/c_remote\debug;D:\c35\remotes\../.cache/c_remote\debug\deps;C:\Users\Chito\.rust
+up\toolchains\stable-x86_64-pc-windows-msvc\lib\rustlib\x86_64-pc-windows-msvc\lib;c:\Users\Chito\AppData\Local\Program
+s\cursor\resources\app\node_modules\@vscode\ripgrep\bin;C:\Program Files (x86)\\Oracle\oci_cli\;C:\Program 
+Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\bin\x64;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\bin;C:\W
+indows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\Ope
+nSSH\;C:\Program Files\Tailscale\;C:\Program Files\Git\cmd;C:\Program Files (x86)\Windows Kits\10\Windows Performance 
+Toolkit\;C:\Program Files\nodejs\;C:\Program Files\Go\bin;C:\msys64\mingw64\bin;C:\Program Files\Cloudflare\Cloudflare 
+WARP\;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA 
+Corporation\PhysX\Common;C:\Program Files\dotnet\;C:\Program Files\NVIDIA Corporation\Nsight Compute 
+2026.2.0\;C:\Program 
+Files\Docker\Docker\resources\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;C:\Program 
+Files\GitHub CLI\;C:\Program Files\WSL\;C:\Users\Chito\.cargo\bin;C:\Users\Chito\scoop\shims;C:\Users\Chito\AppData\Loc
+al\Microsoft\WindowsApps;C:\Users\Chito\AppData\Local\Programs\cursor\resources\app\bin;C:\Users\Chito\AppData\Local\Gi
+tHubDesktop\bin;C:\Users\Chito\.bun\bin;C:\Users\Chito\AppData\Local\cursor-agent;C:\_\flutter\bin;C:\Windows\system32\
+config\systemprofile\go\bin;C:\_\_bin;C:\Program Files\Lens\resources\cli\bin;C:\Users\Chito\AppData\Roaming\npm;C:\Use
+rs\Chito\AppData\Local\Programs\Ollama;C:\Users\Chito\AppData\Local\Programs\Python\Python314;C:\Users\Chito\AppData\Lo
+cal\Programs\Python\Python314\Scripts;C:\Users\Chito\go\bin;C:\msys64\mingw64\bin;C:\Users\Chito\.deno\bin;C:\Users\Chi
+to\AppData\Local\Programs\Antigravity IDE\bin;C:\Users\Chito\AppData\Local\Android\Sdk\platform-tools;C:\Users\Chito\Ap
+pData\Local\Python\bin;C:\_\scrcpy-win64-v4.0;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3\bin;C:\Users\Chi
+to\AppData\Local\Microsoft\WinGet\Links;C:\Users\Chito\AppData\Local\Programs\Zed\bin;C:\Users\Chito\AppData\Local\Micr
+osoft\WinGet\Packages\Google.Protobuf_Microsoft.Winget.Source_8wekyb3d8bbwe\bin;C:\Users\Chito\AppData\Local\Google\Clo
+ud SDK\google-cloud-sdk\bin;C:\Users\Chito\AppData\Local\Programs\Microsoft VS 
+Code\bin;C:\Users\Chito\.rustup\toolchains\stable-x86_64-pc-windows-msvc\bin)
+  cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+  cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+  CRATE_CC_NO_DEFAULTS = None
+  cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+  cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+  CRATE_CC_NO_DEFAULTS = None
+  cargo:rerun-if-env-changed=CFLAGS
+  CFLAGS = None
+  cargo:rerun-if-env-changed=TARGET_CFLAGS
+  TARGET_CFLAGS = None
+  cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+  CFLAGS_x86_64_unknown_linux_gnu = None
+  cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+  CFLAGS_x86_64-unknown-linux-gnu = None
+  cargo:rerun-if-env-changed=CFLAGS
+  CFLAGS = None
+  cargo:rerun-if-env-changed=TARGET_CFLAGS
+  TARGET_CFLAGS = None
+  cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+  CFLAGS_x86_64_unknown_linux_gnu = None
+  cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+  CFLAGS_x86_64-unknown-linux-gnu = None
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+  cargo:warning=Compiler family detection failed due to error: ToolNotFound: failed to find tool 
+"x86_64-linux-gnu-gcc": program not found (see https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+
+  --- stderr
+
+
+  error occurred in cc-rs: failed to find tool "x86_64-linux-gnu-gcc": program not found (see 
+https://docs.rs/cc/latest/cc/#compile-time-requirements for help)
+
+
+warning: build failed, waiting for other jobs to finish...

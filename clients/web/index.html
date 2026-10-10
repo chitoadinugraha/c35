@@ -124,59 +124,7 @@
 
       <!-- Right controls: Status + Language switcher -->
       <div class="flex items-center gap-3 sm:gap-5 z-20">
-        <div class="relative">
-          <button type="button" onclick="toggleDropdown('docsMenu', event)" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200 inline-flex items-center gap-1" aria-haspopup="true" aria-controls="docsMenu">
-            <span data-i18n="nav.docs">Docs</span>
-            <svg class="w-3 h-3 text-slate-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
-          </button>
-          <div id="docsMenu" class="dropdown-panel hidden absolute right-0 top-full mt-3 w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl bg-[#12131b]/95 border border-white/15 shadow-2xl shadow-black/40 p-2 z-40 backdrop-blur-2xl">
-            <p class="px-3 pt-2 pb-1 text-[11px] leading-relaxed text-slate-400" data-i18n="docs.lead">Short guides. Most things you just ask in chat.</p>
-            <div class="max-h-[min(70vh,28rem)] overflow-y-auto mt-1">
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.bot.title">Create a bot</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.chat">In chat</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.bot.desc">Ask Alien to make a bot for your shop.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.channel.title">Connect WhatsApp or Telegram</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.screen">On the screen</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.channel.desc">Connect it from the bot screen.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.product.title">Edit a product</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.both">Chat or screen</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.product.desc">Change the name or price on the screen, or ask in chat.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.pos.title">Run the cashier</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.both">Chat or screen</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.pos.desc">Take an order on the cashier screen, or ask Alien.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.meal.title">Log a meal or an expense</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.chat">In chat</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.meal.desc">Tell Alien what you ate or what you spent.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.report.title">Ask for a report</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.chat">In chat</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.report.desc">Ask for today&#39;s sales or spending.</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <a href="/docs" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.docs">Docs</a>
         <a href="/status" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.status">Status</a>
 
         <!-- Multilingual Toggle -->

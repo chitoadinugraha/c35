@@ -1,0 +1,150 @@
+﻿cargo :     Updating crates.io index
+At C:\Users\Chito\AppData\Local\Temp\ps-script-6abc720a-5311-4aaa-8ad2-1c388cd22baf.ps1:81 char:65
++ ... t-Location D:\c35\remotes; cargo build -p c_remote_linux *>&1 | Out-F ...
++                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Updating crates.io index:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+     Locking 66 packages to latest compatible versions
+      Adding annotate-snippets v0.9.2
+      Adding ashpd v0.13.13
+      Adding async-broadcast v0.7.2
+      Adding async-channel v2.5.0
+      Adding async-io v2.6.0
+      Adding async-lock v3.4.2
+      Adding async-process v2.5.0
+      Adding async-recursion v1.2.0
+      Adding async-signal v0.2.14
+      Adding async-task v4.7.1
+      Adding bindgen v0.69.5
+      Adding blocking v1.7.0
+      Adding cfg-expr v0.15.8
+      Adding concurrent-queue v2.5.0
+      Adding convert_case v0.6.0
+      Adding cookie-factory v0.3.3
+      Adding endi v1.1.1
+      Adding event-listener v5.4.2
+      Adding event-listener-strategy v0.5.4
+      Adding futures-lite v2.6.1
+      Adding hermit-abi v0.5.3
+      Adding itertools v0.12.1
+      Adding lazycell v1.3.0
+      Adding libspa v0.8.0
+      Adding libspa-sys v0.8.0
+      Adding memoffset v0.9.1
+      Adding nix v0.27.1
+      Adding ordered-stream v0.2.0
+      Adding parking v2.2.1
+      Adding piper v0.2.5
+      Adding pipewire v0.8.0 (available: v0.10.1)
+      Adding pipewire-sys v0.8.0
+      Adding polling v3.11.0
+      Adding proc-macro-crate v3.5.0
+      Adding rustc-hash v1.1.0
+      Adding serde_repr v0.1.21
+      Adding serde_spanned v0.6.9
+      Adding system-deps v6.2.2
+      Adding target-lexicon v0.12.16
+      Adding toml v0.8.23
+      Adding toml_datetime v0.6.11
+      Adding toml_datetime v1.1.2+spec-1.1.0
+      Adding toml_edit v0.22.27
+      Adding toml_edit v0.25.17+spec-1.1.0
+      Adding toml_parser v1.1.5+spec-1.1.0
+      Adding uds_windows v1.2.1
+      Adding unicode-segmentation v1.13.3
+      Adding unicode-width v0.1.14
+      Adding version-compare v0.2.1
+      Adding winnow v0.7.15
+      Adding winnow v1.0.4
+      Adding xdg-home v1.3.0
+      Adding yansi-term v0.1.2
+      Adding zbus v4.4.0 (available: v5.19.0)
+      Adding zbus v5.19.0
+      Adding zbus_macros v4.4.0
+      Adding zbus_macros v5.19.0
+      Adding zbus_names v3.0.0
+      Adding zbus_names v4.3.4
+      Adding zcheapstr v1.1.0
+      Adding zvariant v4.2.0
+      Adding zvariant v5.15.0
+      Adding zvariant_derive v4.2.0
+      Adding zvariant_derive v5.15.0
+      Adding zvariant_utils v2.1.0
+      Adding zvariant_utils v4.2.0
+   Compiling c_remote_linux v0.1.0 (D:\c35\remotes\c_remote_linux)
+warning: unreachable expression
+   --> c_remote_core\src\webrtc\fs.rs:815:5
+    |
+813 |         return path.to_string_lossy().replace('/', "\\");
+    |         ------------------------------------------------ any code following this expression is unreachable
+814 |     }
+815 |     path.to_string_lossy().into_owned()
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable expression
+    |
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `c_remote_core` (lib) generated 1 warning
+warning: unused imports: `info` and `warn`
+ --> c_remote_drive\src\mount\mount_windows.rs:1:15
+  |
+1 | use tracing::{info, warn};
+  |               ^^^^  ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ensure_winfsp_installed`
+ --> c_remote_drive\src\mount\mount_windows.rs:4:40
+  |
+4 | use crate::vfs_winfsp::{QuotaSnapshot, ensure_winfsp_installed};
+  |                                        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `c_remote_drive` (lib) generated 2 warnings (run `cargo fix --lib -p c_remote_drive` to apply 2 suggestions)
+warning: unused imports: `Duration`, `SystemTime`, and `UNIX_EPOCH`
+ --> c_remote_linux\src\screen_capture.rs:3:17
+  |
+3 | use std::time::{Duration, SystemTime, UNIX_EPOCH};
+  |                 ^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `debug` and `info`
+ --> c_remote_linux\src\screen_capture.rs:6:15
+  |
+6 | use tracing::{debug, info, warn};
+  |               ^^^^^  ^^^^
+
+warning: function `shell_impl` is never used
+   --> c_remote_linux\src\linux_shell.rs:151:4
+    |
+151 | fn shell_impl(command: &str, timeout_secs: u32) -> ShellOutput {
+    |    ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `register_command_handler` is never used
+   --> c_remote_linux\src\linux_shell.rs:155:4
+    |
+155 | fn register_command_handler() {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: static `SCREEN_DIRTY` is never used
+  --> c_remote_linux\src\screen_capture.rs:10:8
+   |
+10 | static SCREEN_DIRTY: AtomicBool = AtomicBool::new(true);
+   |        ^^^^^^^^^^^^
+
+warning: static `NEXT_FRAME_ID` is never used
+  --> c_remote_linux\src\screen_capture.rs:11:8
+   |
+11 | static NEXT_FRAME_ID: AtomicU32 = AtomicU32::new(1);
+   |        ^^^^^^^^^^^^^
+
+warning: function `viewer_stream_quality` is never used
+  --> c_remote_linux\src\screen_capture.rs:20:4
+   |
+20 | fn viewer_stream_quality() -> u8 {
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `c_remote_linux` (lib) generated 7 warnings (run `cargo fix --lib -p c_remote_linux` to apply 2 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.36s

@@ -1,0 +1,12 @@
+[package]
+name = "c35_time_range"
+version.workspace = true
+edition.workspace = true
+description = "Shared date-range wire format and resolution for tools and site queries"
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = "0.10"
+serde = { workspace = true }
+serde_json = { workspace = true }

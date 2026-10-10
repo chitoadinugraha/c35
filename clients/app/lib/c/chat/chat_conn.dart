@@ -447,6 +447,16 @@ class ChatConn {
       final push = res.promptRunPush;
       PromptRunStore.instance.put(push);
       if (!_promptRunPushCtrl.isClosed) _promptRunPushCtrl.add(push);
+      final pushReqId = push.reqId.trim();
+      if (pushReqId.isNotEmpty && (push.status == 'failed' || push.status == 'cancelled')) {
+        final prompt = _promptPending[pushReqId];
+        if (prompt != null && !prompt.isClosed) {
+          final reason = push.failReason.trim().isNotEmpty ? push.failReason.trim() : 'Prompt run ${push.status}';
+          prompt.add(PromptStreamEvent.fail(reason));
+          unawaited(prompt.close());
+          _promptPending.remove(pushReqId);
+        }
+      }
     }
     if (res.hasPromptFollowupPush()) {
       final push = res.promptFollowupPush;

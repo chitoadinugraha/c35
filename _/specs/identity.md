@@ -133,6 +133,8 @@ role         = admin | member | readonly
 
 Same pattern as id.alienai `asset_access` and cs_bots `asset_grant`, but `resource_iid` points at `identity` rows directly (no separate asset table).
 
+Account-menu **Devices** (`NavCounts.devices` on `session_init`) counts `remote` and `iot` rows the caller owns **or** can open through a live grant. Archived grants are excluded. The Devices page writes that same visible count back into the shell when its list loads.
+
 ### Access check (server)
 
 ```

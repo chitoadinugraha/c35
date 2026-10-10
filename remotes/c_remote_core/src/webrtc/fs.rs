@@ -214,6 +214,19 @@ fn read_varint(data: &[u8], i: &mut usize) -> Option<u64> {
 }
 
 pub fn fs_list(req: RemoteFsListReq) -> RemoteFsListRes {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_list(req) {
+            return res;
+        }
+        return super::fs_delegate::not_ready_list();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_list(req) {
+            return res;
+        }
+    }
     let path = req.path.trim();
     if path.is_empty() {
         return RemoteFsListRes {
@@ -273,6 +286,19 @@ pub fn fs_list(req: RemoteFsListReq) -> RemoteFsListRes {
 }
 
 pub fn fs_read(req: RemoteFsReadReq) -> RemoteFsReadRes {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_read(req) {
+            return res;
+        }
+        return super::fs_delegate::not_ready_read();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_read(req) {
+            return res;
+        }
+    }
     let path = req.path.trim();
     if path.is_empty() {
         return RemoteFsReadRes {
@@ -337,6 +363,19 @@ pub fn fs_read(req: RemoteFsReadReq) -> RemoteFsReadRes {
 }
 
 pub fn fs_write(req: RemoteFsWriteReq) -> RemoteFsWriteRes {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_write(req) {
+            return res;
+        }
+        return super::fs_delegate::not_ready_write();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_write(req) {
+            return res;
+        }
+    }
     let path = req.path.trim();
     if path.is_empty() {
         return RemoteFsWriteRes {
@@ -401,6 +440,19 @@ pub fn fs_write(req: RemoteFsWriteReq) -> RemoteFsWriteRes {
 }
 
 pub fn fs_mkdir(req: RemoteFsMkdirReq) -> RemoteFsMkdirRes {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_mkdir(req) {
+            return res;
+        }
+        return super::fs_delegate::not_ready_mkdir();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_mkdir(req) {
+            return res;
+        }
+    }
     let path = req.path.trim();
     if path.is_empty() {
         return RemoteFsMkdirRes {
@@ -419,6 +471,19 @@ pub fn fs_mkdir(req: RemoteFsMkdirReq) -> RemoteFsMkdirRes {
 }
 
 pub fn fs_delete(req: RemoteFsDeleteReq) -> RemoteFsDeleteRes {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_delete(req) {
+            return res;
+        }
+        return super::fs_delegate::not_ready_delete();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_delete(req) {
+            return res;
+        }
+    }
     let path = req.path.trim();
     if path.is_empty() {
         return RemoteFsDeleteRes {
@@ -446,6 +511,19 @@ pub fn fs_delete(req: RemoteFsDeleteReq) -> RemoteFsDeleteRes {
 }
 
 pub fn fs_rename(req: RemoteFsRenameReq) -> RemoteFsRenameRes {
+    #[cfg(target_os = "android")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_rename(req) {
+            return res;
+        }
+        return super::fs_delegate::not_ready_rename();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Some(res) = super::fs_delegate::dispatch_rename(req) {
+            return res;
+        }
+    }
     let from = req.from_path.trim();
     let to = req.to_path.trim();
     if from.is_empty() || to.is_empty() {
@@ -465,23 +543,55 @@ pub fn fs_rename(req: RemoteFsRenameReq) -> RemoteFsRenameRes {
 }
 
 fn list_drives() -> Vec<RemoteFsEntry> {
-    ('A'..='Z')
-        .filter_map(|c| {
-            let root = format!("{}:\\", c);
-            if !Path::new(&root).exists() {
-                return None;
-            }
-            let kind = drive_kind_for_root(&root);
-            Some(RemoteFsEntry {
-                name: drive_display_name(c, &root, kind),
-                path: root,
+    #[cfg(target_os = "linux")]
+    {
+        return list_drives_linux();
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        ('A'..='Z')
+            .filter_map(|c| {
+                let root = format!("{}:\\", c);
+                if !Path::new(&root).exists() {
+                    return None;
+                }
+                let kind = drive_kind_for_root(&root);
+                Some(RemoteFsEntry {
+                    name: drive_display_name(c, &root, kind),
+                    path: root,
+                    is_dir: true,
+                    size: 0,
+                    modified_ms: 0,
+                    drive_kind: kind.into(),
+                })
+            })
+            .collect()
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn list_drives_linux() -> Vec<RemoteFsEntry> {
+    let mut entries = vec![RemoteFsEntry {
+        name: "Root (/)".into(),
+        path: "/".into(),
+        is_dir: true,
+        size: 0,
+        modified_ms: 0,
+        drive_kind: RemoteFsDriveKind::Fixed.into(),
+    }];
+    if let Ok(home) = std::env::var("HOME") {
+        if !home.is_empty() {
+            entries.push(RemoteFsEntry {
+                name: format!("Home ({})", home),
+                path: home,
                 is_dir: true,
                 size: 0,
                 modified_ms: 0,
-                drive_kind: kind.into(),
-            })
-        })
-        .collect()
+                drive_kind: RemoteFsDriveKind::Fixed.into(),
+            });
+        }
+    }
+    entries
 }
 
 fn drive_kind_for_root(root: &str) -> RemoteFsDriveKind {
@@ -651,6 +761,38 @@ pub fn path_resolve(raw: &str) -> Result<PathBuf, String> {
         }
     }
 
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            let home = PathBuf::from(home);
+            if trimmed == "~" {
+                return Ok(home);
+            }
+            if trimmed.starts_with("~/") {
+                return Ok(home.join(&trimmed[2..]));
+            }
+            let lower = trimmed.to_ascii_lowercase();
+            if lower == "desktop" {
+                return Ok(home.join("Desktop"));
+            }
+            if lower.starts_with("desktop/") {
+                return Ok(home.join("Desktop").join(&trimmed[8..]));
+            }
+            if lower == "downloads" {
+                return Ok(home.join("Downloads"));
+            }
+            if lower.starts_with("downloads/") {
+                return Ok(home.join("Downloads").join(&trimmed[9..]));
+            }
+            if lower == "documents" {
+                return Ok(home.join("Documents"));
+            }
+            if lower.starts_with("documents/") {
+                return Ok(home.join("Documents").join(&trimmed[10..]));
+            }
+        }
+    }
+
     let path = PathBuf::from(trimmed);
     for comp in path.components() {
         if comp == Component::ParentDir {
@@ -665,8 +807,14 @@ pub fn path_resolve(raw: &str) -> Result<PathBuf, String> {
     Ok(path)
 }
 
+#[cfg(windows)]
 fn path_display(path: &Path) -> String {
     path.to_string_lossy().replace('/', "\\")
+}
+
+#[cfg(not(windows))]
+fn path_display(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
 }
 
 #[cfg(windows)]

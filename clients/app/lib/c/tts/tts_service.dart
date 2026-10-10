@@ -326,14 +326,17 @@ class TtsStreamQueue {
   TtsStreamQueue({
     Future<void> Function(String text)? speak,
     Future<void> Function()? onStop,
+    VoidCallback? onComplete,
   }) : _speak = speak,
        _onStop = onStop,
+       _onComplete = onComplete,
        _ownsService = speak == null {
     if (_ownsService) TtsService.instance._attachQueue(this);
   }
 
   final Future<void> Function(String text)? _speak;
   final Future<void> Function()? _onStop;
+  final VoidCallback? _onComplete;
   final bool _ownsService;
   final List<String> _pending = [];
   bool _running = false;
@@ -342,9 +345,19 @@ class TtsStreamQueue {
 
   bool get isHalted => _cancelled;
 
+  var _firstSpoken = false;
+
   void feedChunk(String chunk) {
     if (_cancelled || chunk.isEmpty) return;
     _currentBuffer += chunk;
+    if (!_firstSpoken) {
+      final first = speechPullFirstSentence(_currentBuffer);
+      if (first != null) {
+        _firstSpoken = true;
+        _currentBuffer = first.rest;
+        _enqueue(first.clip);
+      }
+    }
     final pull = speechPullChunks(_currentBuffer);
     _currentBuffer = pull.rest;
     for (final piece in pull.ready) {
@@ -382,6 +395,9 @@ class TtsStreamQueue {
       }
     }
     _running = false;
+    if (!_cancelled && _pending.isEmpty && _currentBuffer.isEmpty) {
+      _onComplete?.call();
+    }
   }
 
   void halt() {

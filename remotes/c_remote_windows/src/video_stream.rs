@@ -22,7 +22,7 @@ use windows::Win32::Media::MediaFoundation::{
     MFT_ENUM_FLAG_HARDWARE, MFT_ENUM_FLAG_SORTANDFILTER, MFT_ENUM_FLAG_SYNCMFT,
     MFT_OUTPUT_DATA_BUFFER, MFSTARTUP_NOSOCKET, MF_MT_AVG_BITRATE,
     MF_MT_FRAME_RATE, MF_MT_FRAME_SIZE, MF_MT_INTERLACE_MODE, MF_MT_MAJOR_TYPE,
-    MF_MT_MPEG2_PROFILE, MF_MT_SUBTYPE,
+    MF_MT_MAX_KEYFRAME_SPACING, MF_MT_MPEG2_PROFILE, MF_MT_SUBTYPE,
 };
 
 static VIDEO_STREAM_ACTIVE: AtomicBool = AtomicBool::new(false);
@@ -196,6 +196,7 @@ impl H264Encoder {
             out_type.SetUINT64(&MF_MT_FRAME_SIZE, ((width as u64) << 32) | (height as u64))?;
             out_type.SetUINT64(&MF_MT_FRAME_RATE, ((fps as u64) << 32) | 1)?;
             out_type.SetUINT32(&MF_MT_INTERLACE_MODE, 2)?; // Progressive
+            out_type.SetUINT32(&MF_MT_MAX_KEYFRAME_SPACING, fps * 2)?; // IDR keyframe at least every 2 seconds
             out_type.SetUINT32(&MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_High.0 as u32)?;
 
             if transform.SetOutputType(0, &out_type, 0).is_err() {
@@ -334,12 +335,8 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
             // 1. DXGI only during WebRTC video — GDI BitBlt flickers composited windows (e.g. Alien AI).
             let captured = match crate::dxgi_capture::shared_capture_frame(16) {
                 Ok(Some((src_w, src_h, bgra))) => Some((src_w, src_h, bgra)),
-                Ok(None) => last_frame
-                    .clone()
-                    .or_else(|| crate::dxgi_capture::shared_last_bgra_clone()),
-                Err(_) => last_frame
-                    .clone()
-                    .or_else(|| crate::dxgi_capture::shared_last_bgra_clone()),
+                Ok(None) => None,
+                Err(_) => None,
             };
             let captured = captured.or_else(|| {
                 if !crate::dxgi_capture::shared_dxgi_disabled() {
@@ -360,10 +357,12 @@ pub fn start_video_stream(video_track: Arc<TrackLocalStaticSample>) {
                 }
                 None => {
                     idle_ticks += 1;
+                    // When desktop is static, send a refresh frame every 15 ticks (~500ms) to maintain WebRTC decoder state
                     if idle_ticks % 15 == 0 {
-                        if let Some(prev) = &last_frame {
+                        if let Some(prev) = last_frame.clone().or_else(|| crate::dxgi_capture::shared_last_bgra_clone()) {
                             crate::dxgi_capture::shared_remember_bgra(prev.0, prev.1, prev.2.clone());
-                            prev.clone()
+                            last_frame = Some(prev.clone());
+                            prev
                         } else {
                             continue;
                         }

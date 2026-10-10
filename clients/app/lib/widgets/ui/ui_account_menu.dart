@@ -18,6 +18,7 @@ import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
 import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart';
+import 'package:alienai_c35/widgets/ui/ui_app_bar_chip.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
@@ -112,20 +113,10 @@ class UiAccountBtn extends StatefulWidget {
 }
 
 class _UiAccountBtnState extends State<UiAccountBtn> {
-  var _hover = false;
-
   @override
   Widget build(BuildContext context) => uiTooltip(
         message: widget.tooltip,
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _hover = true),
-          onExit: (_) => setState(() => _hover = false),
-          child: Material(
-            color: _hover ? _hoverBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(onTap: widget.onTap, borderRadius: BorderRadius.circular(8), child: Padding(padding: const EdgeInsets.all(6), child: widget.child)),
-          ),
-        ),
+        child: UiAppBarChip(onTap: widget.onTap, child: widget.child),
       );
 }
 

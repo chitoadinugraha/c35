@@ -1,0 +1,14 @@
+[Unit]
+Description=Alien AI Remote Agent (Linux)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/c_remote_linux
+Restart=always
+RestartSec=5
+Environment=C35_SERVER_URL=https://alienai.id
+
+[Install]
+WantedBy=default.target

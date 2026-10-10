@@ -342,6 +342,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   Offset? _trackpadLastTapPos;
   var _trackpadDragLock = false;
   var _trackpadIsDoubleTapDown = false;
+  int _lastDoubleClickMs = 0;
   Timer? _trackpadLongPressTimer;
 
   final _trackpadSurfaceCursorHiddenNotifier = ValueNotifier<bool>(false);
@@ -515,12 +516,13 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   }
 
   Offset _normToViewportLocal(Offset norm, Size viewport, Size content) {
+    if (content.width <= 0 || content.height <= 0) return Offset.zero;
     final (coverScale, coverOffset) = _coverLayout(viewport, content);
     final dw = content.width * coverScale;
     final dh = content.height * coverScale;
     return Offset(
-      coverOffset.dx + norm.dx * dw * _scale + _panOffset.dx,
-      coverOffset.dy + norm.dy * dh * _scale + _panOffset.dy,
+      (coverOffset.dx + norm.dx * dw) * _scale + _panOffset.dx,
+      (coverOffset.dy + norm.dy * dh) * _scale + _panOffset.dy,
     );
   }
 
@@ -530,12 +532,32 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       _panOffset = Offset.zero;
       return;
     }
-    final minX = -renderSize.width * (_scale - 1.0);
-    final minY = -renderSize.height * (_scale - 1.0);
-    _panOffset = Offset(
-      _panOffset.dx.clamp(minX, 0.0),
-      _panOffset.dy.clamp(minY, 0.0),
-    );
+    final content = _lastStreamContentSize == Size.zero
+        ? renderSize
+        : _lastStreamContentSize;
+    final (coverScale, coverOffset) = _coverLayout(renderSize, content);
+    final scaledContentW = content.width * coverScale * _scale;
+    final scaledContentH = content.height * coverScale * _scale;
+
+    final double panX;
+    if (scaledContentW <= renderSize.width) {
+      panX = (renderSize.width - scaledContentW) / 2 - coverOffset.dx * _scale;
+    } else {
+      final minX = renderSize.width - (coverOffset.dx + content.width * coverScale) * _scale;
+      final maxX = -coverOffset.dx * _scale;
+      panX = _panOffset.dx.clamp(minX, maxX);
+    }
+
+    final double panY;
+    if (scaledContentH <= renderSize.height) {
+      panY = (renderSize.height - scaledContentH) / 2 - coverOffset.dy * _scale;
+    } else {
+      final minY = renderSize.height - (coverOffset.dy + content.height * coverScale) * _scale;
+      final maxY = -coverOffset.dy * _scale;
+      panY = _panOffset.dy.clamp(minY, maxY);
+    }
+
+    _panOffset = Offset(panX, panY);
   }
 
   void _zoomAt(Offset focal, double factor, Size renderSize) {
@@ -595,6 +617,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       _clampPan(renderSize);
       if (_panOffset != oldPan) {
         setState(() {});
+      } else {
+        _stopEdgeScrolling();
       }
     });
   }
@@ -690,6 +714,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
   @override
   void dispose() {
+    if (_trackpadDragLock) {
+      _trackpadDragLock = false;
+      _sendPointerNorm('mouse_up', _virtualCursorNorm, button: 0);
+    }
     _trackpadCursorClip.release();
     HardwareKeyboard.instance.removeHandler(_onHardwareKeyEvent);
     _stopEdgeScrolling();
@@ -1014,6 +1042,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       return;
     }
     final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastDoubleClickMs < 250) {
+      return;
+    }
     _trackpadCancelPendingClick();
     _trackpadLastTapMs = now;
     _trackpadLastTapPos = localPos;
@@ -1858,9 +1889,14 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                       _trackpadCancelPendingClick();
                                       _trackpadLastTapMs = null;
                                       _trackpadLastTapPos = null;
-                                      _sendPointerNorm('double_click',
-                                          _virtualCursorNorm,
-                                          button: 0);
+                                      _trackpadDragLock = false;
+                                      final now = DateTime.now().millisecondsSinceEpoch;
+                                      if (now - _lastDoubleClickMs >= 250) {
+                                        _lastDoubleClickMs = now;
+                                        _sendPointerNorm('double_click',
+                                            _virtualCursorNorm,
+                                            button: 0);
+                                      }
                                       _heldButtons = e.buttons;
                                       return;
                                     }

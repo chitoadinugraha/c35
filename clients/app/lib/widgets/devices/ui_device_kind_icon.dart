@@ -50,6 +50,9 @@ class UiDeviceKindIcon extends StatelessWidget {
       final svg = (size * 1.25).clamp(16.0, 28.0);
       return SvgPicture.asset('assets/icons/windows.svg', width: svg, height: svg, fit: BoxFit.contain);
     }
+    if (t == 'linux') {
+      return Icon(Icons.terminal_outlined, size: size, color: iconColor);
+    }
     return Icon(_iconForKind(kind, type), size: size, color: iconColor);
   }
 

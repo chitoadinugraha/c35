@@ -33,6 +33,22 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://alienai.id/docs</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://alienai.id/docs"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://alienai.id/id/docs"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://alienai.id/docs"/>
+    <changefreq>weekly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
+    <loc>https://alienai.id/id/docs</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://alienai.id/docs"/>
+    <xhtml:link rel="alternate" hreflang="id" href="https://alienai.id/id/docs"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://alienai.id/docs"/>
+    <changefreq>weekly</changefreq>
+    <priority>0.65</priority>
+  </url>
+  <url>
     <loc>https://alienai.id/status</loc>
     <xhtml:link rel="alternate" hreflang="en" href="https://alienai.id/status"/>
     <xhtml:link rel="alternate" hreflang="id" href="https://alienai.id/id/status"/>

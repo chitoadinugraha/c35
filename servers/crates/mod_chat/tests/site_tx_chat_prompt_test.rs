@@ -37,12 +37,23 @@ fn pick(text: &str) -> Vec<String> {
         &[
             commerce_row(
                 "inst.site.report",
-                &["omzet", "untung hari ini", "berapa transaksi"],
+                &[
+                    "omzet",
+                    "untung hari ini",
+                    "berapa transaksi",
+                    "total transaksi",
+                    "berapa total transaksi",
+                ],
                 &["site.query.run"],
             ),
             commerce_row(
                 "inst.site.tx_browse",
                 &["daftar transaksi", "apa saja transaksi"],
+                &["site.query.run"],
+            ),
+            commerce_row(
+                "inst.site.top_products",
+                &["apa saja item", "item yang dijual", "paling laku"],
                 &["site.query.run"],
             ),
             commerce_row(
@@ -75,6 +86,12 @@ fn prompt_r01_omzet_hari_ini() {
 }
 
 #[test]
+fn prompt_r02_total_transaksi_hari_ini() {
+    let ids = pick("berapa total transaksi hari ini");
+    assert!(ids.iter().any(|id| id == "inst.site.report"));
+}
+
+#[test]
 fn prompt_b01_daftar_transaksi() {
     let ids = pick("daftar transaksi hari ini");
     assert!(ids.iter().any(|id| id == "inst.site.tx_browse"));
@@ -95,18 +112,9 @@ fn prompt_x01_stock_not_browse() {
 }
 
 #[test]
-fn tx_browse_parse_unit() {
-    assert!(c35_mod_chat::tx_browse_parse("daftar transaksi hari ini").is_some());
-}
-
-#[test]
-fn site_report_parse_with_mention() {
-    let i = c35_mod_chat::site_report_parse(
-        "Berapa untung [@[@iid:101836119014211584]] hari ini ?",
-    )
-    .unwrap();
-    assert_eq!(i.query_id, "tx.profit_summary");
-    assert_eq!(i.range, "today");
+fn prompt_top_products_items_sold() {
+    let ids = pick("apa saja item yang dijual");
+    assert!(ids.iter().any(|id| id == "inst.site.top_products"));
 }
 
 #[test]

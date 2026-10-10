@@ -98,10 +98,7 @@ async fn run() -> anyhow::Result<()> {
         c_remote_core::config::personal_package_name_load().unwrap_or_else(|| "—".into()),
         c_remote_core::config::device_package_name_load().unwrap_or_else(|| "—".into()),
     );
-    c_remote_core::agent_ui::drive_enabled_set(c_remote_core::config::drive_enabled_load());
-    tokio::spawn(async {
-        c_remote_windows::drive::drive_start_on_agent_ready().await;
-    });
+    c_remote_windows::drive::drive_start_on_agent_ready();
     tokio::spawn(async {
         loop {
             if let Some(key) = c_remote_core::config::session_key_load() {

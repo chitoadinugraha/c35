@@ -1,0 +1,27 @@
+---
+description: Shared date-range wire format for tool params and Rust parsers
+globs:
+  - servers/crates/system/time_range/**
+  - servers/crates/mod_site/src/query/**
+  - servers/crates/mod_chat/src/prompt/**
+  - _/specs/time-range.md
+  - _/schemas/inst.sql
+alwaysApply: false
+---
+
+# Time range wire (DATE RANGE)
+
+Mirrored for Antigravity: [`.agents/rules/time-range-wire.md`](../../.agents/rules/time-range-wire.md). Spec: [`_/specs/time-range.md`](../../_/specs/time-range.md).
+
+## Hard rules
+
+1. **One param shape** for periods: `range`, `date_from`/`date_to`, `time_from_ms`/`time_to_ms`, optional `tz`. No new per-period tool names.
+2. **Parse in `c35_time_range`** — do not duplicate calendar math in feature modules. `mod_site::query_time_range` delegates to `date_range_from_params_at`.
+3. **`DATE_RANGE_INST`** lives in `c35_time_range::inst`; keep `inst.core.date_range` in sync when changing wire text.
+4. Task **inst** steers **which tool / query_id**; date phrases map to **`params.range`** (or dates/ms), not bespoke Rust prefetch parsers for each period.
+
+## Agent checklist
+
+- New time-scoped tool or QueryDef: document params in tool schema; resolve window via `date_range_from_params` + user/default tz.
+- Changing tokens: update `named_range_at`, `time-range.md`, and tests in `c35_time_range`.
+- After edits: `cargo test -p c35_time_range`, `cargo test -p c35_mod_site -- query_time`, `cargo build -p server_ai` when wiring changes.

@@ -34,6 +34,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import id.alienai.remote.bridge.AgentStatus
 import id.alienai.remote.bridge.NativeBridge
+import id.alienai.remote.bridge.RemoteStorageBridge
 import id.alienai.remote.service.AccessControlService
 import id.alienai.remote.service.OverlayMarkerService
 import id.alienai.remote.service.RemoteAgentService
@@ -67,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var ownerHandleLabel: TextView
     private lateinit var viewerBadgeText: TextView
     private lateinit var controlSwitch: SwitchCompat
+    private lateinit var driveSwitch: SwitchCompat
     private lateinit var unpairHeaderBtn: TextView
 
     // Permissions Checklist
@@ -78,6 +80,22 @@ class MainActivity : AppCompatActivity() {
     // Logs UI Elements
     private lateinit var logsConsoleView: TextView
     private lateinit var copyLogsBtn: Button
+
+    private val storageTreeLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            try {
+                contentResolver.takePersistableUriPermission(uri, flags)
+            } catch (_: SecurityException) {
+            }
+            val name = uri.lastPathSegment ?: "Folder"
+            RemoteStorageBridge.addTreeGrant(uri, name)
+            Toast.makeText(this, "Storage folder added for remote Files", Toast.LENGTH_SHORT).show()
+            refreshStatusFromNative()
+        }
+    }
 
     private val projectionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -546,6 +564,73 @@ class MainActivity : AppCompatActivity() {
         controlCard.addView(controlLabel)
         controlCard.addView(controlSwitch)
         pairedCardLayout.addView(controlCard)
+
+        val driveCard = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            background = createCardDrawable(0xFF1E293B.toInt(), 20f)
+            setPadding(32, 28, 32, 28)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 16, 0, 0) }
+        }
+        val driveLabel = TextView(this).apply {
+            text = "Alien AI Drive"
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val driveHint = TextView(this).apply {
+            text = "Sync cloud files to this device (Files app: Alien AI)."
+            textSize = 11f
+            setTextColor(0xFF94A3B8.toInt())
+            setPadding(0, 4, 0, 0)
+        }
+        val driveTextCol = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        driveTextCol.addView(driveLabel)
+        driveTextCol.addView(driveHint)
+        driveSwitch = SwitchCompat(this).apply {
+            isChecked = NativeBridge.nativeIsDriveEnabled()
+            setOnCheckedChangeListener { _, isChecked ->
+                NativeBridge.nativeSetDriveEnabled(isChecked)
+            }
+        }
+        driveCard.addView(driveTextCol)
+        driveCard.addView(driveSwitch)
+        pairedCardLayout.addView(driveCard)
+
+        val storageCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = createCardDrawable(0xFF1E293B.toInt(), 20f)
+            setPadding(32, 24, 32, 24)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 16, 0, 0) }
+        }
+        val storageTitle = TextView(this).apply {
+            text = "Remote Files access"
+            textSize = 15f
+            setTextColor(Color.WHITE)
+        }
+        val storageHint = TextView(this).apply {
+            text = "Grant folders for Alien AI Files tab and device.fs tools."
+            textSize = 12f
+            setTextColor(0xFF94A3B8.toInt())
+            setPadding(0, 8, 0, 16)
+        }
+        val addFolderBtn = Button(this).apply {
+            text = "Add storage folder"
+            setOnClickListener { storageTreeLauncher.launch(null) }
+        }
+        storageCard.addView(storageTitle)
+        storageCard.addView(storageHint)
+        storageCard.addView(addFolderBtn)
+        pairedCardLayout.addView(storageCard)
 
         parent.addView(pairedCardLayout)
     }

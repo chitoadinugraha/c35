@@ -193,6 +193,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     if (!wide) return false;
     if (section == 'products' && _productsPane != SiteProductsPane.list) return false;
     if (section != 'products' &&
+        section != 'posts' &&
         section != 'contacts' &&
         section != 'objects' &&
         section != 'team' &&
@@ -294,7 +295,13 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     return switch (shown) {
       'info' => UiSiteInfoEditor(row: _row, api: widget.api, siteIid: _siteIid, onRowChanged: _onRowChanged, onDraftSaved: _onDraftSaved),
       'links' => UiSiteLinksEditor(api: widget.api, siteIid: _siteIid),
-      'posts' => UiSitePostsEditor(api: widget.api, siteIid: _siteIid),
+      'posts' => UiSitePostsEditor(
+          api: widget.api,
+          siteIid: _siteIid,
+          masterDetail: masterDetail,
+          detailId: _catalogDetailId,
+          onDetailIdChanged: _scheduleCatalogDetailId,
+        ),
       'ai' => UiSiteAiEditor(
           api: widget.api,
           siteIid: _siteIid,
@@ -411,7 +418,14 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   bool _narrowCatalogDrill(String section) =>
       (section == 'products' && (_productsPane != SiteProductsPane.list || _catalogDetailId != null)) ||
-      ((section == 'contacts' || section == 'objects' || section == 'team' || section == 'design' || section == 'effects' || section == 'ai' || section == 'accounts') &&
+      ((section == 'posts' ||
+              section == 'contacts' ||
+              section == 'objects' ||
+              section == 'team' ||
+              section == 'design' ||
+              section == 'effects' ||
+              section == 'ai' ||
+              section == 'accounts') &&
           _catalogDetailId != null);
 
   Widget _chrome({required String? subtitle, Color? subtitleColor, VoidCallback? onBack, required List<Widget> actions}) =>

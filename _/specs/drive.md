@@ -12,10 +12,11 @@ Related: [`billing.md`](billing.md) (personal plan → quota), [`sync.md`](sync.
 
 | Goal | Approach |
 |------|----------|
-| Same files on every paired PC for one owner | Server tree + agent sync loop |
+| Same files on every paired **desktop** agent for one owner | Server tree + agent sync loop (Windows, Linux, Android cache) |
 | Bulk bytes off agent WS | HTTP upload + signed `GET /fs/{hash}` pull |
 | Plan-based caps | Enforce `storage_used_bytes + new_size <= storage_limit_bytes` on server |
-| Simple Windows UX | Mount **A:**; Explorer shows **Alien AI** only |
+| Simple desktop UX | Windows: **A:**; Linux: **`~/Alien AI`** FUSE; label **Alien AI** only |
+| Android UX | System **Documents** / Files apps via `DocumentsProvider` |
 
 ---
 
@@ -23,21 +24,34 @@ Related: [`billing.md`](billing.md) (personal plan → quota), [`sync.md`](sync.
 
 | In scope | Out of scope |
 |----------|----------------|
-| Windows agent mount + sync | WebRTC exposure of `A:\` |
-| Owner paths under logical root | Cross-owner / team drives |
-| Toggle default **on** | Android agent drive |
-| App row for used/limit (phase 2) | WinFsp silent install on locked-down PCs (`subst` fallback only) |
+| **Windows** agent mount (**A:**) + HTTP sync | WebRTC exposure of drive tree on **`remote-fs`** (all platforms) |
+| **Linux** agent FUSE mount (`$HOME/Alien AI`) + HTTP sync — [`remote-linux.md`](remote-linux.md) | Cross-owner / team drives |
+| **Android** agent cache + **DocumentsProvider** + HTTP sync — [`remote-android.md`](remote-android.md#10-alien-ai-drive) | WinFsp silent install on locked-down PCs (`subst` fallback only) |
+| Owner paths under logical root | |
+| Toggle default **on** when paired (`drive_enabled`) | |
+| App row for used/limit (phase 2) | |
+
+### Transport: HTTP/CAS vs NATS (locked)
+
+| Responsibility | Transport | Notes |
+|----------------|-----------|--------|
+| Tree, changes, upload, delete, quota | **HTTP** device session (`X-Device-Session`) | Source of truth in `ai.drive_file` + CAS |
+| File bytes (pull) | **HTTP** signed `GET /fs/{blake3}` | Not agent WebSocket |
+| **Wake** paired agents to sync | **NATS** `c35.user.{owner_iid}.drive-sync` | Payload is a **nudge** (`since_ms` hint); relayed on agent WS — **no file bytes** |
+| Local edit detection | **OS watcher** on agent backing dir | Windows: `ReadDirectoryChangesW`; Linux: `inotify`; Android: provider/cache hooks |
 
 ---
 
 ## Architecture
 
 ```text
-Owner devices (Windows agents)
-  %USERPROFILE%\.alienai\drive_a\     ← cached tree + local edits
-  %USERPROFILE%\.alienai\sync_manifest.json
+Owner devices (agents with drive_enabled)
+  Windows:  %USERPROFILE%\.alienai\drive_a\  +  sync_manifest.json (sibling)
+  Linux:    ~/.local/share/AlienAI/drive_a/  +  sync_manifest.json (sibling)
+  Android:  app cache backing tree + DocumentsProvider (no remote-fs)
 
         │  device session HTTP (tree / upload / delete / storage)
+        │  NATS c35.user.{owner}.drive-sync  →  wake only
         ▼
 c35-server  ──►  YugabyteDB ai.drive_file  +  CAS (S3 / inline)
         │
@@ -54,11 +68,13 @@ Port reference (do not depend on repo): `D:\cs_bots\agents\desktop_node\src\{vfs
 
 | Path | Role |
 |------|------|
-| `%USERPROFILE%\.alienai\drive_a\` | User-visible mirror of owner drive (mounted as **A:**) |
+| `%USERPROFILE%\.alienai\drive_a\` | Backing cache (mounted as **A:** via WinFsp/subst) |
 | `%USERPROFILE%\.alienai\sync_manifest.json` | Agent sync state (sibling of `drive_a`, **not** inside it) |
-| `%USERPROFILE%\.alienai\drive_a\system\` | Reserved agent/system subtree (excluded from user prompts where documented) |
+| `%USERPROFILE%\.alienai\drive_a\system\` | Legacy path — prefer sibling `system/` beside `drive_a` |
 
-**Config** (`%LOCALAPPDATA%\AlienAI\config.json`):
+Linux layout: [`remote-linux.md`](remote-linux.md#2-xdg-layout-locked). Android: [`remote-android.md`](remote-android.md#10-alien-ai-drive).
+
+**Config** (`%LOCALAPPDATA%\AlienAI\config.json` on Windows; `$XDG_CONFIG_HOME/AlienAI/config.json` on Linux):
 
 | Key | Default | Behavior |
 |-----|---------|----------|
@@ -103,13 +119,13 @@ Upload/delete handlers reject when `used + size > limit` (HTTP 413 or 400). Dele
 
 ---
 
-## Explorer UX lock (Windows)
+## Mount display UX lock (all platforms)
 
 | Rule | Detail |
 |------|--------|
-| Volume label | **`Alien AI`** everywhere: subst autorun, `DriveIcons\DefaultLabel`, WinFsp `volume_label` |
-| **Forbidden** | Explorer name suffix **`· N% used`** (cs_bots `QuotaSnapshot::label()` / `update_explorer_quota_label` with percentage) |
-| Allowed | WinFsp may expose **total/free bytes** in drive **Properties** from quota — not the `%` subtitle |
+| Volume / mount label | **`Alien AI`** everywhere (Windows subst/WinFsp, Linux FUSE + `.directory`, Android provider display name) |
+| **Forbidden** | Mount name suffix **`· N% used`** (cs_bots `QuotaSnapshot::label()` / `update_explorer_quota_label` with percentage) |
+| Allowed | Windows WinFsp / Linux file manager **Properties** may show total/free from quota — not a `%` subtitle in the mount label |
 
 ---
 

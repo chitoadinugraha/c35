@@ -2,6 +2,7 @@ use serde_json::{json, Value};
 
 pub type FunctionCallItem = (String, Value, Option<String>);
 
+#[derive(Debug, Clone)]
 pub struct ParseOut {
     pub text: String,
     pub thought: String,

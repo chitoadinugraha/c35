@@ -1,0 +1,26 @@
+---
+description: Standard "Powered by alienai.id" attribution (icon + label, link on screen only)
+globs: clients/app/lib/widgets/sites/**,clients/app/lib/guest_site/**,servers/crates/mod_site/**
+alwaysApply: false
+---
+
+# Powered by alienai.id branding
+
+Mirrored for Antigravity: [`.agents/rules/powered-by-alienai-branding.md`](../../.agents/rules/powered-by-alienai-branding.md)
+
+## Copy and icon
+
+- **Never** use plain "Powered by AlienAI", "Alien AI", or "alien ai" in product attribution.
+- **Always:** `Powered by` + **black alien icon** (`assets/icons/alien_receipt.svg`) + **`alienai.id`** (lowercase, no spaces).
+- Flutter: reuse [`UiPoweredByAlien`](../../clients/app/lib/widgets/sites/ui_powered_by_alien.dart) (`brandLabel`, `alienReceiptIconAsset`).
+- PDF / ESC-POS: [`ReceiptBranding`](../../clients/app/lib/widgets/sites/tx/receipt/parts/receipt_branding.dart) + rasterized receipt icon.
+- Server HTML: [`html_powered_by_alienai_footer`](../../servers/crates/mod_site/src/render.rs) (inline receipt SVG).
+
+## Links
+
+- **Screen HTML / Flutter:** only **`alienai.id`** is tappable → `https://alienai.id` (not the icon, not the whole row unless using the shared widget as-is).
+- **Print / thermal / PDF / static images:** no URLs or hyperlinks — icon + `alienai.id` text only.
+
+## Layout
+
+Single horizontal row, centered when in a footer: muted "Powered by", 14px icon, bold `alienai.id`.

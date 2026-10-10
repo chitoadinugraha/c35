@@ -7,6 +7,7 @@ members = [
     "crates/wire_ws",
     "crates/wire_http",
     "crates/system/ctx",
+    "crates/system/time_range",
     "crates/system/fcm",
     "crates/system/nats",
     "crates/system/trace",

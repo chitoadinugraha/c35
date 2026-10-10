@@ -33,7 +33,7 @@ fn gemini_http() -> &'static Client {
     static CLIENT: OnceLock<Client> = OnceLock::new();
     CLIENT.get_or_init(|| {
         Client::builder()
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_secs(180))
             .build()
             .unwrap_or_else(|_| Client::new())
     })
@@ -199,10 +199,15 @@ pub async fn gemini_generate_stream(
     let mut acc_content = json!(null);
     let mut acc_text = String::new();
     let mut acc_thought = String::new();
-    while let Some(chunk) = stream.next().await {
+    loop {
         if cancel.is_cancelled() {
             anyhow::bail!("aborted");
         }
+        let chunk_opt = match tokio::time::timeout(Duration::from_secs(45), stream.next()).await {
+            Ok(c) => c,
+            Err(_) => anyhow::bail!("gemini stream timed out waiting for chunks"),
+        };
+        let Some(chunk) = chunk_opt else { break };
         buf.push_str(&String::from_utf8_lossy(&chunk?));
         while let Some(block) = gemini_sse_take_block(&mut buf) {
             for line in block.lines() {

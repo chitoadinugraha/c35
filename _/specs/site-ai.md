@@ -206,7 +206,7 @@ Grant: for each `site_iid`, same check as `site_grant_check` (owner or staff gra
 
 Port SQL ideas from id.alienai `tx.acc_profit_loss` / CSA `mod_site_tx` reports — implement as defs, not LLM SQL.
 
-`params.range` is `today`, `this_week`, or `this_month`. When `time_from_ms` is unset, that value is a UTC calendar window.
+Time filters use the shared **DATE RANGE** wire — see [`_/specs/time-range.md`](time-range.md). `params.range` tokens include `today`, `yesterday`, `this_week`, `last_week`, `this_month`, `last_month`, `mtd`, `ytd`, or explicit `date_*` / `time_*_ms` with optional `tz`.
 
 ### Stock reports
 

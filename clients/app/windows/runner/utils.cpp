@@ -2,10 +2,12 @@
 
 #include <flutter_windows.h>
 #include <io.h>
+#include <shobjidl.h>
 #include <stdio.h>
 #include <windows.h>
 
 #include <iostream>
+#include <string>
 
 void CreateAndAttachConsole() {
   if (::AllocConsole()) {
@@ -66,4 +68,60 @@ std::string Utf8FromUtf16(const wchar_t* utf16_string) {
     return std::string();
   }
   return utf8_string;
+}
+
+namespace {
+
+constexpr wchar_t kMainAppUserModelId[] = L"id.alienai.main";
+constexpr char kPosSchemePrefix[] = "id.alienai://pos/";
+
+bool IsDigitsOnly(const std::string& s) {
+  if (s.empty()) {
+    return false;
+  }
+  for (char c : s) {
+    if (c < '0' || c > '9') {
+      return false;
+    }
+  }
+  return true;
+}
+
+std::wstring PosSiteIidFromCommandLine() {
+  int argc = 0;
+  wchar_t** argv = ::CommandLineToArgvW(::GetCommandLineW(), &argc);
+  if (argv == nullptr) {
+    return std::wstring();
+  }
+
+  std::wstring site_id;
+  for (int i = 1; i < argc; i++) {
+    const std::string arg = Utf8FromUtf16(argv[i]);
+    if (arg.rfind(kPosSchemePrefix, 0) != 0) {
+      continue;
+    }
+    const std::string id = arg.substr(sizeof(kPosSchemePrefix) - 1);
+    if (!IsDigitsOnly(id)) {
+      continue;
+    }
+    for (char c : id) {
+      site_id.push_back(static_cast<wchar_t>(c));
+    }
+    break;
+  }
+
+  ::LocalFree(argv);
+  return site_id;
+}
+
+}  // namespace
+
+void ConfigureWindowsTaskbarAppUserModelId() {
+  const std::wstring pos_site_id = PosSiteIidFromCommandLine();
+  if (!pos_site_id.empty()) {
+    const std::wstring id = L"id.alienai.pos." + pos_site_id;
+    ::SetCurrentProcessExplicitAppUserModelID(id.c_str());
+  } else {
+    ::SetCurrentProcessExplicitAppUserModelID(kMainAppUserModelId);
+  }
 }

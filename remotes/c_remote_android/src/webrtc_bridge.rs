@@ -31,6 +31,14 @@ pub fn update_frame_buffer(width: u32, height: u32, rgba: Vec<u8>) {
     }
 }
 
+pub fn latest_frame_size() -> (u32, u32) {
+    LATEST_FRAME
+        .read()
+        .ok()
+        .and_then(|f| f.as_ref().map(|b| (b.width, b.height)))
+        .unwrap_or((1080, 1920))
+}
+
 pub fn update_som_marks(marks: Vec<Mark>) {
     if let Ok(mut lock) = LATEST_MARKS.write() {
         *lock = marks;
@@ -58,6 +66,7 @@ pub async fn push_h264_sample(nal_data: &[u8], duration_ms: u32) -> anyhow::Resu
 pub fn init_webrtc_handlers() {
     // 1. Input Handler: receives RemoteInputEvent from WebRTC data channel "remote-input"
     c_remote_core::webrtc::set_input_handler(Arc::new(|evt| {
+        crate::skill_teach_android::observe_remote_input(evt);
         if let Some(cb) = INPUT_CB.get() {
             let evt_type = evt.event_type.clone();
             let x = evt.x;

@@ -72,4 +72,12 @@ Here are the points:
   test('speechTextCap keeps two sentences', () {
     expect(speechTextCap('One. Two. Three.', maxSentences: 2), 'One. Two.');
   });
+
+  test('speechPullFirstSentence extracts first complete sentence early', () {
+    const raw = 'Hello world, this is a fast opening sentence. Here is the second sentence that will be buffered later.';
+    final res = speechPullFirstSentence(raw);
+    expect(res, isNotNull);
+    expect(res!.clip, 'Hello world, this is a fast opening sentence.');
+    expect(res.rest.trim(), 'Here is the second sentence that will be buffered later.');
+  });
 }

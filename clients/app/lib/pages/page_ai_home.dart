@@ -171,6 +171,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   String? _selectedPlain;
   String? _uiLang;
   Timer? _promptWatchdog;
+  Timer? _promptHardWatchdog;
   ChatConnStatus? _connStatusLast;
   VoidCallback? _connStatusListener;
   var _talkRecording = false;
@@ -203,8 +204,26 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       if (push.parentReqId.isNotEmpty) return;
       final cid = _store.activeChatId;
       if (cid == null) return;
+      final rid = push.reqId.trim();
       if (push.status == 'queued' && !_store.promptBusyFor(cid)) {
-        unawaited(_attachQueuedPromptRun(push.reqId, cid));
+        unawaited(_attachQueuedPromptRun(rid, cid));
+        return;
+      }
+      if (rid.isEmpty || !_store.promptBusyFor(cid)) return;
+      if (_store.pendingPromptReqId != rid) return;
+      final terminal = push.status == 'done' || push.status == 'failed' || push.status == 'cancelled';
+      if (terminal) {
+        unawaited(() async {
+          await _reconcilePromptState();
+          if (!mounted) return;
+          if (!_store.promptBusyFor(cid) || _store.pendingPromptReqId != rid) return;
+          final reason = push.failReason.trim().isNotEmpty
+              ? push.failReason.trim()
+              : (push.status == 'cancelled' ? 'Prompt cancelled' : 'Prompt ended without a reply');
+          _store.msgStreamFail(msgErrorNormalize(reason), chatId: cid, reqId: rid);
+          _store.promptBusyPut(false, chatId: cid);
+          if (mounted) setState(() {});
+        }());
       }
     });
     NotifyRouter.appResumed = true;
@@ -585,19 +604,29 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void _promptWatchdogCancel() {
     _promptWatchdog?.cancel();
     _promptWatchdog = null;
+    _promptHardWatchdog?.cancel();
+    _promptHardWatchdog = null;
   }
 
   void _promptWatchdogStart(String reqId) {
     _promptWatchdogCancel();
-    _promptWatchdog = Timer(const Duration(minutes: 2), () => unawaited(_promptWatchdogFire(reqId)));
+    // Inactivity silence watchdog: resets whenever streaming activity arrives.
+    _promptWatchdog = Timer(const Duration(seconds: 45), () => unawaited(_promptWatchdogFire(reqId, reason: 'Timed out waiting for response (inactivity)')));
+    // Hard ceiling watchdog: no single turn should hang beyond 5 minutes regardless of trickle.
+    _promptHardWatchdog = Timer(const Duration(minutes: 5), () => unawaited(_promptWatchdogFire(reqId, reason: 'Turn exceeded maximum execution duration (5m)')));
   }
 
-  Future<void> _reconcilePromptState() async {
+  void _promptWatchdogReset(String reqId) {
+    _promptWatchdog?.cancel();
+    _promptWatchdog = Timer(const Duration(seconds: 45), () => unawaited(_promptWatchdogFire(reqId, reason: 'Timed out waiting for response (inactivity)')));
+  }
+
+  Future<void> _reconcilePromptState({bool force = true}) async {
     final cid = _store.activeChatId;
     if (cid == null || cid <= 0) return;
     final locale = CatalogTranslationCache.instance.lang;
     try {
-      await _store.msgsPullFromServer(_conn, cid, locale: locale);
+      await _store.msgsPullFromServer(_conn, cid, locale: locale, force: force);
       if (_store.promptBusyFor(cid)) await _store.feedbackPull(_conn, cid, locale: locale);
     } catch (e) {
       lError('prompt reconcile: $e');
@@ -610,7 +639,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (chatId <= 0) return false;
     final locale = CatalogTranslationCache.instance.lang;
     try {
-      await _store.msgsPullFromServer(_conn, chatId, locale: locale);
+      await _store.msgsPullFromServer(_conn, chatId, locale: locale, force: true);
       if (_store.promptBusyFor(chatId)) await _store.feedbackPull(_conn, chatId, locale: locale);
       final rid = reqId.trim();
       _store.promptReconcileFromServerMsgs(chatId, _store.msgs.where((m) => m.chatId == chatId));
@@ -625,13 +654,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     return false;
   }
 
-  Future<void> _promptWatchdogFire(String reqId) async {
+  Future<void> _promptWatchdogFire(String reqId, {String reason = 'Timed out waiting for reply'}) async {
     final cid = _store.promptChatId ?? _store.activeChatId;
     if (cid == null || !_store.promptBusyFor(cid) || _store.pendingPromptReqId != reqId) return;
-    l('prompt watchdog: reqId=$reqId chatId=$cid');
-    if (cid > 0) await _reconcilePromptState();
+    l('prompt watchdog: reqId=$reqId chatId=$cid reason=$reason');
+    if (cid > 0) await _reconcilePromptState(force: true);
     if (!_store.promptBusyFor(cid)) return;
-    _store.msgStreamFail('Timed out waiting for reply', chatId: cid);
+    _store.msgStreamFail(reason, chatId: cid);
     try {
       await _conn.promptAbort(chatId: cid > 0 ? Int64(cid) : Int64.ZERO, reqId: reqId);
     } catch (_) {}
@@ -1031,7 +1060,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _openBots() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageBots(chatConn: _conn, shellStore: _store)));
 
-  void _openDevices() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageDevices(chatConn: _conn)));
+  void _openDevices() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageDevices(chatConn: _conn, shellStore: _store)));
 
   void _openSites() => uiSitesPickerOpen(
         context: context,
@@ -1323,7 +1352,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final promptStartedAtMs = _store.promptStartedAtMs;
     if (VoicePrefs.instance.talkEnabled && VoicePrefs.instance.talkSpeakEnabled) {
       _talkTtsQueue?.cancel();
-      _talkTtsQueue = TtsStreamQueue();
+      _talkTtsQueue = TtsStreamQueue(
+        onComplete: () {
+          if (!mounted) return;
+          if (VoicePrefs.instance.talkEnabled &&
+              VoicePrefs.instance.talkAutoListen &&
+              !_talkRecording &&
+              !_store.promptBusyFor(_store.activeChatId)) {
+            unawaited(_talkMicStart());
+          }
+        },
+      );
     }
     try {
       await for (final ev in promptStream) {
@@ -1352,6 +1391,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           continue;
         }
         if (ev.kind == 'delta') {
+          _promptWatchdogReset(reqId);
           final rid = (_conn.lastPromptReqId ?? reqId).trim();
           if (ev.thought) {
             _store.msgStreamThought(ev.text, chatId: streamChatId, reqId: rid);
@@ -2085,7 +2125,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);
       final showTraceChips = m.reqId.isNotEmpty && (!inThoughtPhase || msgThoughtStripPlaceholders(m.thought.trim()).isNotEmpty);
       final blocks = ChatBlock.decodeList(m.blocksJson);
-      final hasAnswerBody = content.trim().isNotEmpty || m.thought.trim().isNotEmpty || blocks.isNotEmpty;
+      final hasAnswerBody = content.trim().isNotEmpty || blocks.isNotEmpty;
       final showFatalError = hasError && !hasAnswerBody && !uiIsRecoverableDeviceContextError(err);
       final locale = CatalogTranslationCache.instance.lang;
       final showRetry = hasError && !_store.promptBusyFor(m.chatId) && i == lastAssistantIdx;

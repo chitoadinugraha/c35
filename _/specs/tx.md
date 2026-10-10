@@ -157,7 +157,8 @@ Staff POS operates on two distinct surfaces:
   - Single unified layout (`catalog | cart`) with no `TabBar` distraction.
   - Inline cart payment drawer (`SectionTxCartPay`) displaying payment lines, "+ Terima pembayaran", "Uang pas", change calculation, and "Bayar".
   - Product thumbnails with fallback category icons.
-  - Compact customer selector directly in the cart header.
+  - Compact customer selector directly in the cart header, with a `#` tag button on its right.
+  - The tag button opens a searchable multi-select dialog. A query with no match can create a tag (same add-new row as the customer picker). Selected tags apply to the open sale only. Tags created during the session stay in the picker for later sales. They are not stored on `site.tx` yet.
   - Accounting (`Acc`) and Inventory movement (`Stock`) tabs are hidden at the register.
 * **Orders Backoffice Editor (`posEntry: false`)**: Accessed via Sites → Orders tab (`UITable` / row click).
   - Staff sees **Items** and **Payments** tabs (2 tabs).
@@ -176,6 +177,7 @@ The POS is fully resilient to offline network conditions:
 * **State Clearance**:
   - `items`: Cleared to empty list `[]`.
   - `customer`: Reset (`subjectContactId = 0`, `subjectName = ''`).
+  - `tags`: Selected tags on the open sale reset (`clearTxTags`). Tags already created stay in the picker.
   - `payments` & `discounts`: Reset to empty lists `[]`.
   - The POS register remains open and immediately ready for the next customer without navigating away.
 * **Parked Orders (Hold / Recall)**: In-progress carts can be parked (`TxParkedOrders.instance.add`) with a note/table label and recalled anytime. Recalling replaces or swaps the current cart with confirmation.

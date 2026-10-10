@@ -183,6 +183,25 @@ String _speechJoinParts(List<String> parts) {
   return (ready: ready, rest: rest);
 }
 
+/// First complete sentence of a streaming buffer, for a fast first audio clip.
+/// Returns null until a sentence of at least [minChars] ends, and never splits
+/// list-like text (any newline before the boundary keeps it for [speechPullChunks]).
+({String clip, String rest})? speechPullFirstSentence(String buffer, {int minChars = 24}) {
+  final re = RegExp(r'[.?!](?:\s+)');
+  for (final m in re.allMatches(buffer)) {
+    if (m.start == 0) continue;
+    final unit = buffer.codeUnitAt(m.start - 1);
+    if (unit >= 48 && unit <= 57) continue;
+    final head = buffer.substring(0, m.end);
+    if (head.contains('\n')) return null;
+    if (head.trim().length < minChars) continue;
+    final clip = speechTextClean(head);
+    if (clip.isEmpty) return null;
+    return (clip: clip, rest: buffer.substring(m.end));
+  }
+  return null;
+}
+
 int _speechLastSentenceEnd(String window) {
   final re = RegExp(r'[.?!](?:\s+|$)');
   var best = -1;

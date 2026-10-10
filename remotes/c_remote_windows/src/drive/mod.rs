@@ -5,12 +5,9 @@ use tracing::{info, warn};
 
 static MOUNTED: AtomicBool = AtomicBool::new(false);
 
-pub async fn drive_start_on_agent_ready() {
+pub fn drive_start_on_agent_ready() {
     c_remote_drive::ws_drive::register_ws_drive_sync_handler();
     c_remote_core::agent_ui::drive_enabled_set(drive_enabled_load());
-    if drive_enabled_load() && session_key_load().is_some() {
-        let _ = drive_mount().await;
-    }
 }
 
 pub async fn drive_apply(enabled: bool) -> anyhow::Result<()> {

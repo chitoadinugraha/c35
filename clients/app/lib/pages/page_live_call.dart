@@ -110,6 +110,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
 
   void _onSessionReadyChanged() {
     if (_session.ready.value) {
+      _redials = 0;
       _connectedAt = DateTime.now();
       _callElapsedSeconds = 0;
       _callDurationTimer?.cancel();
@@ -197,9 +198,23 @@ class _PageLiveCallState extends State<PageLiveCall> {
     }
   }
 
+  var _redials = 0;
+
   void _onSessionError() {
     if (!mounted) return;
-    setState(() => _error = _session.error.value != null ? uiFriendlyError(_session.error.value!) : null);
+    final err = _session.error.value;
+    if (err == LiveCallSession.disconnectedError && _redials < 2 && !_busy) {
+      _redials++;
+      setState(() => _error = 'Reconnecting...');
+      Future.delayed(Duration(seconds: _redials), () {
+        if (mounted && !_session.connected.value && !_busy) {
+          _session.error.value = null;
+          unawaited(_connect());
+        }
+      });
+      return;
+    }
+    setState(() => _error = err != null ? uiFriendlyError(err) : null);
   }
 
   Future<void> _hangup() async {

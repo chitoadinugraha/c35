@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
-use chrono::{Datelike, DateTime, Duration, NaiveDate, TimeZone, Utc};
+use anyhow::Result;
+use chrono::{DateTime, Utc};
 use serde_json::Value;
 
-use crate::ts::ts_from_ms;
+use c35_time_range::{date_range_from_params_at, named_range_at as shared_named_range_at};
 
 pub fn query_param_i64(params: &Value, key: &str, default: i64) -> i64 {
     params
@@ -59,65 +59,22 @@ pub fn query_param_str_vec(params: &Value, key: &str) -> Vec<String> {
     Vec::new()
 }
 
-
-pub fn query_time_range(params: &Value) -> Result<(Option<DateTime<Utc>>, Option<DateTime<Utc>>)> {
-    let from_ms = query_param_i64(params, "time_from_ms", 0);
-    let to_ms = query_param_i64(params, "time_to_ms", 0);
-    if from_ms > 0 || to_ms > 0 {
-        if from_ms > 0 && to_ms > 0 && from_ms > to_ms {
-            bail!("time_from_ms must be <= time_to_ms");
-        }
-        return Ok((ts_from_ms(from_ms), ts_from_ms(to_ms)));
-    }
-    let range = query_param_str(params, "range", "").to_ascii_lowercase();
-    Ok(match named_utc_range_at(&range, Utc::now()) {
-        Some((from, to)) => (Some(from), Some(to)),
-        None => (None, None),
-    })
+fn default_tz_from_params(params: &Value) -> &str {
+    let tz = query_param_str(params, "tz", "");
+    if tz.is_empty() { "UTC" } else { tz }
 }
 
-/// UTC calendar window for `today`, `yesterday`, `this_week`, `last_week`, `this_month`.
-/// Upper bound is the next boundary minus 1ms so SQL `time_ts <= $3` stays inclusive.
+pub fn query_time_range(params: &Value) -> Result<(Option<DateTime<Utc>>, Option<DateTime<Utc>>)> {
+    let resolved = date_range_from_params_at(params, Utc::now(), default_tz_from_params(params))?;
+    Ok((resolved.from, resolved.to))
+}
+
+/// Named window in UTC calendar (legacy). Prefer `named_range_at` with explicit tz via params.
 pub fn named_utc_range_at(
     range: &str,
     now: DateTime<Utc>,
 ) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
-    let today = now.date_naive();
-    let (start_date, next_boundary) = match range {
-        "today" => (today, today + Duration::days(1)),
-        "yesterday" => {
-            let y = today - Duration::days(1);
-            (y, y + Duration::days(1))
-        }
-        "this_week" => {
-            let monday = today - Duration::days(today.weekday().num_days_from_monday() as i64);
-            (monday, monday + Duration::days(7))
-        }
-        "last_week" => {
-            let monday_this =
-                today - Duration::days(today.weekday().num_days_from_monday() as i64);
-            let monday_last = monday_this - Duration::days(7);
-            (monday_last, monday_this)
-        }
-        "this_month" => {
-            let start = NaiveDate::from_ymd_opt(today.year(), today.month(), 1)?;
-            let next = if today.month() == 12 {
-                NaiveDate::from_ymd_opt(today.year() + 1, 1, 1)?
-            } else {
-                NaiveDate::from_ymd_opt(today.year(), today.month() + 1, 1)?
-            };
-            (start, next)
-        }
-        _ => return None,
-    };
-    let from = utc_midnight(start_date)?;
-    let to = utc_midnight(next_boundary)? - Duration::milliseconds(1);
-    Some((from, to))
-}
-
-fn utc_midnight(date: NaiveDate) -> Option<DateTime<Utc>> {
-    date.and_hms_opt(0, 0, 0)
-        .map(|naive| Utc.from_utc_datetime(&naive))
+    shared_named_range_at(range, now, "UTC")
 }
 
 #[cfg(test)]

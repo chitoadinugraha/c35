@@ -21,6 +21,32 @@ class AccessControlService : AccessibilityService() {
         var instance: AccessControlService? = null
             private set
         val isServiceRunning = AtomicBoolean(false)
+
+        @JvmStatic
+        fun teachTargetHintJson(): String {
+            val svc = instance ?: return JSONObject().apply {
+                put("window", "Android")
+                put("control", "")
+            }.toString()
+            val root = svc.rootInActiveWindow ?: return JSONObject().apply {
+                put("window", "Android")
+                put("control", "")
+            }.toString()
+            val pkg = root.packageName?.toString() ?: "Android"
+            val cls = root.className?.toString() ?: ""
+            val window = if (cls.isNotEmpty()) "$pkg/$cls" else pkg
+            val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                ?: root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+            val control = focused?.let { n ->
+                val t = n.text?.toString()?.trim() ?: n.contentDescription?.toString()?.trim() ?: ""
+                val kind = n.className?.toString()?.substringAfterLast('.') ?: "Node"
+                if (t.isNotEmpty()) "$kind '$t'" else kind
+            } ?: ""
+            return JSONObject().apply {
+                put("window", window)
+                put("control", control)
+            }.toString()
+        }
     }
 
     override fun onServiceConnected() {

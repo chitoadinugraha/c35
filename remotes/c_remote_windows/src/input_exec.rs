@@ -95,11 +95,24 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             send_mouse_event(mouse_up_flag(evt.button), 0);
         }
         "double_click" => {
+            static LAST_DOUBLE_CLICK_MS: std::sync::atomic::AtomicU64 =
+                std::sync::atomic::AtomicU64::new(0);
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            let last = LAST_DOUBLE_CLICK_MS.load(Ordering::Relaxed);
+            if now.saturating_sub(last) < 200 {
+                return;
+            }
+            LAST_DOUBLE_CLICK_MS.store(now, Ordering::Relaxed);
+
             unsafe {
                 let _ = SetCursorPos(px, py);
             }
             let btn_down = mouse_down_flag(evt.button);
             let btn_up = mouse_up_flag(evt.button);
+            send_mouse_event(btn_up, 0);
             send_mouse_event(btn_down, 0);
             send_mouse_event(btn_up, 0);
             std::thread::sleep(std::time::Duration::from_millis(50));

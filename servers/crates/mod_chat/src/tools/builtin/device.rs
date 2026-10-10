@@ -49,7 +49,7 @@ tool! {
     struct: ShellRunTool,
     name: "shell.run",
     aliases: ["device.command", "device_command", "device.shell.run", "shell_run", "run_command_on_device", "exec_device"],
-    description: "Run a shell or PowerShell command on a user's paired remote device (e.g. DESKTOP-…). Use for ping, scripts, bulk file work, and stdout/stderr. To open a GUI app (Chrome, Edge, Notepad), use a simple launch such as `chrome` or `Start-Process chrome` — the agent opens it directly like a double-click (no shell window). Use device.input only when the UI has no direct launch path.",
+    description: "Run a shell command on a paired remote device. On Windows this is PowerShell/cmd; on Android only allowlisted sh diagnostics (see tool description after device type is known). Use device.input for UI when possible.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     rag_phrases: ["ping", "shell", "powershell", "cmd", "terminal", "run command", "network latency"],
@@ -400,7 +400,7 @@ tool! {
     struct: DeviceFsListTool,
     name: "device.fs.list",
     aliases: ["device_fs_list", "list_device_directory"],
-    description: "List files and folders on a paired remote device. Use normal paths (e.g. C:\\Users, Desktop, Downloads). Empty path lists drive roots. For Recycle Bin use path recycle bin or Shell:RecycleBinFolder (not $RecycleBin$). Do not use shell.run to list the bin.",
+    description: "List files and folders on a paired remote device. Windows: drive letters and Desktop paths. Android: virtual roots app:, shared:, tree:{id}/... (not C:\\ or Recycle Bin).",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     readonly: true,
@@ -472,7 +472,7 @@ tool! {
     struct: DeviceFsReadTool,
     name: "device.fs.read",
     aliases: ["device_fs_read", "read_device_file"],
-    description: "Read bytes from a file on a paired remote device. Returns base64 data with mime hint; capped at 256KB per call — use offset for larger files.",
+    description: "Read bytes from a file on a paired remote device (Windows paths or Android virtual paths). Returns base64 data with mime hint; capped at 256KB per call — use offset for larger files.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     readonly: true,
@@ -545,6 +545,60 @@ tool! {
             }
             Err(e) => Ok(device_fail(format!("Failed to read file on device: {e}"))),
         }
+    }
+}
+
+const SHELL_RUN_DESC_WINDOWS: &str =
+    "Run PowerShell or cmd on a paired Windows PC. Use for ping, scripts, bulk file work, and stdout/stderr. To open a GUI app (Chrome, Edge, Notepad), use a simple launch such as `chrome` or `Start-Process chrome` — the agent opens it directly like a double-click (no shell window). Use device.input only when the UI has no direct launch path.";
+
+const SHELL_RUN_DESC_ANDROID: &str =
+    "Run an allowlisted `/system/bin/sh -c` command on a paired Android remote agent (not PowerShell). Only approved diagnostics are permitted (e.g. getprop, pm list packages, df, id, ls on paths the FS layer cannot reach). Arbitrary root, package install, or destructive commands are denied. Prefer device.fs.list / device.fs.read for files and device.input for UI taps, swipes, and text.";
+
+const DEVICE_FS_LIST_DESC_WINDOWS: &str =
+    "List files and folders on a paired Windows remote device. Use normal paths (e.g. C:\\Users, Desktop, Downloads). Empty path lists drive roots. For Recycle Bin use path recycle bin or Shell:RecycleBinFolder (not $RecycleBin$). Do not use shell.run to list the bin.";
+
+const DEVICE_FS_LIST_DESC_ANDROID: &str =
+    "List files and folders on a paired Android remote device. Paths are virtual UTF-8 roots — not Windows drive letters. Use empty path for entry roots; `app:` for agent-private storage; optional `shared:` when exposed; `tree:{id}/...` for SAF document-tree grants the user picked on the device. No Recycle Bin or Desktop-style paths.";
+
+const DEVICE_FS_READ_DESC_WINDOWS: &str =
+    "Read bytes from a file on a paired Windows remote device. Returns base64 data with mime hint; capped at 256KB per call — use offset for larger files.";
+
+const DEVICE_FS_READ_DESC_ANDROID: &str =
+    "Read bytes from a file on a paired Android remote device using the same virtual paths as device.fs.list (`app:`, `shared:`, `tree:{id}/...`). Returns base64 data with mime hint; capped at 256KB per call — use offset for larger files.";
+
+pub fn shell_run_description(windows: bool, android: bool) -> String {
+    match (windows, android) {
+        (true, true) => format!(
+            "{}\n\nOn Android agents in this turn: {}",
+            SHELL_RUN_DESC_WINDOWS,
+            SHELL_RUN_DESC_ANDROID
+        ),
+        (false, true) => SHELL_RUN_DESC_ANDROID.to_string(),
+        _ => SHELL_RUN_DESC_WINDOWS.to_string(),
+    }
+}
+
+pub fn device_fs_list_description(windows: bool, android: bool) -> String {
+    match (windows, android) {
+        (true, true) => format!(
+            "{}\n\nOn Android agents in this turn: {}",
+            DEVICE_FS_LIST_DESC_WINDOWS,
+            DEVICE_FS_LIST_DESC_ANDROID
+        ),
+        (false, true) => DEVICE_FS_LIST_DESC_ANDROID.to_string(),
+        _ => DEVICE_FS_LIST_DESC_WINDOWS.to_string(),
+    }
+}
+
+pub fn device_fs_read_description(windows: bool, android: bool) -> String {
+    match (windows, android) {
+        (true, true) => format!(
+            "{}\n\nOn Android agents in this turn: {}",
+            DEVICE_FS_READ_DESC_WINDOWS,
+            DEVICE_FS_READ_DESC_ANDROID
+        ),
+        (false, true) => DEVICE_FS_READ_DESC_ANDROID.to_string(),
+        _ => DEVICE_FS_READ_DESC_WINDOWS.to_string(),
     }
 }
 

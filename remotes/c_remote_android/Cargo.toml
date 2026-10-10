@@ -10,9 +10,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = { workspace = true }
+base64 = { workspace = true }
 blake3 = { workspace = true }
 bytes = "1"
 c_remote_core = { path = "../c_remote_core" }
+c_remote_drive = { path = "../c_remote_drive", default-features = false }
 futures-util = { workspace = true }
 jni = { version = "0.21", default-features = false }
 jpeg-encoder = "0.7"

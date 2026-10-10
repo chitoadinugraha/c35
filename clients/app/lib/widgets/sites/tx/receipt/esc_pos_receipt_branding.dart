@@ -1,8 +1,9 @@
 import 'package:alienai_c35/c/hardware/esc_pos_builder.dart';
 import 'package:alienai_c35/c/hardware/esc_pos_raster.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/parts/receipt_branding.dart';
+import 'package:alienai_c35/widgets/sites/ui_powered_by_alien.dart';
 
-/// Centered "Powered by" + Alien icon + "alien ai" on text-mode thermal receipts (matches PDF).
+/// Centered "Powered by" + Alien icon + "alienai.id" on text-mode thermal receipts (matches PDF).
 Future<void> escPosAppendPoweredFooter(EscPosBuilder builder, {int paperWidth = 32}) async {
   builder.feed(1);
   builder.textLine('Powered by', align: EscPosAlign.center);
@@ -17,5 +18,5 @@ Future<void> escPosAppendPoweredFooter(EscPosBuilder builder, {int paperWidth = 
       builder.feed(1);
     }
   }
-  builder.textLine('alien ai', align: EscPosAlign.center, bold: true);
+  builder.textLine(UiPoweredByAlien.brandLabel, align: EscPosAlign.center, bold: true);
 }

@@ -14,5 +14,6 @@ void main() {
   test('posShortcutLabel and file stem', () {
     expect(posShortcutLabel('Kopi'), 'Kopi - Alien AI POS');
     expect(posShortcutFileStem('Cafe/Demo'), 'Cafe_Demo - Alien AI POS');
+    expect(posShortcutLegacyFileStem('Gucicha'), 'Gucicha - POS');
   });
 }

@@ -4,6 +4,7 @@ param(
     [string]$DeviceSerial = '',
     [switch]$Physical,
     [switch]$NoLaunch,
+    [switch]$UninstallFirst,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$FlutterArgs
 )
@@ -31,6 +32,58 @@ function Invoke-Adb([string]$adb, [string[]]$AdbArgs, [string]$Serial = '') {
         throw ("adb failed: adb $($all -join ' ') -> $out")
     }
     return ($out | Out-String).Trim()
+}
+
+function Invoke-AdbAllowFail([string]$adb, [string[]]$AdbArgs, [string]$Serial = '') {
+    $all = @()
+    if ($Serial) { $all += '-s', $Serial }
+    $all += $AdbArgs
+    $lines = @(& $adb @all 2>&1 | ForEach-Object { "$_" })
+    $code = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+    return @{ ExitCode = $code; Output = ($lines -join [Environment]::NewLine) }
+}
+
+function Resolve-AndroidPackageId([string]$appDir) {
+    $gradle = Join-Path $appDir 'android\app\build.gradle.kts'
+    if (Test-Path -LiteralPath $gradle) {
+        $text = Get-Content -Raw -LiteralPath $gradle
+        if ($text -match 'applicationId\s*=\s*"([^"]+)"') { return $Matches[1] }
+    }
+    return 'id.alienai'
+}
+
+# Play Store / release builds use a different cert than debug; adb install then fails with UPDATE_INCOMPATIBLE.
+function Ensure-AndroidDebugInstall([string]$adb, [string]$serial, [string]$appDir, [string]$packageId) {
+    $paths = Invoke-AdbAllowFail $adb @('shell', 'pm', 'path', $packageId) $serial
+    if ($paths.Output -notmatch 'package:') { return }
+
+    $apk = Join-Path $appDir 'build\app\outputs\flutter-apk\app-debug.apk'
+    if (-not (Test-Path -LiteralPath $apk)) {
+        Write-Host "==> $packageId on device; building debug APK to verify signing before install"
+        Push-Location $appDir
+        try {
+            $buildCode = Invoke-NativeCli { flutter build apk --debug }
+            if ($buildCode -ne 0) { exit $buildCode }
+        } finally {
+            Pop-Location
+        }
+    }
+
+    Write-Host "==> checking whether debug APK can replace installed $packageId"
+    $attempt = Invoke-AdbAllowFail $adb @('install', '-r', $apk) $serial
+    $text = $attempt.Output
+    if ($text -match 'Success') {
+        Write-Host '    same signing key as installed app'
+        return
+    }
+    if ($text -match 'INSTALL_FAILED_UPDATE_INCOMPATIBLE|signatures do not match') {
+        Write-Host "==> uninstalling $packageId (installed cert != debug keystore)"
+        Invoke-Adb $adb @('uninstall', $packageId) $serial | Out-Null
+        return
+    }
+    if ($attempt.ExitCode -ne 0) {
+        Write-Warning ('adb install probe: ' + $text)
+    }
 }
 
 function Avd-List([string]$emulator) {
@@ -67,6 +120,27 @@ function Emulator-WaitBoot([string]$adb, [string]$serial, [int]$TimeoutSec = 180
         Start-Sleep -Seconds 2
     }
     throw "Emulator $serial did not finish boot within ${TimeoutSec}s."
+}
+
+# Flutter/Gradle write warnings to stderr; with $ErrorActionPreference Stop that becomes NativeCommandError.
+function Invoke-NativeCli {
+    param([Parameter(Mandatory)][scriptblock]$Command)
+    $prev = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $exitCode = 0
+    try {
+        & $Command 2>&1 | ForEach-Object {
+            if ($_ -is [System.Management.Automation.ErrorRecord]) {
+                Write-Host $_.ToString()
+            } else {
+                $_
+            }
+        }
+        if ($null -ne $LASTEXITCODE) { $exitCode = [int]$LASTEXITCODE }
+    } finally {
+        $ErrorActionPreference = $prev
+    }
+    return , $exitCode
 }
 
 $sdk = Resolve-AndroidSdkRoot
@@ -152,13 +226,28 @@ try {
     Write-Warning ('Dev server not reachable at ' + $serverUrl + '; start .\dev_server.ps1 in another terminal (or set C35_SERVER_URL).')
 }
 
+$packageId = Resolve-AndroidPackageId $appDir
+
+if ($UninstallFirst) {
+    Write-Host '==> flutter install --uninstall-only (-UninstallFirst)'
+    Push-Location $appDir
+    try {
+        $unCode = Invoke-NativeCli { flutter install -d $serial --debug --uninstall-only }
+        if ($unCode -ne 0) { exit $unCode }
+    } finally {
+        Pop-Location
+    }
+} else {
+    Ensure-AndroidDebugInstall $adb $serial $appDir $packageId
+}
+
 if (-not (Test-Path (Join-Path $appDir 'android\app\build.gradle.kts'))) {
     if (-not (Test-Path (Join-Path $appDir 'android'))) {
         Push-Location $appDir
         try {
             Write-Host '==> flutter create --platforms=android .'
-            flutter create --platforms=android .
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $createCode = Invoke-NativeCli { flutter create --platforms=android . }
+            if ($createCode -ne 0) { exit $createCode }
         } finally {
             Pop-Location
         }
@@ -173,8 +262,7 @@ try {
         '--dart-define', ('C35_SERVER=' + $serverUrl)
     )
     if ($FlutterArgs) { $runArgs += $FlutterArgs }
-    flutter @runArgs
-    $code = $LASTEXITCODE
+    $code = Invoke-NativeCli { flutter @runArgs }
     if ($code -eq 130 -or $code -eq -1073741510) { $code = 0 }
     exit $code
 } finally {

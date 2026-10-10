@@ -153,6 +153,16 @@ async fn process_prompt_job(
                 prompt_run_push_from_row(&row),
             )
             .await;
+            let _ = prompt_run_fanout_fail(
+                &nats,
+                row.owner_iid,
+                row.chat_id,
+                &req_id,
+                c35_proto::ResPromptFail {
+                    message: "max_deliver exceeded".into(),
+                },
+            )
+            .await;
             let _ = msg.ack().await;
             return Ok(());
         }
@@ -177,6 +187,16 @@ async fn process_prompt_job(
                     row.owner_iid,
                     row.chat_id,
                     prompt_run_push_from_row(&row),
+                )
+                .await;
+                let _ = prompt_run_fanout_fail(
+                    &nats,
+                    row.owner_iid,
+                    row.chat_id,
+                    &req_id,
+                    c35_proto::ResPromptFail {
+                        message: reason.into(),
+                    },
                 )
                 .await;
                 let _ = msg.ack().await;

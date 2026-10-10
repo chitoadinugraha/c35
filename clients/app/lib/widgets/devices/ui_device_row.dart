@@ -41,6 +41,7 @@ class UiDeviceRow extends StatelessWidget {
         'browser' => browserEngine.toLowerCase() == 'extension' ? 'Chrome Extension' : 'Remote browser',
         'android' => 'Android',
         'windows' => 'Windows',
+        'linux' => 'Linux',
         _ => type,
       };
 

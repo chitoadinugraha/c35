@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('chatTitleFromText sentence case', () {
     expect(chatTitleFromText('sekarang jam berapa?'), 'Sekarang jam berapa?');
-    expect(chatTitleFromText('SEKARANG HARI APA'), 'Sekarang hari apa');
+    expect(chatTitleFromText('SEKARANG HARI APA'), 'SEKARANG HARI APA');
     expect(chatTitleFromText('  '), 'Chat');
   });
 
@@ -32,7 +32,7 @@ void main() {
     ];
     expect(
       chatTitleDisplay('[@iid:98063412749627392] buka google chrome', mentions: mentions),
-      'Desktop-d8406df buka google chrome',
+      'DESKTOP-D8406DF buka google chrome',
     );
   });
 
@@ -95,7 +95,7 @@ void main() {
         previewLine: 'berapa untung $token hari ini?',
         mentions: mentions,
       ),
-      'Berapa untung gucicha hari ini?',
+      'Berapa untung Gucicha hari ini?',
     );
   });
 }

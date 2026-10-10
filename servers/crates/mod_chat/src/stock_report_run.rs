@@ -6,14 +6,11 @@ use c35_mod_data_source::{
     SOURCE_KIND_GOOGLE_SHEET,
 };
 use c35_mod_file::{cas_dir_default, cas_put};
-use c35_mod_site::{site_granted_iids, site_query_run, stock_report_from_query, StockReport};
+use c35_mod_site::StockReport;
 use serde_json::{json, Value};
 
-use crate::prompt::ChatRes;
-use crate::site_scope::site_scope_pick;
-use crate::stock_report::{stock_report_parse, StockReportFormat};
+use crate::stock_report_format::StockReportFormat;
 use crate::stock_report_render::{stock_report_blocks, stock_report_files};
-use crate::tools::TurnCtx;
 
 pub fn stock_report_llm_payload(report: &StockReport, files: &[Value]) -> Value {
     json!({
@@ -27,50 +24,7 @@ pub fn stock_report_llm_payload(report: &StockReport, files: &[Value]) -> Value 
     })
 }
 
-pub async fn stock_report_prefetch(ctx: &TurnCtx<'_>, user_text: &str) -> Result<Option<ChatRes>> {
-    let Some(intent) = stock_report_parse(user_text, chrono::Utc::now()) else {
-        return Ok(None);
-    };
-    let mentioned = ctx.mention.site_iids();
-    let granted = if mentioned.is_empty() {
-        site_granted_iids(ctx.pool, ctx.owner_iid).await.unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    let site_iids = match site_scope_pick(&mentioned, &granted, &[]) {
-        Ok(ids) if !ids.is_empty() => ids,
-        _ => {
-            return Ok(Some(plain_res("No site to report on.")));
-        }
-    };
-    if intent.query_id == "tx.stock_card" && intent.q.trim().is_empty() {
-        return Ok(Some(plain_res("Which product?")));
-    }
-    let params = json!({
-        "q": intent.q,
-        "time_from_ms": intent.time_from_ms,
-        "time_to_ms": intent.time_to_ms,
-    });
-    let res = site_query_run(
-        ctx.pool,
-        ctx.owner_iid,
-        site_iids,
-        intent.query_id,
-        &params.to_string(),
-    )
-    .await?;
-    if result_error(&res.result_json) .as_deref() == Some("product_required") {
-        return Ok(Some(plain_res("Which product?")));
-    }
-    let Some(report) = stock_report_from_query(intent.query_id, &res.rows, &res.result_json) else {
-        return Ok(None);
-    };
-    let built = materialize(ctx.pool, ctx.chat_id, &report, &intent.formats).await?;
-    Ok(Some(built.res))
-}
-
 pub struct StockReportBuilt {
-    pub res: ChatRes,
     pub llm: Value,
 }
 
@@ -84,12 +38,10 @@ pub async fn materialize(
     if !formats.contains(&StockReportFormat::Table) {
         formats.insert(0, StockReportFormat::Table);
     }
-    let mut gsheet_note = String::new();
     if formats.contains(&StockReportFormat::Gsheet) {
         match replace_linked_sheet(pool, chat_id, report).await {
             Ok(true) => {}
             Ok(false) | Err(_) => {
-                gsheet_note = "Google Sheet is not linked. The Excel file is attached.".into();
                 if !formats.contains(&StockReportFormat::Xlsx) {
                     formats.push(StockReportFormat::Xlsx);
                 }
@@ -111,17 +63,10 @@ pub async fn materialize(
     let llm = stock_report_llm_payload(report, &file_json);
     let mut llm_out = llm.clone();
     llm_out["blocks"] = json!(blocks);
-    Ok(StockReportBuilt {
-        res: ChatRes {
-            text: reply_text(report, &gsheet_note),
-            blocks_json: serde_json::to_string(&blocks).unwrap_or_else(|_| "[]".into()),
-            model_used: "stock_report".into(),
-            ..ChatRes::default()
-        },
-        llm: llm_out,
-    })
+    Ok(StockReportBuilt { llm: llm_out })
 }
 
+#[allow(dead_code)]
 fn reply_text(report: &StockReport, gsheet_note: &str) -> String {
     let mut s = format!(
         "{}. {} rows. In {}, out {}.",
@@ -135,25 +80,6 @@ fn reply_text(report: &StockReport, gsheet_note: &str) -> String {
         s.push_str(gsheet_note);
     }
     s
-}
-
-fn plain_res(text: &str) -> ChatRes {
-    ChatRes {
-        text: text.to_string(),
-        blocks_json: "[]".into(),
-        model_used: "stock_report".into(),
-        ..ChatRes::default()
-    }
-}
-
-fn result_error(result_json: &str) -> Option<String> {
-    let v: Value = serde_json::from_str(result_json).ok()?;
-    let err = v.get("error")?.as_str()?.trim();
-    if err.is_empty() {
-        None
-    } else {
-        Some(err.to_string())
-    }
 }
 
 fn cas_secret() -> String {

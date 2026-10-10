@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:alienai_c35/widgets/sites/ui_powered_by_alien.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -16,7 +17,7 @@ class ReceiptBranding {
   static Future<Uint8List?> loadAlienIcon() async {
     if (_alienIconCache != null) return _alienIconCache;
     try {
-      final svg = await rootBundle.loadString('assets/icons/alien_receipt.svg');
+      final svg = await rootBundle.loadString(UiPoweredByAlien.alienReceiptIconAsset);
       final png = await _rasterSvg(svg, 32);
       _alienIconCache = png;
       return png;
@@ -60,7 +61,10 @@ class ReceiptBranding {
                 _brandIcon(alienIcon),
                 pw.SizedBox(width: 3),
               ],
-              pw.Text('alien ai', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+              pw.Text(
+                UiPoweredByAlien.brandLabel,
+                style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700),
+              ),
             ],
           ),
         ],

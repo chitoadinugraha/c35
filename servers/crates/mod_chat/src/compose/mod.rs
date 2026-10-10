@@ -65,14 +65,25 @@ impl<'a> Default for ComposeTurnOpts<'a> {
 }
 
 /// First LLM hop must call web.search when web-search inst matched.
-pub fn compose_force_web_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+pub fn compose_force_web_tool_call(
+    matched_ids: &[String],
+    tools: &[ToolDef],
+    user_text: &str,
+) -> bool {
     if matched_ids.iter().any(|id| {
         id == "inst.mention.sheets"
             || id == "inst.sheets.topic"
             || id == "inst.device.facts"
+            || id == "inst.device.android"
             || id.starts_with("inst.mention.device_")
             || id == "inst.browser.topic"
     }) {
+        return false;
+    }
+    if crate::site_commerce_compose::site_commerce_suppress_web_tool_call(
+        user_text,
+        matched_ids,
+    ) {
         return false;
     }
     matched_ids.iter().any(|id| id == "inst.web_search")
@@ -185,12 +196,22 @@ pub fn compose_force_catalog_menu_tool_call(matched_ids: &[String], tools: &[Too
         && tools.iter().any(|t| t.name == "site.product_put")
 }
 
+pub use crate::site_commerce_compose::SITE_QUERY_FORCE_INSTS;
+
+pub fn compose_force_site_query_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids
+        .iter()
+        .any(|id| SITE_QUERY_FORCE_INSTS.iter().any(|want| want == id))
+        && tools.iter().any(|t| t.name == "site.query.run")
+}
+
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
-    compose_force_web_tool_call(matched_ids, tools)
+    compose_force_web_tool_call(matched_ids, tools, "")
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)
         || compose_force_catalog_menu_tool_call(matched_ids, tools)
+        || compose_force_site_query_tool_call(matched_ids, tools)
 }
 
 pub fn compose_force_tool_call_with_text(
@@ -198,7 +219,12 @@ pub fn compose_force_tool_call_with_text(
     tools: &[ToolDef],
     user_text: &str,
 ) -> bool {
-    compose_force_tool_call(matched_ids, tools)
+    compose_force_web_tool_call(matched_ids, tools, user_text)
+        || compose_force_presentation_tool_call(matched_ids, tools)
+        || compose_force_consumption_coach_tool_call(matched_ids, tools)
+        || compose_force_account_tool_call(matched_ids, tools)
+        || compose_force_catalog_menu_tool_call(matched_ids, tools)
+        || compose_force_site_query_tool_call(matched_ids, tools)
         || compose_force_site_builder_tool_call(matched_ids, tools, user_text)
 }
 
@@ -445,6 +471,21 @@ fn compose_prepare_scoped(
             force_include.push(t.to_string());
         }
     }
+    let has_site_context = !mention.sites.is_empty();
+    for t in crate::site_commerce_compose::site_commerce_extra_tool_include(
+        text,
+        &matched_ids,
+        has_site_context,
+    ) {
+        if !force_include.iter().any(|x| x == &t) {
+            force_include.push(t);
+        }
+    }
+    for t in crate::site_commerce_compose::site_commerce_extra_tool_exclude(text, &matched_ids) {
+        if !t.is_empty() && !tool_exclude.iter().any(|x| x == &t) {
+            tool_exclude.push(t);
+        }
+    }
     for t in skill_tools {
         if !t.is_empty() && !force_include.iter().any(|x| x == t) {
             force_include.push(t.clone());
@@ -460,7 +501,9 @@ fn compose_prepare_scoped(
         .filter(|t| tool_platform_mail_eligible(t, platform_mail))
         .filter(|t| !ask_mode || t.readonly)
         .collect();
-    compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
+    if !crate::site_commerce_compose::site_commerce_suppress_general_web(text, &matched_ids) {
+        compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
+    }
     if opts.bot_web_search && primary_topic == "bot" {
         compose_force_bot_web(&eligible_tools, &mut force_include);
     }

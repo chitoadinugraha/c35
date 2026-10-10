@@ -133,7 +133,8 @@ fn render_offline_html_is_branded_unpublished_page() {
     assert!(html.contains("Warung Bu Siti"));
     assert!(html.contains("#F97316"));
     assert!(html.contains("not published yet"));
-    assert!(html.contains("AlienAI"));
+    assert!(html.contains("alienai.id"));
+    assert!(html.contains("https://alienai.id"));
 }
 
 #[test]

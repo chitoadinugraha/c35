@@ -125,6 +125,20 @@ fn agent_storage_dir() -> PathBuf {
             return p;
         }
     }
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            let mut p = PathBuf::from(home);
+            p.push(".local");
+            p.push("share");
+            p.push("alienai");
+            if let Some(sub) = agent_storage_subdir() {
+                p.push(sub);
+            }
+            let _ = std::fs::create_dir_all(&p);
+            return p;
+        }
+    }
     let mut p = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     p.push(".alienai");
     if let Some(sub) = agent_storage_subdir() {
@@ -139,6 +153,17 @@ pub fn config_path() -> PathBuf {
     {
         if std::env::var("LOCALAPPDATA").is_ok() {
             let mut p = agent_storage_dir();
+            p.push("config.json");
+            return p;
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            let mut p = PathBuf::from(home);
+            p.push(".config");
+            p.push("alienai");
+            let _ = std::fs::create_dir_all(&p);
             p.push("config.json");
             return p;
         }

@@ -236,21 +236,10 @@ pub async fn channel_prompt_turn(
         force_web_tool_call: crate::compose::compose_force_web_tool_call(
             &composed.matched_ids,
             &composed.tools,
+            &prompt_text,
         ),
         catalog_web,
         skip_web_prefetch,
-        stock_report: composed
-            .matched_ids
-            .iter()
-            .any(|id| id == "inst.site.stock_report"),
-        tx_browse: composed
-            .matched_ids
-            .iter()
-            .any(|id| id == "inst.site.tx_browse"),
-        site_report: composed
-            .matched_ids
-            .iter()
-            .any(|id| id == "inst.site.report"),
     };
     let mut turn_ctx = TurnCtx {
         pool,

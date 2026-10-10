@@ -33,7 +33,7 @@ void main() {
     final site = groups.firstWhere((g) => g.label == 'Site');
     final ids = site.items.map((i) => i.id).toList();
     expect(ids.indexOf('posts'), ids.indexOf('links') + 1);
-    expect(_item(groups, 'posts').label, 'News');
+    expect(_item(groups, 'posts').label, 'Posts');
   });
 
   test('non-platform menu leaves design and effects enabled', () {

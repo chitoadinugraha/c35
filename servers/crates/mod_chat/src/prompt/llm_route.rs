@@ -154,12 +154,12 @@ pub async fn llm_stream_chain(
         anyhow::bail!("no catalog models available for {requested_model}");
     }
     let mut last_err = String::new();
-    for target in chain {
+    for target in &chain {
         if model_is_alien(requested_model) && !llm_stream_uses_gemini(&target.provider) {
             continue;
         }
         let attempt = if llm_stream_uses_gemini(&target.provider) {
-            gemini_generate_stream(
+            let res = gemini_generate_stream(
                 contents,
                 tools,
                 thinking,
@@ -170,8 +170,38 @@ pub async fn llm_stream_chain(
                 on_delta,
                 cancel,
             )
-            .await
-            .map(|out| (out, target.provider_model.clone()))
+            .await;
+            let res = if let Err(e) = &res {
+                if !cancel.is_cancelled() {
+                    let err_str = e.to_string();
+                    if err_str.contains("429")
+                        || err_str.contains("503")
+                        || err_str.contains("timed out")
+                        || err_str.contains("stream failed")
+                    {
+                        tokio::time::sleep(Duration::from_millis(1000)).await;
+                        gemini_generate_stream(
+                            contents,
+                            tools,
+                            thinking,
+                            &target.provider_model,
+                            requested_model,
+                            system,
+                            tool_call_mode,
+                            on_delta,
+                            cancel,
+                        )
+                        .await
+                    } else {
+                        res
+                    }
+                } else {
+                    res
+                }
+            } else {
+                res
+            };
+            res.map(|out| (out, target.provider_model.clone()))
         } else {
             let user = stream_contents_user(contents);
             cf_chat_generate(
@@ -207,7 +237,7 @@ pub async fn llm_stream_chain(
             }
             Err(e) => {
                 last_err = format!("{e:#}");
-                if model_is_alien(requested_model) {
+                if model_is_alien(requested_model) || chain.len() > 1 {
                     continue;
                 }
                 return Err(e);

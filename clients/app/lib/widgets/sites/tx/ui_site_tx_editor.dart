@@ -482,6 +482,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
       _tx = tx;
       _printReceipt = ThermalPrinterManager.instance.autoPrintReceipt;
     });
+    _posItemsKey.currentState?.clearTxTags();
   }
 
   Future<void> _holdOrder() async {

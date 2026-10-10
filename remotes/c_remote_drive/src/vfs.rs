@@ -5,7 +5,7 @@ use tracing::{info, warn};
 /// Visible seed folders from an older layout. We do **not** create them:
 /// a fresh A:\ is an empty user cloud disk (browser profile lives outside the mount).
 const SEED_VISIBLE: &[&str] = &["Downloads", "Reports", "Projects"];
-const DRIVE_ICO_BYTES: &[u8] = include_bytes!("../../c_remote_windows/resources/alien_rounded.ico");
+const DRIVE_ICO_BYTES: &[u8] = include_bytes!("../resources/alien_rounded.ico");
 
 pub struct VfsDriveManager {
     pub drive_letter: String,
@@ -25,11 +25,14 @@ impl VfsDriveManager {
     }
 
     pub fn is_sync_skipped(rel: &Path) -> bool {
-        Self::path_has_reserved_name(rel)
+        Self::path_has_reserved_name(rel) || rel == Path::new(".directory")
     }
 
     /// Paths that must never appear on A:\ or participate in cloud sync.
     pub fn is_internal_path(rel: &Path) -> bool {
+        if rel == Path::new(".directory") {
+            return false;
+        }
         Self::path_has_reserved_name(rel)
             || rel.components().any(|c| {
                 c.as_os_str().to_string_lossy().starts_with('.')

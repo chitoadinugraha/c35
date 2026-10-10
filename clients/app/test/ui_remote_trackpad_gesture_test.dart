@@ -57,4 +57,14 @@ void main() {
     );
     await tester.pump();
   });
+
+  test('RemoteSession handles transient disconnected state with grace period without immediate teardown', () async {
+    final conn = ChatConn();
+    final session = RemoteSession.of(conn, 1001);
+    expect(session.connected.value, isFalse);
+
+    // Prepare reconnect resets timers cleanly
+    session.prepareUserReconnect();
+    expect(session.connected.value, isFalse);
+  });
 }

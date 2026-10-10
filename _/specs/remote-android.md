@@ -142,3 +142,73 @@ Config: `ai.config` → `app.release.c35.remote-android` (`apkHash`, `apkSize`, 
 - **WakeLock**: Holds `PARTIAL_WAKE_LOCK` during active WebRTC or automation tasks.
 - **Doze Exemption**: Requests `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.
 - **Boot Autostart**: Listens for `android.intent.action.BOOT_COMPLETED` in a `BroadcastReceiver`.
+
+---
+
+## 8. Storage paths for `remote-fs` (Files tab)
+
+Human file browse on an Android agent uses the same WebRTC **`remote-fs`** channel and `RemoteFs*` protobuf frames as Windows ([`remote.md`](remote.md#files-tab--browse-copy-stream)). Paths on the wire are **opaque UTF-8** strings with `/` separators — never Windows `C:\` or drive letters.
+
+### Virtual root grammar
+
+| `RemoteFsList` / op `path` | Meaning |
+|----------------------------|---------|
+| `""` (empty) | **Root listing** — virtual entries below (not `A:`–`Z:`) |
+| `app:` | Agent app-private storage (`filesDir`, `cacheDir`, `externalFilesDir` where readable) |
+| `shared:` | Optional shared storage entry when the API exposes a stable root (product may omit if unavailable) |
+| `tree:{id}` | SAF **document-tree** grant persisted on the agent (`{id}` = stable id in agent storage) |
+| `tree:{id}/relative/...` | Path inside a granted tree (`DocumentFile` / JNI) |
+| `app:...` | Subpath under the `app:` root (same relative rules) |
+
+**Resolution rules (locked):**
+
+- Reject `..` and absolute POSIX paths on Android resolve (no escape above grant root).
+- **Mutations** (`mkdir`, `rename`, `delete`, write finalize) on bare `tree:{id}` **without** a persisted **write** grant are denied; list/read may still work for read-only trees.
+- Chunk size, session gate, and client upload model match [`ui.md`](ui.md#files-tab-remote) — platform differences are path shape and SAF grants only.
+
+### SAF grants (agent UI)
+
+The consumer app **does not** replace system folder pickers for tree access. On the **remote agent** (`id.alienai.remote`):
+
+1. **Add folder** (paired-state **Storage access** card) launches `ACTION_OPEN_DOCUMENT_TREE`.
+2. User selects a tree; agent calls `takePersistableUriPermission` and stores `{tree_id, display_name, document_uri}`.
+3. Files tab (any paired client) lists `tree:{id}` after connect; browsing uses `tree:{id}/...` paths.
+
+See implementation plan: [`plans/2026-10-09-android-remote-parity-multitask.md`](plans/2026-10-09-android-remote-parity-multitask.md) (W1).
+
+---
+
+## 9. `shell.run` (control plane)
+
+Task/skill **`shell.run`** uses the agent **control** session (`ReqRemoteCommand` over WebSocket / Alien Beacon) — **not** WebRTC. Same tool name on all platforms; executor differs:
+
+| Platform | Executor | Policy |
+|----------|----------|--------|
+| Windows | PowerShell (existing `c_remote_windows`) | Product rules in [`remote.md`](remote.md) |
+| Android | `/system/bin/sh -c` (or documented `cmd` subset) | **Allowlist only** — deny by default; stderr explains rejected commands |
+
+Android is **not** an arbitrary root shell. Approved categories (exact list ships with W2) include read-only diagnostics such as `pm list`, `getprop`, and `cmd notification` — expanded in agent code, not duplicated in chat inst bodies. Threat model: **owner-trusted / MDM-managed device**; session key possession implies shell allowlist scope.
+
+Windows-only concepts (`C:\`, Recycle Bin, PowerShell-only modules) must not be assumed on `type=android` devices.
+
+---
+
+## 10. Alien AI Drive
+
+**[Alien AI Drive](drive.md)** is the owner-scoped cloud volume. On Android it is **not** a drive letter and **not** on WebRTC **`remote-fs`**. The agent runs the same **HTTP/CAS sync** as desktop agents (shared `c_remote_drive`), keeps a **local backing cache** on device storage, and exposes files to the OS through **`AlienDriveDocumentsProvider`** (Android DocumentsProvider / Storage Access Framework).
+
+| Item | Detail |
+|------|--------|
+| Config | `drive_enabled` default **`true`** when paired (same key as Windows/Linux) |
+| Bytes | Upload, tree, changes, pull — **HTTP** device session + signed `/fs/{hash}` |
+| Wake | NATS `c35.user.{owner_iid}.drive-sync` nudge on agent WS — **no bytes on NATS** |
+| User UX | Open **Files** / document pickers → **Alien AI** provider entry (not Files tab) |
+| **Forbidden** | Listing or reading drive paths via `remote-fs` (§8) |
+
+| Need on Android | Use |
+|-----------------|-----|
+| Browse/edit files on the **phone** (device storage) | Files tab → `remote-fs` virtual paths (§8) |
+| Owner **cloud** files on the phone | System document UI via **DocumentsProvider** + synced cache |
+| Cloud files on desktop | Windows **A:** or Linux **`~/Alien AI`** mount |
+
+Cross-platform summary: [`remote.md`](remote.md#cross-platform-drive-vs-device-files). Linux agent: [`remote-linux.md`](remote-linux.md).

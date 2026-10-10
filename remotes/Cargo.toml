@@ -4,6 +4,7 @@ members = [
     "c_remote_core",
     "c_remote_drive",
     "c_remote_windows",
+    "c_remote_linux",
     "c_remote_browser",
     "c_remote_android",
 ]

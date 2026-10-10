@@ -977,8 +977,8 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> msgsPullFromServer(ChatConn conn, int chatId, {String locale = ''}) async {
-    if (chatId <= 0 || promptBusyFor(chatId)) return;
+  Future<void> msgsPullFromServer(ChatConn conn, int chatId, {String locale = '', bool force = false}) async {
+    if (chatId <= 0 || (!force && promptBusyFor(chatId))) return;
     try {
       final res = await conn.chatMsgList(chatId: Int64(chatId));
       msgsReloadFromServer(chatId, res.messages);
@@ -1329,11 +1329,16 @@ class ChatStore extends ChangeNotifier {
   }
 
   void msgStreamFail(String error, {int? chatId, int startedAtMs = 0, String reqId = ''}) {
-    final text = error.trim();
-    if (text.isEmpty) return;
-    if (uiIsRecoverableDeviceContextError(text)) return;
+    var text = error.trim();
+    if (text.isEmpty) text = 'Prompt failed without an error message';
     final cid = chatId ?? promptChatId;
     if (cid == null) return;
+    if (uiIsRecoverableDeviceContextError(text)) {
+      _promptClear();
+      _flushDirtyMsgs();
+      _touchMsgs(cid);
+      return;
+    }
     final rid = reqId.isNotEmpty ? reqId : (promptLiveReqId ?? pendingPromptReqId ?? '');
     var i = _assistantIdx(cid, reqId: rid);
     if (i == null && rid.isNotEmpty) i = _assistantIdx(cid);
@@ -1357,14 +1362,16 @@ class ChatStore extends ChangeNotifier {
   void msgStreamFinalize({int? chatId, String model = '', int startedAtMs = 0}) {
     final cid = chatId ?? promptChatId;
     if (cid == null) return;
-    _chatStatusPut(cid, status: 'done', unread: cid != activeChatId);
     final i = msgs.lastIndexWhere((m) => m.chatId == cid && m.role == 'assistant');
     if (i < 0) {
+      _chatStatusPut(cid, status: 'done', unread: cid != activeChatId);
       _promptClear();
       _flushDirtyMsgs();
       return;
     }
     final m = msgs[i];
+    final hasErr = m.error.trim().isNotEmpty;
+    _chatStatusPut(cid, status: hasErr ? 'error' : 'done', unread: cid != activeChatId);
     final started = startedAtMs > 0 ? startedAtMs : promptStartedAtMs;
     final duration = m.durationMs > 0 ? m.durationMs : (started > 0 ? DateTime.now().millisecondsSinceEpoch - started : 0);
     msgs[i] = m.copyWith(
@@ -1661,6 +1668,19 @@ class ChatStore extends ChangeNotifier {
     navCounts = NavCounts(
       bots: bots,
       devices: navCounts.devices,
+      sites: navCounts.sites,
+      mailInboxUnread: navCounts.mailInboxUnread,
+      mailMenuVisible: navCounts.mailMenuVisible,
+    );
+    notifyListeners();
+    await _navCountsPersistShell();
+  }
+
+  Future<void> navCountsDevicesPut(int devices) async {
+    if (navCounts.devices == devices) return;
+    navCounts = NavCounts(
+      bots: navCounts.bots,
+      devices: devices,
       sites: navCounts.sites,
       mailInboxUnread: navCounts.mailInboxUnread,
       mailMenuVisible: navCounts.mailMenuVisible,

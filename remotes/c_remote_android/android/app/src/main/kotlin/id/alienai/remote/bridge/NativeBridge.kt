@@ -77,4 +77,10 @@ object NativeBridge {
     external fun nativeIsPaired(): Boolean
 
     external fun nativeUnpair()
+
+    external fun nativeGetDriveCacheDir(): String
+
+    external fun nativeIsDriveEnabled(): Boolean
+
+    external fun nativeSetDriveEnabled(enabled: Boolean)
 }

@@ -1,12 +1,14 @@
 //! Parse profit / sales summary questions (not transaction lists or period compare).
 
+use c35_mod_chat::mention_bracket_fixup_nesting;
+
 pub struct SiteReportIntent {
     pub query_id: &'static str,
     pub range: String,
 }
 
 pub fn site_report_parse(text: &str) -> Option<SiteReportIntent> {
-    let lower = text.trim().to_lowercase();
+    let lower = mention_bracket_fixup_nesting(text).trim().to_lowercase();
     if lower.is_empty() {
         return None;
     }
@@ -17,12 +19,15 @@ pub fn site_report_parse(text: &str) -> Option<SiteReportIntent> {
     {
         return None;
     }
+    let tx_count_or_total = lower.contains("berapa transaksi")
+        || lower.contains("total transaksi")
+        || lower.contains("jumlah transaksi");
     if lower.contains("daftar transaksi")
         || lower.contains("apa saja transaksi")
         || lower.contains("list transaksi")
         || lower.contains("transaksi terakhir")
         || lower.contains("nota terakhir")
-        || (lower.contains("transaksi") && !lower.contains("berapa transaksi"))
+        || (lower.contains("transaksi") && !tx_count_or_total)
     {
         return None;
     }
@@ -42,7 +47,7 @@ pub fn site_report_parse(text: &str) -> Option<SiteReportIntent> {
         || lower.contains("penjualan")
         || lower.contains("pendapatan")
         || lower.contains("revenue")
-        || lower.contains("berapa transaksi");
+        || tx_count_or_total;
     if !profit && !sales {
         return None;
     }
@@ -78,9 +83,23 @@ mod tests {
     }
 
     #[test]
+    fn parses_untung_with_mention_brackets() {
+        let i = site_report_parse("Berapa untung[@[@iid:101836119014211584]] hari ini?").unwrap();
+        assert_eq!(i.query_id, "tx.profit_summary");
+        assert_eq!(i.range, "today");
+    }
+
+    #[test]
     fn parses_omzet() {
         let i = site_report_parse("berapa omzet hari ini").unwrap();
         assert_eq!(i.query_id, "tx.sales_summary");
+    }
+
+    #[test]
+    fn parses_total_transaksi_hari_ini() {
+        let i = site_report_parse("Berapa total transaksi [@[@iid:101836119014211584]] hari ini ?").unwrap();
+        assert_eq!(i.query_id, "tx.sales_summary");
+        assert_eq!(i.range, "today");
     }
 
     #[test]

@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/parts/windows_taskbar.dart';
 import 'package:alienai_c35/c/site/pos_link.dart';
 import 'package:alienai_c35/pages/page_site_pos.dart';
 import 'package:flutter/material.dart';
@@ -43,6 +45,10 @@ class _UiPosLinkHostState extends State<UiPosLinkHost> {
 
   Future<void> _go(String siteIid) async {
     try {
+      if (!mounted) return;
+      if (Platform.isWindows && windowsLaunchedForPosShortcut()) {
+        await windowsTaskbarApplyPosIcon(sitePic: '');
+      }
       if (!mounted) return;
       await sitePosOpen(context: context, chatConn: widget.chatConn, siteIid: siteIid);
     } finally {

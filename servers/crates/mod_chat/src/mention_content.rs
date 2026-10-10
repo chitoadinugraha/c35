@@ -61,7 +61,7 @@ fn plain_iid_replace(text: &str) -> String {
     out
 }
 
-fn mention_bracket_fixup_nesting(text: &str) -> String {
+pub fn mention_bracket_fixup_nesting(text: &str) -> String {
     let mut s = text.to_string();
     for _ in 0..8 {
         let prev = s.clone();

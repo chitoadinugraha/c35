@@ -19,6 +19,7 @@ import 'package:alienai_c35/widgets/ai/ui_media_provider_sheet.dart';
 import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_site_preview_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_stock_report_card.dart';
+import 'package:alienai_c35/widgets/ai/ui_report_summary_card.dart';
 import 'package:alienai_c35/widgets/ai/ui_tx_list_card.dart';
 import 'package:flutter/material.dart';
 
@@ -180,7 +181,9 @@ class UiMsgBlocks extends StatelessWidget {
       case 'site.stock_report':
         return UiStockReportCard(body: b.body);
       case 'site.tx_list':
-        return UiTxListCard(body: b.body);
+        return UiTxListCard(body: b.body, locale: locale);
+      case 'site.report_summary':
+        return UiReportSummaryCard(body: b.body, locale: locale);
       case 'presentation.deck':
       case 'slide.deck':
       case 'presentation':

@@ -30,6 +30,9 @@ class LiveCaption {
 }
 
 class LiveCallSession {
+  /// Set on [error] when the socket drops without the user hanging up.
+  static const disconnectedError = 'Call disconnected';
+
   LiveCallSession({AudioPlayer? playerA, AudioPlayer? playerB})
       : _pA = playerA,
         _pB = playerB;
@@ -56,7 +59,7 @@ class LiveCallSession {
   static const int _vadBytesPerMs = (_vadSampleRate * 2) ~/ 1000; // 32 bytes per ms
   static const int _preSpeechBufferMaxBytes = 150 * _vadBytesPerMs; // 4800 bytes (150ms rolling window)
   static const int _hangoverDurationMs = 1000; // 1000ms generous hangover window
-  static const double _initialBufferSec = 0.6; // 600ms initial jitter cushion
+  static const double _initialBufferSec = 0.25; // 250ms snappy jitter cushion (reduced latency)
   static const double _vadThresholdMin = 70.0; // Gentle sensitive speech floor (captures normal/soft voice)
   static const double _vadThresholdMax = 150.0; // Safe upper ceiling
 
@@ -195,7 +198,7 @@ class LiveCallSession {
         connected.value = false;
         ready.value = false;
         if (wasConnected && !_userHungUp && error.value == null) {
-          error.value = 'Call disconnected';
+          error.value = disconnectedError;
         }
       },
     );
@@ -224,7 +227,7 @@ class LiveCallSession {
           unawaited(_drainPlayback());
         } else if (_incomingPcm.isNotEmpty && !_playBusy) {
           _bufferJitterTimer?.cancel();
-          _bufferJitterTimer = Timer(const Duration(milliseconds: 600), () {
+          _bufferJitterTimer = Timer(const Duration(milliseconds: 250), () {
             if (!_disposed && !_playBusy && _incomingPcm.isNotEmpty) {
               unawaited(_drainPlayback());
             }
@@ -553,7 +556,7 @@ class LiveCallSession {
       unawaited(_drainPlayback());
     } else if (_incomingPcm.isNotEmpty && !_playBusy) {
       _bufferJitterTimer?.cancel();
-      _bufferJitterTimer = Timer(const Duration(milliseconds: 600), () {
+      _bufferJitterTimer = Timer(const Duration(milliseconds: 250), () {
         if (!_disposed && !_playBusy && _incomingPcm.isNotEmpty) {
           unawaited(_drainPlayback());
         }

@@ -8,6 +8,7 @@ use tracing::info;
 const RUN_KEY: windows::core::PCWSTR = windows::core::w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run");
 #[cfg(windows)]
 const APP_NAME: windows::core::PCWSTR = windows::core::w!("AlienAI Remote Agent");
+const LEGACY_APP_NAME: windows::core::PCWSTR = windows::core::w!("AlienAIRemote");
 
 #[cfg(windows)]
 pub fn is_autostart_enabled() -> bool {
@@ -69,6 +70,7 @@ pub fn set_autostart_enabled(enabled: bool) -> Result<()> {
             );
 
             let res = RegSetValueExW(hkey, APP_NAME, 0, REG_SZ, Some(bytes));
+            let _ = RegDeleteValueW(hkey, LEGACY_APP_NAME);
             let _ = RegCloseKey(hkey);
             res.ok()?;
             info!(path = %val_str, "Windows autostart registered in HKCU Run key");

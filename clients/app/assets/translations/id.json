@@ -329,7 +329,11 @@
             "walkIn": "Walk-In",
             "walkInSubtitle": "Tamu / pelanggan belum terdaftar",
             "newCustomer": "Pelanggan baru",
-            "addNew": "Tambah baru"
+            "addNew": "Tambah baru",
+            "tags": "Tag",
+            "searchTag": "Cari tag...",
+            "newTag": "Tag baru",
+            "noTags": "Belum ada tag"
         },
         "cardStyle": {
             "cardStyle": "Gaya card",
@@ -407,6 +411,14 @@
             "stripItemHint": "Cara setiap kontak tampil di strip.",
             "tabHeader": "Header",
             "tabItem": "Item"
+        },
+        "posts": {
+            "title": "Posts",
+            "subtitle": "Berita dan update di hub situs Anda",
+            "emptyTitle": "Belum ada post",
+            "emptySubtitle": "Tambahkan post untuk ditampilkan di hub",
+            "photos": "Foto",
+            "imagesOnlyHint": "Maksimal 10 gambar per post"
         },
         "domain": {
             "buy": "Beli domain",

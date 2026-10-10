@@ -10,7 +10,9 @@ use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::catalog_add_followup::{catalog_add_followup_boost, chat_last_assistant_content};
+use crate::commerce_tx_followup::{chat_last_assistant_blocks, commerce_tx_followup_boost};
 use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
+use crate::site_commerce_compose::site_commerce_skip_web_prefetch;
 use crate::compose::{
     compose_force_tool_call_with_text, compose_force_web_tool_call, compose_tools_and_inst_async,
     ComposeTurnOpts,
@@ -20,7 +22,8 @@ use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
 use crate::context_pack::{context_window_resolve, token_estimate, ContextUsageEst};
 use crate::device_context::{
     bound_device_prompt_prepare, chat_bound_device_iid_for_owner, chat_mention_context_commit,
-    tool_exclude_browser_devices,
+    cluster_tools_for_device_scope, device_platform_compose_signals,
+    device_platform_scope_for_prompt, device_prompt_tool_exclude,
 };
 use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::{inst_pool_signal, inst_scopes_home};
@@ -34,6 +37,7 @@ use crate::mention_registry::{
 };
 use crate::mention_tool_registry::mention_force_tools;
 use crate::prompt::thought::thinking_level;
+use crate::prompt::date_range::date_range_prompt_block;
 use crate::prompt::time::{
     location_prompt_block, prompt_context_append, time_prompt_block, time_timezone_resolve,
     user_asks_time,
@@ -44,7 +48,7 @@ use crate::prompt::ChatReq;
 use crate::prompt_run::prompt_run_get;
 use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
-use crate::tools::{cluster_tools, http_client, tool_decls, TurnCtx};
+use crate::tools::{http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
 /// Soft-delete the trailing user message and any assistant rows after it (retry / replace turn).
@@ -107,8 +111,7 @@ pub fn chat_title_from_text(text: &str) -> String {
     if raw.is_empty() {
         return "Chat".into();
     }
-    let lower = raw.to_lowercase();
-    let mut chars = lower.chars();
+    let mut chars = raw.chars();
     let Some(first) = chars.next() else {
         return "Chat".into();
     };
@@ -122,13 +125,21 @@ pub async fn chat_title_from_prompt(
     mention_ids: &[String],
 ) -> String {
     use crate::mention_content::{
-        mention_bracket_for_id, mention_content_normalize, mention_plain_for_title,
+        mention_bracket_fixup_nesting, mention_bracket_for_id, mention_content_normalize,
+        mention_plain_for_title,
     };
     use crate::mention_registry::mention_resolve_one;
 
-    let normalized = mention_content_normalize(text, mention_ids);
+    let fixed = mention_bracket_fixup_nesting(text);
+    let normalized = mention_content_normalize(&fixed, mention_ids);
     let mut plain = normalized;
-    for id in mention_ids {
+    let mut ids: Vec<String> = mention_ids.to_vec();
+    for token in mention_ids_in_brackets(&fixed) {
+        if !ids.iter().any(|x| x == &token) {
+            ids.push(token);
+        }
+    }
+    for id in &ids {
         let bracket = mention_bracket_for_id(id);
         if !plain.contains(&bracket) {
             continue;
@@ -142,6 +153,34 @@ pub async fn chat_title_from_prompt(
         }
     }
     chat_title_from_text(&mention_plain_for_title(&plain))
+}
+
+fn mention_ids_in_brackets(text: &str) -> Vec<String> {
+    use crate::mention_content::mention_bracket_fixup_nesting;
+    let mut out = Vec::new();
+    let s = mention_bracket_fixup_nesting(text);
+    let mut i = 0;
+    let bytes = s.as_bytes();
+    while i + 6 < bytes.len() {
+        if bytes[i] == b'[' && bytes[i + 1] == b'@' && bytes[i + 2] == b'i' && bytes[i + 3] == b'i' && bytes[i + 4] == b'd' && bytes[i + 5] == b':' {
+            let start = i + 6;
+            let mut j = start;
+            while j < bytes.len() && bytes[j] != b']' {
+                j += 1;
+            }
+            if j > start {
+                let n = &s[start..j];
+                let id = format!("iid:{n}");
+                if !out.contains(&id) {
+                    out.push(id);
+                }
+            }
+            i = j + 1;
+            continue;
+        }
+        i += 1;
+    }
+    out
 }
 
 pub fn chat_attachments_json(s: &str) -> Json<serde_json::Value> {
@@ -446,12 +485,22 @@ where
     } else {
         locale
     };
-    let (bound_device_iid, catalog_followup_raw) = tokio::join!(
+    let (bound_device_iid, catalog_followup_raw, last_assistant_blocks) = tokio::join!(
         chat_bound_device_iid_for_owner(pool, owner_iid, chat_id),
         chat_last_assistant_content(pool, chat_id),
+        chat_last_assistant_blocks(pool, chat_id),
     );
-    let browser_tool_exclude =
-        tool_exclude_browser_devices(pool, owner_iid, &mention_ctx.devices, bound_device_iid).await;
+    let platform_scope =
+        device_platform_scope_for_prompt(pool, owner_iid, &mention_ctx.devices, bound_device_iid)
+            .await;
+    let device_tool_exclude = device_prompt_tool_exclude(
+        pool,
+        owner_iid,
+        &mention_ctx.devices,
+        bound_device_iid,
+        &platform_scope,
+    )
+    .await;
     let catalog_followup = catalog_followup_raw
         .as_deref()
         .and_then(|prev| catalog_add_followup_boost(prev, &req.text));
@@ -463,13 +512,31 @@ where
         .as_ref()
         .map(|b| b.inst_suffix.as_str())
         .unwrap_or("");
-    let compose_signals = [inst_pool_signal(&model).to_string()];
+    let commerce_followup = last_assistant_blocks
+        .as_deref()
+        .and_then(|b| commerce_tx_followup_boost(b, &req.text));
+    let commerce_inst_suffix = commerce_followup
+        .as_ref()
+        .map(|b| b.inst_suffix.as_str())
+        .unwrap_or("");
+    let extra_inst_suffix = format!("{catalog_inst_suffix}{commerce_inst_suffix}");
+    let mut catalog_force_tools = catalog_force_tools;
+    if let Some(c) = &commerce_followup {
+        catalog_force_tools.extend(c.force_tools.clone());
+    }
+    let mut device_tool_exclude = device_tool_exclude;
+    if let Some(c) = &commerce_followup {
+        device_tool_exclude.extend(c.tool_exclude.clone());
+    }
+    let mut compose_signals = vec![inst_pool_signal(&model).to_string(), "wire:date_range".into()];
+    compose_signals.extend(device_platform_compose_signals(&platform_scope));
+    let tool_catalog = cluster_tools_for_device_scope(&platform_scope);
     let composed = compose_tools_and_inst_async(
         pool,
         &http,
         &inst_rows,
         &req.text,
-        cluster_tools(),
+        tool_catalog,
         &force_tools,
         &inst_match_ids,
         &active_topics,
@@ -482,8 +549,8 @@ where
             extra_signals: &compose_signals,
             attachments_json: &req.attachments_json,
             extra_tool_include: &catalog_force_tools,
-            extra_tool_exclude: &browser_tool_exclude,
-            extra_inst_suffix: catalog_inst_suffix,
+            extra_tool_exclude: &device_tool_exclude,
+            extra_inst_suffix: &extra_inst_suffix,
             skip_tool_rag: is_simple_time,
             ..ComposeTurnOpts::default()
         },
@@ -507,10 +574,20 @@ where
     };
     let force_tool_call =
         compose_force_tool_call_with_text(&composed.matched_ids, &tools, &req.text);
-    let force_web_tool_call = compose_force_web_tool_call(&composed.matched_ids, &tools);
+    let force_web_tool_call =
+        compose_force_web_tool_call(&composed.matched_ids, &tools, &req.text);
 
     let tz = time_timezone_resolve(&user_ctx.tz, locale_eff, &req.text);
     let time_block = time_prompt_block(&tz);
+    let date_range_block = if composed
+        .matched_ids
+        .iter()
+        .any(|id| id == "inst.core.date_range")
+    {
+        String::new()
+    } else {
+        date_range_prompt_block(&tz)
+    };
     let location_block = location_prompt_block(
         &user_ctx.location_city,
         &user_ctx.location_region,
@@ -546,10 +623,17 @@ where
         }
         system.push_str(&mention_block);
     }
+    if !date_range_block.is_empty() {
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(&date_range_block);
+    }
     let context_named = token_estimate(&sites_block)
         + token_estimate(&mention_block)
         + token_estimate(&time_block)
-        + token_estimate(&location_block);
+        + token_estimate(&location_block)
+        + token_estimate(&date_range_block);
     let memory_tokens = token_estimate(&memory.block);
     system = memory_prompt_merge(&system, &memory.block);
 
@@ -627,7 +711,8 @@ where
             }
         };
     let catalog_web = catalog_web_phase(&composed.matched_ids, has_site);
-    let skip_web_prefetch = catalog_skip_web_prefetch(&composed.matched_ids, catalog_web);
+    let skip_web_prefetch = catalog_skip_web_prefetch(&composed.matched_ids, catalog_web)
+        || site_commerce_skip_web_prefetch(&req.text, &composed.matched_ids);
     let chat_req = ChatReq {
         model: model.clone(),
         system,
@@ -639,18 +724,6 @@ where
         force_web_tool_call,
         catalog_web,
         skip_web_prefetch,
-        stock_report: composed
-            .matched_ids
-            .iter()
-            .any(|id| id == "inst.site.stock_report"),
-        tx_browse: composed
-            .matched_ids
-            .iter()
-            .any(|id| id == "inst.site.tx_browse"),
-        site_report: composed
-            .matched_ids
-            .iter()
-            .any(|id| id == "inst.site.report"),
     };
     let attachments_json = req.attachments_json.as_str();
     let mut turn_ctx = TurnCtx {

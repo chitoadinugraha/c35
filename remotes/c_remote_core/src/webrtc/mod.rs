@@ -1,6 +1,7 @@
 //! Agent-side WebRTC data plane (signaling via agent WS, fs over SCTP).
 
 pub mod fs;
+pub mod fs_delegate;
 mod ice_config;
 mod ice_setting;
 mod media;

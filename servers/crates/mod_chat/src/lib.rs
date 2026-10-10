@@ -45,14 +45,14 @@ mod mention_bundle;
 mod mention_registry;
 mod mention_tool_registry;
 mod site_capability;
-mod stock_report;
+mod stock_report_format;
 mod stock_report_render;
 mod stock_report_run;
-mod tx_browse;
+mod commerce_tx_followup;
+mod site_commerce_compose;
 mod tx_browse_render;
-mod tx_browse_run;
-mod site_report;
-mod site_report_run;
+mod site_query_export;
+mod site_query_present;
 mod memory;
 mod memory_rpc;
 mod context_billing;
@@ -113,7 +113,8 @@ pub use chat_patch::chat_patch;
 pub use chat_sync::{chat_fanout, chat_title_set, chat_touch};
 pub use device_context::{
     bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list,
-    chat_mention_context_commit, BROWSER_DEVICE_TOOL_EXCLUDE,
+    chat_mention_context_commit, BROWSER_DEVICE_TOOL_EXCLUDE, DEVICE_SIGNAL_ANDROID,
+    DEVICE_SIGNAL_WINDOWS,
 };
 pub use channel_prompt_turn::channel_prompt_turn;
 pub use inbox::{chat_msg_list, inbox_list};
@@ -135,8 +136,9 @@ pub use inst_cache::{
     inst_list_cached, inst_list_for_turn, NATS_SUBJECT_WILDCARD,
 };
 pub use inst_macro::{inst_pick, inst_tool_directives, InstMatchCtx, InstRow};
-pub use tx_browse::tx_browse_parse;
-pub use site_report::site_report_parse;
+pub use mention_content::mention_bracket_fixup_nesting;
+pub use stock_report_format::StockReportFormat;
+pub use tx_browse_render::tx_browse_llm_payload;
 pub use chat_history::{chat_messages, chat_search, ChatHistoryQuery};
 pub use context_billing::ContextBillingExtra;
 pub use context_compact::{chat_compact_manual, chat_context_window_set, prepare_prompt_history, CONTEXT_COMPACT_MODEL};
@@ -167,6 +169,7 @@ pub use prompt_run::{
     prompt_run_should_stop, prompt_run_status_set,
     prompt_run_pool_diag_spawn, prompt_run_summary, prompt_run_wait_terminal,
     prompt_run_concurrency_acquire, prompt_run_concurrency_init,
+    prompt_run_fanout_fail, prompt_run_fanout_publish, prompt_run_push_from_row,
     prompt_run_worker_start, PromptRunRow,
     PromptRunWorker,
 };

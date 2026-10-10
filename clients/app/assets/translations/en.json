@@ -329,7 +329,11 @@
             "walkIn": "Walk-In",
             "walkInSubtitle": "Guest / unregistered customer",
             "newCustomer": "New Customer",
-            "addNew": "Add New"
+            "addNew": "Add New",
+            "tags": "Tags",
+            "searchTag": "Search tag...",
+            "newTag": "New tag",
+            "noTags": "No tags yet"
         },
         "cardStyle": {
             "cardStyle": "Card style",
@@ -407,6 +411,14 @@
             "stripItemHint": "How each contact appears in the strip.",
             "tabHeader": "Header",
             "tabItem": "Item"
+        },
+        "posts": {
+            "title": "Posts",
+            "subtitle": "News and updates on your site hub",
+            "emptyTitle": "No posts yet",
+            "emptySubtitle": "Add a post to show on your hub",
+            "photos": "Photos",
+            "imagesOnlyHint": "Up to 10 images per post"
         },
         "domain": {
             "buy": "Buy domain",

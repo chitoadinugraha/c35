@@ -17,6 +17,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_browser_pane.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
+import 'package:alienai_c35/widgets/devices/ui_remote_teach_hud.dart';
 import 'package:alienai_c35/c/task/task_api.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
 import 'package:alienai_c35/widgets/task/ui_task_master_detail.dart';
@@ -316,6 +317,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
             onPresenceRefresh: widget.onPresenceRefresh,
             promptStore: _promptStore,
             onStopTeach: () => unawaited(_stopRemoteTeach(context)),
+            androidRemote: deviceType == 'android',
           ),
         );
       }
@@ -434,10 +436,22 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
     return title != null && title.isNotEmpty ? title : null;
   }
 
+  bool _isAndroidRemoteDevice() => remoteDeviceTypeIsAndroid(widget.row.identity.type);
+
   Future<void> _startRemoteTeach(BuildContext context) async {
     if (!_session.connected.value) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Connect Remote first, then start teach mode.'), behavior: SnackBarBehavior.floating),
+      );
+      return;
+    }
+    final androidRemote = _isAndroidRemoteDevice();
+    if (androidRemote && _session.teach == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Teach is not ready yet. Wait until Remote shows Direct or Relay, then try again.'),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       return;
     }
@@ -447,7 +461,10 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       await _session.remoteTeachStart(title);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Recording "$title" — use Stop on the HUD or F9 on the PC.'), behavior: SnackBarBehavior.floating),
+          SnackBar(
+            content: Text(remoteTeachRecordingSnackMessage(title, androidRemote: androidRemote)),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
@@ -519,21 +536,7 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
       return _connectionMenu(session, label: 'Device is offline', fg: _muted, bg: const Color(0xFF27272A), border: const Color(0xFF3F3F46));
     }
     if (!session.connected.value && !session.isLinking) {
-      final failed = session.status.value == RemoteSessionStatus.failed;
-      return FilledButton.icon(
-        onPressed: () {
-          session.prepareUserReconnect();
-          session.start().catchError((e) => lError('remote start: $e'));
-        },
-        style: FilledButton.styleFrom(
-          backgroundColor: failed ? const Color(0xFF7F1D1D) : _accent,
-          foregroundColor: failed ? const Color(0xFFFECACA) : const Color(0xFF09090B),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          visualDensity: VisualDensity.compact,
-        ),
-        icon: Icon(failed ? Icons.refresh_rounded : Icons.play_arrow_rounded, size: 18),
-        label: Text(failed ? 'Retry' : 'Connect', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-      );
+      return const SizedBox.shrink();
     }
     if (session.connected.value) {
       final relay = session.mode.value == RemoteConnectionMode.REMOTE_CONNECTION_MODE_RELAY;

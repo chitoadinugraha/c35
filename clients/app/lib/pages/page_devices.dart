@@ -3,6 +3,7 @@ import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/device/device_store.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_add_menu.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_detail.dart';
@@ -25,16 +26,17 @@ const _icon = Color(0xFFA1A1AA);
 const _masterBg = Color(0xFF0C0C10);
 
 class PageDevices extends StatefulWidget {
-  const PageDevices({super.key, required this.chatConn});
+  const PageDevices({super.key, required this.chatConn, this.shellStore});
 
   final ChatConn chatConn;
+  final ChatStore? shellStore;
 
   @override
   State<PageDevices> createState() => _PageDevicesState();
 }
 
 class _PageDevicesState extends State<PageDevices> {
-  late final _store = DeviceStore(conn: widget.chatConn);
+  late final _store = DeviceStore(conn: widget.chatConn, shellStore: widget.shellStore);
   Timer? _presenceReconcileTimer;
   StreamSubscription? _presencePushSub;
 

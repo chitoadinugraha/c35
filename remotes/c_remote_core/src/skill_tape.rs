@@ -73,16 +73,38 @@ async fn execute_step(step: &SkillStep) -> Result<()> {
             if cmd.is_empty() {
                 return Ok(());
             }
-            let output = tokio::task::spawn_blocking({
-                let cmd = cmd.to_string();
-                move || crate::win_powershell::command_output(&cmd)
-            })
-            .await??;
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                return Err(anyhow!("shell step failed: {stderr}"));
+            #[cfg(target_os = "android")]
+            {
+                let out = tokio::task::spawn_blocking({
+                    let cmd = cmd.to_string();
+                    move || crate::android_shell::run(&cmd, 120)
+                })
+                .await?;
+                if !out.ok {
+                    return Err(anyhow!(
+                        "shell step failed: {}",
+                        if out.stderr.is_empty() { &out.error } else { &out.stderr }
+                    ));
+                }
+                return Ok(());
             }
-            Ok(())
+            #[cfg(windows)]
+            {
+                let output = tokio::task::spawn_blocking({
+                    let cmd = cmd.to_string();
+                    move || crate::win_powershell::command_output(&cmd)
+                })
+                .await??;
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    return Err(anyhow!("shell step failed: {stderr}"));
+                }
+                Ok(())
+            }
+            #[cfg(not(any(windows, target_os = "android")))]
+            {
+                Err(anyhow!("shell tape step not supported on this platform"))
+            }
         }
         other => {
             warn!(kind = other, "unknown step kind, skipping");

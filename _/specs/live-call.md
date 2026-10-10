@@ -224,19 +224,22 @@ cargo run -p c35_mod_live --bin live_realtime_smoke
 
 Helpers: `c35_mod_llm::cf_realtime_ws_url`, `cf_realtime_ws_header_pairs`, `CfRealtimeUpstream`.
 
-## Hybrid Talk Mode & Context Preservation
+## Talk Mode vs Live Call Architecture
 
-Talk Mode (`UiTalkStage`) implements a dual-engine hybrid architecture with full chat history persistence:
+Talk Mode and Live Call share voice UI elements, but operate on two distinct execution tiers:
 
-1. **Live-Native Engine (Alien AI / Gemini)**:
-   - Connects directly to the Gemini Multimodal Live API (`BidiGenerateContent`) via `ReqLiveStart(chat_id)`.
-   - **Context Seeding**: When entering Talk Mode or starting a Live Call, `servers/crates/mod_live/src/google.rs` queries recent messages from `ai.chat_msg` (`WHERE chat_id = $1`) and injects them into the system instruction (`[RECENT CHAT HISTORY]`).
-   - **Turn Persistence**: On `serverContent.turnComplete`, user spoken transcription (`inputTranscription.text`) and model output (`outputTranscription.text`) along with tool execution blocks are committed to `ai.chat_msg` as `role='user'` and `role='assistant'` rows. The server notifies the client via `liveTurnCommitted` event so `ChatStore` and local message lists update optimistically.
-   - **Perceived Latency**: **~500ms – 800ms**.
+1. **Talk Mode (Turn-Based Surface on Home Chat)**:
+   - Resides on the main chat thread via `UiTalkStage`.
+   - Sends normal turns through `_composerSend(..., talk: true)` with `ReqPrompt.talk = true`.
+   - Steered for brief, spoken responses via `inst.talk.brief`.
+   - **TTS Pipeline**: Streams audio via paragraph-batched and fast-start sentence chunking (`TtsStreamQueue` & `speechPullFirstSentence`). Stops immediately on user mic activation.
+   - Preserves message rows directly in `ai.chat_msg` without per-second live call metering.
 
-2. **Paragraph-batched streaming TTS (Claude, GPT-4, DeepSeek, etc.)**:
-   - For models without native audio-to-audio streaming, `TtsStreamQueue` holds LLM deltas until a paragraph is long (about 700 characters) or the reply ends, then speaks that clip. Markdown lists stay in one clip. Stop cancels the queue and the current player.
-   - Tool blocks, thoughts, and chat turns remain in the same `chat_id` history.
+2. **Live Call (Duplex Multi-Modal Session)**:
+   - Started via `ReqLiveStart`, billed per elapsed second on `ai.live_offer`.
+   - Real-time bidirectional streaming (Gemini Multimodal Live API, ChatGPT Realtime, Grok Voice).
+   - Server-side tool execution, live camera frames, screen perception, and hot handover support.
+
 
 ## Ops
 

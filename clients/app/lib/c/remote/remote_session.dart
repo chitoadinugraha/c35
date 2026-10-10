@@ -168,6 +168,7 @@ class RemoteSession {
   Timer? _fpsTimer;
   Timer? _reconnectTimer;
   Timer? _linkTimeout;
+  Timer? _disconnectedGraceTimer;
   static Timer? _leaveDevicesTimer;
   var _frameCount = 0;
   var _lastDecodedFrames = 0;
@@ -276,6 +277,8 @@ class RemoteSession {
     _reconnectTimer = null;
     _linkTimeout?.cancel();
     _linkTimeout = null;
+    _disconnectedGraceTimer?.cancel();
+    _disconnectedGraceTimer = null;
   }
 
   bool _startAborted(int seq) => _manualStop || seq != _startSeq;
@@ -357,6 +360,7 @@ class RemoteSession {
               videoRenderer.srcObject = stream;
             }
             hasVideoTrack.value = true;
+            screenFrame.value = null;
           } catch (e) {
             lError('remote onTrack video attach failed: $e');
           }
@@ -370,12 +374,16 @@ class RemoteSession {
           l('remote pc state=$s connected=$up');
         }
         if (up) {
+          _disconnectedGraceTimer?.cancel();
+          _disconnectedGraceTimer = null;
           _linkTimeout?.cancel();
           _linkTimeout = null;
           _retryCount = 0;
           status.value = RemoteSessionStatus.connected;
           isControlEnabled.value = true;
         } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
+          _disconnectedGraceTimer?.cancel();
+          _disconnectedGraceTimer = null;
           _linkTimeout?.cancel();
           _linkTimeout = null;
           if (_manualStop) return;
@@ -390,12 +398,25 @@ class RemoteSession {
           }
           unawaited(_teardownPc(keepSessionId: true));
           if (wasConnected) _scheduleReconnect();
-        } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateClosed ||
-            s == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+        } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateClosed) {
+          _disconnectedGraceTimer?.cancel();
+          _disconnectedGraceTimer = null;
           final wasConnected = connected.value;
           if (_manualStop || !wasConnected) return;
           unawaited(_teardownPc(keepSessionId: true));
           _scheduleReconnect();
+        } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateDisconnected) {
+          final wasConnected = connected.value;
+          if (_manualStop || !wasConnected) return;
+          l('remote peer connection disconnected; waiting grace period for recovery');
+          _disconnectedGraceTimer?.cancel();
+          _disconnectedGraceTimer = Timer(const Duration(seconds: 4), () {
+            _disconnectedGraceTimer = null;
+            if (_manualStop || !connected.value) return;
+            l('remote peer connection disconnected grace period expired; reconnecting');
+            unawaited(_teardownPc(keepSessionId: true));
+            _scheduleReconnect();
+          });
         }
       };
       _pc!.onDataChannel = (ch) {
@@ -446,6 +467,8 @@ class RemoteSession {
     _reconnectTimer = null;
     _linkTimeout?.cancel();
     _linkTimeout = null;
+    _disconnectedGraceTimer?.cancel();
+    _disconnectedGraceTimer = null;
     status.value = RemoteSessionStatus.disconnected;
     final sid = sessionId;
     await _teardownPc();
@@ -461,6 +484,8 @@ class RemoteSession {
   Future<void> _teardownPc({bool keepSessionId = false}) async {
     _linkTimeout?.cancel();
     _linkTimeout = null;
+    _disconnectedGraceTimer?.cancel();
+    _disconnectedGraceTimer = null;
     _fpsTimer?.cancel();
     _fpsTimer = null;
     _frameCount = 0;
@@ -572,6 +597,7 @@ class RemoteSession {
     };
     ch.onMessage = (msg) {
       if (_manualStop || !msg.isBinary) return;
+      if (hasVideoTrack.value) return;
       final frame = RemoteScreenFrame.parse(msg.binary);
       if (frame != null) {
         screenFrame.value = frame;

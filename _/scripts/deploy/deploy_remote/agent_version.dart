@@ -8,7 +8,7 @@ import '../deploy_lib.dart';
 final _versionRegex = RegExp(r'^(\d+\.\d+\.\d+)\+(\d+)$');
 
 /// Windows desktop remote agent (`/version/remote-windows`, agent.exe).
-enum RemoteAgentProduct { windows, browser, android, chromeExtension }
+enum RemoteAgentProduct { windows, linux, browser, android, chromeExtension }
 
 String remotesDir(String root) => p.join(root, 'remotes');
 
@@ -16,6 +16,7 @@ String chromeExtensionDir(String root) => p.join(root, 'clients', 'chrome_extens
 
 String agentVersionFileName(RemoteAgentProduct product) => switch (product) {
       RemoteAgentProduct.windows => 'VERSION.windows',
+      RemoteAgentProduct.linux => 'VERSION.linux',
       RemoteAgentProduct.browser => 'VERSION.browser',
       RemoteAgentProduct.android => 'VERSION.android',
       RemoteAgentProduct.chromeExtension => 'VERSION',
@@ -52,6 +53,8 @@ String agentVersionStampSync(String root, [RemoteAgentProduct product = RemoteAg
 
 /// Minimum supported remote agent build; raise on breaking wire/session (see app-release-min.mdc).
 const remoteWindowsExeName = 'alienai_remote_windows.exe';
+const remoteLinuxExeName = 'c_remote_linux';
+String remoteLinuxZipFileName(int version) => 'c_remote_linux-$version.zip';
 const remoteWindowsLegacyExeName = 'c_remote_windows.exe';
 String remoteWindowsZipFileName(int version) => 'alienai_remote_windows-$version.zip';
 String remoteWindowsSetupFileName(int version) => 'AlienAI_Remote_Windows_Setup-$version.exe';

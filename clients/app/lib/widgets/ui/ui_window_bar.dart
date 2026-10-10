@@ -1,7 +1,6 @@
-import 'package:alienai_c35/c/conn/server_host.dart';
-import 'package:alienai_c35/c/nav.dart';
+import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
-import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/nav.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_update_banner.dart';
 import 'package:flutter/foundation.dart';
@@ -107,7 +106,6 @@ class UiWindowBar extends StatefulWidget {
 
 class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
   final _titleKey = GlobalKey();
-  String _serverHost = serverHostProductionUrl;
   var _menuOpen = false;
   var _maximized = false;
   DateTime? _menuClosedAt;
@@ -116,27 +114,13 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    sessionTick.addListener(_onSession);
-    _serverHostLoad();
     _maximizedLoad();
   }
 
   @override
   void dispose() {
-    sessionTick.removeListener(_onSession);
     windowManager.removeListener(this);
     super.dispose();
-  }
-
-  void _onSession() {
-    if (mounted) setState(() {});
-    _serverHostLoad();
-  }
-
-  Future<void> _serverHostLoad() async {
-    if (!serverHostPickerVisible()) return;
-    final v = await serverHostActiveBase();
-    if (mounted) setState(() => _serverHost = v);
   }
 
   Future<void> _maximizedLoad() async {
@@ -152,18 +136,9 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
     }
   }
 
-  Future<void> _serverHostPick(String host) async {
-    final next = await serverHostSet(host);
-    if (mounted) setState(() => _serverHost = next);
-  }
+  String get _displayTitle => '${widget.title} ${appVersionLabel()}';
 
-  String get _displayTitle {
-    final base = '${widget.title} ${appVersionLabel()}';
-    if (!serverHostPickerVisible() || serverHostNormalize(_serverHost) == serverHostNormalize(serverHostProductionUrl)) return base;
-    return '$base (${serverHostLabelFromUrl(_serverHost)})';
-  }
-
-  Future<void> _serverHostMenu() async {
+  Future<void> _versionMenu() async {
     final nav = c35NavigatorKey.currentState;
     if (nav == null || !nav.mounted) return;
     final menuCtx = nav.context;
@@ -178,29 +153,26 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
     if (box == null || !box.hasSize) return;
     _menuOpen = true;
     try {
-      final selected = await showMenu<String>(
+      await showMenu<void>(
         context: menuCtx,
         color: const Color(0xFF18181B),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: Color(0xFF27272A))),
         position: uiMenuPositionBelow(menuCtx, box, gap: -8),
-        items: serverHostOptions
-            .map((o) => PopupMenuItem(
-                  value: o,
-                  height: 32,
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        child: serverHostNormalize(o) == serverHostNormalize(_serverHost) ? const Icon(Icons.check, size: 14, color: Color(0xFFA1A1AA)) : null,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(serverHostLabelFromUrl(o), style: const TextStyle(fontSize: 12, color: Color(0xFFE4E4E7))),
-                    ],
-                  ),
-                ))
-            .toList(),
+        items: [
+          PopupMenuItem<void>(
+            enabled: false,
+            height: 36,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Version ${csaiVersionBuild()}', style: const TextStyle(fontSize: 12, color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500)),
+                Text(csaiVersionFull, style: const TextStyle(fontSize: 10, color: Color(0xFF71717A))),
+              ],
+            ),
+          ),
+        ],
       );
-      if (selected != null) await _serverHostPick(selected);
     } finally {
       _menuOpen = false;
       _menuClosedAt = DateTime.now();
@@ -212,17 +184,14 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
         child: Text(_displayTitle, maxLines: 1, overflow: TextOverflow.ellipsis),
       );
 
-  Widget _title() {
-    if (!serverHostPickerVisible()) return _titleText();
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        key: _titleKey,
-        onTap: _serverHostMenu,
-        child: _titleText(),
-      ),
-    );
-  }
+  Widget _title() => MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          key: _titleKey,
+          onTap: _versionMenu,
+          child: _titleText(),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) => Material(
@@ -245,7 +214,7 @@ class _UiWindowBarState extends State<UiWindowBar> with WindowListener {
                       ),
                       const SizedBox(width: 8),
                       _title(),
-                      if (serverHostPickerVisible()) const Expanded(child: SizedBox.shrink()),
+                      const Expanded(child: SizedBox.shrink()),
                       const UiUpdateChrome(),
                     ],
                   ),

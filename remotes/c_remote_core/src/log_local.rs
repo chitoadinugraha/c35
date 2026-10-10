@@ -55,6 +55,16 @@ pub fn log_dir() -> PathBuf {
         p.push("logs");
         return p;
     }
+    #[cfg(target_os = "linux")]
+    if let Ok(home) = std::env::var("HOME") {
+        let mut p = PathBuf::from(home);
+        p.push(".local");
+        p.push("share");
+        p.push("alienai");
+        p.push("logs");
+        let _ = fs::create_dir_all(&p);
+        return p;
+    }
     let mut p = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     p.push(".alienai_logs");
     p

@@ -50,15 +50,35 @@ class MainActivity : FlutterActivity() {
                         result.error("arg", "missing", null)
                         return@setMethodCallHandler
                     }
+                    val iconPath = call.argument<String>("iconPath")
                     val iconPng = byteArrayArg(call, "iconPng")
-                    pinPos(uri, label, id, iconPng, result)
+                    pinPos(uri, label, id, iconPath, iconPng, result)
+                }
+                "updatePosShortcut" -> {
+                    val uri = call.argument<String>("uri")
+                    val label = call.argument<String>("label")
+                    val id = call.argument<String>("id")
+                    if (uri == null || label == null || id == null) {
+                        result.error("arg", "missing", null)
+                        return@setMethodCallHandler
+                    }
+                    val iconPath = call.argument<String>("iconPath")
+                    val iconPng = byteArrayArg(call, "iconPng")
+                    updatePosShortcut(uri, label, id, iconPath, iconPng, result)
                 }
                 else -> result.notImplemented()
             }
         }
     }
 
-    private fun pinPos(uri: String, label: String, id: String, iconPng: ByteArray?, result: MethodChannel.Result) {
+    private fun pinPos(
+        uri: String,
+        label: String,
+        id: String,
+        iconPath: String?,
+        iconPng: ByteArray?,
+        result: MethodChannel.Result,
+    ) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             result.success(mapOf("ok" to false))
             return
@@ -68,23 +88,68 @@ class MainActivity : FlutterActivity() {
             result.success(mapOf("ok" to false))
             return
         }
+        val shortcut = buildPosShortcut(uri, label, id, iconPath, iconPng)
+        try {
+            sm.updateShortcuts(listOf(shortcut))
+        } catch (_: Exception) {
+        }
+        sm.requestPinShortcut(shortcut, null)
+        result.success(mapOf("ok" to true))
+    }
+
+    private fun updatePosShortcut(
+        uri: String,
+        label: String,
+        id: String,
+        iconPath: String?,
+        iconPng: ByteArray?,
+        result: MethodChannel.Result,
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            result.success(mapOf("ok" to false))
+            return
+        }
+        val sm = getSystemService(ShortcutManager::class.java) ?: run {
+            result.success(mapOf("ok" to false))
+            return
+        }
+        val pinned = sm.pinnedShortcuts.any { it.id == id }
+        if (!pinned) {
+            result.success(mapOf("ok" to false, "reason" to "not_pinned"))
+            return
+        }
+        val shortcut = buildPosShortcut(uri, label, id, iconPath, iconPng)
+        sm.updateShortcuts(listOf(shortcut))
+        result.success(mapOf("ok" to true))
+    }
+
+    private fun buildPosShortcut(
+        uri: String,
+        label: String,
+        id: String,
+        iconPath: String?,
+        iconPng: ByteArray?,
+    ): ShortcutInfo {
         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).setPackage(packageName)
-        val shortcutIcon = shortcutIcon(iconPng)
-        val shortcut = ShortcutInfo.Builder(this, id)
+        val shortcutIcon = shortcutIcon(iconPath, iconPng)
+        return ShortcutInfo.Builder(this, id)
             .setShortLabel(label)
             .setLongLabel(label)
             .setIcon(shortcutIcon)
             .setIntent(intent)
             .build()
-        sm.requestPinShortcut(shortcut, null)
-        result.success(mapOf("ok" to true))
     }
 
-    private fun shortcutIcon(iconPng: ByteArray?): Icon {
+    private fun shortcutIcon(iconPath: String?, iconPng: ByteArray?): Icon {
+        if (!iconPath.isNullOrEmpty()) {
+            val fromFile = BitmapFactory.decodeFile(iconPath)
+            if (fromFile != null) {
+                return Icon.createWithBitmap(fromFile)
+            }
+        }
         if (iconPng != null && iconPng.isNotEmpty()) {
             val bmp = BitmapFactory.decodeByteArray(iconPng, 0, iconPng.size)
             if (bmp != null) {
-                // Pinned shortcut: use the composite bitmap as-is (site + badge), not adaptive launcher art.
                 return Icon.createWithBitmap(bmp)
             }
         }
@@ -93,11 +158,12 @@ class MainActivity : FlutterActivity() {
 
     /** Flutter may send [Uint8List] as [ByteArray] or as [List] of ints (0-255). */
     private fun byteArrayArg(call: MethodCall, key: String): ByteArray? {
-        val direct = call.argument<ByteArray>(key)
-        if (direct != null && direct.isNotEmpty()) return direct
-        val asList = call.argument<List<Int>>(key)
-        if (asList != null && asList.isNotEmpty()) {
-            return asList.map { (it and 0xFF).toByte() }.toByteArray()
+        when (val raw = call.argument<Any>(key)) {
+            is ByteArray -> if (raw.isNotEmpty()) return raw
+            is List<*> -> {
+                if (raw.isEmpty()) return null
+                return raw.map { ((it as Number).toInt() and 0xFF).toByte() }.toByteArray()
+            }
         }
         return null
     }

@@ -10,6 +10,7 @@ import 'package:alienai_c35/widgets/ai/ui_assistant_provider_icon.dart';
 import 'package:alienai_c35/widgets/ai/ui_mention_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_blocks.dart';
 import 'package:alienai_c35/widgets/ai/ui_msg_thought.dart';
+import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
 import 'package:flutter/material.dart';
 
@@ -353,9 +354,37 @@ class UiTalkStage extends StatelessWidget {
             );
           }
           if (listening) {
-            return const Padding(
-              padding: EdgeInsets.fromLTRB(24, 0, 24, 4),
-              child: Text('Listening...', textAlign: TextAlign.center, style: TextStyle(color: _accent, fontSize: 12)),
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Listening...', style: TextStyle(color: _accent, fontSize: 12)),
+                  const SizedBox(width: 8),
+                  ValueListenableBuilder<double>(
+                    valueListenable: SttService.instance.audioAmplitude,
+                    builder: (context, amp, _) {
+                      final bars = [0.4, 0.7, 1.0, 0.6];
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(bars.length, (i) {
+                          final height = (4.0 + (amp * 14.0 * bars[i])).clamp(4.0, 16.0);
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                            width: 3.0,
+                            height: height,
+                            decoration: BoxDecoration(
+                              color: _accent.withValues(alpha: 0.6 + (amp * 0.4).clamp(0.0, 0.4)),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          );
+                        }),
+                      );
+                    },
+                  ),
+                ],
+              ),
             );
           }
           final stats = usage;

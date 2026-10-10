@@ -16,6 +16,7 @@ sqlx = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
+c35_time_range = { path = "../system/time_range", package = "c35_time_range" }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_store = { path = "../store", package = "c35_store" }
 c35_mod_hint = { path = "../mod_hint", package = "c35_mod_hint" }

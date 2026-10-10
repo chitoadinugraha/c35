@@ -22,6 +22,7 @@ tracing = { workspace = true }
 prost = { workspace = true }
 urlencoding = { workspace = true }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
+c35_time_range = { path = "../system/time_range", package = "c35_time_range" }
 c35_nats = { path = "../system/nats", package = "c35_nats" }
 c35_mod_admin = { path = "../mod_admin", package = "c35_mod_admin" }
 c35_proto = { path = "../proto", package = "c35_proto" }

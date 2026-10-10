@@ -124,59 +124,7 @@
 
       <!-- Right controls: Status + Language switcher -->
       <div class="flex items-center gap-3 sm:gap-5 z-20">
-        <div class="relative">
-          <button type="button" onclick="toggleDropdown('docsMenu', event)" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200 inline-flex items-center gap-1" aria-haspopup="true" aria-controls="docsMenu">
-            <span data-i18n="nav.docs">Panduan</span>
-            <svg class="w-3 h-3 text-slate-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clip-rule="evenodd" /></svg>
-          </button>
-          <div id="docsMenu" class="dropdown-panel hidden absolute right-0 top-full mt-3 w-[min(22rem,calc(100vw-1.5rem))] rounded-2xl bg-[#12131b]/95 border border-white/15 shadow-2xl shadow-black/40 p-2 z-40 backdrop-blur-2xl">
-            <p class="px-3 pt-2 pb-1 text-[11px] leading-relaxed text-slate-400" data-i18n="docs.lead">Panduan singkat. Sebagian besar hal cukup Anda minta lewat chat.</p>
-            <div class="max-h-[min(70vh,28rem)] overflow-y-auto mt-1">
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.bot.title">Buat bot</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.chat">Lewat chat</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.bot.desc">Minta Alien membuat bot untuk toko Anda.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.channel.title">Hubungkan WhatsApp atau Telegram</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.screen">Di layar</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.channel.desc">Sambungkan dari layar bot.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.product.title">Ubah produk</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.both">Chat atau layar</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.product.desc">Ubah nama atau harga di layar, atau minta lewat chat.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.pos.title">Jalankan kasir</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.both">Chat atau layar</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.pos.desc">Catat pesanan di layar kasir, atau minta Alien.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.meal.title">Catat makan atau pengeluaran</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.chat">Lewat chat</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.meal.desc">Beri tahu Alien apa yang Anda makan atau belanjakan.</p>
-              </div>
-              <div class="px-3 py-2.5 rounded-xl hover:bg-white/[0.06] transition">
-                <div class="flex items-baseline justify-between gap-3">
-                  <span class="text-sm font-semibold text-white" data-i18n="docs.report.title">Minta laporan</span>
-                  <span class="shrink-0 text-[10px] font-medium tracking-wide text-emerald-300" data-i18n="docs.via.chat">Lewat chat</span>
-                </div>
-                <p class="text-[11px] text-slate-400 mt-0.5 leading-relaxed" data-i18n="docs.report.desc">Minta ringkasan penjualan atau pengeluaran hari ini.</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <a href="/id/docs" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.docs">Panduan</a>
         <a href="/id/status" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.status">Status</a>
 
         <!-- Multilingual Toggle -->

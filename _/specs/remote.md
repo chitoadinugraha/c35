@@ -13,6 +13,15 @@ Remote PCs/phones (`identity.kind = remote`) expose two **separate** planes. Do 
 
 **Server role on data plane:** signaling + ephemeral ICE credentials only. File bytes are **app ↔ device** direct (or via TURN relay when NAT requires it). c35 does not persist device files unless user explicitly saves to CAS.
 
+### Cross-platform: Drive vs device Files
+
+| | Windows agent (`type=windows`) | Android agent (`type=android`) |
+|---|-------------------------------|--------------------------------|
+| **Alien AI Drive** (`A:`) | Owner-scoped cloud volume: agent mount + HTTP sync — [`drive.md`](drive.md) | **N/A** — no `A:` mount, no drive sync on agent |
+| **Device Files** (Files tab) | WebRTC `remote-fs`; empty `path` → drive roots (`RemoteFsDriveKind`, volume labels) | WebRTC `remote-fs`; empty `path` → **virtual roots** (`app:`, `shared:`, `tree:{id}`) — [`remote-android.md`](remote-android.md#8-storage-paths-for-remote-fs-files-tab) |
+
+Drive and device disks are different products: cloud sync is **not** the Files tab; Android parity for on-device storage is **Files over `remote-fs` only**.
+
 ### Remote browser (`type=browser`)
 
 Same **two-plane** rule; different capture/input backend. Full spec: [browser-remote.md](browser-remote.md).
@@ -452,7 +461,7 @@ Single **tree-grid** explorer (sortable columns) + optional **preview** pane on 
 
 | Op | Wire | Notes |
 |----|------|-------|
-| List dir | `RemoteFsListReq` → `RemoteFsListRes` | Empty `path` → drive roots with label + `RemoteFsDriveKind` (Windows `GetDriveTypeW` + volume label) |
+| List dir | `RemoteFsListReq` → `RemoteFsListRes` | Empty `path` → **Windows:** drive roots + `RemoteFsDriveKind` (`GetDriveTypeW` + volume label). **Android:** virtual roots — [`remote-android.md`](remote-android.md#8-storage-paths-for-remote-fs-files-tab) |
 | Read chunk | `RemoteFsReadReq{path, offset, len}` → `RemoteFsReadRes{data, eof, mime}` | Preview; 256 KB default chunk |
 | Write chunk | `RemoteFsWriteReq{path, offset, data, finalize}` → `RemoteFsWriteRes` | Uploads; 256 KB chunks; serial queue on client |
 | Remote copy | Read + write same channel | In-app Copy/Paste between folders on device |
@@ -489,7 +498,7 @@ When Alien AI Cloud is down, the type subtitle is replaced with **Device is offl
 
 ### WebRTC dot colors (right) — connect-first (LOCKED)
 
-WebRTC **never** auto-starts when the user opens a device. User taps **Connect** (device toolbar, Remote tab, or Files **Connect**). Colors match `UiDeviceRow` / `RemoteSessionStatus`:
+WebRTC **never** auto-starts when the user opens a device. User taps **Connect** in the center of the Remote pane (or Files **Connect**). The detail toolbar does not repeat Connect or Retry. Once a session is linking or up, that toolbar shows status (**Connecting…** / **Direct** / **Relay**) and **Stop**. Colors match `UiDeviceRow` / `RemoteSessionStatus`:
 
 | Color | Hex (fill) | When |
 |-------|------------|------|

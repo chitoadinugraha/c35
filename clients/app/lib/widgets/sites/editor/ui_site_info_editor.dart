@@ -12,6 +12,7 @@ import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/platform_site.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/pos_shortcut_install.dart';
 import 'package:alienai_c35/c/site/site_info_sync.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
@@ -237,6 +238,11 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       if (res.hasRow()) {
         setState(() => _pic = pic);
         widget.onRowChanged(widget.row.clone()..pic = pic);
+        unawaited(posShortcutSyncPinnedIcon(
+          siteIid: widget.siteIid.toString(),
+          siteName: widget.row.name,
+          sitePic: pic,
+        ));
         final draft = await widget.api.draftGet(widget.siteIid);
         final next = draft.clone();
         next.doc = siteInfoApplyToDoc(draft.doc, _snapshot());

@@ -80,6 +80,27 @@ UPDATE ai.inst SET
     updated_ts = NOW()
 WHERE id = 'inst.pool.alien';
 
+-- Seed: DATE RANGE wire (tool params); compose signal wire:date_range on Home turns
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.core.date_range',
+    'role:personal_assistant',
+    'trigger',
+    '',
+    '[DATE RANGE — tool params] When a tool accepts a time window, use params.range (today, yesterday, this_week, last_week, this_month, last_month, mtd, ytd), or date_from/date_to (YYYY-MM-DD), or time_from_ms/time_to_ms. Omit tz — server uses user timezone. Map hari ini→today, kemarin→yesterday, minggu ini→this_week, minggu lalu→last_week, bulan ini→mtd or this_month, bulan lalu→last_month, tahun ini→ytd. Same shape for site.query.run and other filtered tools.',
+    ARRAY[]::TEXT[],
+    ARRAY['wire:date_range'],
+    199,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    triggers = EXCLUDED.triggers,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: Frontier pool (compose signal model:frontier)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
@@ -167,6 +188,37 @@ Multi-step UI automation (click/type flows) is computer_use / delegate — not t
     inst = EXCLUDED.inst,
     kind = EXCLUDED.kind,
     topic_id = EXCLUDED.topic_id,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: Android remote device facts (trigger device:type:android from compose signals)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.android',
+    'global',
+    'trigger',
+    'device',
+    '[ANDROID DEVICE FACTS] The mentioned remote agent is type=android (Alien AI Remote). Paths are virtual UTF-8 roots — never C:\, Desktop, Recycle Bin, or Shell: folders. \
+Use device_iid from [MENTION TARGETS]. If several devices are listed, ask which one before calling tools. \
+Files: device.fs.list / device.fs.read with empty path for entry roots; app: for agent-private storage; optional shared: when available; tree:{id}/... for SAF folders the user granted on the device. \
+On-screen UI and layout → device.screenshot (coordinates 0.0–1.0). Tap, swipe, type, Back/Home/Recents → device.input — not shell.run. \
+shell.run on Android is allowlisted sh only (e.g. getprop, pm list packages, df) — not PowerShell and not arbitrary installs. \
+If a tool returns ok=false or empty output, say so plainly — do not invent contents.',
+    ARRAY[]::TEXT[],
+    ARRAY['device:type:android'],
+    ARRAY['device.screenshot', 'device.input', 'device.fs.list', 'device.fs.read', 'shell.run'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    141,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    triggers = EXCLUDED.triggers,
     include_tools = EXCLUDED.include_tools,
     exclude_tools = EXCLUDED.exclude_tools,
     priority = EXCLUDED.priority,
@@ -1009,15 +1061,18 @@ INSERT INTO ai.inst (
     'topic',
     'site.commerce',
     '[SITE.COMMERCE] User is working with POS / transactions on a site. \
-Use site.tx.put for sales, purchases, and stock movements; site.tx.preview before finalize; site.tx.debt_pay for debt or installment payments; site.order.status for changing order states. \
-Writes require exactly one site_iid per call — default from [SITE CONTEXTS] only when one site is mentioned; pass site_iid explicitly when multiple sites. \
-Never invent prices, stock, or totals — use tx tools only.',
+Readonly reports and lists: site.query.run with query_id + DATE RANGE params (never web.search for store data). \
+Writes: site.tx.put, site.tx.preview, site.tx.debt_pay, site.order.status — one site_iid per write from [SITE CONTEXTS] when a single site applies. \
+Never invent prices, stock, or totals.',
     ARRAY[]::TEXT[],
     ARRAY[
+        'tool_include:site.query.run',
         'tool_include:site.tx.put',
         'tool_include:site.tx.preview',
         'tool_include:site.tx.debt_pay',
-        'tool_include:site.order.status'
+        'tool_include:site.order.status',
+        'tool_exclude:web.search',
+        'tool_exclude:web.visit'
     ],
     118,
     'seed',
@@ -1091,8 +1146,8 @@ INSERT INTO ai.inst (
     'task',
     '',
     ARRAY['web.builder', 'site.commerce', 'general'],
-    '[SITE.REPORT] User wants sales, profit, or transaction count reports. Call site.query.run only. Profit / untung / laba => query_id tx.profit_summary. Revenue / penjualan / omzet / pendapatan => query_id tx.sales_summary (tx_count = number of sales). When they say hari ini / today, params.range = "today". kemarin => "yesterday". this week / minggu ini => "this_week". this month / bulan ini => "this_month". If no period, use "today". Omit site_iids to use all granted sites. Readonly. Do not call web.search or transaction write tools.',
-    ARRAY['laporan', 'report', 'sales today', 'untung', 'laba', 'berapa untung', 'untung hari ini', 'keuntungan', 'profit today', 'omzet', 'penjualan', 'pendapatan', 'minggu ini', 'bulan ini', 'berapa transaksi', 'omzet kemarin'],
+    '[SITE.REPORT] User wants sales, profit, or transaction count reports. Call site.query.run only. Profit / untung / laba => query_id tx.profit_summary. Revenue / penjualan / omzet / pendapatan / berapa transaksi / total transaksi => query_id tx.sales_summary (tx_count = number of sales). Set params.range (or date_* / time_* ms) per [DATE RANGE]. If no period, use range "today". Omit site_iids to use all granted sites. Readonly. Do not call web.search or transaction write tools.',
+    ARRAY['laporan', 'report', 'sales today', 'untung', 'laba', 'berapa untung', 'untung hari ini', 'keuntungan', 'profit today', 'omzet', 'penjualan', 'pendapatan', 'minggu ini', 'bulan ini', 'berapa transaksi', 'total transaksi', 'berapa total transaksi', 'jumlah transaksi', 'omzet kemarin'],
     ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
     ARRAY['site.query.run'],
     ARRAY['web.search', 'web.visit'],
@@ -1118,7 +1173,7 @@ INSERT INTO ai.inst (
     'task',
     '',
     ARRAY['web.builder', 'site.commerce', 'general'],
-    '[SITE.TX.BROWSE] User wants a transaction list (not a revenue total). Server may return a site.tx_list block. Prefer site.query.run query_id tx.sales_list with params.range (today/yesterday/this_week/this_month), limit, open_only, state. Do not paste the full grid in prose. Do not call web.search.',
+    '[SITE.TX.BROWSE] User wants a transaction list (not a revenue total). Server may return a site.tx_list block. Prefer site.query.run query_id tx.sales_list with params.range (today/yesterday/this_week/this_month), limit, open_only, state. Reply in the user language with a short recap only; the UI block shows the table. Do not paste the full grid in prose. Do not call web.search or web.visit.',
     ARRAY['daftar transaksi', 'apa saja transaksi', 'list transaksi', 'transaksi terakhir', 'nota terakhir', 'belum lunas', 'transaksi batal'],
     ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
     ARRAY['site.query.run'],
@@ -1259,7 +1314,7 @@ INSERT INTO ai.inst (
     '',
     ARRAY['web.builder', 'site.commerce', 'general'],
     '[SITE.TOP_PRODUCTS] User wants the best-selling products. Call site.query.run query_id tx.top_products. params.range = "today" if they say hari ini, else omit range (all time) unless they name a period (this_week / this_month). Pass site_iids from [SITE CONTEXTS]. Do not call web.search or site.tx.preview.',
-    ARRAY['paling dibeli', 'paling laku', 'best seller', 'terlaris', 'produk terlaris', 'top products'],
+    ARRAY['paling dibeli', 'paling laku', 'best seller', 'terlaris', 'produk terlaris', 'top products', 'apa saja item', 'item yang dijual', 'barang apa yang laku', 'yang terjual', 'what was sold', 'what items sold'],
     ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
     ARRAY['site.query.run'],
     ARRAY['web.search', 'web.visit'],

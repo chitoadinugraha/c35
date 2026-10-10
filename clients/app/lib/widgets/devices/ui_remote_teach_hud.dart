@@ -9,17 +9,37 @@ const _text = Color(0xFFF4F4F5);
 const _muted = Color(0xFF71717A);
 const _rec = Color(0xFFEF4444);
 
+bool remoteDeviceTypeIsAndroid(String deviceType) => deviceType.toLowerCase() == 'android';
+
+/// Snackbar after teach starts (viewer app).
+String remoteTeachRecordingSnackMessage(String title, {required bool androidRemote}) {
+  if (androidRemote) {
+    return 'Recording "$title" — tap Stop when you are done. On the phone, use the notification or volume keys (no F9).';
+  }
+  return 'Recording "$title" — use Stop on the HUD or F9 on the PC.';
+}
+
+/// Short hint shown on the in-session teach HUD while recording.
+String remoteTeachHudStopHint({required bool androidRemote}) {
+  if (androidRemote) {
+    return 'On the phone: notification or volume keys also stop recording.';
+  }
+  return 'F9 on the PC also stops recording.';
+}
+
 class UiRemoteTeachHud extends StatefulWidget {
   const UiRemoteTeachHud({
     super.key,
     required this.session,
     required this.deviceIid,
     required this.onStop,
+    this.androidRemote = false,
   });
 
   final RemoteSession session;
   final int deviceIid;
   final VoidCallback onStop;
+  final bool androidRemote;
 
   @override
   State<UiRemoteTeachHud> createState() => _UiRemoteTeachHudState();
@@ -135,6 +155,13 @@ class _UiRemoteTeachHudState extends State<UiRemoteTeachHud> {
                         ),
                       ),
                     ],
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        remoteTeachHudStopHint(androidRemote: widget.androidRemote),
+                        style: const TextStyle(color: _muted, fontSize: 10, height: 1.35),
+                      ),
+                    ),
                     const SizedBox(height: 10),
                     FilledButton(
                       onPressed: widget.onStop,

@@ -29,7 +29,7 @@ List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps, {bool platfo
       SiteEditorMenuGroup('Site', [
         const SiteEditorMenuItem('info', Icons.info_outline, 'Info'),
         const SiteEditorMenuItem('links', Icons.link, 'Links'),
-        const SiteEditorMenuItem('posts', Icons.newspaper_outlined, 'News'),
+        const SiteEditorMenuItem('posts', Icons.newspaper_outlined, 'Posts'),
         SiteEditorMenuItem(
           'design',
           Icons.palette_outlined,

@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use c35_mod_billing::billing_cost_usd;
@@ -16,7 +16,6 @@ use super::web_grounding::{
 };
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_query_arms_web, catalog_web_after_stock, CatalogWebPhase};
-use crate::site_report::site_report_parse;
 use crate::chat_title_set;
 use crate::mention_context::{json_device_iid_field, mention_context_register_site};
 use crate::prompt::hooks::PromptHopCheckpoint;
@@ -154,44 +153,6 @@ pub async fn prompt_cluster_turn(
     let mut blocks_json = String::from("[]");
     let mut tools_cost_usd = 0.0f64;
     let model_used = bill_slug.clone();
-
-    if req.stock_report {
-        if let Some(ctx) = turn_ctx.as_deref() {
-            if let Some(done) =
-                crate::stock_report_run::stock_report_prefetch(ctx, &req.user).await?
-            {
-                if !done.text.is_empty() {
-                    on_delta(false, done.text.clone());
-                }
-                on_blocks(done.blocks_json.clone());
-                return Ok(done);
-            }
-        }
-    }
-
-    if req.tx_browse {
-        if let Some(ctx) = turn_ctx.as_deref() {
-            if let Some(done) = crate::tx_browse_run::tx_browse_prefetch(ctx, &req.user).await? {
-                if !done.text.is_empty() {
-                    on_delta(false, done.text.clone());
-                }
-                on_blocks(done.blocks_json.clone());
-                return Ok(done);
-            }
-        }
-    }
-
-    if req.site_report {
-        if let Some(ctx) = turn_ctx.as_deref() {
-            if let Some(done) = crate::site_report_run::site_report_prefetch(ctx, &req.user).await? {
-                if !done.text.is_empty() {
-                    on_delta(false, done.text.clone());
-                }
-                on_blocks(done.blocks_json.clone());
-                return Ok(done);
-            }
-        }
-    }
 
     if tools.is_empty() {
         let hop_started = Instant::now();
@@ -385,21 +346,6 @@ pub async fn prompt_cluster_turn(
         if !out.thought.is_empty() {
             thought_push(&mut thought, &out.thought);
         }
-        if out.function_calls.is_empty()
-            && out.text.trim().is_empty()
-            && round == 0
-            && site_report_parse(&req.user).is_some()
-        {
-            if let Some(ctx) = turn_ctx.as_deref() {
-                if let Some(done) = crate::site_report_run::site_report_prefetch(ctx, &req.user).await? {
-                    if !done.text.is_empty() {
-                        on_delta(false, done.text.clone());
-                    }
-                    on_blocks(done.blocks_json.clone());
-                    return Ok(done);
-                }
-            }
-        }
         if !out.function_calls.is_empty() {
             if wrap || tool_calls_dup(&prev_calls, &out.function_calls) {
                 if !out.text.is_empty() {
@@ -454,14 +400,27 @@ pub async fn prompt_cluster_turn(
                     async move {
                         let tool_started = Instant::now();
                         let tool_call_id = snowflake_id().to_string();
-                        let (result, tool_cost) = cluster_tool_exec(
-                            client,
-                            name,
-                            args,
-                            turn_ctx_ref,
-                            Some(&tool_call_id),
+                        let tool_res = tokio::time::timeout(
+                            Duration::from_secs(60),
+                            cluster_tool_exec(
+                                client,
+                                name,
+                                args,
+                                turn_ctx_ref,
+                                Some(&tool_call_id),
+                            ),
                         )
                         .await;
+                        let (result, tool_cost) = match tool_res {
+                            Ok(res) => res,
+                            Err(_) => (
+                                serde_json::json!({
+                                    "ok": false,
+                                    "error": format!("tool {name} timed out after 60s")
+                                }),
+                                0.0,
+                            ),
+                        };
                         let tool_ms = tool_started.elapsed().as_millis() as i64;
                         (
                             name.clone(),

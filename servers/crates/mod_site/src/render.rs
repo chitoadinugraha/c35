@@ -1218,9 +1218,39 @@ pub fn render_etag(html: &str) -> String {
     blake3::hash(html.as_bytes()).to_hex().to_string()
 }
 
-pub fn render_offline_html(name: &str) -> String {
+/// Black alien head from `assets/icons/alien_receipt.svg` (transparent background).
+const ALIEN_RECEIPT_ICON_SVG: &str = r#"<svg class="powered-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M12 3c4.97 0 9 3.58 9 8s-6 10-9 10s-9-5.58-9-10s4.03-8 9-8m-1.69 7.93C9.29 9.29 7.47 8.58 6.25 9.34s-1.38 2.71-.36 4.35c1.03 1.64 2.85 2.35 4.07 1.59c1.22-.78 1.37-2.71.35-4.35m3.38 0c-1.02 1.64-.87 3.57.35 4.35c1.22.76 3.04.05 4.07-1.59c1.02-1.64.86-3.59-.36-4.35s-3.04-.05-4.06 1.59M12 17.75c-2 0-2.5-.75-2.5-.75c0 .03.5 2 2.5 2s2.5-2 2.5-2s-.5.75-2.5.75"/></svg>"#;
+
+/// Shared HTML footer: Powered by [icon] alienai.id (tappable label on screen HTML).
+pub fn html_powered_by_alienai_footer() -> String {
     format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{title} — AlienAI</title><style>:root{{--accent:#F97316}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa;color:#111}}main{{max-width:480px;margin:0 auto;text-align:center;padding:48px 24px}}h1{{color:var(--accent)}}</style></head><body><main><h1>{title}</h1><p>This site is not published yet.</p><p style="color:#666;font-size:13px">Powered by AlienAI</p></main></body></html>"#,
-        title = esc(name)
+        r#"<p class="powered-by"><span class="powered-muted">Powered by</span>{icon}<a class="powered-brand" href="https://alienai.id" rel="noopener noreferrer">alienai.id</a></p>"#,
+        icon = ALIEN_RECEIPT_ICON_SVG,
+    )
+}
+
+pub fn render_offline_html(name: &str) -> String {
+    let powered = html_powered_by_alienai_footer();
+    format!(
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{title} — alienai.id</title><style>
+:root{{--accent:#F97316;--muted:#71717a;--card:#fff;--border:#e4e4e7}}
+*{{box-sizing:border-box}}
+body{{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;font-family:system-ui,-apple-system,sans-serif;color:#18181b;background:linear-gradient(165deg,#fff7ed 0%,#fafafa 45%,#f4f4f5 100%}}
+.card{{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px 28px;text-align:center;box-shadow:0 4px 24px rgba(24,24,27,.06)}}
+.site-title{{margin:0 0 12px;font-size:1.75rem;font-weight:700;color:var(--accent);letter-spacing:-.02em}}
+.badge{{display:inline-block;margin:0 0 16px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600;color:#9a3412;background:#ffedd5;border:1px solid #fed7aa}}
+.lead{{margin:0;font-size:15px;line-height:1.5;color:var(--muted)}}
+.powered-by{{display:flex;align-items:center;justify-content:center;gap:5px;margin:28px 0 0;font-size:13px}}
+.powered-muted{{color:#a1a1aa;font-weight:300}}
+.powered-icon{{width:14px;height:14px;color:#525252;flex-shrink:0}}
+.powered-brand{{color:#525252;font-weight:700;text-decoration:none}}
+.powered-brand:hover{{text-decoration:underline}}
+@media print{{.powered-brand{{text-decoration:none;color:inherit}}}}
+</style></head><body>
+<main class="card"><h1 class="site-title">{title}</h1><p class="badge">Draft</p><p class="lead">This site is not published yet. Check back soon or ask the owner to publish from Alien AI.</p></main>
+{powered}
+</body></html>"#,
+        title = esc(name),
+        powered = powered,
     )
 }

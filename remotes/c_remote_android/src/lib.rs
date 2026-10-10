@@ -2,6 +2,9 @@
 
 pub mod agent_version;
 pub mod daemon;
+pub mod drive;
+pub mod platform_bridge;
+pub mod skill_teach_android;
 pub mod som_overlay;
 pub mod webrtc_bridge;
 
@@ -14,7 +17,7 @@ use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 
-static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
+pub(crate) static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
 static CALLBACK_OBJ: Mutex<Option<jni::objects::GlobalRef>> = Mutex::new(None);
 static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 static CONTROL_ALLOWED: AtomicBool = AtomicBool::new(true);
@@ -75,6 +78,10 @@ pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeInit(
     };
 
     info!(url = %url_str, dir = %dir_str, dev = %dev_str, "NativeBridge initializing");
+
+    platform_bridge::register_platform_handlers();
+    skill_teach_android::register();
+    drive::drive_start_on_agent_ready();
 
     // Initialize WebRTC and inputs
     webrtc_bridge::init_webrtc_handlers();
@@ -217,6 +224,44 @@ pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeUnpair(
     _class: JClass,
 ) {
     daemon::trigger_unpair();
+}
+
+#[no_mangle]
+pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeGetDriveCacheDir(
+    env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    let path = drive::drive_cache_dir_display();
+    match env.new_string(path) {
+        Ok(s) => s.into_raw(),
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeIsDriveEnabled(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    if c_remote_core::config::drive_enabled_load() {
+        1
+    } else {
+        0
+    }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_id_alienai_remote_bridge_NativeBridge_nativeSetDriveEnabled(
+    _env: JNIEnv,
+    _class: JClass,
+    enabled: jboolean,
+) {
+    let on = enabled != 0;
+    get_runtime().spawn(async move {
+        if let Err(e) = drive::drive_apply(on).await {
+            tracing::warn!("drive_apply: {e:#}");
+        }
+    });
 }
 
 #[cfg(target_os = "android")]

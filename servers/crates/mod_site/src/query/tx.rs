@@ -64,10 +64,10 @@ query_register! {
             )
             SELECT
                 s.site_iid,
-                COALESCE(a.tx_count, 0) AS tx_count,
-                COALESCE(a.revenue, 0) AS revenue,
-                COALESCE(a.items_revenue, 0) AS items_revenue,
-                COALESCE(a.paid_total, 0) AS paid_total
+                COALESCE(a.tx_count, 0)::bigint AS tx_count,
+                COALESCE(a.revenue, 0)::bigint AS revenue,
+                COALESCE(a.items_revenue, 0)::bigint AS items_revenue,
+                COALESCE(a.paid_total, 0)::bigint AS paid_total
             FROM sites s
             LEFT JOIN agg a ON a.site_iid = s.site_iid
             ORDER BY s.site_iid
@@ -197,11 +197,11 @@ query_register! {
             )
             SELECT
                 s.site_iid,
-                COALESCE(sa.gross_sales, 0) AS gross_sales,
-                COALESCE(sa.items_sales, 0) AS items_sales,
-                COALESCE(p.cogs, 0) AS cogs,
-                COALESCE(e.gl_expense, 0) AS gl_expense,
-                COALESCE(sa.gross_sales, 0) - COALESCE(p.cogs, 0) - COALESCE(e.gl_expense, 0) AS profit
+                COALESCE(sa.gross_sales, 0)::bigint AS gross_sales,
+                COALESCE(sa.items_sales, 0)::bigint AS items_sales,
+                COALESCE(p.cogs, 0)::bigint AS cogs,
+                COALESCE(e.gl_expense, 0)::bigint AS gl_expense,
+                (COALESCE(sa.gross_sales, 0) - COALESCE(p.cogs, 0) - COALESCE(e.gl_expense, 0))::bigint AS profit
             FROM sites s
             LEFT JOIN sales sa ON sa.site_iid = s.site_iid
             LEFT JOIN purchases p ON p.site_iid = s.site_iid
@@ -461,7 +461,7 @@ async fn sales_revenue_for_range(
                     WHEN ty = 'return_sale' THEN -total
                     ELSE 0
                 END
-            ), 0) AS revenue
+            ), 0)::bigint AS revenue
         FROM site.tx
         WHERE site_iid = ANY($1)
           AND deleted_ts IS NULL

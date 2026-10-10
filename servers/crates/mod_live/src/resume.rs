@@ -10,6 +10,12 @@ pub struct LiveResume {
 }
 
 impl LiveResume {
+    /// True when Gemini announces the connection will close soon (`goAway`).
+    /// The proxy answers with a make-before-break handover using [`Self::handle`].
+    pub fn is_go_away(v: &Value) -> bool {
+        v.get("goAway").is_some()
+    }
+
     pub fn note_server_msg(&mut self, v: &Value) {
         let update = v.get("sessionResumptionUpdate").or_else(|| v.pointer("/sessionResumptionUpdate"));
         let Some(update) = update else {
@@ -91,6 +97,12 @@ mod tests {
         let fields = resume.setup_fields();
         assert_eq!(fields["sessionResumption"]["handle"], "h1");
         assert!(fields.get("contextWindowCompression").is_some());
+    }
+
+    #[test]
+    fn live_go_away_detected() {
+        assert!(LiveResume::is_go_away(&json!({"goAway": {"timeLeft": "50s"}})));
+        assert!(!LiveResume::is_go_away(&json!({"serverContent": {}})));
     }
 
     #[test]

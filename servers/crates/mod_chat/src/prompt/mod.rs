@@ -3,7 +3,10 @@ pub mod gemini;
 pub mod hooks;
 pub mod llm_route;
 pub mod thought;
+pub mod date_range;
 pub mod time;
+
+pub use date_range::{date_range_prompt_block, DATE_RANGE_INST};
 pub mod tool_loop;
 pub mod user_context;
 pub mod web_grounding;
@@ -30,12 +33,6 @@ pub struct ChatReq {
     pub force_web_tool_call: bool,
     pub catalog_web: CatalogWebPhase,
     pub skip_web_prefetch: bool,
-    /// `inst.site.stock_report` matched. The tool loop may answer from SQL with no model hop.
-    pub stock_report: bool,
-    /// `inst.site.tx_browse` matched. The tool loop may list transactions with no model hop.
-    pub tx_browse: bool,
-    /// `inst.site.report` matched. Profit / sales summary may run without a model tool hop.
-    pub site_report: bool,
 }
 
 #[derive(Debug, Clone, Default)]

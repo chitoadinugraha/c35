@@ -1,0 +1,94 @@
+﻿cargo : warning: unreachable expression
+At C:\Users\Chito\AppData\Local\Temp\ps-script-d7874042-7712-4a0b-8fab-cb2a2cea758a.ps1:81 char:55
++ ... tinue'; cd D:\c35\remotes; cargo build -p c_remote_linux 2>&1 | Out-F ...
++                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: unreachable expression:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   --> c_remote_core\src\webrtc\fs.rs:815:5
+    |
+813 |         return path.to_string_lossy().replace('/', "\\");
+    |         ------------------------------------------------ any code following this expression is unreachable
+814 |     }
+815 |     path.to_string_lossy().into_owned()
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ unreachable expression
+    |
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `c_remote_core` (lib) generated 1 warning
+warning: unused imports: `info` and `warn`
+ --> c_remote_drive\src\mount\mount_windows.rs:1:15
+  |
+1 | use tracing::{info, warn};
+  |               ^^^^  ^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `ensure_winfsp_installed`
+ --> c_remote_drive\src\mount\mount_windows.rs:4:40
+  |
+4 | use crate::vfs_winfsp::{QuotaSnapshot, ensure_winfsp_installed};
+  |                                        ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `c_remote_drive` (lib) generated 2 warnings (run `cargo fix --lib -p c_remote_drive` to apply 2 suggestions)
+warning: unused imports: `Duration`, `SystemTime`, and `UNIX_EPOCH`
+ --> c_remote_linux\src\screen_capture.rs:3:17
+  |
+3 | use std::time::{Duration, SystemTime, UNIX_EPOCH};
+  |                 ^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `debug` and `info`
+ --> c_remote_linux\src\screen_capture.rs:6:15
+  |
+6 | use tracing::{debug, info, warn};
+  |               ^^^^^  ^^^^
+
+warning: function `shell_impl` is never used
+   --> c_remote_linux\src\linux_shell.rs:151:4
+    |
+151 | fn shell_impl(command: &str, timeout_secs: u32) -> ShellOutput {
+    |    ^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `register_command_handler` is never used
+   --> c_remote_linux\src\linux_shell.rs:155:4
+    |
+155 | fn register_command_handler() {
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: static `SCREEN_DIRTY` is never used
+  --> c_remote_linux\src\screen_capture.rs:10:8
+   |
+10 | static SCREEN_DIRTY: AtomicBool = AtomicBool::new(true);
+   |        ^^^^^^^^^^^^
+
+warning: static `NEXT_FRAME_ID` is never used
+  --> c_remote_linux\src\screen_capture.rs:11:8
+   |
+11 | static NEXT_FRAME_ID: AtomicU32 = AtomicU32::new(1);
+   |        ^^^^^^^^^^^^^
+
+warning: function `viewer_stream_quality` is never used
+  --> c_remote_linux\src\screen_capture.rs:20:4
+   |
+20 | fn viewer_stream_quality() -> u8 {
+   |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: `c_remote_linux` (lib) generated 7 warnings (run `cargo fix --lib -p c_remote_linux` to apply 2 suggestions)
+   Compiling c_remote_linux v0.1.0 (D:\c35\remotes\c_remote_linux)
+error: unexpected closing delimiter: `}`
+   --> c_remote_linux\src\main.rs:138:1
+    |
+ 12 | async fn run() -> anyhow::Result<()> {
+    |                                      - the nearest open delimiter
+...
+ 47 |     );
+    |     - missing open `(` for this delimiter
+...
+138 | }
+    | ^ unexpected closing delimiter
+
+error: could not compile `c_remote_linux` (bin "c_remote_linux") due to 1 previous error

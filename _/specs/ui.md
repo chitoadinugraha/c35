@@ -251,7 +251,7 @@ See [chat.md](chat.md) for full chat kinds and stop scope.
 
 ## Devices page
 
-Master/detail list of **`kind IN ('remote', 'iot')`** for owner. Supports order, pin, archive.
+Master/detail list of **`kind IN ('remote', 'iot')`** the caller owns or has a live grant on (shared devices included). Supports order, pin, archive. Account-menu device count uses the same set, excluding archived grants.
 
 ### Device row (remote)
 
@@ -264,7 +264,7 @@ Each remote row shows name + type subtitle (e.g. `CHITO` / `windows`) and **two 
 
 When Alien AI Cloud is down, the type subtitle is **Device is offline**.
 
-**WebRTC dot (right):** grey idle → orange connecting → green connected → red failed. **Connect-first:** no auto WebRTC on device select; **Connect** / **Retry** in detail toolbar and Remote tab. Full color table: [remote.md § WebRTC dot colors](remote.md#webrtc-dot-colors-right--connect-first-locked).
+**WebRTC dot (right):** grey idle → orange connecting → green connected → red failed. **Connect-first:** no auto WebRTC on device select; **Connect** / **Retry** only in the center of the Remote pane (Files has its own **Connect**). Full color table: [remote.md § WebRTC dot colors](remote.md#webrtc-dot-colors-right--connect-first-locked).
 
 **Cloud dot (left):** green when agent online, grey when offline (NATS `device_presence` push + `meta.last_seen_ts_ms`). Tooltip **Device is offline** when grey.
 
@@ -336,7 +336,9 @@ Remote agent attaches skills/tasks to device **identity id**.
 
 **Mutations** — New folder (`fsMkdir`), Rename (`fsRename`), Delete (`fsDelete` + confirm). Drive roots cannot be deleted.
 
-**Android Files matrix** (phone/tablet app — remote PC drives over WebRTC)
+**Drive roots (Windows remote only)** — When `device.type` is `windows` (or other desktop agent), empty path lists volume roots with `RemoteFsDriveKind`. **Alien AI Drive** (`A:`) appears only on Windows agents with drive enabled — not on Android remotes ([`drive.md`](drive.md), [`remote.md`](remote.md#cross-platform-drive-vs-device-files)).
+
+**Android client matrix** (Alien AI app on phone/tablet — browsing a **remote Windows** PC over WebRTC)
 
 | Capability | Android | Notes |
 |------------|---------|--------|
@@ -350,6 +352,22 @@ Remote agent attaches skills/tasks to device **identity id**.
 | Video play (WebRTC) | Supported | When agent ships media track (desktop agent) |
 | Background transfers | Degraded | Snackbar warns to keep app open; no wakelock in v1 |
 | Local ffmpeg OTA | N/A | Play build — agent-side tools only |
+
+**Android remote device matrix** (`device.type == android` — Files tab shows **that paired phone’s** storage, not a PC)
+
+Applies when the selected device is an Android **remote agent** (`id.alienai.remote`), from any client (desktop or mobile). Path grammar and SAF grants: [`remote-android.md`](remote-android.md#8-storage-paths-for-remote-fs-files-tab).
+
+| Capability | Status | Notes |
+|------------|--------|--------|
+| Browse / list / sort | Target (W1) | Same `UiDeviceFiles` chrome; roots are `app:`, `shared:` (if exposed), `tree:{id}` — not `C:\` or `A:` |
+| Text / image preview | Target (W1) | Same caps as desktop remote Files |
+| Upload / download / mkdir / rename / delete | Target (W1) | Allowed under `app:…` and `tree:{id}/…` when the agent has write access; denied on bare `tree:{id}` without write grant |
+| **Add folder** (SAF tree) | Agent app | `ACTION_OPEN_DOCUMENT_TREE` on remote agent — not the Flutter Files toolbar |
+| In-app copy / cut / paste (on device) | Target (W1) | Same duplicate-via-chunks model as Windows remote |
+| OS clipboard → upload (desktop client) | Supported | Same paste priority as §Copy / paste inside Files |
+| Drag-drop upload | Desktop client only | Same as Windows-remote row above |
+| Alien AI Drive (`A:`) root | **N/A** | Use Windows agent + [`drive.md`](drive.md); Android uses virtual roots only |
+| `shell.run` in chat | Target (W2) | Allowlisted `/system/bin/sh` on agent — not PowerShell |
 
 **Preview** — text-like extensions up to **2 MB**; images up to **512 KB** via chunked `RemoteFsRead` (banner when capped). Other types: use Download.
 

@@ -10,6 +10,10 @@ use tracing::warn;
 
 use crate::inbox::ts_ms;
 use crate::mention_registry::{mention_ref_iid, mention_ref_parse, MentionRef};
+use crate::tools::builtin::{
+    device_fs_list_description, device_fs_read_description, shell_run_description,
+};
+use crate::tools::{cluster_tools, ToolDef};
 
 pub fn chat_bound_device_iid(meta: &Value) -> i64 {
     meta.get("bound_device_iid")
@@ -396,6 +400,146 @@ pub async fn bound_device_prompt_prepare(
     Ok(())
 }
 
+pub const DEVICE_SIGNAL_ANDROID: &str = "device:type:android";
+pub const DEVICE_SIGNAL_WINDOWS: &str = "device:type:windows";
+
+/// Remote device `ai.identity.type` values in the current prompt scope (lowercase).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DevicePlatformScope {
+    pub types: Vec<String>,
+}
+
+impl DevicePlatformScope {
+    pub fn from_types(types: &[String]) -> Self {
+        let mut out: Vec<String> = types
+            .iter()
+            .map(|t| t.trim().to_ascii_lowercase())
+            .filter(|t| !t.is_empty())
+            .collect();
+        out.sort_unstable();
+        out.dedup();
+        Self { types: out }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.types.is_empty()
+    }
+
+    pub fn has_android(&self) -> bool {
+        self.types.iter().any(|t| t == "android")
+    }
+
+    pub fn has_windows(&self) -> bool {
+        self.types.iter().any(|t| t == "windows")
+    }
+
+    pub fn shell_eligible(&self) -> bool {
+        self.has_windows() || self.has_android()
+    }
+}
+
+fn scope_device_iids(mention_device_iids: &[i64], bound_device_iid: i64) -> Vec<i64> {
+    let mut ids: Vec<i64> = mention_device_iids
+        .iter()
+        .copied()
+        .filter(|i| *i > 0)
+        .collect();
+    if bound_device_iid > 0 && !ids.contains(&bound_device_iid) {
+        ids.push(bound_device_iid);
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+async fn remote_device_types_in_scope(
+    pool: &PgPool,
+    owner_iid: i64,
+    mention_device_iids: &[i64],
+    bound_device_iid: i64,
+) -> Vec<String> {
+    let ids = scope_device_iids(mention_device_iids, bound_device_iid);
+    if ids.is_empty() {
+        return Vec::new();
+    }
+    let rows = sqlx::query_scalar::<_, String>(
+        r#"
+        SELECT type
+        FROM ai.identity
+        WHERE id = ANY($1::bigint[])
+          AND owner_iid = $2
+          AND kind = 'remote'
+          AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(&ids)
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    if rows.len() != ids.len() {
+        return Vec::new();
+    }
+    rows
+}
+
+pub async fn device_platform_scope_for_prompt(
+    pool: &PgPool,
+    owner_iid: i64,
+    mention_device_iids: &[i64],
+    bound_device_iid: i64,
+) -> DevicePlatformScope {
+    let types = remote_device_types_in_scope(
+        pool,
+        owner_iid,
+        mention_device_iids,
+        bound_device_iid,
+    )
+    .await;
+    DevicePlatformScope::from_types(&types)
+}
+
+pub fn device_platform_compose_signals(scope: &DevicePlatformScope) -> Vec<String> {
+    let mut out = Vec::new();
+    if scope.has_android() {
+        out.push(DEVICE_SIGNAL_ANDROID.into());
+    }
+    if scope.has_windows() {
+        out.push(DEVICE_SIGNAL_WINDOWS.into());
+    }
+    out
+}
+
+/// Exclude `shell.run` when every device in scope is a type without a shell backend (e.g. browser, macOS).
+pub fn tool_exclude_non_shell_platforms(scope: &DevicePlatformScope) -> Vec<String> {
+    if scope.is_empty() || scope.shell_eligible() {
+        return Vec::new();
+    }
+    vec!["shell.run".to_string()]
+}
+
+pub fn tools_apply_device_platform_hints(tools: &mut [ToolDef], scope: &DevicePlatformScope) {
+    if scope.is_empty() {
+        return;
+    }
+    let windows = scope.has_windows();
+    let android = scope.has_android();
+    for t in tools.iter_mut() {
+        match t.name.as_str() {
+            "shell.run" => t.description = shell_run_description(windows, android),
+            "device.fs.list" => t.description = device_fs_list_description(windows, android),
+            "device.fs.read" => t.description = device_fs_read_description(windows, android),
+            _ => {}
+        }
+    }
+}
+
+pub fn cluster_tools_for_device_scope(scope: &DevicePlatformScope) -> Vec<ToolDef> {
+    let mut tools = cluster_tools();
+    tools_apply_device_platform_hints(&mut tools, scope);
+    tools
+}
+
 /// Desktop-only remote tools (shell, vision, computer_use, host fs) — not on `type=browser` agents.
 pub const BROWSER_DEVICE_TOOL_EXCLUDE: &[&str] = &[
     "shell.run",
@@ -413,16 +557,7 @@ pub async fn tool_exclude_browser_devices(
     mention_device_iids: &[i64],
     bound_device_iid: i64,
 ) -> Vec<String> {
-    let mut ids: Vec<i64> = mention_device_iids
-        .iter()
-        .copied()
-        .filter(|i| *i > 0)
-        .collect();
-    if bound_device_iid > 0 && !ids.contains(&bound_device_iid) {
-        ids.push(bound_device_iid);
-    }
-    ids.sort_unstable();
-    ids.dedup();
+    let ids = scope_device_iids(mention_device_iids, bound_device_iid);
     if ids.is_empty() {
         return Vec::new();
     }
@@ -461,6 +596,25 @@ pub async fn tool_exclude_browser_devices(
     Vec::new()
 }
 
+pub async fn device_prompt_tool_exclude(
+    pool: &PgPool,
+    owner_iid: i64,
+    mention_device_iids: &[i64],
+    bound_device_iid: i64,
+    scope: &DevicePlatformScope,
+) -> Vec<String> {
+    let browser = tool_exclude_browser_devices(pool, owner_iid, mention_device_iids, bound_device_iid)
+        .await;
+    let shell = tool_exclude_non_shell_platforms(scope);
+    let mut out = browser;
+    for name in shell {
+        if !out.iter().any(|x| x == &name) {
+            out.push(name);
+        }
+    }
+    out
+}
+
 pub async fn chat_bound_device_iid_for_owner(pool: &PgPool, owner_iid: i64, chat_id: i64) -> i64 {
     let row: Option<(i64, Value)> = sqlx::query_as(
         r#"
@@ -476,5 +630,39 @@ pub async fn chat_bound_device_iid_for_owner(pool: &PgPool, owner_iid: i64, chat
     match row {
         Some((oid, meta)) if oid == owner_iid => chat_bound_device_iid(&meta),
         _ => 0,
+    }
+}
+
+#[cfg(test)]
+mod platform_tests {
+    use super::*;
+
+    #[test]
+    fn android_only_scope_sets_signal_and_shell_hint() {
+        let scope = DevicePlatformScope::from_types(&["android".into()]);
+        assert!(scope.has_android());
+        assert!(scope.shell_eligible());
+        let signals = device_platform_compose_signals(&scope);
+        assert!(signals.iter().any(|s| s == DEVICE_SIGNAL_ANDROID));
+        assert!(tool_exclude_non_shell_platforms(&scope).is_empty());
+    }
+
+    #[test]
+    fn macos_scope_excludes_shell_run() {
+        let scope = DevicePlatformScope::from_types(&["macos".into()]);
+        assert_eq!(tool_exclude_non_shell_platforms(&scope), vec!["shell.run".to_string()]);
+    }
+
+    #[test]
+    fn tools_apply_android_fs_description() {
+        let scope = DevicePlatformScope::from_types(&["android".into()]);
+        let mut tools = vec![ToolDef::new(
+            "device.fs.list".into(),
+            "windows default".into(),
+            serde_json::json!({}),
+        )];
+        tools_apply_device_platform_hints(&mut tools, &scope);
+        assert!(tools[0].description.contains("app:"));
+        assert!(tools[0].description.contains("tree:{id}"));
     }
 }

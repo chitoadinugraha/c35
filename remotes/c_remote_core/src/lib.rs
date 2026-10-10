@@ -17,6 +17,8 @@ pub mod skill_store;
 pub mod skill_submit;
 pub mod skill_tape;
 pub mod skill_teach;
+pub mod android_shell;
+pub mod shell_delegate;
 pub mod task_report;
 pub mod task_run;
 pub mod tools;

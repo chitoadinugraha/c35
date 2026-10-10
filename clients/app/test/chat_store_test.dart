@@ -261,6 +261,27 @@ void main() {
     expect(store.promptBusy, isFalse);
   });
 
+  test('msgStreamFail clears busy even if error string is empty', () {
+    final store = ChatStore();
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', reqId: 'req-empty')];
+    store.promptBusyPut(true, chatId: 1, reqId: 'req-empty');
+
+    store.msgStreamFail('', chatId: 1, reqId: 'req-empty');
+
+    expect(store.promptBusy, isFalse);
+    expect(store.msgs.last.error, contains('failed'));
+  });
+
+  test('msgStreamFail clears busy on recoverable device context error', () {
+    final store = ChatStore();
+    store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '', reqId: 'req-dev')];
+    store.promptBusyPut(true, chatId: 1, reqId: 'req-dev');
+
+    store.msgStreamFail('Device Context Error: offline', chatId: 1, reqId: 'req-dev');
+
+    expect(store.promptBusy, isFalse);
+  });
+
   test('msgStreamContent ignores stale req when no matching assistant', () {
     final store = ChatStore();
     store.msgs = [

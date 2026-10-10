@@ -45,26 +45,40 @@ Future<img.Image> _assetImage(String assetPath) async {
 }
 
 Future<img.Image?> _siteForeground(String sitePic) async {
-  if (sitePic.isEmpty) return null;
-  if (iconifyIdFromPic(sitePic) != null) {
-    final png = await _iconifyRasterPng(sitePic, _iconSize);
-    if (png == null) return null;
-    return img.decodeImage(png);
-  }
-  final fetchSrc = _sitePicFetchKey(sitePic);
-  final file = await mediaDiskCacheFetch(fetchSrc);
-  if (file == null) return null;
-  return img.decodeImage(await file.readAsBytes());
+  final raw = await posShortcutSitePicBytes(sitePic);
+  if (raw == null || raw.isEmpty) return null;
+  return img.decodeImage(raw);
 }
 
-String _sitePicFetchKey(String sitePic) {
-  if (sitePic.startsWith('http://') || sitePic.startsWith('https://')) return sitePic;
-  if (sitePic.startsWith('/fs/') || sitePic.startsWith('fs/')) {
-    return sitePic.startsWith('/') ? sitePic : '/$sitePic';
+/// Loads site avatar bytes the same way [UiImg] / receipt logo loading does (API + public CDN).
+Future<Uint8List?> posShortcutSitePicBytes(String sitePic) async {
+  final trimmed = sitePic.trim();
+  if (trimmed.isEmpty) return null;
+  if (iconifyIdFromPic(trimmed) != null) {
+    return _iconifyRasterPng(trimmed, _iconSize);
   }
-  final guest = guestSitePicUrl(sitePic);
-  if (guest.isNotEmpty) return guest;
-  return sitePic;
+  Future<Uint8List?> tryFetch(String src) async {
+    final file = await mediaDiskCacheFetch(src);
+    if (file == null) return null;
+    final bytes = await file.readAsBytes();
+    return bytes.isEmpty ? null : bytes;
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return tryFetch(trimmed);
+  }
+  if (trimmed.startsWith('/fs/') || trimmed.startsWith('fs/')) {
+    final path = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    final fromApi = await tryFetch(path);
+    if (fromApi != null) return fromApi;
+    final guest = guestSitePicUrl(path);
+    if (guest.isNotEmpty) return tryFetch(guest);
+    return null;
+  }
+  final fromResolve = await tryFetch(trimmed);
+  if (fromResolve != null) return fromResolve;
+  final guest = guestSitePicUrl(trimmed);
+  if (guest.isNotEmpty) return tryFetch(guest);
+  return null;
 }
 
 Future<Uint8List?> _iconifyRasterPng(String pic, int size) async {

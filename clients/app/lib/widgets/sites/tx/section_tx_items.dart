@@ -7,6 +7,7 @@ import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_discount_dialog.da
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_item_numpad.dart';
 import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_reserve_dialog.dart';
 import 'package:alienai_c35/widgets/io/in_site_contact.dart';
+import 'package:alienai_c35/widgets/io/in_site_tx_tags.dart';
 import 'package:alienai_c35/widgets/sites/tx/section_tx_cart_pay.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_product_thumb.dart';
 import 'dart:math' as math;
@@ -76,6 +77,14 @@ class SectionTxItemsState extends State<SectionTxItems> {
   final _posScaffoldKey = GlobalKey<ScaffoldState>();
   var _searchQuery = '';
   String? _selectedCategory;
+  var _txTagCatalog = <String>[];
+  var _txTags = <String>[];
+
+  /// Clears tags on the open sale. The tag list created this session stays.
+  void clearTxTags() {
+    if (_txTags.isEmpty) return;
+    setState(() => _txTags = []);
+  }
 
   /// Opens the POS cart end drawer on compact layouts ([kPosInlineCartMinWidth]).
   void openCartDrawer() => _posScaffoldKey.currentState?.openEndDrawer();
@@ -670,24 +679,39 @@ class SectionTxItemsState extends State<SectionTxItems> {
                   ),
                 if (widget.posShell && widget.onContactChanged != null) ...[
                   if (!widget.posShell) const SizedBox(height: 6),
-                  InSiteContact(
-                    value: widget.selectedContact == null ? '' : '${widget.selectedContact!.contactId}',
-                    contacts: {for (final c in widget.contacts) '${c.contactId}': c},
-                    onAddCustomer: widget.onAddCustomer == null
-                        ? null
-                        : (name) async {
-                            final c = await widget.onAddCustomer!(name);
-                            if (c != null) widget.onContactChanged!(c);
-                            return c == null ? null : '${c.contactId}';
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InSiteContact(
+                          value: widget.selectedContact == null ? '' : '${widget.selectedContact!.contactId}',
+                          contacts: {for (final c in widget.contacts) '${c.contactId}': c},
+                          onAddCustomer: widget.onAddCustomer == null
+                              ? null
+                              : (name) async {
+                                  final c = await widget.onAddCustomer!(name);
+                                  if (c != null) widget.onContactChanged!(c);
+                                  return c == null ? null : '${c.contactId}';
+                                },
+                          onCommit: (id) async {
+                            if (id.isEmpty) {
+                              widget.onContactChanged!(null);
+                              return;
+                            }
+                            final picked = widget.contacts.where((c) => '${c.contactId}' == id).firstOrNull;
+                            if (picked != null) widget.onContactChanged!(picked);
                           },
-                    onCommit: (id) async {
-                      if (id.isEmpty) {
-                        widget.onContactChanged!(null);
-                        return;
-                      }
-                      final picked = widget.contacts.where((c) => '${c.contactId}' == id).firstOrNull;
-                      if (picked != null) widget.onContactChanged!(picked);
-                    },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      InSiteTxTags(
+                        catalog: _txTagCatalog,
+                        selected: _txTags,
+                        onChanged: (next) => setState(() {
+                          _txTagCatalog = List<String>.of(next.catalog);
+                          _txTags = List<String>.of(next.selected);
+                        }),
+                      ),
+                    ],
                   ),
                 ],
               ],

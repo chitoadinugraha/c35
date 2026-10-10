@@ -102,3 +102,6 @@ pub use vid_generate::VidGenerateTool;
 pub use web_research::WebResearchTool;
 pub use web_search::WebSearchTool;
 pub use web_visit::WebVisitTool;
+pub use device::{
+    device_fs_list_description, device_fs_read_description, shell_run_description,
+};

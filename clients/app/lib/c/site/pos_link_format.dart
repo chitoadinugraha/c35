@@ -30,10 +30,24 @@ String? _normSiteIid(String raw) {
   return id;
 }
 
+const posShortcutTitleSuffix = ' - Alien AI POS';
+
 /// Desktop / launcher label: `<Site> - Alien AI POS`.
 String posShortcutLabel(String siteName) {
   final base = siteName.trim().isEmpty ? 'Site' : siteName.trim();
-  return '$base - Alien AI POS';
+  return '$base$posShortcutTitleSuffix';
+}
+
+/// Pre-rename desktop `.lnk` stem (`<Site> - POS`) for cleanup when upgrading shortcuts.
+String posShortcutLegacyFileStem(String siteName) {
+  final base = siteName.trim().isEmpty ? 'Site' : siteName.trim();
+  var stem = '$base - POS';
+  stem = stem.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+  stem = stem.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (stem.isEmpty) stem = 'Site - POS';
+  const max = 120;
+  if (stem.length > max) stem = '${stem.substring(0, max - 3)}...';
+  return stem;
 }
 
 /// Safe file name stem for `.lnk` (no extension).

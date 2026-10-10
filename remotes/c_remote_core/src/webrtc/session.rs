@@ -284,7 +284,7 @@ impl WebrtcHub {
                     }
                 }
             }
-            #[cfg(not(windows))]
+            #[cfg(all(not(windows), not(target_os = "android")))]
             {
                 ResRemoteCommand {
                     ok: false,
@@ -292,6 +292,37 @@ impl WebrtcHub {
                     exit_code: -1,
                     stdout: String::new(),
                     stderr: String::new(),
+                }
+            }
+            #[cfg(target_os = "android")]
+            {
+                let run_res = tokio::time::timeout(
+                    std::time::Duration::from_secs(timeout_secs as u64),
+                    tokio::task::spawn_blocking(move || crate::android_shell::run(&cmd, timeout_secs)),
+                )
+                .await;
+                match run_res {
+                    Ok(Ok(out)) => ResRemoteCommand {
+                        ok: out.ok,
+                        error: out.error,
+                        exit_code: out.exit_code,
+                        stdout: out.stdout,
+                        stderr: out.stderr,
+                    },
+                    Ok(Err(e)) => ResRemoteCommand {
+                        ok: false,
+                        error: format!("task join error: {e}"),
+                        exit_code: -1,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    },
+                    Err(_) => ResRemoteCommand {
+                        ok: false,
+                        error: format!("command execution timed out after {timeout_secs}s"),
+                        exit_code: -1,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    },
                 }
             }
         };
@@ -583,11 +614,12 @@ impl WebrtcSession {
                     }
                 } else if state == RTCPeerConnectionState::Failed
                     || state == RTCPeerConnectionState::Closed
-                    || state == RTCPeerConnectionState::Disconnected
                 {
                     *pushed.write().await = false;
                     warn!(session_id = %sid, ?state, "==> [WEBRTC DISCONNECTED] Peer connection ended");
                     push_connected(&out, dev, &sid, false, None);
+                } else if state == RTCPeerConnectionState::Disconnected {
+                    warn!(session_id = %sid, "==> [WEBRTC DISCONNECTED] Peer connection transiently disconnected; waiting for ICE recovery or close");
                 }
             })
         }));

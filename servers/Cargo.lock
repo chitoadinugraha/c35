@@ -598,6 +598,7 @@ dependencies = [
  "c35_nats",
  "c35_proto",
  "c35_store",
+ "c35_time_range",
  "c35_wire",
  "chrono",
  "chrono-tz",
@@ -1006,6 +1007,7 @@ dependencies = [
  "c35_mod_mail",
  "c35_proto",
  "c35_store",
+ "c35_time_range",
  "chrono",
  "hex",
  "hickory-resolver",
@@ -1146,6 +1148,17 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
+]
+
+[[package]]
+name = "c35_time_range"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "chrono-tz",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

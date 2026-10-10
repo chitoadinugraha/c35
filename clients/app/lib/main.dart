@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:alienai_c35/c/api/settings_conn.dart';
 import 'package:alienai_c35/c/billing/voucher_link.dart';
@@ -9,7 +8,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/locale/app_locale.dart';
 import 'package:alienai_c35/c/nav.dart';
-import 'package:alienai_c35/c/parts/version_label.dart';
+import 'package:alienai_c35/c/parts/windows_taskbar.dart';
 import 'package:alienai_c35/c/settings/settings_bootstrap.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
@@ -38,12 +37,6 @@ bool get _desktop =>
         defaultTargetPlatform == TargetPlatform.linux ||
         defaultTargetPlatform == TargetPlatform.macOS);
 
-String _windowsIconPath() {
-  final bundled = File('${File(Platform.resolvedExecutable).parent.path}${Platform.pathSeparator}data${Platform.pathSeparator}flutter_assets${Platform.pathSeparator}assets${Platform.pathSeparator}icons${Platform.pathSeparator}app_icon.ico');
-  if (bundled.existsSync()) return bundled.path;
-  return 'assets/icons/app_icon.ico';
-}
-
 const _bg = Color(0xFF08080A);
 
 Future<void> main() async {
@@ -65,15 +58,15 @@ Future<void> main() async {
       ),
     );
     if (_desktop) {
-      final title = 'Alien AI ${appVersionLabel()}';
+      const title = 'Alien AI';
       // Native title bar on Windows: hidden + window_manager NC hacks flash during screen capture.
       final titleBarStyle = defaultTargetPlatform == TargetPlatform.windows ? TitleBarStyle.normal : TitleBarStyle.hidden;
       final opts = WindowOptions(title: title, titleBarStyle: titleBarStyle, backgroundColor: _bg);
       await windowManager.waitUntilReadyToShow(opts, () async {
         await windowManager.setTitle(title);
-        try {
-          await windowManager.setIcon(_windowsIconPath());
-        } catch (_) {}
+        if (defaultTargetPlatform == TargetPlatform.windows) {
+          await windowsTaskbarApplyAppIcon();
+        }
         await windowManager.show();
         await windowManager.focus();
       });

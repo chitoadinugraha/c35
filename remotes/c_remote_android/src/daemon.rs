@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use c_remote_core::agent_profile::{agent_profile_fetch, owner_display};
 use c_remote_core::config::{
-    device_iid_load, session_key_clear, session_key_load, session_key_save,
+    device_iid_load, drive_enabled_load, session_key_clear, session_key_load, session_key_save,
 };
 use c_remote_core::conn_ws::{conn_ws_run_reconnect, is_invalid_session};
 use c_remote_core::pair::{pair_connect_status, pair_poll, pair_register, pair_unpair, PairPoll};
@@ -27,6 +27,7 @@ pub struct DaemonStatusSnapshot {
     pub device_name: String,
     pub package_name: String,
     pub active_viewers: usize,
+    pub storage_grants: usize,
 }
 
 static STATUS_SNAPSHOT: RwLock<Option<DaemonStatusSnapshot>> = RwLock::new(None);
@@ -39,8 +40,15 @@ pub fn status_snapshot_json() -> String {
     } else {
         DaemonStatusSnapshot::default()
     };
-    let snap = merge_ws_presence(snap);
+    let snap = merge_storage_grants(merge_ws_presence(snap));
     serde_json::to_string(&snap).unwrap_or_else(|_| "{}".into())
+}
+
+fn merge_storage_grants(snap: DaemonStatusSnapshot) -> DaemonStatusSnapshot {
+    DaemonStatusSnapshot {
+        storage_grants: crate::platform_bridge::storage_grant_count() as usize,
+        ..snap
+    }
 }
 
 fn merge_ws_presence(snap: DaemonStatusSnapshot) -> DaemonStatusSnapshot {
@@ -245,6 +253,14 @@ pub fn start_daemon_loop(
             });
             status_change_cb(status_snapshot_json());
 
+            if drive_enabled_load() {
+                if let Err(e) = crate::drive::drive_mount().await {
+                    warn!(err = %e, "Alien AI Drive sync not started");
+                }
+            } else {
+                crate::drive::drive_unmount();
+            }
+
             let ws_url = server_url.clone();
             let sess = session_key.clone();
             let mut conn = crate::get_runtime().spawn(async move {
@@ -256,6 +272,7 @@ pub fn start_daemon_loop(
                     match r {
                         Ok(Ok(ConnExit::Unpaired)) => {
                             info!("Unpaired via server push");
+                            crate::drive::drive_unmount();
                             let _ = session_key_clear();
                         }
                         Ok(Ok(ConnExit::Completed)) => {
@@ -276,6 +293,7 @@ pub fn start_daemon_loop(
                 _ = unpair_notify.notified() => {
                     info!("Local unpair triggered");
                     conn.abort();
+                    crate::drive::drive_unmount();
                     let _ = pair_unpair(&server_url, &session_key).await;
                     let _ = session_key_clear();
                 }
