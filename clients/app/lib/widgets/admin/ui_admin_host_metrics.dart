@@ -3,6 +3,7 @@ import 'package:alienai_c35/c/admin/admin_stats_stream.dart';
 import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_network_row.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_stat_bar.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
 import 'package:flutter/material.dart';
 
 class UiAdminNodeMetrics extends StatelessWidget {
@@ -56,23 +57,29 @@ class UiAdminPodMetrics extends StatelessWidget {
       pod.memRequestBytes.toInt().toDouble(),
       pod.memLimitBytes.toInt().toDouble(),
     );
+    final cpuUnbounded = adminPodCpuUnbounded(pod.cpuLimitCores);
+    final memUnbounded = adminPodMemUnbounded(pod.memLimitBytes);
     return Column(
       children: [
         UiAdminStatBar(
           label: 'CPU',
           detail: adminFmtCpuTriple(pod.cpuUsedCores, pod.cpuRequestCores, pod.cpuLimitCores),
-          pct: pod.cpuPct.clamp(0, 100),
+          pct: cpuUnbounded ? 100 : pod.cpuPct.clamp(0, 100),
           dense: true,
           detailWidth: kAdminStatPodDetailWidth,
-          requestMarkerFrac: cpuMarker,
+          requestMarkerFrac: cpuUnbounded ? null : cpuMarker,
+          fillColor: cpuUnbounded ? adminBarIn : null,
+          pctLabel: cpuUnbounded ? '\u2014' : null,
         ),
         UiAdminStatBar(
           label: 'RAM',
           detail: adminFmtBytesTriple(pod.memUsedBytes, pod.memRequestBytes, pod.memLimitBytes),
-          pct: pod.memPct.clamp(0, 100),
+          pct: memUnbounded ? 100 : pod.memPct.clamp(0, 100),
           dense: true,
           detailWidth: kAdminStatPodDetailWidth,
-          requestMarkerFrac: memMarker,
+          requestMarkerFrac: memUnbounded ? null : memMarker,
+          fillColor: memUnbounded ? adminBarIn : null,
+          pctLabel: memUnbounded ? '\u2014' : null,
         ),
         UiAdminNetworkRow(
           interfaceLabel: stats.nodeNetIface(pod.nodeName) ?? 'Network',

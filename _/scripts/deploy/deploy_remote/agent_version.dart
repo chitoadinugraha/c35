@@ -94,6 +94,7 @@ void agentVersionBump(String root, [RemoteAgentProduct product = RemoteAgentProd
     RemoteAgentProduct.browser => 'remote-browser',
     RemoteAgentProduct.android => 'remote-android',
     RemoteAgentProduct.chromeExtension => 'chrome-extension',
+    RemoteAgentProduct.linux => 'remote-linux',
     RemoteAgentProduct.windows => 'remote-windows',
   };
   stdout.writeln('✓ $label version bumped to $nextName+$next');

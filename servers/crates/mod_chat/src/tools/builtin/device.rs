@@ -260,8 +260,8 @@ tool! {
                 ctx.nats.as_ref(),
                 ctx.owner_iid,
                 device_iid,
-                1280,
-                72,
+                1024,
+                60,
                 marker,
                 false,
             ).await {

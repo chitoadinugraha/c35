@@ -5,7 +5,9 @@ import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/site_info_sync.dart';
 import 'package:alienai_c35/c/site/site_post_media.dart';
+import 'package:alienai_c35/c/site/site_schedule.dart';
 
 void siteEditorPreviewPatchSiteRow(Map<String, dynamic> boot, SiteRow row) {
   boot['name'] = row.name;
@@ -417,4 +419,70 @@ List<Map<String, dynamic>> siteEditorPreviewPagesFromDoc(SiteDoc doc) {
 
 void siteEditorPreviewPatchDocPages(Map<String, dynamic> boot, SiteDoc doc) {
   boot['pages'] = siteEditorPreviewPagesFromDoc(doc);
+}
+
+bool siteEditorPreviewHomeBlocksEmpty(Map<String, dynamic> boot) {
+  final pages = boot['pages'];
+  if (pages is! List || pages.isEmpty) return true;
+  final first = pages.first;
+  if (first is! Map) return true;
+  final blocks = first['blocks'];
+  if (blocks is! List) return true;
+  return blocks.isEmpty;
+}
+
+SiteInfoSnapshot siteEditorPreviewInfoSnapshot(SiteRow row, String metaJson) {
+  var locationLabel = '';
+  var locationHref = '';
+  double? lat;
+  double? lng;
+  siteMetaLocationRead(metaJson, (label, href, latitude, longitude) {
+    locationLabel = label;
+    locationHref = href;
+    lat = latitude;
+    lng = longitude;
+  });
+  return SiteInfoSnapshot(
+    name: row.name,
+    tagline: siteMetaTaglineRead(metaJson),
+    pic: row.pic,
+    locationLabel: locationLabel,
+    locationHref: locationHref,
+    latitude: lat,
+    longitude: lng,
+    openHours: siteScheduleSlotsFromMetaJson(metaJson),
+  );
+}
+
+SiteDoc siteEditorPreviewSeedDoc(SiteInfoSnapshot snap) {
+  final name = snap.name.trim().isNotEmpty ? snap.name.trim() : 'Site';
+  final props = <String, dynamic>{
+    'title': name,
+    if (snap.tagline.isNotEmpty) 'subtitle': snap.tagline,
+    if (snap.pic.isNotEmpty) 'pic': snap.pic,
+  };
+  return SiteDoc(
+    pages: [
+      SitePage(
+        path: '/',
+        title: name,
+        blocks: [SiteBlock(id: 'hero1', type: 'hero', propsJson: jsonEncode(props))],
+      ),
+    ],
+    themeJson: '{"accent":"#2563eb"}',
+    metaJson: siteMetaMergeInfo('{}', tagline: snap.tagline.isEmpty ? null : snap.tagline),
+  );
+}
+
+/// Ensures editor preview has home blocks (draft doc, or a hero seeded from site info).
+void siteEditorPreviewApplyDocToBoot(Map<String, dynamic> boot, SiteRow row, SiteDoc doc) {
+  var next = doc.clone();
+  final snap = siteEditorPreviewInfoSnapshot(row, next.metaJson);
+  if (next.pages.isEmpty || next.pages.every((p) => p.blocks.isEmpty)) {
+    next = siteEditorPreviewSeedDoc(snap);
+  }
+  next = siteInfoApplyToDoc(next, snap);
+  siteEditorPreviewPatchDocPages(boot, next);
+  siteEditorPreviewMergeMetaJson(boot, next.metaJson);
+  siteEditorPreviewPatchSiteRow(boot, row);
 }

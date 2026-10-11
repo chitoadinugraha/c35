@@ -187,7 +187,14 @@ When matched inst rows have a Rust enricher registered in `mod_chat::inst_enrich
 ```text
 [ENRICH:consumption.nutrition]
 {"calories_remaining":…,"protein_deficit_g":…,…}
+
+[ENRICH:user.me]
+{"name":"…","alien_id":"…","email":"…","iid":…}
 ```
+
+**`inst.me`** (`kind=task`, `role:personal_assistant`): phrase match when the user wants their own name (or identity) filled into a form, draft, or message (`isi dengan namaku`, `fill with my name`, …). Enricher `user.me` loads caller profile facts; **no** `account.get` / web tool hop (`exclude_tools` includes `web.search`).
+
+**`inst.core.context_first`** (`kind=trigger`, `always`): every Home turn — answer from `[ENRICH:…]`, mentions, attachments, and thread text when that is enough; do not call web tools to re-fetch the same facts. Compose also suppresses forced web prefetch when `inst_enrich_keys` is non-empty and the user did not clearly ask for live external data (`compose/context_web.rs`).
 
 - Enrichers run **in parallel** with tool query embed + vector rank (`tokio::join!` in `compose_tools_and_inst_async`).
 - Trace (Prepare): `trace_tool_embed` (prompt query embed, tokens + retail cost) → `trace_inst_enrich` → `trace_tool_filter` (vector rank only) — embed and enrich are concurrent; UI order is logical.

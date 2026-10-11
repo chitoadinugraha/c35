@@ -15,6 +15,8 @@ import 'dart:core' as $core;
 import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
+import 'admin.pb.dart' as $0;
+
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
 class DiskMountStat extends $pb.GeneratedMessage {
@@ -1001,6 +1003,59 @@ class ReqStatsSubscribe extends $pb.GeneratedMessage {
   static ReqStatsSubscribe? _defaultInstance;
 }
 
+/// Snapshot returned on subscribe (JetStream KV + relay cache); live updates still use stats_push.
+class ResStatsSubscribe extends $pb.GeneratedMessage {
+  factory ResStatsSubscribe({
+    $core.Iterable<StatsPush>? snapshot,
+  }) {
+    final result = ResStatsSubscribe._();
+    if (snapshot != null) result.snapshot.addAll(snapshot);
+    return result;
+  }
+
+  ResStatsSubscribe._();
+
+  factory ResStatsSubscribe.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResStatsSubscribe()..mergeFromBuffer(data, registry);
+  factory ResStatsSubscribe.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResStatsSubscribe()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResStatsSubscribe',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResStatsSubscribe.$_createMessage)
+    ..pPM<StatsPush>(1, _omitFieldNames ? '' : 'snapshot',
+        subBuilder: StatsPush.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResStatsSubscribe clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResStatsSubscribe copyWith(void Function(ResStatsSubscribe) updates) =>
+      super.copyWith((message) => updates(message as ResStatsSubscribe))
+          as ResStatsSubscribe;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResStatsSubscribe() / ResStatsSubscribe.new instead')
+  static ResStatsSubscribe create() => ResStatsSubscribe._();
+  static $pb.GeneratedMessage $_createMessage() => ResStatsSubscribe._();
+  @$core.override
+  ResStatsSubscribe createEmptyInstance() => ResStatsSubscribe._();
+  @$core.pragma('dart2js:noInline')
+  static ResStatsSubscribe getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResStatsSubscribe>(
+          ResStatsSubscribe.$_createMessage);
+  static ResStatsSubscribe? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<StatsPush> get snapshot => $_getList(0);
+}
+
 class ReqStatsUnsubscribe extends $pb.GeneratedMessage {
   factory ReqStatsUnsubscribe() => ReqStatsUnsubscribe._();
 
@@ -1041,6 +1096,172 @@ class ReqStatsUnsubscribe extends $pb.GeneratedMessage {
       $pb.GeneratedMessage.$_defaultFor<ReqStatsUnsubscribe>(
           ReqStatsUnsubscribe.$_createMessage);
   static ReqStatsUnsubscribe? _defaultInstance;
+}
+
+/// Root console dashboard — one WS init (sync.md): stats snapshot + user metrics + 24h peaks.
+class ReqRootConsole extends $pb.GeneratedMessage {
+  factory ReqRootConsole({
+    $fixnum.Int64? peaksSinceMs,
+    $fixnum.Int64? peaksUntilMs,
+    $core.bool? subscribeStats,
+  }) {
+    final result = ReqRootConsole._();
+    if (peaksSinceMs != null) result.peaksSinceMs = peaksSinceMs;
+    if (peaksUntilMs != null) result.peaksUntilMs = peaksUntilMs;
+    if (subscribeStats != null) result.subscribeStats = subscribeStats;
+    return result;
+  }
+
+  ReqRootConsole._();
+
+  factory ReqRootConsole.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRootConsole()..mergeFromBuffer(data, registry);
+  factory ReqRootConsole.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqRootConsole()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqRootConsole',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqRootConsole.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'peaksSinceMs')
+    ..aInt64(2, _omitFieldNames ? '' : 'peaksUntilMs')
+    ..aOB(3, _omitFieldNames ? '' : 'subscribeStats')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRootConsole clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqRootConsole copyWith(void Function(ReqRootConsole) updates) =>
+      super.copyWith((message) => updates(message as ReqRootConsole))
+          as ReqRootConsole;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqRootConsole() / ReqRootConsole.new instead')
+  static ReqRootConsole create() => ReqRootConsole._();
+  static $pb.GeneratedMessage $_createMessage() => ReqRootConsole._();
+  @$core.override
+  ReqRootConsole createEmptyInstance() => ReqRootConsole._();
+  @$core.pragma('dart2js:noInline')
+  static ReqRootConsole getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqRootConsole>(
+          ReqRootConsole.$_createMessage);
+  static ReqRootConsole? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get peaksSinceMs => $_getI64(0);
+  @$pb.TagNumber(1)
+  set peaksSinceMs($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPeaksSinceMs() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPeaksSinceMs() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get peaksUntilMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set peaksUntilMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPeaksUntilMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPeaksUntilMs() => $_clearField(2);
+
+  /// Unset or true: register for live stats_push after init.
+  @$pb.TagNumber(3)
+  $core.bool get subscribeStats => $_getBF(2);
+  @$pb.TagNumber(3)
+  set subscribeStats($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSubscribeStats() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSubscribeStats() => $_clearField(3);
+}
+
+class ResRootConsole extends $pb.GeneratedMessage {
+  factory ResRootConsole({
+    $core.Iterable<StatsPush>? statsSnapshot,
+    $0.ResAdminPlatformUserMetrics? userMetrics,
+    ResAdminOpsPeaks? peaks24h,
+  }) {
+    final result = ResRootConsole._();
+    if (statsSnapshot != null) result.statsSnapshot.addAll(statsSnapshot);
+    if (userMetrics != null) result.userMetrics = userMetrics;
+    if (peaks24h != null) result.peaks24h = peaks24h;
+    return result;
+  }
+
+  ResRootConsole._();
+
+  factory ResRootConsole.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResRootConsole()..mergeFromBuffer(data, registry);
+  factory ResRootConsole.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResRootConsole()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResRootConsole',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResRootConsole.$_createMessage)
+    ..pPM<StatsPush>(1, _omitFieldNames ? '' : 'statsSnapshot',
+        subBuilder: StatsPush.$_createMessage)
+    ..aOM<$0.ResAdminPlatformUserMetrics>(
+        2, _omitFieldNames ? '' : 'userMetrics',
+        subBuilder: $0.ResAdminPlatformUserMetrics.$_createMessage)
+    ..aOM<ResAdminOpsPeaks>(3, _omitFieldNames ? '' : 'peaks24h',
+        protoName: 'peaks_24h', subBuilder: ResAdminOpsPeaks.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResRootConsole clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResRootConsole copyWith(void Function(ResRootConsole) updates) =>
+      super.copyWith((message) => updates(message as ResRootConsole))
+          as ResRootConsole;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResRootConsole() / ResRootConsole.new instead')
+  static ResRootConsole create() => ResRootConsole._();
+  static $pb.GeneratedMessage $_createMessage() => ResRootConsole._();
+  @$core.override
+  ResRootConsole createEmptyInstance() => ResRootConsole._();
+  @$core.pragma('dart2js:noInline')
+  static ResRootConsole getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResRootConsole>(
+          ResRootConsole.$_createMessage);
+  static ResRootConsole? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<StatsPush> get statsSnapshot => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $0.ResAdminPlatformUserMetrics get userMetrics => $_getN(1);
+  @$pb.TagNumber(2)
+  set userMetrics($0.ResAdminPlatformUserMetrics value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUserMetrics() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUserMetrics() => $_clearField(2);
+  @$pb.TagNumber(2)
+  $0.ResAdminPlatformUserMetrics ensureUserMetrics() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  ResAdminOpsPeaks get peaks24h => $_getN(2);
+  @$pb.TagNumber(3)
+  set peaks24h(ResAdminOpsPeaks value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPeaks24h() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPeaks24h() => $_clearField(3);
+  @$pb.TagNumber(3)
+  ResAdminOpsPeaks ensurePeaks24h() => $_ensure(2);
 }
 
 class ReqLogSubscribe extends $pb.GeneratedMessage {

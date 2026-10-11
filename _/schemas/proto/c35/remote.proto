@@ -157,6 +157,57 @@ message ResRemoteBrowserInvoke {
 }
 
 // ---------------------------------------------------------------------------
+// Device egress (cluster CONNECT proxy → agent TCP dial)
+// See _/specs/device-egress-proxy.md
+// ---------------------------------------------------------------------------
+
+message ReqDeviceEgressLease {
+  int64 device_iid = 1;
+  string req_id = 2;
+  uint32 ttl_sec = 3;
+}
+
+message ResDeviceEgressLease {
+  string proxy_url = 1;
+  string username = 2;
+  string password = 3;
+  int64 expires_ts_ms = 4;
+  int64 device_iid = 5;
+}
+
+message ReqDeviceEgressOpen {
+  uint64 tunnel_id = 1;
+  string host = 2;
+  uint32 port = 3;
+}
+
+message ResDeviceEgressOpen {
+  bool ok = 1;
+  string error = 2;
+  uint64 tunnel_id = 3;
+}
+
+message ReqDeviceEgressData {
+  uint64 tunnel_id = 1;
+  bytes payload = 2;
+}
+
+message ReqDeviceEgressClose {
+  uint64 tunnel_id = 1;
+  string reason = 2;
+}
+
+message DeviceEgressData {
+  uint64 tunnel_id = 1;
+  bytes payload = 2;
+}
+
+message DeviceEgressClose {
+  uint64 tunnel_id = 1;
+  string reason = 2;
+}
+
+// ---------------------------------------------------------------------------
 // Remote filesystem list/read (agent control session RPC — not WebRTC)
 // ---------------------------------------------------------------------------
 

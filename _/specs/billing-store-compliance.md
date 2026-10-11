@@ -14,7 +14,8 @@ Companion: [billing.md](billing.md), [billing-plans.md](billing-plans.md)
 | Cancel at period end (wallet schedule) | Copy explains **also cancel recurring billing in Play** when subscription was bought via Play |
 | Voucher / package redeem | Allowed for prepaid codes; **no** “buy cheaper on the website” or external checkout CTAs |
 | Domain registration | Paid from **wallet** (real-world service); copy says credit comes from store top-up on mobile |
-| Debug builds | Midtrans may appear on **non-release Android** only — ship **release AAB** to Play |
+| Play AAB vs CAS APK | AAB: `C35_BILLING_DISTRIBUTION=play` — wallet top-up UI **not linked** (no Midtrans/transfer strings in binary). APK: `direct` — full wallet UI. Verify: `._/scripts/dev/verify_play_aab_wallet_strings.ps1` |
+| Debug `flutter run` (no define) | Android debug → **direct** billing (Midtrans OK for local dev) |
 
 ## Pre-submission checklist (Apple App Store)
 

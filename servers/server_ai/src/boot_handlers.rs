@@ -47,7 +47,7 @@ pub async fn boot_handlers_background(
         nats_boot::nats_post_connect(pool.clone(), nats_client.clone()).await;
         nats_boot::nats_supervise_reconnect(pool.clone(), nats_client.clone(), events);
     }
-    if let Some(nats_client) = nats {
+    if let Some(nats_client) = nats.as_ref() {
         c35_mod_billing::fx_live_subscribe(pool.clone(), nats_client.clone());
         c35_mod_llm::llm_catalog_nats_subscribe(pool.clone(), nats_client.clone());
         c35_mod_chat::inst_cache_nats_subscribe(pool.clone(), nats_client.clone());
@@ -66,11 +66,12 @@ pub async fn boot_handlers_background(
         tokio::spawn(async move {
             c35_mod_channel::start_channel_inbound_subscriber(subscriber_state).await;
         });
-        let worker = c35_mod_chat::prompt_run_worker_start(pool.clone(), nats_client);
+        let worker = c35_mod_chat::prompt_run_worker_start(pool.clone(), nats_client.clone());
         *prompt_worker.lock().await = Some(worker);
     } else if nats_required {
         tracing::warn!("inst cache: NATS unavailable, invalidation disabled");
     }
+    c35_mod_device::egress_proxy_spawn(pool.clone(), nats.clone());
     log::features(&feature_names(had_nats));
 }
 

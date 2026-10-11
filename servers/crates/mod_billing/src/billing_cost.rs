@@ -38,6 +38,8 @@ pub const MUSIC_ELEVENLABS_30S_WHOLESALE_USD: f64 = 0.08;
 pub const MUSIC_LYRIA_CLIP_WHOLESALE_USD: f64 = 0.06;
 /// MiniMax music-2.6 per track via CF.
 pub const MUSIC_MINIMAX_TRACK_WHOLESALE_USD: f64 = 0.15;
+/// reCAPTCHA v2/v3 cluster captcha solve fallback (2Captcha list; see mod_captcha billing).
+pub const CAPTCHA_RECAPTCHA_V2_WHOLESALE_USD: f64 = 0.002_99;
 
 pub fn billing_to_retail_usd(wholesale_usd: f64) -> f64 { wholesale_usd * RETAIL_MARKUP }
 
@@ -141,6 +143,9 @@ pub fn billing_tool_cost_usd(tool_name: &str, ok: bool) -> f64 {
         }
         "vid.generate" | "video.generate" | "vid_generate" => billing_to_retail_usd(VIDEO_SEEDANCE_MINI_WHOLESALE_USD),
         "music.generate" | "music_generate" => billing_to_retail_usd(MUSIC_ELEVENLABS_30S_WHOLESALE_USD),
+        "captcha.solve" | "captcha_solve" => {
+            billing_to_retail_usd(CAPTCHA_RECAPTCHA_V2_WHOLESALE_USD)
+        }
         _ => 0.0,
     }
 }

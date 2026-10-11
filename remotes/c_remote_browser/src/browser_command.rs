@@ -48,6 +48,11 @@ async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
             crate::extension_agent::restart_extension_agent()?;
             return Ok(json!({ "ok": true, "restarting": true }));
         }
+        if method == "captcha.apply" {
+            anyhow::bail!(
+                "browser.captcha.apply is not supported on Chrome extension devices (browser_engine=extension); use the Remote tab for manual captcha"
+            );
+        }
         if method.starts_with("extension.") {
             return crate::extension_page::extension_page_method(method, &params).await;
         }
@@ -178,6 +183,22 @@ async fn invoke_method(method: &str, params: Value) -> anyhow::Result<Value> {
                 coords,
             );
             Ok(json!({ "ok": true, "screenshot": screenshot }))
+        }
+        "captcha.apply" => {
+            let kind = params
+                .get("kind")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("kind required"))?;
+            let token = params
+                .get("token")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("token required"))?;
+            let mut ipc = json!({ "kind": kind, "token": token });
+            if let Some(tab_id) = params.get("tab_id").and_then(|v| v.as_str()) {
+                ipc["tab_id"] = json!(tab_id);
+            }
+            let out = bridge.call("captcha.apply", ipc).await?;
+            Ok(out)
         }
         "file.upload" => {
             let selector = params

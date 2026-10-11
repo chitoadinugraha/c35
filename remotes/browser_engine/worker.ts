@@ -51,6 +51,12 @@ const handleReq = async (req: IpcReq): Promise<void> => {
         writeMessage(resOk(id, { result: await engine.taskRun(steps, p?.slot_id, p?.tab_id) }));
         return;
       }
+      case 'captcha.apply': {
+        const p = params as { tab_id?: string; kind?: string; token?: string };
+        const out = await engine.captchaApply(p?.tab_id, p?.kind, p?.token);
+        writeMessage(resOk(id, { ok: true, url: out.url }));
+        return;
+      }
       case 'download.wait': {
         const timeoutMs = (params as { timeout_ms?: number })?.timeout_ms ?? 60_000;
         writeMessage(resOk(id, await engine.downloadWait(timeoutMs)));

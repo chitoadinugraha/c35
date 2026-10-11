@@ -239,7 +239,7 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
       imageUrl: row.pic,
       icon: Icons.language_outlined,
       actions: [
-        IoAskItemAction(label: 'Visit', icon: Icons.open_in_new_rounded, onTap: () => unawaited(_visitSite(context, row, _store.api))),
+        IoAskItemAction(label: 'Visit', icon: Icons.open_in_new_rounded, onTap: () => unawaited(_visitSite(context, row))),
         IoAskItemAction(label: 'Edit', icon: Icons.edit_outlined, onTap: () => _edit(id)),
         IoAskItemAction(label: 'POS', icon: Icons.point_of_sale_outlined, onTap: () => unawaited(_pos(row))),
       ],
@@ -282,19 +282,12 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
       );
 }
 
-Future<void> _visitSite(BuildContext context, SiteRow row, SiteApi api) async {
+Future<void> _visitSite(BuildContext context, SiteRow row) async {
   try {
     final origin = C35Config.guestSiteOrigin.replaceAll(RegExp(r'/+$'), '');
     final slug = row.alienId.isNotEmpty ? row.alienId : row.siteIid.toString();
     late final String url;
-    if (row.publishedVersionId.isNotEmpty) {
-      url = '$origin/$slug';
-    } else {
-      final res = await api.sitePreviewToken(row.siteIid.toInt());
-      final token = res.token;
-      if (token.isEmpty) throw 'Preview token missing';
-      url = '$origin/$slug?draft=1&ptoken=${Uri.encodeComponent(token)}';
-    }
+    url = row.publishedVersionId.isNotEmpty ? '$origin/$slug' : '$origin/$slug?draft=1';
     if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication) && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open URL'), behavior: SnackBarBehavior.floating));
     }

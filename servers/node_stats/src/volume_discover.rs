@@ -109,6 +109,11 @@ async fn volume_discover_inner(node_name: &str) -> Result<Vec<VolumeConfig>> {
             out.extend(pod_volumes(&pod, &k8s, &ns).await);
         }
     }
+    if out.is_empty() {
+        warn!(node = %node_name, "volume discover: no PVC paths resolved on node");
+    } else {
+        tracing::info!(node = %node_name, volumes = out.len(), "volume discover");
+    }
     Ok(out)
 }
 
@@ -130,7 +135,8 @@ async fn pod_volumes(pod: &PodRow, k8s: &K8sHttp, ns: &str) -> Vec<VolumeConfig>
     let mut out = Vec::new();
     for (vol_name, claim) in pvc_by_vol {
         let path = kubelet_volume_path(uid, &vol_name)
-            .or_else(|| kubelet_pvc_mount_path(uid, &claim));
+            .or_else(|| kubelet_pvc_mount_path(uid, &claim))
+            .or_else(|| kubelet_csi_mount_fallback(uid, &claim));
         let Some(path) = path else { continue };
         if !exists(&path) {
             continue;
@@ -167,6 +173,41 @@ fn kubelet_volume_path(pod_uid: &str, volume_name: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// OCI/CSI volumes often use opaque directory names (csi-uuid) that do not contain the PVC name.
+fn kubelet_csi_mount_fallback(pod_uid: &str, pvc_name: &str) -> Option<String> {
+    let mounts = kubelet_csi_mount_paths(pod_uid);
+    if mounts.is_empty() {
+        return None;
+    }
+    let pvc_slug = pvc_name.replace('_', "-");
+    for m in &mounts {
+        if m.contains(pvc_name) || m.contains(&pvc_slug) {
+            return Some(m.clone());
+        }
+    }
+    if mounts.len() == 1 {
+        return Some(mounts[0].clone());
+    }
+    None
+}
+
+fn kubelet_csi_mount_paths(pod_uid: &str) -> Vec<String> {
+    let base = format!("{HOST_KUBELET_PODS}/{pod_uid}/volumes/kubernetes.io~csi");
+    let base_path = Path::new(&base);
+    if !base_path.is_dir() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    for entry in std::fs::read_dir(base_path).into_iter().flatten().flatten() {
+        let mount = entry.path().join("mount");
+        if mount.is_dir() {
+            out.push(mount.to_string_lossy().replace('\\', "/"));
+        }
+    }
+    out.sort();
+    out
 }
 
 fn kubelet_pvc_mount_path(pod_uid: &str, pvc_name: &str) -> Option<String> {
@@ -251,6 +292,13 @@ async fn node_pods_on_node_inner(node_name: &str) -> Result<Vec<NodePodMeta>> {
 }
 
 fn pod_row_to_meta(item: PodItemAll) -> Option<NodePodMeta> {
+    if item.metadata.deletion_timestamp.is_some() {
+        return None;
+    }
+    let phase = item.status.phase.as_deref().unwrap_or_default();
+    if phase != "Running" {
+        return None;
+    }
     let name = item.metadata.name.filter(|s| !s.is_empty())?;
     let uid = item.metadata.uid.filter(|s| !s.is_empty())?;
     let namespace = item
@@ -356,6 +404,7 @@ struct PodListAll {
 struct PodItemAll {
     metadata: PodMetaAll,
     spec: PodSpecAll,
+    status: PodStatusAll,
 }
 
 #[derive(Debug, Deserialize)]
@@ -363,6 +412,13 @@ struct PodMetaAll {
     name: Option<String>,
     uid: Option<String>,
     namespace: Option<String>,
+    #[serde(default, rename = "deletionTimestamp")]
+    deletion_timestamp: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PodStatusAll {
+    phase: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -411,11 +467,13 @@ struct PodSpec {
 #[derive(Debug, Deserialize)]
 struct PodVolume {
     name: String,
+    #[serde(rename = "persistentVolumeClaim")]
     persistent_volume_claim: Option<PvcRef>,
 }
 
 #[derive(Debug, Deserialize)]
 struct PvcRef {
+    #[serde(rename = "claimName")]
     claim_name: String,
 }
 
@@ -445,6 +503,57 @@ mod tests {
             }
         });
         assert_eq!(pick_node_display_address(&json), "168.110.203.3");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn kubelet_pvc_path_yb_master_fixture() {
+        let uid = "42c87b27-33a8-410a-9564-948b8da696d9";
+        let path = kubelet_pvc_mount_path(uid, "yb-data");
+        if !Path::new(HOST_KUBELET_PODS).is_dir() {
+            return;
+        }
+        assert!(
+            path.as_deref().is_some_and(|p| p.contains("yb-data-restored2")),
+            "path={path:?}"
+        );
+    }
+
+    #[test]
+    fn pod_list_fixture_deserializes() {
+        let text = std::fs::read_to_string("node_stats/testdata/yb_pods.json")
+            .or_else(|_| std::fs::read_to_string("testdata/yb_pods.json"))
+            .expect("yb_pods.json");
+        let list: PodList = serde_json::from_str(&text).expect("pod list");
+        assert_eq!(list.items.len(), 2);
+        let pvc = list.items[0]
+            .spec
+            .volumes
+            .iter()
+            .find(|v| v.name == "datadir0")
+            .and_then(|v| v.persistent_volume_claim.as_ref())
+            .expect("datadir pvc");
+        assert_eq!(pvc.claim_name, "yb-data");
+    }
+
+    #[test]
+    fn pod_volume_pvc_json() {
+        let json = serde_json::json!({
+            "metadata": {"name": "buildkit-0", "uid": "abc"},
+            "spec": {
+                "volumes": [{
+                    "name": "buildkit-cache",
+                    "persistentVolumeClaim": {"claimName": "buildkit-data"}
+                }]
+            }
+        });
+        let row: PodRow = serde_json::from_value(json).expect("pod row");
+        assert_eq!(row.spec.volumes.len(), 1);
+        let pvc = row.spec.volumes[0]
+            .persistent_volume_claim
+            .as_ref()
+            .expect("pvc");
+        assert_eq!(pvc.claim_name, "buildkit-data");
     }
 
     #[test]

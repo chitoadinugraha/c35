@@ -11,12 +11,12 @@ pub async fn billing_notify_owner(
     owner_iid: i64,
     out_tx: Option<&tokio::sync::mpsc::UnboundedSender<WsRes>>,
 ) {
-    crate::billing_cache::billing_cache_invalidate(nats, owner_iid).await;
     let _ = crate::billing_profile::billing_profile_repair_rings_v4(pool, owner_iid).await;
 
     let row = sqlx::query(
         r#"
-        SELECT id, balance_usd::float8 AS balance_usd, balance_idr::float8 AS balance_idr,
+        SELECT id, COALESCE(plan_tier, 'free') AS plan_tier,
+               balance_usd::float8 AS balance_usd, balance_idr::float8 AS balance_idr,
                billing_currency,
                commission_available_usd::float8 AS commission_available_usd,
                commission_earned_usd::float8 AS commission_earned_usd,
@@ -34,7 +34,10 @@ pub async fn billing_notify_owner(
     .ok()
     .flatten();
 
-    let Some(row) = row else { return };
+    let Some(row) = row else {
+        crate::billing_cache::billing_cache_invalidate(nats, owner_iid).await;
+        return;
+    };
 
     let freemium = crate::billing_freemium::billing_freemium_wire(pool, owner_iid).await;
     let profile_row = sqlx::query(
@@ -62,6 +65,7 @@ pub async fn billing_notify_owner(
     .flatten();
 
     let account_id: i64 = row.get("id");
+    let plan_tier: String = row.get("plan_tier");
     let updated: chrono::DateTime<chrono::Utc> = row.get("updated_ts");
     let w5 = profile_row
         .as_ref()
@@ -75,6 +79,43 @@ pub async fn billing_notify_owner(
     let currency: String = row.get("billing_currency");
     let balance_usd: f64 = row.get("balance_usd");
     let balance_idr: f64 = row.get("balance_idr");
+
+    let is_freemium = freemium.active;
+    let alien_allow_5h_used = profile_row.as_ref().map(|r| r.get("alien_allow_5h_used")).unwrap_or(0.0);
+    let alien_allow_5h_limit = profile_row.as_ref().map(|r| r.get("alien_allow_5h_limit")).unwrap_or(0.0);
+    let alien_allow_weekly_used = profile_row.as_ref().map(|r| r.get("alien_allow_weekly_used")).unwrap_or(0.0);
+    let alien_allow_weekly_limit = profile_row.as_ref().map(|r| r.get("alien_allow_weekly_limit")).unwrap_or(0.0);
+
+    let brow_temp = crate::billing_turn::BillingRow {
+        id: account_id,
+        owner_iid,
+        plan_tier: plan_tier.clone(),
+        balance_usd,
+        alien_allow_5h_used,
+        alien_allow_5h_limit,
+        alien_allow_weekly_used,
+        alien_allow_weekly_limit,
+        window_5h_start: w5,
+        window_weekly_start: ww,
+    };
+    let has_sufficient = crate::billing_cache::evaluate_allowance_sufficient(&brow_temp, is_freemium, 0.0);
+    crate::billing_cache::billing_cache_put(
+        nats,
+        &c35_nats::BillingGateCached {
+            owner_iid,
+            billing_account_id: account_id,
+            plan_tier,
+            is_freemium,
+            has_sufficient_allowance: has_sufficient,
+            balance_usd,
+            alien_allow_5h_used,
+            alien_allow_5h_limit,
+            alien_allow_weekly_used,
+            alien_allow_weekly_limit,
+            cached_at_secs: chrono::Utc::now().timestamp(),
+        },
+    )
+    .await;
     let primary_balance = if currency.eq_ignore_ascii_case("IDR") { balance_idr } else { balance_usd };
     let balance = BillingPushBalance {
         billing_account_id: account_id,

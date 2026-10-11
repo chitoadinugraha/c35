@@ -13,7 +13,7 @@ use sqlx::Row;
 
 use crate::render::render_offline_html;
 use crate::site_domain::{domain_site_id_verified, normalize_hostname};
-use crate::site_preview::{site_draft_html_render, site_preview_token_verify};
+use crate::site_preview::{site_draft_html_render, site_published_html_render};
 use crate::site_publish::{render_get, resolve_site_by_alien_id, site_published};
 
 const RESERVED: &[&str] = &[
@@ -37,7 +37,6 @@ const RESERVED: &[&str] = &[
 #[derive(Debug, Deserialize)]
 struct GuestQuery {
     draft: Option<String>,
-    ptoken: Option<String>,
 }
 
 fn draft_query_truthy(v: &str) -> bool {
@@ -51,13 +50,34 @@ fn is_draft_request(q: &GuestQuery) -> bool {
     q.draft.as_deref().map(draft_query_truthy).unwrap_or(false)
 }
 
-fn preview_forbidden_page() -> Response {
-    (
-        StatusCode::FORBIDDEN,
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-        "<!DOCTYPE html><html><body><h1>Preview expired</h1></body></html>",
+/// Local dev: re-run `page_html_render` on each request so renderer/CSS/JS changes show without republish.
+fn guest_dev_live_render_enabled() -> bool {
+    matches!(
+        std::env::var("C35_GUEST_DEV_LIVE_RENDER")
+            .ok()
+            .as_deref(),
+        Some("1") | Some("true") | Some("yes")
+    ) || matches!(
+        std::env::var("C35_DEV").ok().as_deref(),
+        Some("1") | Some("true") | Some("yes")
     )
-        .into_response()
+}
+
+fn is_local_dev_host(headers: &HeaderMap) -> bool {
+    let h = normalize_hostname(&request_host(headers));
+    matches!(h.as_str(), "localhost" | "127.0.0.1" | "::1" | "0.0.0.0")
+}
+
+async fn serve_draft_html_page(
+    pool: &sqlx::PgPool,
+    site_id: i64,
+    render_key: &str,
+) -> Response {
+    let page_path = render_key_to_page_path(render_key);
+    match site_draft_html_render(pool, site_id, page_path).await {
+        Ok((body, etag)) => draft_response(body, etag),
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+    }
 }
 
 fn render_key_to_page_path(render_key: &str) -> &str {
@@ -210,21 +230,8 @@ async fn serve_render_site(
     headers: &HeaderMap,
     query: Option<&GuestQuery>,
 ) -> Response {
-    if let Some(q) = query.filter(|q| is_draft_request(q)) {
-        let token = q.ptoken.as_deref().unwrap_or("").trim();
-        if token.is_empty() {
-            return preview_forbidden_page();
-        }
-        return match site_preview_token_verify(site_id, token) {
-            Ok(true) => {
-                let page_path = render_key_to_page_path(render_key);
-                match site_draft_html_render(pool, site_id, page_path).await {
-                    Ok((body, etag)) => draft_response(body, etag),
-                    Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
-                }
-            }
-            Ok(false) | Err(_) => preview_forbidden_page(),
-        };
+    if query.filter(|q| is_draft_request(q)).is_some() {
+        return serve_draft_html_page(pool, site_id, render_key).await;
     }
     if !site_published(pool, site_id).await.unwrap_or(false) {
         let name = sqlx::query(r#"SELECT name FROM ai.identity WHERE id = $1"#)
@@ -241,6 +248,12 @@ async fn serve_render_site(
             render_offline_html(&name),
         )
             .into_response();
+    }
+    if guest_dev_live_render_enabled() && is_local_dev_host(headers) {
+        let page_path = render_key_to_page_path(render_key);
+        if let Ok((body, etag)) = site_published_html_render(pool, site_id, page_path).await {
+            return draft_response(body, etag);
+        }
     }
     match render_get(pool, site_id, render_key).await {
         Ok(Some((body, etag, content_type))) => render_response(body, etag, content_type, headers),

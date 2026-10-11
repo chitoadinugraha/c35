@@ -11,6 +11,7 @@ import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/guest_site/guest_site_scroll_behavior.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/widgets/sites/ui_powered_by_alien.dart';
 import 'package:flutter/material.dart';
@@ -163,8 +164,9 @@ class _GuestSiteBody extends StatelessWidget {
     }
 
     final resolved = boot.design == null ? null : siteDesignResolve(boot.design!);
-    final fg = resolved?.fg ?? _guestTextPrimary;
-    final muted = resolved?.muted ?? _guestTextSecondary;
+    // Minimal theme JSON (accent only) still uses a light storefront canvas on web.
+    final fg = resolved?.fg ?? const Color(0xFF18181B);
+    final muted = resolved?.muted ?? const Color(0xFF71717A);
     final blockWidgets = <Widget>[
       for (var i = 0; i < blocks.length; i++)
         KeyedSubtree(
@@ -195,7 +197,7 @@ class _GuestSiteBody extends StatelessWidget {
       if (boot.shouldShowMetaHours && !hubShowsHours)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: GuestSiteHoursCompact(openHours: openHours),
+          child: GuestSiteHoursCompact(openHours: openHours, fg: fg, muted: muted),
         ),
       const SizedBox(height: 28),
       Center(child: UiPoweredByAlien(color: muted, strongColor: fg)),
@@ -203,9 +205,12 @@ class _GuestSiteBody extends StatelessWidget {
     ];
 
     // CSA `UiSitePreview` scrolls inside the phone frame (ListView), not via an outer wrapper.
-    final scrollBody = ListView(
-      padding: EdgeInsets.zero,
-      children: blockWidgets,
+    final scrollBody = ScrollConfiguration(
+      behavior: const GuestSitePreviewScrollBehavior(),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: blockWidgets,
+      ),
     );
 
     if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: scrollBody);

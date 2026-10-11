@@ -36,6 +36,11 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 enum ChatConnStatus { disconnected, connecting, connected, reconnecting }
 
+/// Thrown when a newer [ChatConn.connect] supersedes an in-flight attach.
+class ChatConnAttachSuperseded implements Exception {
+  const ChatConnAttachSuperseded();
+}
+
 class PromptStreamEvent {
   const PromptStreamEvent._({
     required this.kind,
@@ -90,6 +95,7 @@ class ChatConn {
   var _manualDisconnect = false;
   var _retryCount = 0;
   var _socketGen = 0;
+  var _connectEpoch = 0;
   static const _wsReadyTimeout = Duration(seconds: 8);
   var _locale = 'en';
   var _tz = '';
@@ -188,11 +194,17 @@ class ChatConn {
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _retryCount = 0;
+    final epoch = ++_connectEpoch;
     _statusSet(ChatConnStatus.connecting);
     await _tearDownSocket(failPending: true);
     try {
       await _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
+      if (epoch != _connectEpoch) return;
+      if (status.value != ChatConnStatus.connected) {
+        throw StateError('chat ws attach finished without connected status');
+      }
     } catch (e) {
+      if (e is ChatConnAttachSuperseded || epoch != _connectEpoch) return;
       lError('chat ws connect: $e');
       if (Session.instance.token.trim().isEmpty) {
         _statusSet(ChatConnStatus.disconnected);
@@ -221,6 +233,8 @@ class ChatConn {
   }
 
   Future<void> _tearDownSocket({required bool failPending}) async {
+    // Invalidate stream callbacks before closing so a racing onDone cannot schedule reconnect.
+    _socketGen++;
     await _sub?.cancel();
     _sub = null;
     try {
@@ -259,10 +273,10 @@ class ChatConn {
     );
     try {
       await _waitSocketReady(gen);
-      if (gen != _socketGen) return;
+      if (gen != _socketGen) throw const ChatConnAttachSuperseded();
       _markConnected(gen);
     } catch (e) {
-      if (gen != _socketGen) return;
+      if (gen != _socketGen) throw const ChatConnAttachSuperseded();
       await _dropSocketIfGen(gen);
       rethrow;
     }
@@ -274,14 +288,16 @@ class ChatConn {
     try {
       await ch.ready.timeout(_wsReadyTimeout);
     } on TimeoutException {
-      if (gen != _socketGen) return;
+      if (gen != _socketGen) throw const ChatConnAttachSuperseded();
       await _dropSocketIfGen(gen);
       throw StateError('chat ws ready timeout');
     }
+    if (gen != _socketGen) throw const ChatConnAttachSuperseded();
   }
 
   Future<void> _dropSocketIfGen(int gen) async {
     if (gen != _socketGen || _ch == null) return;
+    _socketGen++;
     await _sub?.cancel();
     _sub = null;
     try {
@@ -336,6 +352,7 @@ class ChatConn {
     _reconnectTimer = Timer(delay, () async {
       _reconnectTimer = null;
       if (_manualDisconnect) return;
+      final epoch = ++_connectEpoch;
       try {
         _statusSet(ChatConnStatus.connecting);
         await _tearDownSocket(failPending: true);
@@ -345,8 +362,13 @@ class ChatConn {
           appBuild: _appBuild,
           appVersionName: _appVersionName,
         );
+        if (epoch != _connectEpoch) return;
+        if (status.value != ChatConnStatus.connected) {
+          throw StateError('chat ws reconnect attach finished without connected status');
+        }
         _emitSocketAttached();
       } catch (e) {
+        if (e is ChatConnAttachSuperseded || epoch != _connectEpoch) return;
         lError('chat ws reconnect: $e');
         _scheduleReconnectIfNeeded();
       }
@@ -371,7 +393,7 @@ class ChatConn {
 
   Future<void> _nudgeReconnectAfterSendFailure() async {
     if (_manualDisconnect || Session.instance.token.trim().isEmpty) return;
-    await _dropSocketIfGen(_socketGen);
+    await _tearDownSocket(failPending: false);
     _scheduleReconnectIfNeeded();
   }
 
@@ -1350,9 +1372,14 @@ class ChatConn {
     return _rpc<InvokeRes>(WsReq(invoke: req), (res) => res.invoke);
   }
 
-  Future<void> statsSubscribe() => _rpc<void>(
+  Future<ResStatsSubscribe> statsSubscribe() => _rpc<ResStatsSubscribe>(
         WsReq(statsSubscribe: ReqStatsSubscribe()),
-        (_) {},
+        (res) => res.statsSubscribe,
+      );
+
+  Future<ResRootConsole> rootConsole({ReqRootConsole? req}) => _rpc<ResRootConsole>(
+        WsReq(rootConsole: req ?? ReqRootConsole()),
+        (res) => res.rootConsole,
       );
 
   Future<void> statsUnsubscribe() => _rpc<void>(
@@ -1545,22 +1572,45 @@ class ChatConn {
     bool talk = false,
     bool replaceLastTurn = false,
   }) async* {
-    if (_ch == null || status.value != ChatConnStatus.connected) {
-      if (_ch != null && (status.value == ChatConnStatus.connecting || status.value == ChatConnStatus.reconnecting)) {
-        try {
-          await _waitSocketReady(_socketGen);
-        } catch (_) {}
-      }
-      if (_ch == null || status.value != ChatConnStatus.connected) {
-        try {
-          await reconnect();
-        } catch (_) {}
-      }
-    }
     final id = reqId != null && reqId.isNotEmpty ? reqId : const Uuid().v4();
     lastPromptReqId = id;
     final ctrl = StreamController<PromptStreamEvent>();
     _promptPending[id] = ctrl;
+
+    Future<void> failPending(String message) async {
+      _promptPending.remove(id);
+      if (!ctrl.isClosed) {
+        ctrl.add(PromptStreamEvent.fail(message));
+        await ctrl.close();
+      }
+    }
+
+    if (_ch == null || status.value != ChatConnStatus.connected) {
+      if (_ch != null && (status.value == ChatConnStatus.connecting || status.value == ChatConnStatus.reconnecting)) {
+        try {
+          await _waitSocketReady(_socketGen).timeout(_wsReadyTimeout);
+        } catch (_) {}
+      }
+      if (!_promptPending.containsKey(id) || ctrl.isClosed) {
+        yield* ctrl.stream;
+        return;
+      }
+      if (_ch == null || status.value != ChatConnStatus.connected) {
+        try {
+          await reconnect().timeout(_wsReadyTimeout);
+        } catch (_) {}
+      }
+      if (!_promptPending.containsKey(id) || ctrl.isClosed) {
+        yield* ctrl.stream;
+        return;
+      }
+      if (_ch == null || status.value != ChatConnStatus.connected) {
+        await failPending(uiConnectionFailed);
+        yield* ctrl.stream;
+        return;
+      }
+    }
+
     final req = WsReq(
       reqId: id,
       prompt: ReqPrompt(
@@ -1579,9 +1629,7 @@ class ChatConn {
     );
     if (!_trySend(req)) {
       _scheduleReconnectIfNeeded();
-      if (!ctrl.isClosed) ctrl.add(PromptStreamEvent.fail(uiConnectionFailed));
-      _promptPending.remove(id);
-      if (!ctrl.isClosed) await ctrl.close();
+      await failPending(uiConnectionFailed);
     }
     yield* ctrl.stream;
   }

@@ -239,9 +239,15 @@ pub async fn channel_prompt_turn(
             &composed.matched_ids,
             &composed.tools,
             &prompt_text,
+            &composed.trace.inst_enrich_keys,
         ),
         catalog_web,
-        skip_web_prefetch,
+        skip_web_prefetch: skip_web_prefetch
+            || crate::compose::compose_skip_web_prefetch_for_context(
+                &composed.matched_ids,
+                &composed.trace.inst_enrich_keys,
+                &prompt_text,
+            ),
     };
     let mut turn_ctx = TurnCtx {
         pool,

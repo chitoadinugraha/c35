@@ -29,6 +29,12 @@ pub async fn jetstream_streams_ensure(client: &Client) -> anyhow::Result<()> {
     crate::bundle_kv::scope_inst_kv_ensure(client)
         .await
         .context("c35_scope_inst_cache KV")?;
+    crate::bundle_kv::device_presence_kv_ensure(client)
+        .await
+        .context("c35_device_presence KV")?;
+    crate::bundle_kv::hint_bundle_kv_ensure(client)
+        .await
+        .context("c35_hint_bundle_cache KV")?;
     let js = jetstream::new(client.clone());
 
 

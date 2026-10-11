@@ -69,6 +69,7 @@ TraceScreenshot? traceScreenshotFromLog(TraceLogDoc log) {
 class TraceBranch {
   const TraceBranch({
     required this.label,
+    this.stageKey = '',
     this.isTool = false,
     this.iconUrl = '',
     this.durationMs = 0,
@@ -77,6 +78,7 @@ class TraceBranch {
     this.tokensOut = 0,
     this.ok = true,
     this.detail = '',
+    this.parallel = false,
     this.toolCandidates = const [],
     this.droppedGap = const [],
     this.ragSkipped = false,
@@ -84,6 +86,8 @@ class TraceBranch {
     this.screenshot,
   });
   final String label;
+  /// Server stage key or trace topic — used for UI grouping.
+  final String stageKey;
   final bool isTool;
   final String iconUrl;
   final int durationMs;
@@ -92,6 +96,7 @@ class TraceBranch {
   final int tokensOut;
   final bool ok;
   final String detail;
+  final bool parallel;
   final List<TraceToolFilterCandidate> toolCandidates;
   final List<TraceToolFilterCandidate> droppedGap;
   final bool ragSkipped;
@@ -101,6 +106,120 @@ class TraceBranch {
   bool get hasToolFilterDetail => toolCandidates.isNotEmpty || droppedGap.isNotEmpty;
   bool get hasScreenshotPreview => screenshot?.hasPreview ?? false;
 }
+
+class TraceBranchGroup {
+  const TraceBranchGroup({required this.id, required this.title, this.branches = const []});
+  final String id;
+  final String title;
+  final List<TraceBranch> branches;
+
+  int get durationMs {
+    if (branches.isEmpty) return 0;
+    if (id == 'billing' || id == 'setup') {
+      return branches.fold(0, (a, b) => a + b.durationMs);
+    }
+    var max = 0;
+    for (final b in branches) {
+      if (b.durationMs > max) max = b.durationMs;
+    }
+    return max;
+  }
+
+  double get costUsd => branches.fold(0.0, (a, b) => a + b.costUsd);
+
+  String get collapsedSubtitle {
+    if (id == 'instruction') {
+      final inst = branches
+          .expand((b) => b.toolCandidates)
+          .where((c) => c.isInst && c.fed)
+          .map((c) => c.toolId)
+          .toSet()
+          .length;
+      if (inst > 0) return '$inst inst';
+    }
+    final n = branches.length;
+    return n == 1 ? '1 step' : '$n steps';
+  }
+}
+
+const _traceGroupOrder = ['billing', 'setup', 'context', 'instruction', 'tools', 'other'];
+
+const _traceGroupTitles = <String, String>{
+  'billing': 'Billing',
+  'setup': 'Setup',
+  'context': 'Context',
+  'instruction': 'Instruction',
+  'tools': 'Tools & embed',
+  'other': 'Other',
+};
+
+String traceBranchGroupKey(TraceBranch branch) {
+  final k = branch.stageKey.trim().toLowerCase();
+  final label = branch.label.trim().toLowerCase();
+  if (k == 'billing_resolve' ||
+      k == 'billing_gate' ||
+      k == 'trace_gate' ||
+      label.contains('billing') ||
+      label.contains('quota') ||
+      label.contains('settle')) {
+    return 'billing';
+  }
+  if (k == 'chat_setup' ||
+      k == 'trace_setup' ||
+      k == 'last_turn_cleanup' ||
+      k == 'persist_user_msg' ||
+      k == 'prompt_run' ||
+      k == 'compose' ||
+      label.contains('chat &') ||
+      label.contains('cleanup') ||
+      label.contains('save user message') ||
+      label.contains('checkpoint') ||
+      label.contains('compose tools')) {
+    return 'setup';
+  }
+  if (k == 'inst_list' ||
+      k == 'trace_inst_enrich' ||
+      k == 'trace_scope_instruction' ||
+      k == 'scope_instruction' ||
+      k == 'topic_block' ||
+      label.contains('inst ') ||
+      label.contains('instruction') ||
+      label.contains('topic instruction')) {
+    return 'instruction';
+  }
+  if (k == 'trace_tool_filter' ||
+      k == 'trace_tool_embed' ||
+      k == 'embed_warm' ||
+      label.contains('tool filter') ||
+      label.contains('prompt embed') ||
+      label.contains('embed')) {
+    return 'tools';
+  }
+  return 'context';
+}
+
+/// Collapse long prepare/settle branch lists into labeled sections.
+List<TraceBranchGroup> groupTraceStepBranches(TraceStep step) {
+  if (step.branches.isEmpty) return const [];
+  final grouped = <String, List<TraceBranch>>{};
+  for (final b in step.branches) {
+    final key = traceBranchGroupKey(b);
+    grouped.putIfAbsent(key, () => []).add(b);
+  }
+  final out = <TraceBranchGroup>[];
+  for (final id in _traceGroupOrder) {
+    final rows = grouped.remove(id);
+    if (rows == null || rows.isEmpty) continue;
+    out.add(TraceBranchGroup(id: id, title: _traceGroupTitles[id] ?? id, branches: rows));
+  }
+  for (final entry in grouped.entries) {
+    if (entry.value.isEmpty) continue;
+    out.add(TraceBranchGroup(id: entry.key, title: _traceGroupTitles[entry.key] ?? entry.key, branches: entry.value));
+  }
+  return out;
+}
+
+bool traceStepUsesBranchGroups(TraceStep step) => step.title == 'Prepare' || step.title == 'Settle';
 
 class TraceStep {
   const TraceStep({
@@ -401,7 +520,9 @@ List<TraceBranch> _stageBranchesFromRows(List<TraceLogDoc> rows) {
       final parallel = s['parallel'] == true;
       out.add(TraceBranch(
         label: label,
+        stageKey: _asStr(s['key']),
         durationMs: _asInt(s['ms']),
+        parallel: parallel,
         detail: '+${_asInt(s['start_ms'])}ms${parallel ? ' · parallel' : ''}',
       ));
     }
@@ -511,6 +632,9 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           return _prepareBranchOrder(ta).compareTo(_prepareBranchOrder(tb));
         });
       for (final r in prepRows) {
+        if (stageRows.isNotEmpty && (r.topic == 'trace_gate' || r.topic == 'trace_setup' || r.topic == 'trace_prepare')) {
+          continue;
+        }
         final branch = _asStr(r.meta['branch']);
         final label = switch (r.topic) {
           'trace_gate' => 'Quota & hold gate',
@@ -526,9 +650,13 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         };
         final instIds = r.topic == 'trace_inst_enrich' ? _stringListFromMeta(r.meta['inst_ids']) : const <String>[];
         final enrichKeys = r.topic == 'trace_inst_enrich' ? _stringListFromMeta(r.meta['enrich_keys']) : const <String>[];
+        final durMs = r.topic == 'trace_prepare'
+            ? (_asInt(r.meta['compose_ms']) > 0 ? _asInt(r.meta['compose_ms']) : _asInt(r.meta['duration_ms']))
+            : (r.durationMs > 0 ? r.durationMs : _asInt(r.meta['duration_ms']));
         branches.add(TraceBranch(
           label: label,
-          durationMs: r.durationMs > 0 ? r.durationMs : _asInt(r.meta['duration_ms']),
+          stageKey: r.topic.isNotEmpty ? r.topic : _asStr(r.meta['topic']),
+          durationMs: durMs,
           costUsd: r.costUsd > 0 ? r.costUsd : _asDouble(r.meta['cost_retail_usd']),
           tokensIn: r.tokensIn > 0 ? r.tokensIn : _asInt(r.meta['prompt_tokens']),
           detail: r.topic == 'trace_scope_instruction'
@@ -638,9 +766,9 @@ String traceStepUsageLine(TraceStep step, {String currency = moneyDefaultCurrenc
   final parts = <String>[
     if (step.tokensIn > 0) '${uiFmtGroupedInt(step.tokensIn)}↑',
     if (step.tokensOut > 0) '${uiFmtGroupedInt(step.tokensOut)}↓',
-    if (step.durationMs > 0) uiFmtDurationMs(step.durationMs),
-    if (step.costUsd > 0) moneyCostLabel(step.costUsd, currency: currency, fxMicroPerUsd: fxMicroPerUsd),
     if (model.isNotEmpty) model,
+    if (step.costUsd > 0) moneyCostLabel(step.costUsd, currency: currency, fxMicroPerUsd: fxMicroPerUsd),
+    if (step.durationMs > 0) uiFmtDurationMs(step.durationMs),
   ];
   return parts.join('  ');
 }

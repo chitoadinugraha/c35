@@ -22,10 +22,15 @@ if (Test-Path $firebaseJson) {
 
 $env:DEV_SERVER_PORT = $port
 $env:C35_ICE_LOCAL_DEV = '1'
+# Guest /{alien_id}: use current render.rs on localhost (still published doc snapshot; Publish for prod).
+if (-not $env:C35_GUEST_DEV_LIVE_RENDER) { $env:C35_GUEST_DEV_LIVE_RENDER = '1' }
 if (-not $env:C35_LIVE_ENABLED) { $env:C35_LIVE_ENABLED = '1' }
 if (-not $env:C35_SERVER_URL) {
     $env:C35_SERVER_URL = "http://127.0.0.1:$port"
 }
+# Device egress CONNECT proxy (local listener; use http://127.0.0.1:8443 in lease smoke tests)
+if (-not $env:C35_EGRESS_PROXY_ENABLED) { $env:C35_EGRESS_PROXY_ENABLED = '1' }
+if (-not $env:C35_EGRESS_PROXY_PUBLIC_URL) { $env:C35_EGRESS_PROXY_PUBLIC_URL = 'http://127.0.0.1:8443' }
 
 & $stopScript -Port $port
 

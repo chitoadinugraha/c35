@@ -149,6 +149,7 @@ main.wrap.guest-page-main {
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 700;
+  color: var(--fg, #18181b);
 }
 
 .guest-product-tile {

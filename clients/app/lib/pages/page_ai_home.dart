@@ -174,6 +174,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   Timer? _promptHardWatchdog;
   ChatConnStatus? _connStatusLast;
   VoidCallback? _connStatusListener;
+  VoidCallback? _promptConnGuardListener;
   var _talkRecording = false;
   var _talkMicStopInFlight = false;
   var _onboardingConsentInFlight = false;
@@ -332,9 +333,36 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _promptCutOnDisconnect();
   }
 
+  void _promptConnGuardUnbind() {
+    if (_promptConnGuardListener == null) return;
+    _conn.status.removeListener(_promptConnGuardListener!);
+    _promptConnGuardListener = null;
+  }
+
+  /// While a turn is live, cut immediately whenever the socket is not connected (including retry while already reconnecting).
+  void _promptConnGuardBind() {
+    _promptConnGuardUnbind();
+    _promptConnGuardListener = () {
+      if (!_store.promptBusy) {
+        _promptConnGuardUnbind();
+        return;
+      }
+      if (!_conn.connected) _promptCutOnDisconnect();
+    };
+    _conn.status.addListener(_promptConnGuardListener!);
+    _promptConnGuardListener!();
+  }
+
+  void _onPromptTurnStarted(int chatId, String reqId) {
+    _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
+    _promptWatchdogStart(reqId);
+    _promptConnGuardBind();
+  }
+
   void _promptCutOnDisconnect() {
     final cid = _store.promptChatId ?? _store.activeChatId;
     if (cid == null || !_store.promptBusyFor(cid)) return;
+    _promptConnGuardUnbind();
     _promptWatchdogCancel();
     _talkTtsQueue?.cancel();
     final reqId = (_store.pendingPromptReqId ?? _store.promptLiveReqId ?? '').trim();
@@ -354,10 +382,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _connConnect() async {
     final localePrefs = UserLocalePrefs.instance;
-    await _conn.connect(
-      locale: CatalogTranslationCache.instance.lang,
-      tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
-    );
+    try {
+      await _conn.connect(
+        locale: CatalogTranslationCache.instance.lang,
+        tz: localePrefs.tz.isNotEmpty ? localePrefs.tz : UserLocalePrefs.deviceTimezoneDetect(),
+      );
+    } catch (_) {
+      // connect() already scheduled auto-reconnect when appropriate
+    }
+    if (!_conn.connected) return;
     await _refreshConnSession();
     unawaited(_notifyAttach());
   }
@@ -446,8 +479,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   Future<void> _attachQueuedPromptRun(String reqId, int chatId) async {
     if (_store.promptBusyFor(chatId)) return;
     final now = DateTime.now().millisecondsSinceEpoch;
-    _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
-    _promptWatchdogStart(reqId);
+    _onPromptTurnStarted(chatId, reqId);
     _store.msgPut(MsgRow(
       id: _store.msgNextLocalId(),
       chatId: chatId,
@@ -473,6 +505,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         }
         if (ev.kind == 'end' && ev.end != null) {
           final end = ev.end!;
+          await _promptEnsureBodyAfterEnd(chatId, end.reqId);
           _store.msgStreamEnd(
             chatId: chatId,
             msgId: end.msgId.toInt(),
@@ -497,6 +530,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       if (!recovered) _store.msgStreamFail(msgErrorNormalize(e), chatId: chatId, startedAtMs: startedAt);
     } finally {
       _promptWatchdogCancel();
+      _promptConnGuardUnbind();
       _store.msgStreamFinalize(chatId: chatId, model: _model.id, startedAtMs: startedAt);
       if (_store.promptBusyFor(chatId)) _store.promptBusyPut(false, chatId: chatId);
       PromptFollowupStore.instance.clear();
@@ -645,6 +679,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
+  Future<void> _promptEnsureBodyAfterEnd(int chatId, String reqId) async {
+    final rid = reqId.trim();
+    for (final m in _store.msgs) {
+      if (m.chatId != chatId || m.role != 'assistant') continue;
+      if (rid.isNotEmpty && m.reqId != rid) continue;
+      if (msgHasBody(m)) return;
+    }
+    final ok = await _promptStreamRecoverFromServer(chatId, rid);
+    if (ok && mounted) setState(() {});
+  }
+
   Future<bool> _promptStreamRecoverFromServer(int chatId, String reqId) async {
     if (chatId <= 0) return false;
     final locale = CatalogTranslationCache.instance.lang;
@@ -689,6 +734,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _promptWatchdogCancel();
+    _promptConnGuardUnbind();
     if (_connStatusListener != null) _conn.status.removeListener(_connStatusListener!);
     SttService.instance.bindVoiceApi(null);
     TtsService.instance.bindVoiceApi(null);
@@ -1361,8 +1407,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         talk: talk,
         replaceLastTurn: retry,
       );
-    _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
-    _promptWatchdogStart(reqId);
+    _onPromptTurnStarted(chatId, reqId);
     unawaited(_followupRefresh());
     _store.msgStreamStart(chatId: chatId, reqId: reqId, model: _model.id);
     final promptStartedAtMs = _store.promptStartedAtMs;
@@ -1435,6 +1480,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         if (ev.kind == 'end' && ev.end != null) {
           final end = ev.end!;
           final err = end.hasErrorMessage() ? end.errorMessage : '';
+          await _promptEnsureBodyAfterEnd(streamChatId, end.reqId);
           _store.msgStreamEnd(
             chatId: streamChatId,
             msgId: end.msgId.toInt(),
@@ -1473,6 +1519,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       }
     } finally {
       _promptWatchdogCancel();
+      _promptConnGuardUnbind();
       _store.msgStreamFinalize(chatId: streamChatId, model: _model.id, startedAtMs: promptStartedAtMs);
       for (final cid in {streamChatId, localChatId}) {
         if (_store.promptBusyFor(cid)) _store.promptBusyPut(false, chatId: cid);
@@ -1492,6 +1539,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _abortPrompt() async {
     _talkTtsQueue?.cancel();
+    _promptConnGuardUnbind();
     final id = _store.promptChatId ?? _store.activeChatId;
     final reqId = _store.pendingPromptReqId ?? '';
     try {
@@ -2139,7 +2187,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final hasError = err.isNotEmpty;
       final inThoughtPhase = promptingThis && content.trim().isEmpty && !hasError;
       final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);
-      final showTraceChips = m.reqId.isNotEmpty && (!inThoughtPhase || msgThoughtStripPlaceholders(m.thought.trim()).isNotEmpty);
+      final showTraceChips = m.reqId.isNotEmpty;
       final blocks = ChatBlock.decodeList(m.blocksJson);
       final hasAnswerBody = content.trim().isNotEmpty || blocks.isNotEmpty;
       final showFatalError = hasError && !hasAnswerBody && !uiIsRecoverableDeviceContextError(err);
@@ -2154,7 +2202,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               text: thoughtView.thought!,
               thinking: inThoughtPhase,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
-              liveLabel: inThoughtPhase ? _model.thinkingStatusLabel : null,
+              liveLabel: inThoughtPhase
+                  ? msgThoughtLiveStatusLabel(thought: m.thought, defaultLabel: _model.thinkingStatusLabel)
+                  : null,
             ),
           if (showTraceChips)
             UiMsgTraceLoader(

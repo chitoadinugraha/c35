@@ -103,6 +103,10 @@ CREATE INDEX IF NOT EXISTS idx_billing_topup_manual_pending
     ON ai.billing_topup_request (provider, status, created_ts DESC)
     WHERE provider = 'manual' AND deleted_ts IS NULL;
 
+CREATE INDEX IF NOT EXISTS idx_billing_topup_settled
+    ON ai.billing_topup_request (settled_ts DESC, owner_iid)
+    WHERE status = 'settled' AND deleted_ts IS NULL;
+
 ALTER TABLE ai.billing_account
     ADD COLUMN IF NOT EXISTS commission_pending_usd NUMERIC(12, 4) NOT NULL DEFAULT 0;
 ALTER TABLE ai.billing_account
@@ -749,6 +753,10 @@ CREATE TABLE IF NOT EXISTS ai.billing_purchase (
 
 CREATE INDEX IF NOT EXISTS idx_billing_purchase_owner
     ON ai.billing_purchase (owner_iid, created_ts DESC);
+
+CREATE INDEX IF NOT EXISTS idx_billing_purchase_settled
+    ON ai.billing_purchase (settled_ts DESC, owner_iid)
+    WHERE status = 'settled';
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_billing_purchase_external_order
     ON ai.billing_purchase (external_order_id)

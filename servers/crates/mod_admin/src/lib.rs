@@ -10,6 +10,7 @@ mod msg_admin;
 mod log_report;
 mod ops_peaks;
 mod platform_pnl;
+mod platform_user_metrics;
 mod llm_catalog_admin;
 
 pub use admin_event::{admin_event_profile_updated, admin_event_referrer_updated, admin_event_roles_updated};
@@ -19,6 +20,7 @@ pub use msg_admin::{admin_log_trace, admin_msg_find, admin_msg_get};
 pub use log_report::admin_log_report;
 pub use ops_peaks::admin_ops_peaks;
 pub use platform_pnl::admin_platform_pnl;
+pub use platform_user_metrics::admin_platform_user_metrics;
 pub use llm_catalog_admin::admin_llm_catalog_list;
 use sqlx::{PgPool, Row};
 

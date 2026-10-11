@@ -792,6 +792,55 @@ fn compose_account_assets_bot_list_phrase() {
     assert!(out.tools.iter().any(|t| t.name == "bot.list"));
 }
 
+fn inst_me() -> InstRow {
+    InstRow {
+        id: "inst.me".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[USER ME]".into(),
+        phrases: vec![
+            "isi dengan namaku".into(),
+            "fill with my name".into(),
+            "namaku".into(),
+        ],
+        triggers: vec![],
+        include_tools: vec![],
+        exclude_tools: vec![
+            "account.get".into(),
+            "web.search".into(),
+            "web.visit".into(),
+        ],
+        requires_global_roles: vec![],
+        priority: 128,
+    }
+}
+
+#[test]
+fn compose_inst_me_phrase_excludes_account_get() {
+    let tools = vec![
+        ToolDef::new("account.get".into(), "Profile".into(), json!({})),
+        ToolDef::new("web.search".into(), "Search".into(), json!({})),
+    ];
+    let out = compose_default(&[inst_me()], "tolong isi dengan namaku", tools, &[]);
+    assert!(out.matched_ids.contains(&"inst.me".into()));
+    assert!(!out.tools.iter().any(|t| t.name == "account.get"));
+    assert!(!compose_force_account_tool_call(&out.matched_ids, &out.tools));
+}
+
+#[test]
+fn compose_force_web_suppressed_when_inst_me_and_hari_ini() {
+    let tools = vec![ToolDef::new("web.search".into(), "Search".into(), json!({}))];
+    let ids = vec!["inst.me".into(), "inst.web_search".into()];
+    assert!(!compose_force_web_tool_call(
+        &ids,
+        &tools,
+        "tolong isi dengan namaku untuk surat hari ini",
+        &["user.me".into()],
+    ));
+}
+
 fn inst_device_pair() -> InstRow {
     InstRow {
         id: "inst.device.pair".into(),
@@ -1113,7 +1162,7 @@ fn tool_trim_ranked_drops_low_sim_gap() {
 fn compose_force_web_suppressed_for_site_commerce_transaksi() {
     let tools = vec![ToolDef::new("web.search".into(), "Web".into(), json!({}))];
     let ids = vec!["inst.site.commerce".into(), "inst.web_search".into()];
-    assert!(!compose_force_web_tool_call(&ids, &tools, "berapa total transaksi hari ini"));
+    assert!(!compose_force_web_tool_call(&ids, &tools, "berapa total transaksi hari ini", &[]));
 }
 
 #[test]
@@ -1127,7 +1176,12 @@ fn compose_force_tool_call_when_site_report_inst_and_query_tool() {
 #[test]
 fn compose_force_tool_call_when_web_search_inst_and_tool() {
     let tools = vec![ToolDef::new("web.search".into(), "Search".into(), json!({}))];
-    assert!(compose_force_web_tool_call(&["inst.web_search".into()], &tools, "cuaca hari ini"));
+    assert!(compose_force_web_tool_call(
+        &["inst.web_search".into()],
+        &tools,
+        "cuaca hari ini",
+        &[]
+    ));
     assert!(compose_force_tool_call(&["inst.web_search".into()], &tools));
     assert!(!compose_force_tool_call(&["inst.core.assistant".into()], &tools));
     assert!(!compose_force_tool_call(&["inst.web_search".into()], &[]));

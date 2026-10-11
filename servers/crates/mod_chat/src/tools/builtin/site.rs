@@ -1862,10 +1862,7 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
 
     let (preview_token, preview_expires_ts_ms) =
         site_preview_token_issue(&ctx.pool, owner_iid, site_iid, 3600).await?;
-    let preview_url = format!(
-        "https://alienai.id/{alien_id}?draft=1&ptoken={}",
-        urlencoding::encode(&preview_token)
-    );
+    let preview_url = format!("https://alienai.id/{alien_id}?draft=1");
     let url = format!("alienai.id/{alien_id}");
 
     Ok(json!({

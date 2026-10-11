@@ -1,7 +1,8 @@
 use c35_mod_site::doc::{render_key_for_page, site_doc_validate};
 use c35_mod_site::guest_design::GuestDesign;
 use c35_mod_site::render::{
-    block_html_render, guest_client_script_markup, post_detail_article_html, product_card_html,
+    block_html_render, guest_client_script_markup, guest_favicon_head_markup,
+    guest_site_favicon_url, post_detail_article_html, product_card_html,
     product_detail_article_html, render_etag, render_offline_html, ProductGridCtx, ProductRow,
 };
 use c35_mod_site::site_preview_token_verify;
@@ -123,6 +124,23 @@ fn render_key_for_page_home_and_subpage() {
 }
 
 #[test]
+fn guest_favicon_prefers_meta_avatar_url() {
+    let doc = SiteDoc {
+        pages: vec![SitePage {
+            path: "/".into(),
+            title: "Home".into(),
+            blocks: vec![],
+        }],
+        theme_json: "{}".into(),
+        meta_json: r#"{"avatar_url":"cas:abc123"}"#.into(),
+    };
+    let url = guest_site_favicon_url(&json!({"avatar_url": "cas:abc123"}), &doc, "");
+    assert!(!url.is_empty());
+    let head = guest_favicon_head_markup(&url);
+    assert!(head.contains("rel=\"icon\""));
+    assert!(head.contains("apple-touch-icon"));
+}
+
 fn render_etag_is_blake3_hex() {
     let etag = render_etag("<html></html>");
     assert_eq!(etag.len(), 64);

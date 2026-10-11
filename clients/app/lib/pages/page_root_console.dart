@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/admin/admin_api.dart';
 import 'package:alienai_c35/c/admin/admin_format.dart';
 import 'package:alienai_c35/c/admin/admin_stats_stream.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/pb/c35/admin.pb.dart';
 import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:fixnum/fixnum.dart';
@@ -15,10 +16,11 @@ import 'package:alienai_c35/pages/page_root_pnl.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_action_tile.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_console_tabs.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_host_metrics.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_pod_list.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_node_card.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_platform_user_metrics.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_storage_row.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
-import 'package:alienai_c35/widgets/admin/ui_admin_volume_row.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:flutter/material.dart';
 
@@ -36,28 +38,51 @@ class _PageRootConsoleState extends State<PageRootConsole> {
   late final AdminStatsStream _stats = AdminStatsStream(_api);
   Map<String, ({double cpuMax, int memUsedMax})> _peaks24h = const {};
   bool _peaksLoading = true;
+  ResAdminPlatformUserMetrics? _userMetrics;
+  bool _userMetricsLoading = true;
+  String? _userMetricsError;
   UiAdminConsoleScope _scope = UiAdminConsoleScope.server;
+  final TextEditingController _podSearchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     if (!Session.instance.isRoot) return;
-    unawaited(_stats.start());
-    unawaited(_loadPeaks24h());
+    _podSearchCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
+    unawaited(_loadRootConsole());
   }
 
-  Future<void> _loadPeaks24h() async {
+  Future<void> _loadRootConsole() async {
     final untilMs = Int64(DateTime.now().millisecondsSinceEpoch);
     final sinceMs = untilMs - Int64(86400000);
     try {
-      final res = await _api.adminOpsPeaks(sinceMs: sinceMs, untilMs: untilMs, entityType: 'node');
+      final init = await _api.rootConsoleInit(
+        peaksSinceMs: sinceMs,
+        peaksUntilMs: untilMs,
+        subscribeStats: true,
+      );
+      _stats.applySnapshot(init.statsSnapshot);
+      await _stats.attachLive();
       if (!mounted) return;
       setState(() {
-        _peaks24h = _nodePeaksFromRows(res.rows);
+        if (init.hasUserMetrics()) _userMetrics = init.userMetrics;
+        _userMetricsLoading = false;
+        _userMetricsError = null;
+        if (init.hasPeaks24h()) {
+          _peaks24h = _nodePeaksFromRows(init.peaks24h.rows);
+        }
         _peaksLoading = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => _peaksLoading = false);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _userMetricsLoading = false;
+        _peaksLoading = false;
+        _userMetricsError = e.toString();
+      });
+      unawaited(_stats.start());
     }
   }
 
@@ -80,6 +105,7 @@ class _PageRootConsoleState extends State<PageRootConsole> {
 
   @override
   void dispose() {
+    _podSearchCtrl.dispose();
     _stats.dispose();
     super.dispose();
   }
@@ -142,7 +168,6 @@ class _PageRootConsoleState extends State<PageRootConsole> {
             builder: (context) {
           final selected = _stats.selectedNode;
           final multiNode = nodes.length > 1;
-          final volumes = selected != null ? _stats.volumesForNode(selected.nodeName) : const <VolumeStat>[];
 
           return Align(
             alignment: Alignment.topCenter,
@@ -151,6 +176,11 @@ class _PageRootConsoleState extends State<PageRootConsole> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
+                  if (nodes.isNotEmpty && _scope == UiAdminConsoleScope.pods)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: UiAdminPodSearchField(controller: _podSearchCtrl),
+                    ),
                   if (nodes.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
@@ -180,6 +210,7 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                               embedded: true,
                               scope: _scope,
                               onScopeChanged: (s) => setState(() => _scope = s),
+                              podSearchController: _podSearchCtrl,
                             ),
                           );
                         },
@@ -199,19 +230,28 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                             node: selected,
                             scope: _scope,
                             onScopeChanged: (s) => setState(() => _scope = s),
+                            podSearchController: _podSearchCtrl,
                           ),
                         ],
                       ),
                     ),
-                  if (volumes.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    const UiAdminSectionTitle('Volumes'),
-                    UiAdminPanel(
-                      child: Column(
-                        children: volumes.map((v) => UiAdminVolumeRow(volume: v, showNode: multiNode)).toList(),
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 14),
+                  const UiAdminSectionTitle('Users'),
+                  UiAdminPanel(
+                    child: _userMetricsLoading
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8),
+                            child: Text('Loading user metrics…', style: TextStyle(color: adminMuted, fontSize: 12)),
+                          )
+                        : _userMetricsError != null
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Text(_userMetricsError!, style: const TextStyle(color: adminMuted, fontSize: 12)),
+                              )
+                            : _userMetrics != null
+                                ? UiAdminPlatformUserMetricsTable(metrics: _userMetrics!)
+                                : const SizedBox.shrink(),
+                  ),
                   const SizedBox(height: 14),
                   const UiAdminSectionTitle('24h peaks'),
                   UiAdminPanel(
@@ -343,6 +383,7 @@ class _NodeStatsBody extends StatelessWidget {
     this.embedded = false,
     required this.scope,
     required this.onScopeChanged,
+    required this.podSearchController,
   });
 
   final AdminStatsStream stats;
@@ -350,43 +391,17 @@ class _NodeStatsBody extends StatelessWidget {
   final bool embedded;
   final UiAdminConsoleScope scope;
   final ValueChanged<UiAdminConsoleScope> onScopeChanged;
+  final TextEditingController podSearchController;
 
   @override
   Widget build(BuildContext context) {
     final storages = stats.storagesFor(node);
-    final pods = stats.podsForNode(node.nodeName);
-
     final metricsSection = scope == UiAdminConsoleScope.server
         ? UiAdminNodeMetrics(stats: stats, node: node)
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (pods.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('No pod stats yet', style: TextStyle(color: adminMuted, fontSize: 12)),
-                )
-              else ...[
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 6),
-                  child: Text(
-                    'used / request / limit · tick = request',
-                    style: TextStyle(color: adminMuted, fontSize: 11),
-                  ),
-                ),
-                for (final pod in pods) ...[
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text(
-                      '${pod.namespace}/${pod.podName}',
-                      style: const TextStyle(color: adminText, fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  UiAdminPodMetrics(stats: stats, pod: pod),
-                  const SizedBox(height: 10),
-                ],
-              ],
-            ],
+        : UiAdminPodList(
+            stats: stats,
+            nodeName: node.nodeName,
+            searchController: podSearchController,
           );
 
     final devicesSection = Column(

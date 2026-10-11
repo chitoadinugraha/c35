@@ -6,6 +6,7 @@ use tokio_util::sync::CancellationToken;
 #[test]
 fn prompt_time_question_is_detected() {
     assert!(user_asks_time("sekarang hari apa ?"));
+    assert!(user_asks_time("what time is now"));
 }
 
 #[test]

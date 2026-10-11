@@ -69,6 +69,47 @@ double? adminPodRequestMarkerFrac(double request, double limit) {
   return (request / limit).clamp(0.0, 1.0);
 }
 
+/// No Kubernetes limit — bar is informational (blue), not limit/request-scaled %.
+bool adminPodCpuUnbounded(double limit) => limit <= 0;
+
+bool adminPodMemUnbounded(Int64 limit) => limit <= Int64.ZERO;
+
+bool adminPodMatchesSearch(PodStat pod, String query) {
+  final q = query.trim().toLowerCase();
+  if (q.isEmpty) return true;
+  final workload = adminPodWorkloadName(pod.podName).toLowerCase();
+  return pod.namespace.toLowerCase().contains(q) ||
+      pod.podName.toLowerCase().contains(q) ||
+      workload.contains(q) ||
+      '$workload/${pod.podName}'.contains(q);
+}
+
+/// Deployment-style pod name → workload (strip ReplicaSet hash + pod suffix).
+String adminPodWorkloadName(String podName) {
+  final parts = podName.split('-');
+  if (parts.length >= 3) {
+    final rs = parts[parts.length - 2];
+    final id = parts.last;
+    if (rs.length >= 8 &&
+        rs.length <= 11 &&
+        id.length >= 4 &&
+        id.length <= 6 &&
+        RegExp(r'^[a-z0-9]+$').hasMatch(rs) &&
+        RegExp(r'^[a-z0-9]+$').hasMatch(id)) {
+      return parts.sublist(0, parts.length - 2).join('-');
+    }
+  }
+  if (parts.length >= 2) {
+    final tail = parts.last;
+    if (RegExp(r'^\d+$').hasMatch(tail)) {
+      return parts.sublist(0, parts.length - 1).join('-');
+    }
+  }
+  return podName;
+}
+
+String adminPodGroupKey(String namespace, String podName) => '$namespace/${adminPodWorkloadName(podName)}';
+
 String adminNodeNetLabel(NodeStat node) {
   final iface = node.netIface;
   if (iface.isNotEmpty) return iface;

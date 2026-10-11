@@ -123,8 +123,19 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+        _syncPreviewFromDraft();
+      }
     }
+  }
+
+  void _syncPreviewFromDraft() {
+    if (_draftDoc == null) return;
+    SiteEditorSaveScope.previewCache(context).patch((boot) {
+      final doc = siteInfoApplyToDoc(_draftDoc!, _snapshot());
+      siteEditorPreviewApplyDocToBoot(boot, widget.row, doc);
+    });
   }
 
   void _scheduleSave() {

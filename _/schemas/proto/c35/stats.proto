@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package c35;
 
+import "c35/admin.proto";
+
 message DiskMountStat {
   string label = 1;
   string mount = 2;
@@ -78,7 +80,27 @@ message StatsPush {
 }
 
 message ReqStatsSubscribe {}
+
+// Snapshot returned on subscribe (JetStream KV + relay cache); live updates still use stats_push.
+message ResStatsSubscribe {
+  repeated StatsPush snapshot = 1;
+}
+
 message ReqStatsUnsubscribe {}
+
+// Root console dashboard — one WS init (sync.md): stats snapshot + user metrics + 24h peaks.
+message ReqRootConsole {
+  optional int64 peaks_since_ms = 1;
+  optional int64 peaks_until_ms = 2;
+  // Unset or true: register for live stats_push after init.
+  optional bool subscribe_stats = 3;
+}
+
+message ResRootConsole {
+  repeated StatsPush stats_snapshot = 1;
+  ResAdminPlatformUserMetrics user_metrics = 2;
+  ResAdminOpsPeaks peaks_24h = 3;
+}
 
 message ReqLogSubscribe {
   optional int64 owner_iid = 1;

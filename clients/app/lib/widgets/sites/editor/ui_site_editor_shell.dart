@@ -111,10 +111,17 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.row.siteIid != widget.row.siteIid) {
       _row = widget.row.clone();
-      _catalogCache.dispose();
+      final oldCatalog = _catalogCache;
       _catalogCache = SiteEditorCatalogCache(api: widget.api, siteIid: _siteIid);
+      _previewCache.resetForSite(_row);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        oldCatalog.dispose();
+      });
       unawaited(_refreshPublishPending());
       unawaited(_catalogCache.warm());
+    } else if (oldWidget.row != widget.row) {
+      _row = widget.row.clone();
+      _previewCache.updateRow(_row);
     }
   }
 
@@ -160,6 +167,22 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   Future<void> _onCapabilitiesSaved() async {
     await widget.onCapabilitiesSaved?.call();
     await _loadCaps();
+  }
+
+  Future<void> _confirmPublish() async {
+    if (_publishing || !_publishPending) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Publish site?'),
+        content: const Text('Visitors will see your latest draft on the public URL.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Publish')),
+        ],
+      ),
+    );
+    if (ok == true && mounted) await _publish();
   }
 
   Future<void> _publish() async {
@@ -237,29 +260,6 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Text(_saveBus.error, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer, fontSize: 12)),
-      ),
-    );
-  }
-
-  Widget _unpublishedDraftBanner() {
-    if (!_publishPending) return const SizedBox.shrink();
-    final cs = Theme.of(context).colorScheme;
-    return Material(
-      color: cs.surfaceContainerHigh,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, size: 14, color: _muted),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Publish to update public URL',
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -372,7 +372,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   List<Widget> _chromeActions({required bool showPreviewToggle}) => [
         OutlinedButton.icon(
-          onPressed: (_publishing || !_publishPending) ? null : _publish,
+          onPressed: (_publishing || !_publishPending) ? null : _confirmPublish,
           icon: _publishing
               ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
               : Icon(_publishPending ? Icons.publish_outlined : Icons.check_circle_outline, size: 16),
@@ -465,7 +465,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           siteIid: _siteIid,
           onCapabilitiesSaved: _onCapabilitiesSaved,
         ),
-      'publish' => UiSitePublishEditor(row: _row, onPublish: _publish, publishing: _publishing, publishPending: _publishPending),
+      'publish' => UiSitePublishEditor(row: _row, onPublish: _confirmPublish, publishing: _publishing, publishPending: _publishPending),
       'products' => UiSiteProductsEditor(
           api: widget.api,
           siteIid: _siteIid,
@@ -601,7 +601,6 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
                     actions: _chromeActions(showPreviewToggle: false),
                   ),
                   _saveErrorStrip(),
-                  _unpublishedDraftBanner(),
                   Expanded(child: _previewPane()),
                 ],
               ),
@@ -624,7 +623,6 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
                     actions: chromeActions,
                   ),
                   _saveErrorStrip(),
-                  _unpublishedDraftBanner(),
                   Expanded(child: UiSiteEditorMenu(caps: _caps, platformSite: _platformSite, onSelect: _openSection)),
                 ],
               );
@@ -647,7 +645,6 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
                     actions: chromeActions,
                   ),
                   _saveErrorStrip(),
-                  _unpublishedDraftBanner(),
                   Expanded(child: _narrowBody(context)),
                 ],
               ),
@@ -667,7 +664,6 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
                 actions: chromeActions,
               ),
               _saveErrorStrip(),
-              _unpublishedDraftBanner(),
               Expanded(child: _buildWide(context, section)),
             ],
           );

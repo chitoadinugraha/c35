@@ -73,7 +73,13 @@ String buildAndroidAab({String? serverUrl}) {
   return deployRunSync('android_aab', () {
     final proc = Process.runSync(
       'flutter',
-      ['build', 'appbundle', '--release', '--dart-define=C35_SERVER=$apiServer'],
+      [
+        'build',
+        'appbundle',
+        '--release',
+        '--dart-define=C35_SERVER=$apiServer',
+        '--dart-define=C35_BILLING_DISTRIBUTION=play',
+      ],
       workingDirectory: clientApp,
       environment: androidBuildProcessEnvironment(),
       runInShell: Platform.isWindows,
@@ -91,6 +97,24 @@ String buildAndroidAab({String? serverUrl}) {
       }
     }
     stdout.writeln('✓ Flutter Android AAB build successful');
+    final verify = p.join(repoRoot(), '_', 'scripts', 'dev', 'verify_play_aab_wallet_strings.ps1');
+    if (File(verify).existsSync()) {
+      for (final ent in Directory(buildOutput).listSync()) {
+        if (ent is File && ent.path.endsWith('.aab')) {
+          final proc = Process.runSync(
+            'powershell',
+            ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', verify, '-AabPath', ent.path],
+            runInShell: true,
+          );
+          stdout.write(proc.stdout);
+          stderr.write(proc.stderr);
+          if (proc.exitCode != 0) {
+            throw StateError('Play AAB wallet string check failed (see verify_play_aab_wallet_strings.ps1)');
+          }
+          break;
+        }
+      }
+    }
     return buildOutput;
   });
 }
@@ -124,7 +148,13 @@ AndroidApkResult buildAndroidApk({String? serverUrl, bool stampVersion = false})
   return deployRunSync('android_apk', () {
     final proc = Process.runSync(
       'flutter',
-      ['build', 'apk', '--release', '--dart-define=C35_SERVER=$apiServer'],
+      [
+        'build',
+        'apk',
+        '--release',
+        '--dart-define=C35_SERVER=$apiServer',
+        '--dart-define=C35_BILLING_DISTRIBUTION=direct',
+      ],
       workingDirectory: clientApp,
       environment: androidBuildProcessEnvironment(),
       runInShell: Platform.isWindows,

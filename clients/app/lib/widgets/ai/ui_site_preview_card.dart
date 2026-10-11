@@ -158,8 +158,6 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
   late SitePreviewData _view;
   var _claimBusy = false;
   _SitePreviewNav _nav = _SitePreviewNav.home;
-  String? _previewToken;
-  int _previewExpiresTsMs = 0;
   final _previewScroll = ScrollController();
   final _blockKeys = <GlobalKey>[];
   final _memberSectionKey = GlobalKey();
@@ -177,8 +175,6 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
     super.initState();
     _expanded = widget.initiallyExpanded;
     _view = widget.data;
-    _previewToken = widget.data.previewToken.isNotEmpty ? widget.data.previewToken : null;
-    _previewExpiresTsMs = widget.data.previewExpiresTsMs;
     _syncBlockKeys(widget.data.blocks.length);
     if (_expanded) _maybeLoadBoot();
   }
@@ -188,8 +184,6 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.data.siteIid != widget.data.siteIid) {
       _view = widget.data;
-      _previewToken = widget.data.previewToken.isNotEmpty ? widget.data.previewToken : null;
-      _previewExpiresTsMs = widget.data.previewExpiresTsMs;
       _boot = null;
       _bootLoading = false;
     }
@@ -255,31 +249,9 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
     }
   }
 
-  bool _previewTokenValid() {
-    final token = _previewToken;
-    if (token == null || token.isEmpty) return false;
-    if (_previewExpiresTsMs <= 0) return true;
-    return DateTime.now().millisecondsSinceEpoch < _previewExpiresTsMs - 30000;
-  }
-
-  Future<String> _ensurePreviewToken() async {
-    if (_previewTokenValid()) return _previewToken!;
-    final conn = widget.conn;
-    if (conn == null) throw StateError('Connect to refresh site preview');
-    final res = await SiteApi(conn).sitePreviewToken(_data.siteIid);
-    if (res.token.isEmpty) throw StateError('Preview token missing');
-    if (!mounted) return res.token;
-    setState(() {
-      _previewToken = res.token;
-      _previewExpiresTsMs = res.expiresTsMs.toInt();
-    });
-    return res.token;
-  }
-
-  Future<String> _draftPreviewUrl() async {
+  String _draftPreviewUrl() {
     final origin = C35Config.guestSiteOrigin.replaceAll(RegExp(r'/+$'), '');
-    final token = await _ensurePreviewToken();
-    return '$origin/${_data.slug}?draft=1&ptoken=${Uri.encodeComponent(token)}';
+    return '$origin/${_data.slug}?draft=1';
   }
 
   Future<void> _claimOrChangeHandle(BuildContext context, {required bool isChange}) async {
@@ -334,7 +306,7 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
 
   Future<void> _shareVisit(BuildContext context) async {
     try {
-      final u = await _draftPreviewUrl();
+      final u = _draftPreviewUrl();
       Clipboard.setData(ClipboardData(text: u));
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -357,7 +329,7 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
 
   Future<void> _openSite(BuildContext context) async {
     try {
-      final u = await _draftPreviewUrl();
+      final u = _draftPreviewUrl();
       final uri = Uri.tryParse(u);
       if (uri != null && await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -1279,6 +1279,7 @@ class ChatStore extends ChangeNotifier {
     if (m != null) {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
       if (m.error.isNotEmpty) m.error = '';
+      if (text == m.content) return;
       if (text.startsWith(m.content) && text.length > m.content.length) {
         m.content = text;
       } else if (_msgStreamLooksLikeNewReply(m.content, text)) {

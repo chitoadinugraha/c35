@@ -35,6 +35,8 @@ pub struct ToolContext {
     pub doc_ocr: Arc<Mutex<ContextBillingExtra>>,
     /// Payer for `doc.extract` OCR. Empty on MCP `tool_exec`.
     pub billing: Option<BillingContext>,
+    /// Memoized freemium check for tool calls in this context/session.
+    pub is_freemium_slot: Arc<Mutex<Option<bool>>>,
 }
 
 impl ToolContext {
@@ -76,6 +78,7 @@ impl ToolContext {
             title_slot: None,
             doc_ocr: Arc::new(Mutex::new(ContextBillingExtra::default())),
             billing: None,
+            is_freemium_slot: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -114,5 +117,28 @@ impl ToolContext {
                 *g = Some(t);
             }
         }
+    }
+
+    /// Returns whether the user is restricted to freemium limits, cached for this context/turn.
+    pub async fn is_freemium(&self) -> bool {
+        if self.owner_iid <= 0 {
+            return false;
+        }
+        if let Ok(guard) = self.is_freemium_slot.lock() {
+            if let Some(val) = *guard {
+                return val;
+            }
+        }
+        let applies = c35_mod_billing::billing_freemium_applies_nats(
+            &self.pool,
+            self.nats.as_ref(),
+            self.owner_iid,
+        )
+        .await
+        .unwrap_or(false);
+        if let Ok(mut guard) = self.is_freemium_slot.lock() {
+            *guard = Some(applies);
+        }
+        applies
     }
 }

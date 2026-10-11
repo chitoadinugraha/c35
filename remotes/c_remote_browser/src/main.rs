@@ -13,6 +13,7 @@ mod browser_task;
 mod chrome_native;
 mod engine;
 mod extension_agent;
+mod extension_install;
 mod extension_ipc;
 mod extension_page;
 mod extension_sheets;

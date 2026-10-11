@@ -113,6 +113,9 @@ impl WebrtcHub {
 
     pub async fn handle_frame(&self, data: &[u8]) {
         if let Ok(req) = pb_decode::<WsReq>(data) {
+            if crate::egress::handle_ws_req(&req, &self.out_tx).await {
+                return;
+            }
             if req.body.is_some() || !req.req_id.is_empty() {
                 self.handle_req(req).await;
                 return;

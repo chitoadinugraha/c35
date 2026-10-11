@@ -39,6 +39,11 @@ fn page_act_ipc(params: &Value, action: &str, needs_selector: bool) -> anyhow::R
     if let Some(url) = params.get("url").and_then(|v| v.as_str()) {
         ipc["url"] = json!(url);
     }
+    for key in ["country", "amount", "price", "label"] {
+        if let Some(v) = params.get(key) {
+            ipc[key] = v.clone();
+        }
+    }
     if action == "epus_pasien_search" || action == "epus_pasien_fetch" {
         let search_by = params
             .get("search_by")
@@ -147,16 +152,31 @@ pub async fn extension_page_method(method: &str, params: &Value) -> anyhow::Resu
                 .get("action")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("action required"))?;
-            let needs_selector = action != "list_inputs"
-                && action != "click_text"
-                && action != "goto"
-                && action != "epus_pasien_search"
-                && action != "epus_pasien_fetch";
+            let needs_selector = !matches!(
+                action,
+                "list_inputs"
+                    | "click_text"
+                    | "click_text_contains"
+                    | "select_country"
+                    | "play_set_country_price"
+                    | "play_fill_dialog_price"
+                    | "play_dialog_apply"
+                    | "play_restrict_availability"
+                    | "play_click_save"
+                    | "play_console_errors"
+                    | "play_dismiss_overlays"
+                    | "play_set_country_price_inline"
+                    | "goto"
+                    | "epus_pasien_search"
+                    | "epus_pasien_fetch"
+            );
             let ipc = page_act_ipc(params, action, needs_selector)?;
             let result = rpc_call("page.act", ipc).await?;
             Ok(json!({ "ok": true, "result": result }))
         }
-        "extension.version" | "extension.reload" => rpc_call(method, json!({})).await,
+        "extension.version" | "extension.reload" | "extension.ensure_updated" => {
+            rpc_call(method, json!({})).await
+        }
         "agent.restart" => {
             crate::extension_agent::restart_extension_agent()?;
             Ok(json!({ "ok": true, "restarting": true }))

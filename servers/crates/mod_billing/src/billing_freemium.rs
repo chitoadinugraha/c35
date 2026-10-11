@@ -140,6 +140,18 @@ fn profile_on_active_trial(row: &FreemiumProfile) -> bool {
         .unwrap_or(false)
 }
 
+/// Personal users with no paid plan and no active signup trial, checking NATS KV cache first.
+pub async fn billing_freemium_applies_nats(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+) -> Result<bool> {
+    if let Some(cached) = crate::billing_cache::billing_cache_get(nats, owner_iid).await {
+        return Ok(cached.is_freemium);
+    }
+    billing_freemium_applies(pool, owner_iid).await
+}
+
 /// Personal users with no paid plan and no active signup trial.
 pub async fn billing_freemium_applies(pool: &PgPool, owner_iid: i64) -> Result<bool> {
     let _ = billing_plan_lapse_if_expired(pool, owner_iid).await?;

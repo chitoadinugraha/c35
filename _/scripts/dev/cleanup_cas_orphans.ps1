@@ -57,8 +57,22 @@ function Invoke-YsqlFile([string]$LocalSqlPath) {
     }
     $pass = $env:YB_PASSWORD.Replace("'", "'\''")
     $cmd = "export PGPASSWORD='$pass'; /home/yugabyte/bin/ysqlsh -h $YbHost -U $YbUser -d $YbDb -v ON_ERROR_STOP=1 -tAf $remote"
-    kubectl -n yugabyte exec $Pod -c yb-tserver -- bash -c $cmd
-    if ($LASTEXITCODE -ne 0) { throw 'ysqlsh failed' }
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $raw = kubectl -n yugabyte exec $Pod -c yb-tserver -- bash -c $cmd 2>&1
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+    $raw = @($raw | ForEach-Object {
+        if ($_ -is [System.Management.Automation.ErrorRecord]) { $_.ToString() } else { "$_" }
+    })
+    $text = ($raw | Out-String)
+    if ($text -match '(?i)ERROR:|FATAL:') { throw "ysqlsh failed: $text" }
+    if ($LASTEXITCODE -ne 0 -and $text -notmatch 'INSERT|DROP TABLE|CREATE TABLE|^\d') {
+        throw "ysqlsh failed: $text"
+    }
+    return @($raw | Where-Object { $_ -and ($_ -notmatch 'NOTICE:') })
 }
 
 if (-not $SkipAudit) {
@@ -91,11 +105,14 @@ WITH batch AS (
     WHERE $orphanWhere
     ORDER BY m.created_ts ASC
     LIMIT $BatchLimit
+),
+del AS (
+    DELETE FROM ai.file_blob_meta m
+    USING batch b
+    WHERE m.hash_blake3 = b.hash_blake3
+    RETURNING 1
 )
-DELETE FROM ai.file_blob_meta m
-USING batch b
-WHERE m.hash_blake3 = b.hash_blake3
-RETURNING m.hash_blake3;
+SELECT count(*)::text FROM del;
 "@
 
 $tmpDelete = Join-Path $CacheDir ("cas_gc_delete_{0}.sql" -f [guid]::NewGuid().ToString('n'))
@@ -104,5 +121,6 @@ $tmpDelete = Join-Path $CacheDir ("cas_gc_delete_{0}.sql" -f [guid]::NewGuid().T
 Write-Host "==> Deleting up to $BatchLimit orphan inline blobs..."
 $deleted = Invoke-YsqlFile $tmpDelete
 Remove-Item -Force $tmpDelete
-$lines = @($deleted | Where-Object { $_ -and $_.Trim() })
-Write-Host ("deleted_rows: {0}" -f $lines.Count)
+$countLine = @($deleted | Where-Object { $_ -match '^\d+$' } | Select-Object -Last 1)
+$deletedCount = if ($countLine.Count -gt 0) { [int]$countLine[-1] } else { 0 }
+Write-Host ("deleted_rows: {0}" -f $deletedCount)

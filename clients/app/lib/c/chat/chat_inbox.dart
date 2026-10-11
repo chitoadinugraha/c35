@@ -48,6 +48,19 @@ bool msgThoughtIsToolCallingLine(String raw) {
 String msgThoughtStripPlaceholders(String raw) =>
     raw.split('\n').where((line) => !msgThoughtIsPlaceholder(line) && !msgThoughtIsToolCallingLine(line)).join('\n').trim();
 
+/// Live status row while the assistant row has no answer text yet (tool hops, prepare).
+String msgThoughtLiveStatusLabel({required String thought, required String defaultLabel}) {
+  final lines = thought.split('\n');
+  for (var i = lines.length - 1; i >= 0; i--) {
+    final line = lines[i].trim();
+    if (msgThoughtIsToolCallingLine(line)) {
+      return line.replaceAll('...', '…');
+    }
+  }
+  final fallback = defaultLabel.trim();
+  return fallback.isNotEmpty ? fallback : 'Thinking';
+}
+
 String pcToolErrorText(Object error) {
   final s = error.toString().replaceFirst(RegExp(r'^Exception: '), '');
   if (s.contains('Connection refused') || s.contains('Failed host lookup') || s.contains('TimeoutException')) {

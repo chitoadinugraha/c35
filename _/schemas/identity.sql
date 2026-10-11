@@ -69,6 +69,10 @@ CREATE INDEX IF NOT EXISTS idx_identity_referred
     ON ai.identity (referred_by_iid, created_ts DESC)
     WHERE kind = 'user' AND deleted_ts IS NULL;
 
+CREATE INDEX IF NOT EXISTS idx_identity_user_created
+    ON ai.identity (created_ts DESC)
+    WHERE kind = 'user' AND deleted_ts IS NULL;
+
 -- Optional generated label: remote/windows, iot/switch
 -- ALTER TABLE ai.identity ADD COLUMN IF NOT EXISTS kind_type TEXT
 --   GENERATED ALWAYS AS (kind || COALESCE('/' || NULLIF(type, ''), '')) STORED;
@@ -194,6 +198,10 @@ CREATE TABLE IF NOT EXISTS ai.identity_client (
 
 CREATE INDEX IF NOT EXISTS idx_identity_client_sync
     ON ai.identity_client (identity_iid, updated_ts);
+
+CREATE INDEX IF NOT EXISTS idx_identity_client_last_ws
+    ON ai.identity_client (last_ws_ts_ms DESC)
+    WHERE deleted_ts IS NULL;
 
 -- ------------------------------------------------------------------------------
 -- Auth sessions

@@ -341,4 +341,22 @@ void main() {
     expect(chips, hasLength(1));
     expect(chips.first.hasScreenshotPreview, isTrue);
   });
+
+  test('groupTraceStepBranches clusters prepare stages', () {
+    final step = TraceStep(
+      index: 0,
+      title: 'Prepare',
+      branches: [
+        const TraceBranch(label: 'Billing resolve & freemium', stageKey: 'billing_resolve', durationMs: 2200),
+        const TraceBranch(label: 'Quota & hold gate', stageKey: 'billing_gate', durationMs: 615),
+        const TraceBranch(label: 'Inst list', stageKey: 'inst_list', durationMs: 50),
+        const TraceBranch(label: 'User context', stageKey: 'user_context', durationMs: 121),
+      ],
+    );
+    expect(traceStepUsesBranchGroups(step), isTrue);
+    final groups = groupTraceStepBranches(step);
+    expect(groups.map((g) => g.title).toList(), ['Billing', 'Context', 'Instruction']);
+    expect(groups.first.durationMs, 2815);
+    expect(groups.first.branches, hasLength(2));
+  });
 }

@@ -36,7 +36,9 @@ use builtin::{
     AdminMsgFindTool, AdminMsgGetTool, AdminTaskListTool, AdminTraceGetTool, AdminUserSearchTool,
     BillingTopupListTool, BillingTopupReviewTool, BillingWithdrawListTool,
     BillingWithdrawReviewTool, BotDraftTool, BotInboxQueryTool, BotListTool,
-    BrowserAgentRestartTool, BrowserExtensionTool, BrowserFileUploadTool, BrowserPageActTool,
+    BrowserAgentRestartTool, BrowserCaptchaApplyTool, BrowserExtensionTool, BrowserFileUploadTool,
+    CaptchaSolveTool,
+    BrowserPageActTool,
     BrowserPageExtractTool, BrowserPageObserveTool, BrowserPageScreenshotTool,
     BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRangeReadTool,
     BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool, ChatMessagesTool, ChatSearchTool,
@@ -172,10 +174,12 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ExpenseSummaryTool));
     dispatcher.register(Arc::new(ExpenseDeleteTool));
     dispatcher.register(Arc::new(BrowserTaskRunTool));
+    dispatcher.register(Arc::new(CaptchaSolveTool));
     dispatcher.register(Arc::new(BrowserPageObserveTool));
     dispatcher.register(Arc::new(BrowserPageScreenshotTool));
     dispatcher.register(Arc::new(BrowserPageExtractTool));
     dispatcher.register(Arc::new(BrowserPageActTool));
+    dispatcher.register(Arc::new(BrowserCaptchaApplyTool));
     dispatcher.register(Arc::new(BrowserTabsTool));
     dispatcher.register(Arc::new(BrowserAgentRestartTool));
     dispatcher.register(Arc::new(BrowserExtensionTool));

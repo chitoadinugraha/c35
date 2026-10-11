@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:alienai_c35/guest_site/guest_site_scroll_behavior.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_phone_preview_frame.dart';
 import 'package:alienai_c35/widgets/ui/floorplan_config.dart';
 import 'package:alienai_c35/widgets/ui/ui_floorplan_grid.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Pan canvas (no guest taps) vs play (guest interaction).
@@ -39,14 +41,23 @@ class UiSitePreviewStage extends StatefulWidget {
   State<UiSitePreviewStage> createState() => _UiSitePreviewStageState();
 }
 
+bool _sitePreviewDesktopPointer() {
+  if (kIsWeb) return false;
+  return defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.linux;
+}
+
 class _UiSitePreviewStageState extends State<UiSitePreviewStage> {
   final _transformationCtrl = TransformationController();
   Size? _viewerSize;
-  var _mode = SitePreviewStageMode.pan;
+  late SitePreviewStageMode _mode;
 
   @override
   void initState() {
     super.initState();
+    // Desktop: default Play so mouse drag scrolls the site (CSA editor).
+    _mode = _sitePreviewDesktopPointer() ? SitePreviewStageMode.play : SitePreviewStageMode.pan;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _fitToScreen();
     });
@@ -130,8 +141,12 @@ class _UiSitePreviewStageState extends State<UiSitePreviewStage> {
                               left: canvasR,
                               top: canvasR,
                               child: IgnorePointer(
-                                ignoring: panMode,
-                                child: UiSitePhonePreviewFrame(child: widget.child),
+                                // Pan mode on touch: canvas pan only. Desktop keeps phone interactive for mouse-drag scroll.
+                                ignoring: panMode && !_sitePreviewDesktopPointer(),
+                                child: ScrollConfiguration(
+                                  behavior: const GuestSitePreviewScrollBehavior(),
+                                  child: UiSitePhonePreviewFrame(child: widget.child),
+                                ),
                               ),
                             ),
                           ],

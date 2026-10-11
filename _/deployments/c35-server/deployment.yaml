@@ -34,6 +34,8 @@ spec:
           ports:
             - name: http
               containerPort: 10000
+            - name: egress
+              containerPort: 8443
           envFrom:
             - secretRef:
                 name: c35-server-env
@@ -104,6 +106,12 @@ spec:
                   name: coturn-secret
                   key: static-auth-secret
                   optional: true
+            - name: C35_EGRESS_PROXY_ENABLED
+              value: "1"
+            - name: C35_EGRESS_PROXY_ADDR
+              value: "0.0.0.0:8443"
+            - name: C35_EGRESS_PROXY_PUBLIC_URL
+              value: "https://proxy.alienai.id:443"
             - name: C35_LIVE_ENABLED
               value: "1"
           startupProbe:

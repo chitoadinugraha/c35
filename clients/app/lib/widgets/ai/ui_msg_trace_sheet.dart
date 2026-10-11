@@ -177,17 +177,116 @@ class _StepTile extends StatelessWidget {
             if (step.branches.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 20, top: 6),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final b in step.branches)
-                      b.hasToolFilterDetail ? _ToolFilterBranchRow(branch: b, onInstTap: onInstTap) : _BranchRow(branch: b),
-                  ],
-                ),
+                child: traceStepUsesBranchGroups(step)
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final g in groupTraceStepBranches(step))
+                            _BranchGroupTile(group: g, onInstTap: onInstTap),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final b in step.branches)
+                            b.hasToolFilterDetail ? _ToolFilterBranchRow(branch: b, onInstTap: onInstTap) : _BranchRow(branch: b),
+                        ],
+                      ),
               ),
           ],
         ),
       );
+}
+
+class _BranchGroupTile extends StatefulWidget {
+  const _BranchGroupTile({required this.group, this.onInstTap});
+  final TraceBranchGroup group;
+  final Future<void> Function(String instId)? onInstTap;
+
+  @override
+  State<_BranchGroupTile> createState() => _BranchGroupTileState();
+}
+
+class _BranchGroupTileState extends State<_BranchGroupTile> {
+  static const _muted = Color(0xFF71717A);
+  static const _title = Color(0xFFD4D4D8);
+
+  var _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final group = widget.group;
+    final ms = uiFmtDurationMs(group.durationMs);
+    final price = group.costUsd > 0 ? moneyCostLabel(group.costUsd) : '';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(4),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Icon(_expanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded, size: 16, color: _muted),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      group.title,
+                      style: const TextStyle(color: _title, fontSize: 12, fontWeight: FontWeight.w600, height: 1.3),
+                    ),
+                  ),
+                  if (!_expanded) ...[
+                    Text(
+                      group.collapsedSubtitle,
+                      style: const TextStyle(color: _muted, fontSize: 11, height: 1.3),
+                    ),
+                    if (price.isNotEmpty || ms.isNotEmpty) const SizedBox(width: 8),
+                  ],
+                  if (price.isNotEmpty) ...[
+                    Text(
+                      price,
+                      style: const TextStyle(color: _muted, fontSize: 11, fontFeatures: [FontFeature.tabularFigures()]),
+                    ),
+                    if (ms.isNotEmpty) const SizedBox(width: 8),
+                  ],
+                  if (ms.isNotEmpty)
+                    Text(
+                      ms,
+                      style: const TextStyle(color: _muted, fontSize: 11, fontFeatures: [FontFeature.tabularFigures()]),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded)
+            Padding(
+              padding: const EdgeInsets.only(left: 20, top: 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final b in group.branches)
+                    b.hasToolFilterDetail ? _ToolFilterBranchRow(branch: b, onInstTap: widget.onInstTap) : _BranchRow(branch: b),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+String _branchUsageTrailing(TraceBranch branch) {
+  final ms = uiFmtDurationMs(branch.durationMs);
+  final price = branch.costUsd > 0 ? moneyCostLabel(branch.costUsd) : '';
+  return [
+    if (branch.tokensIn > 0) '${uiFmtGroupedInt(branch.tokensIn)}↑',
+    if (branch.tokensOut > 0) '${uiFmtGroupedInt(branch.tokensOut)}↓',
+    if (price.isNotEmpty) price,
+    if (ms.isNotEmpty) ms,
+  ].join('  ');
 }
 
 class _BranchRow extends StatefulWidget {
@@ -204,9 +303,7 @@ class _BranchRowState extends State<_BranchRow> {
   @override
   Widget build(BuildContext context) {
     final branch = widget.branch;
-    final ms = uiFmtDurationMs(branch.durationMs);
-    final price = branch.costUsd > 0 ? moneyCostLabel(branch.costUsd) : '';
-    final usage = [if (branch.tokensIn > 0) '${uiFmtGroupedInt(branch.tokensIn)}↑', if (branch.tokensOut > 0) '${uiFmtGroupedInt(branch.tokensOut)}↓', if (ms.isNotEmpty) ms, if (price.isNotEmpty) price].join('  ');
+    final usage = _branchUsageTrailing(branch);
     final canPreview = branch.hasScreenshotPreview;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
@@ -229,10 +326,15 @@ class _BranchRowState extends State<_BranchRow> {
                   ],
                   Expanded(
                     child: Text(
-                      '${branch.label}${usage.isNotEmpty ? '  $usage' : ''}',
+                      branch.label,
                       style: TextStyle(color: branch.ok ? const Color(0xFFA1A1AA) : Colors.orange, fontSize: 12, height: 1.35),
                     ),
                   ),
+                  if (usage.isNotEmpty)
+                    Text(
+                      usage,
+                      style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontFeatures: [FontFeature.tabularFigures()]),
+                    ),
                 ],
               ),
             ),
@@ -275,7 +377,6 @@ class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
       if (scored > 0) '$scored scored',
       if (eligible > scored) '${eligible - scored} other',
       if (branch.ragSkipped && branch.ragSkipReason.isNotEmpty) branch.ragSkipReason,
-      if (ms.isNotEmpty) ms,
     ].join(' · ');
     final dropped = (branch.droppedGap.isNotEmpty
             ? branch.droppedGap
@@ -301,10 +402,15 @@ class _ToolFilterBranchRowState extends State<_ToolFilterBranchRow> {
                   const SizedBox(width: 2),
                   Expanded(
                     child: Text(
-                      '${branch.label}${summary.isNotEmpty ? ' · $summary' : ''}',
+                      summary.isNotEmpty ? '${branch.label} · $summary' : branch.label,
                       style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12, height: 1.35),
                     ),
                   ),
+                  if (ms.isNotEmpty)
+                    Text(
+                      ms,
+                      style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontFeatures: [FontFeature.tabularFigures()]),
+                    ),
                 ],
               ),
             ),

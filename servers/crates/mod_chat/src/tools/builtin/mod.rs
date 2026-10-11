@@ -2,6 +2,7 @@ mod account;
 mod bot_draft;
 mod bot_inbox;
 mod browser;
+mod captcha;
 mod chat_history;
 mod consumption;
 mod delegate;
@@ -37,11 +38,12 @@ pub use account::{
 };
 pub use bot_draft::BotDraftTool;
 pub use bot_inbox::BotInboxQueryTool;
+pub use captcha::CaptchaSolveTool;
 pub use browser::{
     BrowserAgentRestartTool, BrowserExtensionTool, BrowserFileUploadTool, BrowserPageActTool,
     BrowserPageExtractTool, BrowserPageObserveTool, BrowserPageScreenshotTool,
     BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRangeReadTool,
-    BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool,
+    BrowserCaptchaApplyTool, BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool,
 };
 pub use chat_history::{ChatMessagesTool, ChatSearchTool};
 pub use consumption::{

@@ -30,6 +30,7 @@ class SiteEditorCatalogCache extends ChangeNotifier {
   var productLoadingAll = false;
 
   Future<void>? _warmFuture;
+  var _disposed = false;
 
   List<SiteLink> get links => _linksById.values.toList(growable: false);
   List<SiteContact> get contacts => _contactsById.values.toList(growable: false);
@@ -45,13 +46,26 @@ class SiteEditorCatalogCache extends ChangeNotifier {
   Future<void> warm() => ensureWarm();
 
   Future<void> ensureWarm() {
+    if (_disposed) return Future<void>.value();
     if (warmDone) return Future<void>.value();
     _warmFuture ??= _runWarm();
     return _warmFuture!;
   }
 
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   Future<void> _runWarm() async {
-    if (warming) return;
+    if (_disposed || warming) return;
     warming = true;
     warmError = null;
     notifyListeners();
@@ -80,8 +94,10 @@ class SiteEditorCatalogCache extends ChangeNotifier {
     } catch (e) {
       warmError = '$e';
     } finally {
-      warming = false;
-      notifyListeners();
+      if (!_disposed) {
+        warming = false;
+        notifyListeners();
+      }
     }
   }
 

@@ -71,6 +71,38 @@ pub async fn site_preview_token(
     })
 }
 
+/// Live HTML from the **active published** doc snapshot (`site.publish.doc_json`), not `site.render` cache.
+pub async fn site_published_html_render(
+    pool: &PgPool,
+    site_iid: i64,
+    page_path: &str,
+) -> Result<(Vec<u8>, String)> {
+    let pub_row = sqlx::query(
+        r#"
+        SELECT doc_json FROM site.publish
+        WHERE site_iid = $1 AND is_active = TRUE AND deleted_ts IS NULL
+        ORDER BY published_ts DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| anyhow!("published snapshot not found"))?;
+    let doc_json: serde_json::Value = pub_row.get("doc_json");
+    let site_name = sqlx::query(r#"SELECT name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#)
+        .bind(site_iid)
+        .fetch_optional(pool)
+        .await?
+        .map(|r| r.get::<String, _>("name"))
+        .unwrap_or_else(|| "Site".into());
+    let doc = site_doc_from_json(&doc_json);
+    let path = if page_path.is_empty() { "/" } else { page_path };
+    let html = page_html_render(pool, site_iid, &doc, path, &site_name).await?;
+    let etag = render_etag(&html);
+    Ok((html.into_bytes(), etag))
+}
+
 pub async fn site_draft_html_render(
     pool: &PgPool,
     site_iid: i64,

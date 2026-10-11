@@ -146,9 +146,12 @@ pub fn user_asks_time(text: &str) -> bool {
         "jam berapa",
         "what time",
         "what date",
+        "time is now",
+        "time now",
         "sekarang hari",
         "pukul berapa",
         "waktu sekarang",
+        "jam sekarang",
     ]
     .iter()
     .any(|k| t.contains(k))
@@ -225,6 +228,7 @@ mod tests {
         assert!(user_asks_time("sekarang hari apa ?"));
         assert!(user_asks_time("Sekarang jam berapa?"));
         assert!(user_asks_time("what day is it today?"));
+        assert!(user_asks_time("what time is now"));
         assert!(!user_asks_time("buatkan gambar kucing"));
         assert!(!user_asks_time("apa aja yang aku makan hari ini?"));
         assert!(!user_asks_time("riwayat makan kemarin"));

@@ -117,9 +117,7 @@ impl ToolDispatcher {
         let mcp_device_exempt = ctx.mcp_agent && mcp_operator_device_tool(&def.name);
         if ctx.owner_iid > 0
             && !mcp_device_exempt
-            && c35_mod_billing::billing_freemium_applies(&ctx.pool, ctx.owner_iid)
-                .await
-                .unwrap_or(false)
+            && ctx.is_freemium().await
             && !c35_mod_billing::freemium_tool_allowed(&def.name)
         {
             return (

@@ -140,6 +140,52 @@ const collectDiagnostics = async () => {
   };
 };
 
+const parseVersionParts = (v) =>
+  String(v || "")
+    .trim()
+    .split(".")
+    .map((n) => parseInt(n, 10) || 0);
+
+const versionGreaterThan = (a, b) => {
+  const pa = parseVersionParts(a);
+  const pb = parseVersionParts(b);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const da = pa[i] ?? 0;
+    const db = pb[i] ?? 0;
+    if (da > db) return true;
+    if (da < db) return false;
+  }
+  return false;
+};
+
+const fetchInstallExtensionVersion = async () => {
+  try {
+    const raw = await nmPortRequest({ type: "extension.install_version" }, 8000);
+    const v =
+      raw?.data?.version ??
+      raw?.version ??
+      raw?.data?.extension_install_version ??
+      raw?.extension_install_version;
+    return v ? String(v).trim() : "";
+  } catch {
+    return "";
+  }
+};
+
+/** Reload MV3 when install-folder manifest is newer (after sync / agent restart). */
+const maybeAutoReloadExtensionFromInstall = async () => {
+  const installVer = await fetchInstallExtensionVersion();
+  if (!installVer) return { ok: true, skipped: true, reason: "no_install_version" };
+  const cur = chrome.runtime.getManifest().version;
+  if (!versionGreaterThan(installVer, cur)) {
+    return { ok: true, reloaded: false, version: cur, install_version: installVer };
+  }
+  extLog("info", `extension auto-reload ${cur} -> ${installVer}`);
+  queueMicrotask(() => chrome.runtime.reload());
+  return { ok: true, reloaded: true, version: cur, install_version: installVer };
+};
+
 const agentEnsure = async () => {
   try {
     nmConnect();
@@ -147,6 +193,7 @@ const agentEnsure = async () => {
     const reachable =
       raw?.data?.agent_reachable === true || raw?.agent_reachable === true;
     extLog("info", `agent.ensure reachable=${reachable}`);
+    await maybeAutoReloadExtensionFromInstall();
     return raw;
   } catch (e) {
     try {
@@ -177,7 +224,7 @@ const nmConnect = () => {
     nmConnectBusy = false;
     extLog("info", "native port connected");
     broadcastStatus({ type: "native", state: "connected" });
-    void agentEnsure();
+    void agentEnsure().then(() => maybeAutoReloadExtensionFromInstall());
   } catch (e) {
     nativePort = null;
     nmConnectBusy = false;
@@ -492,6 +539,10 @@ const extensionRpcHandle = async (req) => {
         const m = chrome.runtime.getManifest();
         result = { ok: true, version: m.version, reloading: true };
         queueMicrotask(() => chrome.runtime.reload());
+        break;
+      }
+      case "extension.ensure_updated": {
+        result = await maybeAutoReloadExtensionFromInstall();
         break;
       }
       default:

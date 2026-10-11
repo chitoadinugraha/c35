@@ -37,8 +37,8 @@ mod billing_webhook;
 mod bot_usage;
 
 pub use billing_cache::{
-    billing_cache_get, billing_cache_invalidate, billing_cache_put, cached_to_billing_row,
-    evaluate_allowance_sufficient,
+    billing_cache_get, billing_cache_invalidate, billing_cache_put, billing_cache_warmup,
+    cached_to_billing_row, evaluate_allowance_sufficient,
 };
 pub use c35_nats::BillingGateCached;
 pub use billing_account_get::billing_account_get;
@@ -96,7 +96,7 @@ pub use billing_push::billing_notify_owner;
 pub use billing_summary::billing_summary;
 pub use billing_followup::{billing_followup_caps, FollowupCaps};
 pub use billing_freemium::{
-    billing_freemium_add_tokens, billing_freemium_applies, billing_freemium_check,
+    billing_freemium_add_tokens, billing_freemium_applies, billing_freemium_applies_nats, billing_freemium_check,
     billing_freemium_reserve_turn, billing_freemium_snapshot, billing_freemium_wire,
     billing_plan_lapse_if_expired,
     freemium_tool_allowed, freemium_tool_blocked, plan_expires_from_months, plan_expires_from_period,
@@ -124,8 +124,9 @@ pub use billing_on_demand::{
     MAIN_BUDGET_USD,
 };
 pub use billing_reservation::{
-    billing_can_afford_tool, billing_gate_with_hold, billing_gate_with_hold_custom,
-    billing_gate_with_hold_model, billing_gate_with_hold_model_opt, billing_held_totals,
+    billing_can_afford_tool, billing_gate_trusted_allowance_fast, billing_gate_with_hold,
+    billing_gate_with_hold_custom, billing_gate_with_hold_model, billing_gate_with_hold_model_opt,
+    billing_held_totals,
     billing_held_totals_exec, billing_reservation_hold, billing_reservation_hold_custom,
     billing_reservation_refund, billing_reservation_settle,
 };

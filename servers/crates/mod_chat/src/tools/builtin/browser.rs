@@ -541,7 +541,89 @@ tool! {
                 }
             }
         }
+        if matches!(
+            action.as_str(),
+            "play_set_country_price"
+                | "play_fill_dialog_price"
+                | "play_dialog_apply"
+                | "play_restrict_availability"
+                | "play_click_save"
+                | "play_console_errors"
+                | "play_dismiss_overlays"
+                | "play_set_country_price_inline"
+                | "select_country"
+                | "click_text_contains"
+        ) {
+            for key in ["country", "amount", "price", "label"] {
+                if let Some(v) = args.get(key) {
+                    params[key] = v.clone();
+                }
+            }
+        }
         Ok(browser_invoke(&args, ctx, "page.act", params, 90).await)
+    }
+}
+
+tool! {
+    struct: BrowserCaptchaApplyTool,
+    name: "browser.captcha.apply",
+    aliases: ["browser_captcha_apply"],
+    description: "Apply a solved captcha token on a Playwright Remote browser tab (reCAPTCHA v2/v3 or hCaptcha). Call captcha.solve first, then this tool. Not supported on Chrome extension browser devices.",
+    topics: ["device", "browser", "task"],
+    always: ["device", "browser"],
+    rag_phrases: [
+        "apply captcha token",
+        "inject captcha solution",
+        "recaptcha token browser",
+        "hcaptcha token browser",
+        "automated captcha browser"
+    ],
+    ui_calling_key: "tool.browser.captcha.apply.calling",
+    ui_done_key: "tool.browser.captcha.apply.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID (Playwright engine only)", required),
+        kind: (string, "Captcha kind from captcha.solve (recaptcha_v2, recaptcha_v3, hcaptcha)", required),
+        token: (string, "Solution token from captcha.solve", required),
+        slot_id: (string, "Named browser slot profile (default: default)", optional),
+        tab_id: (string, "Tab id with the captcha widget (active tab if omitted)", optional),
+    },
+    execute: |args, ctx| {
+        let device_iid = match resolve_device_iid(&args, ctx) {
+            Ok(iid) => iid,
+            Err(v) => return Ok(v),
+        };
+        let engine = c35_mod_device::device_browser_engine(&ctx.pool, device_iid).await.unwrap_or_default();
+        if engine.eq_ignore_ascii_case("extension") {
+            return Ok(browser_fail(
+                "browser.captcha.apply is not supported on Chrome extension devices (browser_engine=extension); use the Remote tab for manual captcha"
+            ));
+        }
+        let kind = arg_str(&args, "kind");
+        let token = arg_str(&args, "token");
+        if kind.is_empty() || token.is_empty() {
+            return Ok(browser_fail("kind and token required"));
+        }
+        let slot_raw = arg_str(&args, "slot_id");
+        let slot_id = if slot_raw.is_empty() { "default" } else { slot_raw.as_str() };
+        let mut params = json!({ "slot_id": slot_id, "kind": kind, "token": token });
+        let tab_id = arg_str(&args, "tab_id");
+        if !tab_id.is_empty() {
+            params["tab_id"] = json!(tab_id);
+        }
+        let raw = browser_invoke(&args, ctx, "captcha.apply", params, 90).await;
+        if raw.get("ok").and_then(|x| x.as_bool()) != Some(true) {
+            return Ok(raw);
+        }
+        let url = raw
+            .get("url")
+            .and_then(|x| x.as_str())
+            .unwrap_or("");
+        Ok(json!({
+            "ok": true,
+            "device_iid": device_iid,
+            "slot_id": slot_id,
+            "url": url,
+        }))
     }
 }
 
@@ -609,7 +691,7 @@ tool! {
     struct: BrowserExtensionTool,
     name: "browser.extension",
     aliases: ["browser_extension"],
-    description: "Chrome MV3 extension on a paired type=browser device: read manifest version or reload the service worker after syncing dist/ to the install folder (no chrome://extensions click).",
+    description: "Chrome MV3 extension on a paired type=browser device: version, reload, or ensure_updated (reload when install-folder manifest is newer than the running SW).",
     topics: ["device", "browser"],
     rag_phrases: [
         "reload chrome extension", "reload extension", "extension version", "refresh alien ai remote",
@@ -619,15 +701,16 @@ tool! {
     ui_done_key: "tool.browser.extension.done",
     parameters: {
         device_iid: (integer, "Target remote browser device identity ID", required),
-        op: (string, "version | reload", required),
+        op: (string, "version | reload | ensure_updated", required),
     },
     execute: |args, ctx| {
         let op = arg_str(&args, "op").to_lowercase();
         let method = match op.as_str() {
             "version" | "get_version" => "extension.version",
             "reload" | "refresh" => "extension.reload",
-            "" => return Ok(browser_fail("op required (version | reload)")),
-            _ => return Ok(browser_fail("op must be version or reload")),
+            "ensure_updated" | "ensure-updated" | "auto_reload" => "extension.ensure_updated",
+            "" => return Ok(browser_fail("op required (version | reload | ensure_updated)")),
+            _ => return Ok(browser_fail("op must be version, reload, or ensure_updated")),
         };
         Ok(browser_invoke(&args, ctx, method, json!({}), 20).await)
     }

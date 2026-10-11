@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: c35-egress-proxy
+  namespace: c35
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+    app.kubernetes.io/component: device-egress
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod-dns
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/redirect-entry-point: https
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - proxy.alienai.id
+      secretName: proxy-alienai-id-tls
+  rules:
+    - host: proxy.alienai.id
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: c35-server
+                port:
+                  name: egress

@@ -56,6 +56,27 @@ UPDATE ai.inst SET
     updated_ts = NOW()
 WHERE id = 'inst.core.assistant';
 
+-- Seed: prefer in-prompt facts over web when context is enough (every turn)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
+) VALUES (
+    'inst.core.context_first',
+    'role:personal_assistant',
+    'trigger',
+    '',
+    '[CONTEXT FIRST] When this prompt already has the facts you need — [ENRICH:…] blocks, [USER SITES]/[USER BOTS], [MENTION TARGETS], attachments, pasted text, or thread history — answer from that material. Do not call web.search or web.visit to re-fetch those facts. Use the web only when the user clearly needs live external data (news, market prices, weather, cinema times, etc.) that is not already in context.',
+    ARRAY[]::TEXT[],
+    ARRAY['always'],
+    199,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    triggers = EXCLUDED.triggers,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: included Alien AI pool (compose signal model:alienai)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, priority, def_hash, updated_ts
@@ -134,7 +155,11 @@ INSERT INTO ai.inst (
     'task',
     '',
     'Ground factual answers by calling the web.search tool (then web.visit when you need page text). Do not reply with plain-text search queries or [WEB] lines. Use for current events, prices, weather, cinema schedules, or anything that may have changed. When [USER LOCATION] is set and the question is local (weather, bioskop, terdekat, near me), include that city or region in the web.search query unless the user named a different place.',
-    ARRAY['search', 'cari', 'googling', 'browse', 'latest', 'terbaru', 'kapan', 'weather', 'cuaca', 'harga', 'film', 'bioskop', 'tayang', 'jadwal', 'sekarang', 'nonton', 'cinema', 'jadwal nonton', 'apa yang', 'hari ini'],
+    ARRAY[
+        'search', 'cari', 'googling', 'browse', 'latest', 'terbaru', 'kapan', 'weather', 'cuaca', 'harga',
+        'film', 'bioskop', 'tayang', 'jadwal', 'sekarang', 'nonton', 'cinema', 'jadwal nonton',
+        'cuaca hari ini', 'berita hari ini', 'film hari ini', 'jadwal hari ini', 'apa yang tayang', 'apa yang terbaru'
+    ],
     ARRAY['tool_include:web.search'],
     100,
     'seed',
@@ -143,7 +168,11 @@ INSERT INTO ai.inst (
 
 UPDATE ai.inst SET
     inst = 'Ground factual answers by calling the web.search tool (then web.visit when you need page text). Do not reply with plain-text search queries or [WEB] lines. Use for current events, prices, weather, cinema schedules, or anything that may have changed. When [USER LOCATION] is set and the question is local (weather, bioskop, terdekat, near me), include that city or region in the web.search query unless the user named a different place.',
-    phrases = ARRAY['search', 'cari', 'googling', 'browse', 'latest', 'terbaru', 'kapan', 'weather', 'cuaca', 'harga', 'film', 'bioskop', 'tayang', 'jadwal', 'sekarang', 'nonton', 'cinema', 'jadwal nonton', 'apa yang', 'hari ini'],
+    phrases = ARRAY[
+        'search', 'cari', 'googling', 'browse', 'latest', 'terbaru', 'kapan', 'weather', 'cuaca', 'harga',
+        'film', 'bioskop', 'tayang', 'jadwal', 'sekarang', 'nonton', 'cinema', 'jadwal nonton',
+        'cuaca hari ini', 'berita hari ini', 'film hari ini', 'jadwal hari ini', 'apa yang tayang', 'apa yang terbaru'
+    ],
     updated_ts = NOW()
 WHERE id = 'inst.web_search';
 
@@ -232,7 +261,7 @@ INSERT INTO ai.inst (
     'global',
     'topic',
     'browser',
-    '[REMOTE BROWSER] Use browser.task.run for multi-step flows on Playwright devices (engine=playwright); for Chrome extension devices (engine=extension), use stepwise browser.page.act / page.observe / page.extract / browser.sheets.* (browser.task.run and file.upload are NOT supported on extension). Use browser.tabs for tab control. Never shell.run, device.screenshot, device.input, computer_use.delegate, or device.fs.* on browser agents. Use slot_id (default default) and tab_id when the user names a tab. For login captcha or 2FA, ask the user to finish on the app Remote tab — not device.input.',
+    '[REMOTE BROWSER] Use browser.task.run for multi-step flows on Playwright devices (engine=playwright); for Chrome extension devices (engine=extension), use stepwise browser.page.act / page.observe / page.extract / browser.sheets.* (browser.task.run and file.upload are NOT supported on extension). Use browser.tabs for tab control. Never shell.run, device.screenshot, device.input, computer_use.delegate, or device.fs.* on browser agents. Use slot_id (default default) and tab_id when the user names a tab. During automated Playwright tasks, follow inst.browser.captcha for captcha; OTP or bank 2FA still needs the human on the Remote tab — not device.input.',
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
     ARRAY[
@@ -241,7 +270,9 @@ INSERT INTO ai.inst (
         'browser.page.extract',
         'browser.page.act',
         'browser.page.observe',
-        'browser.file.upload'
+        'browser.file.upload',
+        'captcha.solve',
+        'browser.captcha.apply'
     ],
     ARRAY[
         'shell.run',
@@ -422,7 +453,41 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
--- Seed: 2FA / captcha on browser — human Remote tab, not device.input
+-- Seed: automated captcha on Playwright remote browser (not extension / not bare OTP)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.browser.captcha',
+    'global',
+    'task',
+    'browser',
+    '[BROWSER CAPTCHA] During an automated Playwright browser task, when a reCAPTCHA or hCaptcha blocks progress: call captcha.solve (device_iid, kind, sitekey, page_url) then browser.captcha.apply with the returned token on the same tab. Do not use device.input. For OTP, SMS, or bank 2FA, use inst.browser.2fa instead (human Remote tab).',
+    ARRAY[
+        'solve captcha', 'captcha on browser', 'recaptcha', 'hcaptcha',
+        'automated captcha', 'captcha token', 'captcha remote browser'
+    ],
+    ARRAY[
+        'tool_include:captcha.solve',
+        'tool_include:browser.captcha.apply',
+        'tool_exclude:device.input'
+    ],
+    ARRAY['captcha.solve', 'browser.captcha.apply'],
+    ARRAY['device.input', 'computer_use.delegate'],
+    133,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: OTP / bank 2FA on browser — human Remote tab, not device.input
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, exclude_tools, priority, def_hash, updated_ts
 ) VALUES (
@@ -430,9 +495,9 @@ INSERT INTO ai.inst (
     'global',
     'task',
     'browser',
-    '[BROWSER 2FA] Captcha, OTP, or bank 2FA on a remote browser page requires the human to complete it on the Remote tab in the app. Do not call device.input. After the user confirms, continue with browser.page.extract or browser.task.run.',
+    '[BROWSER 2FA] OTP, SMS code, authenticator, or bank 2FA on a remote browser page requires the human to complete it on the Remote tab in the app. Do not call device.input. After the user confirms, continue with browser.page.extract or browser.task.run.',
     ARRAY[
-        'captcha', 'otp', '2fa', 'two factor', 'verifikasi', 'kode sms', 'authenticator'
+        'otp', '2fa', 'two factor', 'verifikasi', 'kode sms', 'authenticator', 'sms code', 'one time password'
     ],
     ARRAY['tool_exclude:device.input', 'tool_exclude:computer_use.delegate'],
     ARRAY['device.input', 'computer_use.delegate'],
@@ -2379,6 +2444,37 @@ INSERT INTO ai.inst (
     ARRAY['account.get'],
     ARRAY[]::TEXT[],
     127,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: caller name / email / alien_id for forms and drafts (no account.get)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.me',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[USER ME] The user refers to themselves (name, email, alien_id) when filling a form, draft, message, signature, or document — e.g. "fill with my name", "isi dengan namaku", "pakai nama saya". Use the JSON in [ENRICH:user.me] only. Do not call account.get, web.search, or web.visit — identity is already in context. Never guess identity fields.',
+    ARRAY[
+        'namaku', 'nama saya', 'my name', 'isi dengan namaku', 'isi nama saya', 'isi pakai namaku',
+        'fill with my name', 'use my name', 'with my name', 'sign with my name',
+        'gunakan namaku', 'pakai namaku', 'pakai nama saya', 'tulis namaku', 'tulis nama saya',
+        'dengan namaku', 'dengan nama saya'
+    ],
+    ARRAY[]::TEXT[],
+    ARRAY[]::TEXT[],
+    ARRAY['account.get', 'web.search', 'web.visit'],
+    128,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET

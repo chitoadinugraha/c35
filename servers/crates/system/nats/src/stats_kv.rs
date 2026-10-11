@@ -1,7 +1,7 @@
 use anyhow::Context as _;
 use async_nats::jetstream::{self, kv::Store};
 use async_nats::Client;
-use c35_proto::StatsPush;
+use c35_proto::{stats_push, StatsPush};
 use futures_util::StreamExt;
 use prost::Message as ProstMessage;
 use tracing::warn;
@@ -22,6 +22,23 @@ pub fn stats_kv_key_pod(node_name: &str, namespace: &str, pod_name: &str) -> Str
 
 pub fn stats_kv_key_platform_user_count() -> &'static str {
     "platform/user_count"
+}
+
+pub fn stats_kv_key_for_push(push: &StatsPush) -> Option<String> {
+    match &push.body {
+        Some(stats_push::Body::Node(n)) if !n.node_name.is_empty() => {
+            Some(stats_kv_key_node(&n.node_name))
+        }
+        Some(stats_push::Body::Volume(v)) if !v.node_name.is_empty() && !v.pvc_name.is_empty() => {
+            Some(stats_kv_key_volume(&v.node_name, &v.namespace, &v.pvc_name))
+        }
+        Some(stats_push::Body::Pod(p))
+            if !p.node_name.is_empty() && !p.pod_name.is_empty() =>
+        {
+            Some(stats_kv_key_pod(&p.node_name, &p.namespace, &p.pod_name))
+        }
+        _ => None,
+    }
 }
 
 pub async fn stats_kv_put_bytes(store: &Store, key: &str, bytes: &[u8]) -> anyhow::Result<()> {

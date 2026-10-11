@@ -33,14 +33,12 @@ class UiAdminStorageRow extends StatelessWidget {
     return role;
   }
 
-  Color _fill(double pct) => pct >= 90 ? adminBarCrit : pct >= 80 ? adminBarWarn : adminBarFill;
-
   @override
   Widget build(BuildContext context) {
     final used = Int64(usedBytes);
     final total = Int64(totalBytes);
     final pct = adminPct(used, total);
-    final fill = _fill(pct);
+    final fill = adminBarFillForPct(pct);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(

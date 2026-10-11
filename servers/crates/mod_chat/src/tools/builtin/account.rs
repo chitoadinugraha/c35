@@ -18,6 +18,7 @@ fn tool_ctx(ctx: &ToolContext) -> Ctx {
     Ctx {
         pool: ctx.pool.clone(),
         caller_iid: ctx.owner_iid,
+        nats: ctx.nats.clone(),
     }
 }
 

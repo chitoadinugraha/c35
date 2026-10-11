@@ -19,6 +19,8 @@ use crate::mention_registry::{
     mention_active_topics, mention_ref_parse, mention_resolve_all, MentionRef,
 };
 use crate::mention_tool_registry::mention_force_tools;
+use crate::prompt::time::user_asks_time;
+use crate::prompt::tool_loop::user_wants_search;
 use crate::prompt_run::prompt_run_concurrency_acquire;
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 use crate::site_capability::site_capability_view_for_mention;
@@ -179,7 +181,13 @@ pub async fn mcp_prompt_compose(
     }
     let (composed, active_topics) =
         mcp_compose_for_mentions(pool, owner_iid, text, locale, mention_ids, "agent").await;
-    let selected_tools: Vec<String> = composed.tools.iter().map(|t| t.name.clone()).collect();
+    let is_simple_time =
+        user_asks_time(text) && mention_ids.is_empty() && !user_wants_search(text);
+    let selected_tools: Vec<String> = if is_simple_time {
+        vec![]
+    } else {
+        composed.tools.iter().map(|t| t.name.clone()).collect()
+    };
     json!({
         "ok": true,
         "owner_iid": owner_iid,
@@ -219,8 +227,12 @@ async fn mcp_compose_for_mentions(
         })
         .collect();
     let force_tools = mention_force_tools(&resolved);
+    let is_simple_time =
+        user_asks_time(text) && mention_ids.is_empty() && !user_wants_search(text);
     let mention_ctx = mention_context_build(&resolved);
-    let mention_ctx = if mention_ctx.sites.is_empty() {
+    let mention_ctx = if is_simple_time {
+        mention_ctx
+    } else if mention_ctx.sites.is_empty() {
         site_context_resolve(pool, owner_iid, text, &inst_mention_ids)
             .await
             .ok()
@@ -240,6 +252,9 @@ async fn mcp_compose_for_mentions(
     let device_tool_exclude =
         device_prompt_tool_exclude(pool, owner_iid, &mention_ctx.devices, 0, &platform_scope).await;
     let mut compose_signals = vec![inst_pool_signal("alienai").to_string()];
+    if is_simple_time {
+        compose_signals.push("wire:date_range".into());
+    }
     compose_signals.extend(device_platform_compose_signals(&platform_scope));
     let tool_catalog = cluster_tools_for_device_scope(&platform_scope);
     let composed = compose_tools_and_inst_async(
@@ -259,6 +274,7 @@ async fn mcp_compose_for_mentions(
         ComposeTurnOpts {
             extra_signals: &compose_signals,
             extra_tool_exclude: &device_tool_exclude,
+            skip_tool_rag: is_simple_time,
             ..ComposeTurnOpts::default()
         },
         owner_iid,

@@ -69,10 +69,53 @@ class AdminStatsStream extends ChangeNotifier {
 
   double networkMaxBps(String nodeName) => _netPeaks[nodeName]?.max ?? _NetPeak._defaultScaleBps;
 
+  static const int _podStaleMs = 12000;
+
   List<PodStat> podsForNode(String nodeName) {
-    final list = _pods.values.where((p) => p.nodeName == nodeName).toList(growable: false);
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final list = _pods.values
+        .where((p) => p.nodeName == nodeName && _podFresh(p, now))
+        .toList(growable: false);
     list.sort((a, b) => '${a.namespace}/${a.podName}'.compareTo('${b.namespace}/${b.podName}'));
     return list;
+  }
+
+  /// Pods grouped by namespace, then workload (deployment).
+  List<AdminPodNamespace> podNamespacesForNode(String nodeName, {String search = ''}) {
+    final pods = podsForNode(nodeName).where((p) => adminPodMatchesSearch(p, search)).toList();
+    final byNs = <String, List<AdminPodGroup>>{};
+    for (final p in pods) {
+      final wl = adminPodWorkloadName(p.podName);
+      final groups = byNs.putIfAbsent(p.namespace, () => []);
+      final idx = groups.indexWhere((g) => g.workload == wl);
+      if (idx >= 0) {
+        groups[idx].pods.add(p);
+      } else {
+        groups.add(AdminPodGroup(namespace: p.namespace, workload: wl, pods: [p]));
+      }
+    }
+    for (final groups in byNs.values) {
+      for (final g in groups) {
+        g.pods.sort((a, b) => a.podName.compareTo(b.podName));
+      }
+      groups.sort((a, b) => a.workload.compareTo(b.workload));
+    }
+    final out = byNs.entries
+        .map((e) => AdminPodNamespace(namespace: e.key, workloads: e.value))
+        .toList();
+    out.sort((a, b) => a.namespace.compareTo(b.namespace));
+    return out;
+  }
+
+  bool _podFresh(PodStat p, int nowMs) {
+    final ts = p.tsMs.toInt();
+    if (ts <= 0) return true;
+    return nowMs - ts <= _podStaleMs;
+  }
+
+  void _pruneStalePods() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _pods.removeWhere((_, p) => !_podFresh(p, now));
   }
 
   double networkMaxBpsForPod(PodStat pod) {
@@ -108,9 +151,24 @@ class AdminStatsStream extends ChangeNotifier {
         .toList();
   }
 
+  void applySnapshot(Iterable<StatsPush> pushes) {
+    for (final push in pushes) {
+      _onPush(push);
+    }
+  }
+
   Future<void> start() async {
     _reconnectedSub ??= api.chatConn.onReconnected.listen((_) => unawaited(_subscribe()));
     await _subscribe();
+  }
+
+  /// Live stats relay only (snapshot already applied via [rootConsoleInit]).
+  Future<void> attachLive() async {
+    _reconnectedSub ??= api.chatConn.onReconnected.listen((_) => unawaited(_subscribe()));
+    await _sub?.cancel();
+    _sub = api.chatConn.onStatsPush.listen(_onPush);
+    subscribeError = null;
+    notifyListeners();
   }
 
   Future<void> _subscribe() async {
@@ -119,7 +177,8 @@ class AdminStatsStream extends ChangeNotifier {
     subscribeError = null;
     notifyListeners();
     try {
-      await api.statsSubscribe();
+      final res = await api.statsSubscribe();
+      applySnapshot(res.snapshot);
     } catch (e) {
       subscribeError = '$e';
       notifyListeners();
@@ -147,6 +206,7 @@ class AdminStatsStream extends ChangeNotifier {
         final key = _podKey(p);
         _pods[key] = p;
         _netPeaks.putIfAbsent(_podNetKey(p), () => _NetPeak()).update(p.netInBps, p.netOutBps);
+        _pruneStalePods();
       }
     } else if (push.hasVolume()) {
       final v = push.volume;
@@ -163,4 +223,23 @@ class AdminStatsStream extends ChangeNotifier {
     unawaited(stop());
     super.dispose();
   }
+}
+
+class AdminPodGroup {
+  AdminPodGroup({required this.namespace, required this.workload, required this.pods});
+
+  final String namespace;
+  final String workload;
+  final List<PodStat> pods;
+
+  String get title => '$namespace/$workload';
+}
+
+class AdminPodNamespace {
+  const AdminPodNamespace({required this.namespace, required this.workloads});
+
+  final String namespace;
+  final List<AdminPodGroup> workloads;
+
+  int get podCount => workloads.fold<int>(0, (n, g) => n + g.pods.length);
 }

@@ -618,6 +618,229 @@ const clickExactText = (needle, root = document) => {
   return hit;
 };
 
+const dialogRoot = () => document.querySelector("[role=dialog]") || document.body;
+
+const clickDialogButton = (label) => {
+  const dialog = dialogRoot();
+  const btn = Array.from(dialog.querySelectorAll("button")).find(
+    (b) => (b.textContent || "").trim() === label
+  );
+  if (!btn) throw new Error(`${label} button not found in dialog`);
+  btn.click();
+  return { ok: true };
+};
+
+const listItemsIn = (root) => {
+  const fromRole = Array.from(root.querySelectorAll("mat-list-option, [role=listitem], mat-list-item"));
+  if (fromRole.length) return fromRole;
+  const fromChecks = Array.from(root.querySelectorAll('[role="checkbox"]'))
+    .map((cb) => cb.closest("mat-list-option, [role=listitem], mat-list-item, li, div") || cb.parentElement)
+    .filter(Boolean);
+  return fromChecks.filter((el, i, arr) => arr.indexOf(el) === i);
+};
+
+const checkboxIn = (row) =>
+  row.querySelector('[role="checkbox"], mat-pseudo-checkbox, input[type="checkbox"]') || row;
+
+const rowChecked = (row) => {
+  if (!row) return false;
+  if (row.getAttribute?.("aria-selected") === "true") return true;
+  const cb = row.querySelector('[role="checkbox"]');
+  const v = cb?.getAttribute("aria-checked");
+  if (v === "true") return true;
+  if (v === "false") return false;
+  const input = row.querySelector('input[type="checkbox"]');
+  if (input) return input.checked;
+  if (row.classList?.contains("mat-list-option-selected")) return true;
+  return false;
+};
+
+const toggleCheckboxRow = (row, wantChecked) => {
+  if (rowChecked(row) === wantChecked) return;
+  const target = checkboxIn(row);
+  target.click();
+  if (rowChecked(row) !== wantChecked) row.click();
+};
+
+/** Play Console: limit base plan to one country (Manage country / region availability). */
+export const playRestrictAvailability = async (tabId, countryName) => {
+  const name = String(countryName || "").trim();
+  if (!name) throw new Error("country required");
+  await execInTab(tabId, () => {
+    if (!document.querySelector("[role=dialog]")) {
+      const hit = Array.from(document.querySelectorAll("a, button, span, label")).find((el) =>
+        (el.textContent || "").includes("Manage country / region availability")
+      );
+      if (!hit) throw new Error("Manage country / region availability not found");
+      hit.click();
+    }
+    return { ok: true };
+  });
+  await new Promise((r) => setTimeout(r, 2000));
+  const applyResult = await execInTab(tabId, (country) => {
+    const dialog = document.querySelector("[role=dialog]");
+    if (!dialog) throw new Error("availability dialog not found");
+    const search =
+      dialog.querySelector('input[aria-label="Search"]') ||
+      dialog.querySelector('input[aria-label*="Search" i]');
+    if (!search) throw new Error("availability search not found");
+    setInputValue(search, country);
+    const waitRows = () => {
+      const items = listItemsIn(dialog).filter((row) => {
+        const t = (row.textContent || "").replace(/\s+/g, " ").trim();
+        return !/\d+\s+countries\s*\/\s*regions/i.test(t);
+      });
+      return items;
+    };
+    let rows = waitRows();
+    rows = waitRows().filter((r) => (r.textContent || "").includes(country));
+    if (!rows.length) throw new Error(`country not visible after search: ${country}`);
+    const master = listItemsIn(dialog).find((el) =>
+      /\d+\s+countries\s*\/\s*regions/i.test(el.textContent || "")
+    );
+    if (master && rowChecked(master)) {
+      toggleCheckboxRow(master, false);
+    }
+    for (const row of waitRows()) {
+      const t = (row.textContent || "").replace(/\s+/g, " ").trim();
+      const isTarget = t === country || t.endsWith(` ${country}`);
+      toggleCheckboxRow(row, isTarget);
+    }
+    const selected = waitRows().filter((row) => rowChecked(row)).length;
+    if (selected !== 1) {
+      throw new Error(`expected 1 country selected after filter, got ${selected}`);
+    }
+    clickDialogButton("Apply");
+    if (document.querySelector("[role=dialog]")) {
+      throw new Error("availability dialog still open after Apply");
+    }
+    return { ok: true, country, selected_count: selected };
+  }, [name]);
+  await new Promise((r) => setTimeout(r, 2000));
+  return { ok: true, country: name, build: 51, ...applyResult };
+};
+
+/** Sticky footer Save on Play Console forms. */
+export const playClickSave = async (tabId) => {
+  return execInTab(tabId, () => {
+    const saves = Array.from(document.querySelectorAll("button")).filter(
+      (b) => (b.textContent || "").trim() === "Save"
+    );
+    if (!saves.length) throw new Error("Save button not found");
+    const save = saves[saves.length - 1];
+    save.scrollIntoView({ block: "center" });
+    save.click();
+    return { ok: true, count: saves.length };
+  });
+};
+
+/** Read Play Console validation / snackbar errors after Save. */
+export const playConsoleErrors = async (tabId) => {
+  return execInTab(tabId, () => {
+    const alerts = Array.from(document.querySelectorAll("mat-error, [role=alert], simple-snack-bar"))
+      .map((el) => (el.textContent || "").replace(/\s+/g, " ").trim())
+      .filter((t) => t.length > 0 && t.length < 300);
+    const banner = Array.from(document.querySelectorAll(".error-message, [class*='error-banner']"))
+      .map((el) => (el.textContent || "").replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+    const errors = [...new Set([...alerts, ...banner])].slice(0, 20);
+    const body = document.body.innerText || "";
+    const save_failed = /couldn't be saved/i.test(body);
+    const regionErr = /countries \/ regions have an error/i.test(body);
+    const setPriceRows = Array.from(document.querySelectorAll("mat-row, tr[role=row], tr")).filter((row) =>
+      /set a price/i.test(row.textContent || "")
+    ).length;
+    const indoRow = Array.from(document.querySelectorAll("mat-row, tr[role=row], tr")).find((row) =>
+      (row.textContent || "").includes("Indonesia")
+    );
+    const indoText = (indoRow?.textContent || "").replace(/\s+/g, " ");
+    const indonesia_price_missing = !indoRow || /\bIndonesia\b[\s\S]{0,40}\-\b/.test(indoText);
+    return {
+      ok: true,
+      errors,
+      region_error: regionErr,
+      set_price_row_count: setPriceRows,
+      indonesia_price_missing,
+      save_failed,
+    };
+  });
+};
+
+/** Dismiss Play Console bottom sheets / dialogs (Cancel). */
+export const playDismissOverlays = async (tabId) => {
+  return execInTab(tabId, () => {
+    const cancels = Array.from(document.querySelectorAll("button")).filter(
+      (b) => (b.textContent || "").trim() === "Cancel"
+    );
+    for (const btn of cancels) btn.click();
+    return { ok: true, cancelled: cancels.length };
+  });
+};
+
+/** Set price for one country via row link (search table first). */
+export const playSetCountryPriceInline = async (tabId, country, amount) => {
+  const c = String(country || "").trim();
+  const amt = String(amount || "").trim();
+  if (!c || !amt) throw new Error("country and amount required");
+  await playDismissOverlays(tabId);
+  await new Promise((r) => setTimeout(r, 400));
+  await execInTab(
+    tabId,
+    (name) => {
+      const search = document.querySelector('input[aria-label="Search country or region by name"]');
+      if (!search) throw new Error("country search input not found");
+      setInputValue(search, name);
+      return { ok: true };
+    },
+    [c]
+  );
+  await new Promise((r) => setTimeout(r, 1200));
+  await execInTab(
+    tabId,
+    (name) => {
+      const visible = (el) => {
+        const r = el.getBoundingClientRect();
+        return r.height > 2 && r.width > 2;
+      };
+      const row = Array.from(document.querySelectorAll("mat-row, tr[role=row], tr")).find(
+        (r) => visible(r) && (r.textContent || "").includes(name)
+      );
+      if (!row) throw new Error(`country row not found: ${name}`);
+      const setLink = Array.from(row.querySelectorAll("a, button, span, label, [role=button]")).find(
+        (el) => (el.textContent || "").trim().toLowerCase() === "set a price"
+      );
+      if (!setLink) throw new Error(`Set a price link missing for ${name}`);
+      setLink.click();
+      return { ok: true };
+    },
+    [c]
+  );
+  await new Promise((r) => setTimeout(r, 1200));
+  await execInTab(
+    tabId,
+    (price) => {
+      const dialog = document.querySelector("[role=dialog]");
+      if (!dialog) throw new Error("price dialog not found");
+      const priceIn =
+        dialog.querySelector('input[aria-label="New price in IDR"]') ||
+        dialog.querySelector('input[aria-label*="price" i]') ||
+        dialog.querySelector('input[aria-label*="IDR" i]') ||
+        Array.from(dialog.querySelectorAll("input[type=text], input:not([type])")).find((inp) => {
+          const al = (inp.getAttribute("aria-label") || "").toLowerCase();
+          return al.includes("price") || al.includes("idr");
+        });
+      if (!priceIn) throw new Error("price input not found in dialog");
+      setInputValue(priceIn, price);
+      return { ok: true };
+    },
+    [amt]
+  );
+  await new Promise((r) => setTimeout(r, 400));
+  await execInTab(tabId, () => clickDialogButton("Apply"));
+  await new Promise((r) => setTimeout(r, 1000));
+  return { ok: true, country: c, amount: amt };
+};
+
 /** Play Console base-plan / IAP regional price (bulk Set prices flow). */
 export const playSetCountryPrice = async (tabId, country, amount) => {
   const c = String(country || "").trim();
@@ -633,38 +856,78 @@ export const playSetCountryPrice = async (tabId, country, amount) => {
     },
     [c]
   );
-  await new Promise((r) => setTimeout(r, 700));
-  await execInTab(tabId, () => {
-    clickExactText("Set prices");
-    return { ok: true };
-  });
-  await new Promise((r) => setTimeout(r, 700));
-  await execInTab(
-    tabId,
-    (name) => {
-      const row = Array.from(document.querySelectorAll("mat-row")).find((r) =>
-        (r.textContent || "").includes(name)
-      );
-      if (!row) throw new Error(`country row not found: ${name}`);
-      const cb = row.querySelector("mat-checkbox, input[type=checkbox]");
-      if (cb) cb.click();
-      else row.click();
+  await new Promise((r) => setTimeout(r, 1200));
+  let bulk = false;
+  try {
+    await execInTab(
+      tabId,
+      (name) => {
+        const visible = (el) => {
+          const r = el.getBoundingClientRect();
+          return r.height > 2 && r.width > 2;
+        };
+        const row = Array.from(document.querySelectorAll("mat-row, tr[role=row], tr")).find(
+          (r) => visible(r) && (r.textContent || "").includes(name)
+        );
+        if (!row) throw new Error(`country row not found: ${name}`);
+        const setLink = Array.from(
+          row.querySelectorAll("a, button, span, label, div, [role=button], mat-cell")
+        ).find((el) => (el.textContent || "").trim().toLowerCase() === "set a price");
+        if (setLink) {
+          setLink.click();
+          return { ok: true, mode: "row-link" };
+        }
+        const cell = row.querySelector("mat-cell:nth-child(2), td:nth-child(2)") || row;
+        const btn = cell.querySelector("button, a, [role=button]");
+        if (btn) btn.click();
+        else cell.click();
+        return { ok: true, mode: "row-cell" };
+      },
+      [c]
+    );
+  } catch {
+    bulk = true;
+    await execInTab(tabId, () => {
+      clickExactText("Set prices");
       return { ok: true };
-    },
-    [c]
-  );
-  await new Promise((r) => setTimeout(r, 400));
-  await execInTab(tabId, () => {
-    clickExactText("Set price");
-    return { ok: true };
-  });
-  await new Promise((r) => setTimeout(r, 700));
+    });
+    await new Promise((r) => setTimeout(r, 700));
+    await execInTab(
+      tabId,
+      (name) => {
+        const row = Array.from(document.querySelectorAll("mat-row")).find((r) =>
+          (r.textContent || "").includes(name)
+        );
+        if (!row) throw new Error(`country row not found: ${name}`);
+        const cb = row.querySelector("mat-checkbox, input[type=checkbox]");
+        if (cb) cb.click();
+        else row.click();
+        return { ok: true };
+      },
+      [c]
+    );
+    await new Promise((r) => setTimeout(r, 400));
+    await execInTab(tabId, () => {
+      clickExactText("Set price");
+      return { ok: true };
+    });
+    await new Promise((r) => setTimeout(r, 700));
+  }
   await execInTab(
     tabId,
     (price) => {
+      const dialog = document.querySelector("[role=dialog]") || document.body;
+      const inDialog = (sel) => dialog.querySelector(sel);
       const priceIn =
-        document.querySelector('input[aria-label="New price in IDR"]') ||
-        document.querySelector('input[aria-label*="price" i]');
+        inDialog('input[aria-label="New price in IDR"]') ||
+        inDialog('input[aria-label*="price" i]') ||
+        inDialog('input[aria-label*="IDR" i]') ||
+        Array.from(dialog.querySelectorAll("input[type=text], input:not([type])")).find(
+          (inp) => {
+            const al = (inp.getAttribute("aria-label") || "").toLowerCase();
+            return al.includes("price") || al.includes("idr");
+          }
+        );
       if (!priceIn) throw new Error("price input not found");
       setInputValue(priceIn, price);
       priceIn.blur();
@@ -672,12 +935,22 @@ export const playSetCountryPrice = async (tabId, country, amount) => {
     },
     [amt]
   );
-  await new Promise((r) => setTimeout(r, 300));
+  await new Promise((r) => setTimeout(r, 500));
   await execInTab(tabId, () => {
-    const dialog = document.querySelector("[role=dialog]") || document.body;
-    clickExactText("Apply", dialog);
-    return { ok: true };
+    const dialog = document.querySelector("[role=dialog]");
+    if (!dialog) throw new Error("price dialog not found after row click");
+    const labels = ["Apply", "Save", "Update"];
+    for (const label of labels) {
+      try {
+        clickExactText(label, dialog);
+        return { ok: true, dialog_action: label };
+      } catch {
+        /* try next */
+      }
+    }
+    throw new Error("no Apply/Save in price dialog");
   });
+  await new Promise((r) => setTimeout(r, 800));
   return { ok: true, country: c, amount: amt };
 };
 
@@ -707,6 +980,13 @@ export const pageAct = async (params = {}) => {
     "click_text_contains",
     "select_country",
     "play_set_country_price",
+    "play_fill_dialog_price",
+    "play_dialog_apply",
+    "play_restrict_availability",
+    "play_click_save",
+    "play_console_errors",
+    "play_dismiss_overlays",
+    "play_set_country_price_inline",
     "goto",
     "epus_pasien_search",
     "epus_pasien_fetch",
@@ -765,12 +1045,64 @@ export const pageAct = async (params = {}) => {
         return { ok: true };
       }, [label]);
     }
-    case "play_set_country_price":
-      return playSetCountryPrice(
+    case "play_set_country_price": {
+      let country = params.country ?? params.text ?? "";
+      let amount = params.amount ?? params.price ?? "";
+      const combo = String(country).trim();
+      if (combo.includes("|")) {
+        const [c, a] = combo.split("|").map((s) => s.trim());
+        country = c;
+        if (!String(amount).trim()) amount = a;
+      }
+      return playSetCountryPrice(tabId, country, amount);
+    }
+    case "play_dialog_apply":
+      return execInTab(tabId, () => clickDialogButton("Apply"));
+    case "play_restrict_availability":
+      return playRestrictAvailability(tabId, params.text ?? params.country ?? "");
+    case "play_click_save":
+      return playClickSave(tabId);
+    case "play_console_errors":
+      return playConsoleErrors(tabId);
+    case "play_dismiss_overlays":
+      return playDismissOverlays(tabId);
+    case "play_set_country_price_inline": {
+      let country = params.country ?? params.text ?? "";
+      let amount = params.amount ?? params.price ?? "";
+      const combo = String(country).trim();
+      if (combo.includes("|")) {
+        const [c, a] = combo.split("|").map((s) => s.trim());
+        country = c;
+        if (!String(amount).trim()) amount = a;
+      }
+      return playSetCountryPriceInline(tabId, country, amount);
+    }
+    case "play_fill_dialog_price": {
+      const amt = String(params.text ?? params.amount ?? params.price ?? "").trim();
+      if (!amt) throw new Error("text (price amount) required");
+      return execInTab(
         tabId,
-        params.country ?? params.text,
-        params.amount ?? params.price
+        (price) => {
+          const dialog = document.querySelector("[role=dialog]") || document.body;
+          const inDialog = (sel) => dialog.querySelector(sel);
+          const priceIn =
+            inDialog('input[aria-label="New price in IDR"]') ||
+            inDialog('input[aria-label*="price" i]') ||
+            inDialog('input[aria-label*="IDR" i]') ||
+            Array.from(dialog.querySelectorAll("input[type=text], input:not([type])")).find(
+              (inp) => {
+                const al = (inp.getAttribute("aria-label") || "").toLowerCase();
+                return al.includes("price") || al.includes("idr");
+              }
+            );
+          if (!priceIn) throw new Error("price input not found");
+          setInputValue(priceIn, price);
+          priceIn.blur();
+          return { ok: true };
+        },
+        [amt]
       );
+    }
     case "select_country": {
       const country = String(params.text ?? params.country ?? "").trim();
       if (!country) throw new Error("text required for select_country");

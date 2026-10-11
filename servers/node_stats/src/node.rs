@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use c35_proto::{DiskDeviceStat, DiskMountStat, NodeStat, StatsPush};
 
-use crate::device::block_devices;
+use crate::device::{block_devices, pick_disk_label};
 use crate::host::{
     cpu_cores, cpu_pct as cpu_usage_pct, cpu_sample, disk_io_by_device, disk_io_by_mount, exists,
     host_path, mem_bytes, net_totals, primary_net_iface, stat_bytes, swap_bytes, CpuSample,
@@ -83,12 +83,12 @@ impl NodeSampler {
         let devices = block_devs
             .into_iter()
             .map(|d| {
-                let label = self
+                let vol_label = self
                     .disk_labels
                     .get(&d.name)
-                    .cloned()
                     .filter(|l| !l.is_empty())
-                    .unwrap_or(d.label);
+                    .map(String::as_str);
+                let label = pick_disk_label(&d.label, vol_label);
                 let d = crate::device::BlockDevice {
                     name: d.name,
                     mount: d.mount,

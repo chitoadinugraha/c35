@@ -146,7 +146,11 @@ async fn device_root_remote_audit(
     .await;
 }
 
-async fn device_remote_allowed(pool: &PgPool, caller_iid: i64, device_iid: i64) -> Result<(), String> {
+pub(crate) async fn device_remote_allowed(
+    pool: &PgPool,
+    caller_iid: i64,
+    device_iid: i64,
+) -> Result<(), String> {
     if device_iid <= 0 {
         return Err("invalid device".into());
     }
@@ -194,15 +198,34 @@ async fn device_remote_allowed(pool: &PgPool, caller_iid: i64, device_iid: i64) 
     }
 }
 
-async fn agent_cluster_online(pool: &PgPool, device_iid: i64) -> Result<bool, String> {
+pub(crate) async fn agent_cluster_online(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    device_iid: i64,
+) -> Result<bool, String> {
     if remote_signaling_agent_connected(device_iid) {
         return Ok(true);
     }
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::device_presence_kv_ensure(client).await {
+            if c35_nats::device_presence_get(&store, device_iid).await {
+                return Ok(true);
+            }
+        }
+    }
     let meta = agent_meta_get(pool, device_iid).await?;
-    Ok(meta
+    let online = meta
         .get("online")
         .and_then(|v| v.as_bool())
-        .unwrap_or(false))
+        .unwrap_or(false);
+    if online {
+        if let Some(client) = nats {
+            if let Ok(store) = c35_nats::device_presence_kv_ensure(client).await {
+                let _ = c35_nats::device_presence_put(&store, device_iid).await;
+            }
+        }
+    }
+    Ok(online)
 }
 
 fn agent_send(device_iid: i64, frame: WsReq) -> Result<(), String> {
@@ -299,7 +322,7 @@ pub async fn remote_session_start(
         };
     }
 
-    match agent_cluster_online(pool, device_iid).await {
+    match agent_cluster_online(pool, nats, device_iid).await {
         Ok(true) => {}
         Ok(false) => {
             return ResRemoteSessionStart {
@@ -528,6 +551,11 @@ pub async fn remote_signaling_agent_frame(
     device_iid: i64,
     data: &[u8],
 ) -> Result<(), String> {
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::device_presence_kv_ensure(client).await {
+            let _ = c35_nats::device_presence_put(&store, device_iid).await;
+        }
+    }
     if let Ok(res) = pb_decode::<WsRes>(data) {
         return dispatch_agent_res(nats, device_iid, res).await;
     }
@@ -542,6 +570,9 @@ async fn dispatch_agent_res(
     device_iid: i64,
     res: WsRes,
 ) -> Result<(), String> {
+    if crate::egress::egress_dispatch_agent_res(&res) {
+        return Ok(());
+    }
     match res.body {
         Some(ws_res::Body::RtcSignalOffer(offer)) => {
             let sid = offer.session_id.clone();
@@ -702,7 +733,7 @@ pub async fn remote_device_command_run(
 ) -> Result<ResRemoteCommand, String> {
     device_remote_allowed(pool, caller_iid, device_iid).await?;
 
-    match agent_cluster_online(pool, device_iid).await {
+    match agent_cluster_online(pool, nats, device_iid).await {
         Ok(true) => {}
         Ok(false) => return Err("agent offline".into()),
         Err(e) => return Err(e),
@@ -792,7 +823,7 @@ pub async fn remote_device_screenshot_capture(
 ) -> Result<ResRemoteScreenshot, String> {
     device_remote_allowed(pool, caller_iid, device_iid).await?;
 
-    match agent_cluster_online(pool, device_iid).await {
+    match agent_cluster_online(pool, nats, device_iid).await {
         Ok(true) => {}
         Ok(false) => return Err("agent offline".into()),
         Err(e) => return Err(e),
@@ -879,7 +910,7 @@ where
 {
     device_remote_allowed(pool, caller_iid, device_iid).await?;
 
-    match agent_cluster_online(pool, device_iid).await {
+    match agent_cluster_online(pool, nats, device_iid).await {
         Ok(true) => {}
         Ok(false) => return Err("agent offline".into()),
         Err(e) => return Err(e),
@@ -1030,7 +1061,7 @@ pub async fn remote_device_task_run_enqueue(
     model: &str,
 ) -> Result<i64, String> {
     device_remote_allowed(pool, caller_iid, device_iid).await?;
-    match agent_cluster_online(pool, device_iid).await {
+    match agent_cluster_online(pool, nats, device_iid).await {
         Ok(true) => {}
         Ok(false) => return Err("agent offline".into()),
         Err(e) => return Err(e),
@@ -1103,7 +1134,7 @@ pub async fn remote_device_agent_push(
     payload: &str,
 ) -> Result<(), String> {
     device_remote_allowed(pool, caller_iid, device_iid).await?;
-    match agent_cluster_online(pool, device_iid).await {
+    match agent_cluster_online(pool, nats, device_iid).await {
         Ok(true) => {}
         Ok(false) => return Err("agent offline".into()),
         Err(e) => return Err(e),

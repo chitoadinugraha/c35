@@ -115,6 +115,8 @@ Widget guestSiteBlock({
         props: props,
         accent: accent,
         postsPreload: postsPreload,
+        foreground: fg,
+        muted: sub,
       ),
     'hub_profile' => GuestSiteHubProfileBlock(
         props: props,
@@ -157,9 +159,9 @@ Widget guestSiteBlock({
         : openHours.isNotEmpty
             ? Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-                child: GuestSiteHoursCompact(openHours: openHours),
+                child: GuestSiteHoursCompact(openHours: openHours, fg: fg, muted: sub),
               )
-            : GuestSiteHoursBlock(props: props, accent: accent),
+            : GuestSiteHoursBlock(props: props, accent: accent, foreground: fg, muted: sub),
     'spacer' => GuestSiteSpacerBlock(props: props),
     _ => GuestSiteMarkdownBlock(props: props),
   };
@@ -216,7 +218,7 @@ class GuestSiteHeroBlock extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [accent.withValues(alpha: 0.14), Colors.transparent],
         ),
-        border: const Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
+        border: Border(bottom: BorderSide(color: fg.withValues(alpha: 0.09))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -656,17 +658,22 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         : List.generate(3, (i) => {'name': 'Item ${i + 1}', 'pic': '', 'price': 0});
     final display = productGridDisplay(widget.props, meta: widget.catalogMeta);
 
+    final sectionFg = widget.foreground ?? _guestTextPrimary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: sectionFg.withValues(alpha: 0.09))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: sectionFg,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 10),
           if (display == 'grid')
@@ -677,7 +684,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
-                childAspectRatio: 0.72,
+                childAspectRatio: 0.56,
               ),
               itemCount: rows.length,
               itemBuilder: (_, i) => _productCard(widget.accent, widget.productDesign, rows[i]),
@@ -895,7 +902,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               if (desc.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text(desc, style: subtitleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  child: Text(desc, style: subtitleStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               if (stock != null)
                 Padding(
@@ -1208,11 +1215,15 @@ class GuestSiteSocialFeedBlock extends StatelessWidget {
     required this.props,
     required this.accent,
     required this.postsPreload,
+    this.foreground,
+    this.muted,
   });
 
   final Map<String, dynamic> props;
   final Color accent;
   final List<Map<String, dynamic>> postsPreload;
+  final Color? foreground;
+  final Color? muted;
 
   @override
   Widget build(BuildContext context) {
@@ -1232,7 +1243,11 @@ class GuestSiteSocialFeedBlock extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: foreground ?? _guestTextPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 10),
           for (final post in posts) GuestSitePostSummary(post: post, accent: accent),
@@ -1313,7 +1328,11 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
         if (showHours)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: GuestSiteHoursCompact(openHours: openHours),
+            child: GuestSiteHoursCompact(
+              openHours: openHours,
+              fg: foreground ?? _guestTextPrimary,
+              muted: sub,
+            ),
           ),
       ],
     );
@@ -1549,10 +1568,18 @@ class GuestSitePostSummary extends StatelessWidget {
 }
 
 class GuestSiteHoursBlock extends StatelessWidget {
-  const GuestSiteHoursBlock({super.key, required this.props, required this.accent});
+  const GuestSiteHoursBlock({
+    super.key,
+    required this.props,
+    required this.accent,
+    this.foreground,
+    this.muted,
+  });
 
   final Map<String, dynamic> props;
   final Color accent;
+  final Color? foreground;
+  final Color? muted;
 
   @override
   Widget build(BuildContext context) {
@@ -1562,17 +1589,20 @@ class GuestSiteHoursBlock extends StatelessWidget {
 
     if (rows.isEmpty) return const SizedBox.shrink();
 
+    final fg = foreground ?? _guestTextPrimary;
+    final sub = muted ?? _guestTextSecondary;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: fg.withValues(alpha: 0.09))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(color: fg, fontSize: 14, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           Table(
@@ -1585,14 +1615,14 @@ class GuestSiteHoursBlock extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
                       child: Text(
                         r['day']?.toString() ?? r['label']?.toString() ?? '',
-                        style: const TextStyle(color: _guestTextSecondary, fontSize: 11),
+                        style: TextStyle(color: sub, fontSize: 11),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                       child: Text(
                         '${r['open'] ?? r['from'] ?? ''} – ${r['close'] ?? r['to'] ?? ''}',
-                        style: const TextStyle(color: _guestTextPrimary, fontSize: 11, fontWeight: FontWeight.w500),
+                        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                     ),
                   ],

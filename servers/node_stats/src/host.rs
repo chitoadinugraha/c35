@@ -9,7 +9,15 @@ use anyhow::Context;
 
 use crate::sample::{IoSample, NetSample};
 
+/// Linux `statvfs` filesystem id — dedupe bind mounts on the same superblock.
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
+pub struct FsId(pub [i32; 2]);
+
 pub fn stat_bytes(path: &str) -> Result<(u64, u64)> {
+    stat_bytes_with_fsid(path).map(|(u, t, _)| (u, t))
+}
+
+pub fn stat_bytes_with_fsid(path: &str) -> Result<(u64, u64, FsId)> {
     #[cfg(unix)]
     {
         stat_bytes_unix(path)
@@ -17,12 +25,12 @@ pub fn stat_bytes(path: &str) -> Result<(u64, u64)> {
     #[cfg(not(unix))]
     {
         let _ = path;
-        Ok((0, 0))
+        Ok((0, 0, FsId([0, 0])))
     }
 }
 
 #[cfg(unix)]
-fn stat_bytes_unix(path: &str) -> Result<(u64, u64)> {
+fn stat_bytes_unix(path: &str) -> Result<(u64, u64, FsId)> {
     use std::ffi::CString;
     let c_path = CString::new(path).with_context(|| format!("path {path}"))?;
     let mut st = std::mem::MaybeUninit::<libc::statvfs>::uninit();
@@ -34,7 +42,20 @@ fn stat_bytes_unix(path: &str) -> Result<(u64, u64)> {
     let block_size = st.f_frsize as u64;
     let total = st.f_blocks as u64 * block_size;
     let free = st.f_bfree as u64 * block_size;
-    Ok((total.saturating_sub(free), total))
+    let fsid = fsid_from_statvfs(&st);
+    Ok((total.saturating_sub(free), total, fsid))
+}
+
+#[cfg(unix)]
+fn fsid_from_statvfs(st: &libc::statvfs) -> FsId {
+    let mut words = [0i32; 2];
+    let src = &st.f_fsid as *const _ as *const u8;
+    let dst = words.as_mut_ptr() as *mut u8;
+    let n = std::mem::size_of_val(&st.f_fsid).min(8);
+    unsafe {
+        std::ptr::copy_nonoverlapping(src, dst, n);
+    }
+    FsId(words)
 }
 
 pub fn disk_io_by_device(host_prefix: &str, device_names: &[String]) -> HashMap<String, IoSample> {
@@ -107,6 +128,40 @@ pub fn parse_mount_devices_text(text: &str) -> HashMap<String, (u64, u64)> {
             continue;
         };
         out.insert(parts[4].to_string(), (maj, min));
+    }
+    out
+}
+
+/// Map block major:minor to kernel device short name (e.g. `sda1`) from mountinfo source.
+pub fn parse_mount_block_dev_names(text: &str) -> HashMap<(u64, u64), String> {
+    let mut out = HashMap::new();
+    for line in text.lines() {
+        let (left, right) = match line.split_once(" - ") {
+            Some(pair) => pair,
+            None => continue,
+        };
+        let parts: Vec<&str> = left.split_whitespace().collect();
+        if parts.len() < 5 {
+            continue;
+        }
+        let Some((maj, min)) = parse_dev(parts[2]) else {
+            continue;
+        };
+        let fs_parts: Vec<&str> = right.split_whitespace().collect();
+        if fs_parts.len() < 2 {
+            continue;
+        }
+        let source = fs_parts[1];
+        let name = source
+            .strip_prefix("/dev/")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .unwrap_or(source);
+        if name.is_empty() || name.starts_with("mapper/") {
+            continue;
+        }
+        let short = name.rsplit('/').next().unwrap_or(name).to_string();
+        out.insert((maj, min), short);
     }
     out
 }

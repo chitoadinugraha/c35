@@ -46,6 +46,7 @@ pub struct AppState {
 #[derive(Clone)]
 pub struct Ctx {
     pub pool: PgPool,
+    pub nats: Option<async_nats::Client>,
     pub caller_iid: i64,
 }
 
@@ -53,6 +54,7 @@ impl Ctx {
     pub fn from_state(state: &AppState, caller_iid: i64) -> Self {
         Self {
             pool: state.pool.clone(),
+            nats: state.nats.clone(),
             caller_iid,
         }
     }

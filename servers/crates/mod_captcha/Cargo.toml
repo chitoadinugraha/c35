@@ -1,0 +1,18 @@
+[package]
+name = "c35_mod_captcha"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+urlencoding = { workspace = true }
+c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
+c35_proto = { path = "../proto", package = "c35_proto" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

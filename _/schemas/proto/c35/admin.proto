@@ -91,3 +91,20 @@ message ResAdminLlmCatalogList {
   repeated AdminServiceRateRow services = 3;
   repeated AdminServiceRateRow live = 4;
 }
+
+// Root console — registrations, app activity (WS), settled payments per window.
+message PlatformUserMetricsWindowCounts {
+  int64 h24 = 1;
+  int64 d7 = 2;
+  int64 d30 = 3;
+  int64 y1 = 4;
+}
+
+message ReqAdminPlatformUserMetrics {}
+
+message ResAdminPlatformUserMetrics {
+  PlatformUserMetricsWindowCounts users = 1;
+  PlatformUserMetricsWindowCounts active_users = 2;
+  PlatformUserMetricsWindowCounts paid_users = 3;
+  int64 total_users = 4;
+}

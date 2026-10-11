@@ -33,6 +33,7 @@ pub const OBJECT_NORMALIZER_SQL: &str = include_str!("../../../../_/schemas/obje
 pub const CHANNEL_SQL: &str = include_str!("../../../../_/schemas/channel.sql");
 pub const CONFIG_SQL: &str = include_str!("../../../../_/schemas/config.sql");
 pub const OPS_SQL: &str = include_str!("../../../../_/schemas/ops.sql");
+pub const DEVICE_EGRESS_SQL: &str = include_str!("../../../../_/schemas/device_egress.sql");
 
 pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("identity", IDENTITY_SQL),
@@ -70,4 +71,5 @@ pub const SCHEMA_APPLY_ORDER: &[(&str, &str)] = &[
     ("channel", CHANNEL_SQL),
     ("config", CONFIG_SQL),
     ("ops", OPS_SQL),
+    ("device_egress", DEVICE_EGRESS_SQL),
 ];

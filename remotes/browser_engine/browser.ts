@@ -576,6 +576,18 @@ export class BrowserEngine {
     return runSteps(this, steps, defaultTabId);
   }
 
+  public async captchaApply(tabId?: string, kind?: string, token?: string): Promise<{ url: string }> {
+    const page = this.pageFor(tabId);
+    if (!page) throw new Error('no tab for captcha.apply');
+    const k = kind?.trim() ?? '';
+    const t = token?.trim() ?? '';
+    if (!k || !t) throw new Error('kind and token required');
+    await applyCaptchaTokenOnPage(page, k, t);
+    await page.waitForLoadState('domcontentloaded', { timeout: 20_000 }).catch(() => undefined);
+    await page.waitForTimeout(800);
+    return { url: page.url() };
+  }
+
   public async screencastStart(onFrame: (jpeg: Buffer, seq: number, sessionId: number) => void): Promise<void> {
     await this.screencastStop();
     const page = this.activePage();
@@ -782,5 +794,133 @@ export class BrowserEngine {
     }
     const sink = this.screencastSink;
     await this.screencastStart(sink);
+  }
+}
+
+type CaptchaApplyKind = 'recaptcha_v2' | 'recaptcha_v3' | 'hcaptcha';
+
+const normalizeCaptchaKind = (kind: string): CaptchaApplyKind | null => {
+  const k = kind.trim().toLowerCase().replace(/-/g, '_');
+  if (k === 'recaptcha_v2' || k === 'recaptcha2' || k === 'recaptcha' || k === 'v2') {
+    return 'recaptcha_v2';
+  }
+  if (k === 'recaptcha_v3' || k === 'recaptcha3' || k === 'v3') {
+    return 'recaptcha_v3';
+  }
+  if (k === 'hcaptcha' || k === 'h_captcha') {
+    return 'hcaptcha';
+  }
+  return null;
+};
+
+type CaptchaInjectArgs = { kind: CaptchaApplyKind; token: string };
+
+const injectCaptchaInPage = (args: CaptchaInjectArgs): boolean => {
+  const { kind, token } = args;
+  const w = window as Window & {
+    hcaptcha?: { setResponse?: (id: string, token: string) => void };
+    ___grecaptcha_cfg?: { clients?: Record<string, { callback?: (...a: unknown[]) => void }> };
+  };
+
+  let touched = false;
+
+  if (kind === 'recaptcha_v2' || kind === 'recaptcha_v3') {
+    document
+      .querySelectorAll<HTMLTextAreaElement>(
+        'textarea[name="g-recaptcha-response"], textarea#g-recaptcha-response',
+      )
+      .forEach((el) => {
+        el.value = token;
+        el.innerHTML = token;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        touched = true;
+      });
+
+    const widget = document.querySelector('.g-recaptcha, [data-sitekey]');
+    const cbName = widget?.getAttribute('data-callback')?.trim();
+    if (cbName) {
+      const cb = (w as unknown as Record<string, unknown>)[cbName];
+      if (typeof cb === 'function') {
+        (cb as (t: string) => void)(token);
+        touched = true;
+      }
+    }
+
+    const clients = w.___grecaptcha_cfg?.clients;
+    if (clients) {
+      for (const client of Object.values(clients)) {
+        if (client?.callback && typeof client.callback === 'function') {
+          try {
+            client.callback(token);
+            touched = true;
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+  }
+
+  if (kind === 'hcaptcha') {
+    document
+      .querySelectorAll<HTMLTextAreaElement>(
+        'textarea[name="h-captcha-response"], textarea[name="g-recaptcha-response"]',
+      )
+      .forEach((el) => {
+        el.value = token;
+        el.innerHTML = token;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        touched = true;
+      });
+
+    const widget = document.querySelector('.h-captcha, [data-hcaptcha-widget-id]');
+    const cbName = widget?.getAttribute('data-callback')?.trim();
+    if (cbName) {
+      const cb = (w as unknown as Record<string, unknown>)[cbName];
+      if (typeof cb === 'function') {
+        (cb as (t: string) => void)(token);
+        touched = true;
+      }
+    }
+
+    const widgetId = widget?.getAttribute('data-hcaptcha-widget-id')?.trim();
+    if (widgetId && w.hcaptcha?.setResponse) {
+      try {
+        w.hcaptcha.setResponse(widgetId, token);
+        touched = true;
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  return touched;
+};
+
+async function applyCaptchaTokenOnPage(page: Page, kind: string, token: string): Promise<void> {
+  const normalized = normalizeCaptchaKind(kind);
+  if (!normalized) {
+    throw new Error(`unsupported captcha kind for apply: ${kind}`);
+  }
+  const trimmed = token.trim();
+  if (!trimmed) {
+    throw new Error('token required');
+  }
+
+  const args: CaptchaInjectArgs = { kind: normalized, token: trimmed };
+  let applied = false;
+  for (const frame of page.frames()) {
+    try {
+      if (await frame.evaluate(injectCaptchaInPage, args)) {
+        applied = true;
+      }
+    } catch {
+      /* frame detached */
+    }
+  }
+  if (!applied) {
+    throw new Error('captcha widget not found on page');
   }
 }

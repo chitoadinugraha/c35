@@ -23,17 +23,32 @@ class SiteEditorPreviewCache extends ChangeNotifier {
   var _loading = false;
   String? _error;
   Timer? _serverSyncTimer;
+  Future<void>? _loadFuture;
+  var _disposed = false;
 
   Map<String, dynamic>? get boot => _boot;
   bool get loading => _loading && _boot == null;
   String? get error => _error;
 
   void updateRow(SiteRow next) {
+    if (_disposed) return;
     row = next.clone();
     if (_boot != null) {
       siteEditorPreviewPatchSiteRow(_boot!, row);
       notifyListeners();
     }
+  }
+
+  /// New `site_iid` — drop cached boot from the previous site.
+  void resetForSite(SiteRow next) {
+    if (_disposed) return;
+    row = next.clone();
+    _boot = null;
+    _error = null;
+    _loading = false;
+    _serverSyncTimer?.cancel();
+    notifyListeners();
+    unawaited(reloadFromServer(keepVisible: false));
   }
 
   void patch(void Function(Map<String, dynamic> boot) fn) {
@@ -49,11 +64,27 @@ class SiteEditorPreviewCache extends ChangeNotifier {
   }
 
   Future<void> ensureLoaded() async {
-    if (_boot != null || _loading) return;
-    await reloadFromServer(keepVisible: false);
+    if (_boot != null) return;
+    _loadFuture ??= reloadFromServer(keepVisible: false);
+    await _loadFuture;
+  }
+
+  Future<void> _hydrateEmptyHomeBlocks() async {
+    final boot = _boot;
+    if (boot == null || !siteEditorPreviewHomeBlocksEmpty(boot)) return;
+    try {
+      final draft = await api.draftGet(row.siteIid.toInt());
+      if (_disposed || !identical(_boot, boot)) return;
+      siteEditorPreviewApplyDocToBoot(boot, row, draft.doc);
+    } catch (_) {
+      if (_disposed || !identical(_boot, boot)) return;
+      siteEditorPreviewApplyDocToBoot(boot, row, SiteDoc());
+    }
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> reloadFromServer({required bool keepVisible}) async {
+    if (_disposed) return;
     if (!keepVisible) {
       _loading = true;
       _error = null;
@@ -73,20 +104,33 @@ class SiteEditorPreviewCache extends ChangeNotifier {
     } catch (e) {
       _error = '$e';
     } finally {
-      _loading = false;
-      notifyListeners();
+      if (!_disposed) {
+        _loading = false;
+        _loadFuture = null;
+        notifyListeners();
+      }
+    }
+    if (!_disposed && _boot != null) {
+      unawaited(_hydrateEmptyHomeBlocks());
     }
   }
 
   void setMode(SitePreviewMode next) {
-    if (mode == next) return;
+    if (_disposed || mode == next) return;
     mode = next;
     unawaited(reloadFromServer(keepVisible: _boot != null));
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _serverSyncTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
   }
 }

@@ -1634,6 +1634,650 @@ class ResRemoteBrowserInvoke extends $pb.GeneratedMessage {
   void clearResultJson() => $_clearField(3);
 }
 
+class ReqDeviceEgressLease extends $pb.GeneratedMessage {
+  factory ReqDeviceEgressLease({
+    $fixnum.Int64? deviceIid,
+    $core.String? reqId,
+    $core.int? ttlSec,
+  }) {
+    final result = ReqDeviceEgressLease._();
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    if (reqId != null) result.reqId = reqId;
+    if (ttlSec != null) result.ttlSec = ttlSec;
+    return result;
+  }
+
+  ReqDeviceEgressLease._();
+
+  factory ReqDeviceEgressLease.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressLease()..mergeFromBuffer(data, registry);
+  factory ReqDeviceEgressLease.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressLease()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqDeviceEgressLease',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqDeviceEgressLease.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'deviceIid')
+    ..aOS(2, _omitFieldNames ? '' : 'reqId')
+    ..aI(3, _omitFieldNames ? '' : 'ttlSec', fieldType: $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressLease clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressLease copyWith(void Function(ReqDeviceEgressLease) updates) =>
+      super.copyWith((message) => updates(message as ReqDeviceEgressLease))
+          as ReqDeviceEgressLease;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqDeviceEgressLease() / ReqDeviceEgressLease.new instead')
+  static ReqDeviceEgressLease create() => ReqDeviceEgressLease._();
+  static $pb.GeneratedMessage $_createMessage() => ReqDeviceEgressLease._();
+  @$core.override
+  ReqDeviceEgressLease createEmptyInstance() => ReqDeviceEgressLease._();
+  @$core.pragma('dart2js:noInline')
+  static ReqDeviceEgressLease getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqDeviceEgressLease>(
+          ReqDeviceEgressLease.$_createMessage);
+  static ReqDeviceEgressLease? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get deviceIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasDeviceIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearDeviceIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reqId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reqId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReqId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReqId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get ttlSec => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set ttlSec($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTtlSec() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTtlSec() => $_clearField(3);
+}
+
+class ResDeviceEgressLease extends $pb.GeneratedMessage {
+  factory ResDeviceEgressLease({
+    $core.String? proxyUrl,
+    $core.String? username,
+    $core.String? password,
+    $fixnum.Int64? expiresTsMs,
+    $fixnum.Int64? deviceIid,
+  }) {
+    final result = ResDeviceEgressLease._();
+    if (proxyUrl != null) result.proxyUrl = proxyUrl;
+    if (username != null) result.username = username;
+    if (password != null) result.password = password;
+    if (expiresTsMs != null) result.expiresTsMs = expiresTsMs;
+    if (deviceIid != null) result.deviceIid = deviceIid;
+    return result;
+  }
+
+  ResDeviceEgressLease._();
+
+  factory ResDeviceEgressLease.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResDeviceEgressLease()..mergeFromBuffer(data, registry);
+  factory ResDeviceEgressLease.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResDeviceEgressLease()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResDeviceEgressLease',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResDeviceEgressLease.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'proxyUrl')
+    ..aOS(2, _omitFieldNames ? '' : 'username')
+    ..aOS(3, _omitFieldNames ? '' : 'password')
+    ..aInt64(4, _omitFieldNames ? '' : 'expiresTsMs')
+    ..aInt64(5, _omitFieldNames ? '' : 'deviceIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResDeviceEgressLease clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResDeviceEgressLease copyWith(void Function(ResDeviceEgressLease) updates) =>
+      super.copyWith((message) => updates(message as ResDeviceEgressLease))
+          as ResDeviceEgressLease;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResDeviceEgressLease() / ResDeviceEgressLease.new instead')
+  static ResDeviceEgressLease create() => ResDeviceEgressLease._();
+  static $pb.GeneratedMessage $_createMessage() => ResDeviceEgressLease._();
+  @$core.override
+  ResDeviceEgressLease createEmptyInstance() => ResDeviceEgressLease._();
+  @$core.pragma('dart2js:noInline')
+  static ResDeviceEgressLease getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResDeviceEgressLease>(
+          ResDeviceEgressLease.$_createMessage);
+  static ResDeviceEgressLease? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get proxyUrl => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set proxyUrl($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasProxyUrl() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearProxyUrl() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get username => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set username($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUsername() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUsername() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get password => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set password($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPassword() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPassword() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get expiresTsMs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set expiresTsMs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasExpiresTsMs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearExpiresTsMs() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get deviceIid => $_getI64(4);
+  @$pb.TagNumber(5)
+  set deviceIid($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasDeviceIid() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearDeviceIid() => $_clearField(5);
+}
+
+class ReqDeviceEgressOpen extends $pb.GeneratedMessage {
+  factory ReqDeviceEgressOpen({
+    $fixnum.Int64? tunnelId,
+    $core.String? host,
+    $core.int? port,
+  }) {
+    final result = ReqDeviceEgressOpen._();
+    if (tunnelId != null) result.tunnelId = tunnelId;
+    if (host != null) result.host = host;
+    if (port != null) result.port = port;
+    return result;
+  }
+
+  ReqDeviceEgressOpen._();
+
+  factory ReqDeviceEgressOpen.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressOpen()..mergeFromBuffer(data, registry);
+  factory ReqDeviceEgressOpen.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressOpen()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqDeviceEgressOpen',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqDeviceEgressOpen.$_createMessage)
+    ..a<$fixnum.Int64>(
+        1, _omitFieldNames ? '' : 'tunnelId', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOS(2, _omitFieldNames ? '' : 'host')
+    ..aI(3, _omitFieldNames ? '' : 'port', fieldType: $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressOpen clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressOpen copyWith(void Function(ReqDeviceEgressOpen) updates) =>
+      super.copyWith((message) => updates(message as ReqDeviceEgressOpen))
+          as ReqDeviceEgressOpen;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqDeviceEgressOpen() / ReqDeviceEgressOpen.new instead')
+  static ReqDeviceEgressOpen create() => ReqDeviceEgressOpen._();
+  static $pb.GeneratedMessage $_createMessage() => ReqDeviceEgressOpen._();
+  @$core.override
+  ReqDeviceEgressOpen createEmptyInstance() => ReqDeviceEgressOpen._();
+  @$core.pragma('dart2js:noInline')
+  static ReqDeviceEgressOpen getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqDeviceEgressOpen>(
+          ReqDeviceEgressOpen.$_createMessage);
+  static ReqDeviceEgressOpen? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get tunnelId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set tunnelId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTunnelId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTunnelId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get host => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set host($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasHost() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearHost() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get port => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set port($core.int value) => $_setUnsignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPort() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPort() => $_clearField(3);
+}
+
+class ResDeviceEgressOpen extends $pb.GeneratedMessage {
+  factory ResDeviceEgressOpen({
+    $core.bool? ok,
+    $core.String? error,
+    $fixnum.Int64? tunnelId,
+  }) {
+    final result = ResDeviceEgressOpen._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (tunnelId != null) result.tunnelId = tunnelId;
+    return result;
+  }
+
+  ResDeviceEgressOpen._();
+
+  factory ResDeviceEgressOpen.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResDeviceEgressOpen()..mergeFromBuffer(data, registry);
+  factory ResDeviceEgressOpen.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResDeviceEgressOpen()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResDeviceEgressOpen',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResDeviceEgressOpen.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..a<$fixnum.Int64>(
+        3, _omitFieldNames ? '' : 'tunnelId', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResDeviceEgressOpen clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResDeviceEgressOpen copyWith(void Function(ResDeviceEgressOpen) updates) =>
+      super.copyWith((message) => updates(message as ResDeviceEgressOpen))
+          as ResDeviceEgressOpen;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResDeviceEgressOpen() / ResDeviceEgressOpen.new instead')
+  static ResDeviceEgressOpen create() => ResDeviceEgressOpen._();
+  static $pb.GeneratedMessage $_createMessage() => ResDeviceEgressOpen._();
+  @$core.override
+  ResDeviceEgressOpen createEmptyInstance() => ResDeviceEgressOpen._();
+  @$core.pragma('dart2js:noInline')
+  static ResDeviceEgressOpen getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResDeviceEgressOpen>(
+          ResDeviceEgressOpen.$_createMessage);
+  static ResDeviceEgressOpen? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get tunnelId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set tunnelId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTunnelId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTunnelId() => $_clearField(3);
+}
+
+class ReqDeviceEgressData extends $pb.GeneratedMessage {
+  factory ReqDeviceEgressData({
+    $fixnum.Int64? tunnelId,
+    $core.List<$core.int>? payload,
+  }) {
+    final result = ReqDeviceEgressData._();
+    if (tunnelId != null) result.tunnelId = tunnelId;
+    if (payload != null) result.payload = payload;
+    return result;
+  }
+
+  ReqDeviceEgressData._();
+
+  factory ReqDeviceEgressData.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressData()..mergeFromBuffer(data, registry);
+  factory ReqDeviceEgressData.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressData()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqDeviceEgressData',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqDeviceEgressData.$_createMessage)
+    ..a<$fixnum.Int64>(
+        1, _omitFieldNames ? '' : 'tunnelId', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$core.List<$core.int>>(
+        2, _omitFieldNames ? '' : 'payload', $pb.PbFieldType.OY)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressData clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressData copyWith(void Function(ReqDeviceEgressData) updates) =>
+      super.copyWith((message) => updates(message as ReqDeviceEgressData))
+          as ReqDeviceEgressData;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqDeviceEgressData() / ReqDeviceEgressData.new instead')
+  static ReqDeviceEgressData create() => ReqDeviceEgressData._();
+  static $pb.GeneratedMessage $_createMessage() => ReqDeviceEgressData._();
+  @$core.override
+  ReqDeviceEgressData createEmptyInstance() => ReqDeviceEgressData._();
+  @$core.pragma('dart2js:noInline')
+  static ReqDeviceEgressData getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqDeviceEgressData>(
+          ReqDeviceEgressData.$_createMessage);
+  static ReqDeviceEgressData? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get tunnelId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set tunnelId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTunnelId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTunnelId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<$core.int> get payload => $_getN(1);
+  @$pb.TagNumber(2)
+  set payload($core.List<$core.int> value) => $_setBytes(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPayload() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPayload() => $_clearField(2);
+}
+
+class ReqDeviceEgressClose extends $pb.GeneratedMessage {
+  factory ReqDeviceEgressClose({
+    $fixnum.Int64? tunnelId,
+    $core.String? reason,
+  }) {
+    final result = ReqDeviceEgressClose._();
+    if (tunnelId != null) result.tunnelId = tunnelId;
+    if (reason != null) result.reason = reason;
+    return result;
+  }
+
+  ReqDeviceEgressClose._();
+
+  factory ReqDeviceEgressClose.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressClose()..mergeFromBuffer(data, registry);
+  factory ReqDeviceEgressClose.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqDeviceEgressClose()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqDeviceEgressClose',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqDeviceEgressClose.$_createMessage)
+    ..a<$fixnum.Int64>(
+        1, _omitFieldNames ? '' : 'tunnelId', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOS(2, _omitFieldNames ? '' : 'reason')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressClose clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqDeviceEgressClose copyWith(void Function(ReqDeviceEgressClose) updates) =>
+      super.copyWith((message) => updates(message as ReqDeviceEgressClose))
+          as ReqDeviceEgressClose;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqDeviceEgressClose() / ReqDeviceEgressClose.new instead')
+  static ReqDeviceEgressClose create() => ReqDeviceEgressClose._();
+  static $pb.GeneratedMessage $_createMessage() => ReqDeviceEgressClose._();
+  @$core.override
+  ReqDeviceEgressClose createEmptyInstance() => ReqDeviceEgressClose._();
+  @$core.pragma('dart2js:noInline')
+  static ReqDeviceEgressClose getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqDeviceEgressClose>(
+          ReqDeviceEgressClose.$_createMessage);
+  static ReqDeviceEgressClose? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get tunnelId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set tunnelId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTunnelId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTunnelId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reason => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reason($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReason() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReason() => $_clearField(2);
+}
+
+class DeviceEgressData extends $pb.GeneratedMessage {
+  factory DeviceEgressData({
+    $fixnum.Int64? tunnelId,
+    $core.List<$core.int>? payload,
+  }) {
+    final result = DeviceEgressData._();
+    if (tunnelId != null) result.tunnelId = tunnelId;
+    if (payload != null) result.payload = payload;
+    return result;
+  }
+
+  DeviceEgressData._();
+
+  factory DeviceEgressData.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeviceEgressData()..mergeFromBuffer(data, registry);
+  factory DeviceEgressData.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeviceEgressData()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DeviceEgressData',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: DeviceEgressData.$_createMessage)
+    ..a<$fixnum.Int64>(
+        1, _omitFieldNames ? '' : 'tunnelId', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$core.List<$core.int>>(
+        2, _omitFieldNames ? '' : 'payload', $pb.PbFieldType.OY)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeviceEgressData clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeviceEgressData copyWith(void Function(DeviceEgressData) updates) =>
+      super.copyWith((message) => updates(message as DeviceEgressData))
+          as DeviceEgressData;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use DeviceEgressData() / DeviceEgressData.new instead')
+  static DeviceEgressData create() => DeviceEgressData._();
+  static $pb.GeneratedMessage $_createMessage() => DeviceEgressData._();
+  @$core.override
+  DeviceEgressData createEmptyInstance() => DeviceEgressData._();
+  @$core.pragma('dart2js:noInline')
+  static DeviceEgressData getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<DeviceEgressData>(
+          DeviceEgressData.$_createMessage);
+  static DeviceEgressData? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get tunnelId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set tunnelId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTunnelId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTunnelId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<$core.int> get payload => $_getN(1);
+  @$pb.TagNumber(2)
+  set payload($core.List<$core.int> value) => $_setBytes(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPayload() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPayload() => $_clearField(2);
+}
+
+class DeviceEgressClose extends $pb.GeneratedMessage {
+  factory DeviceEgressClose({
+    $fixnum.Int64? tunnelId,
+    $core.String? reason,
+  }) {
+    final result = DeviceEgressClose._();
+    if (tunnelId != null) result.tunnelId = tunnelId;
+    if (reason != null) result.reason = reason;
+    return result;
+  }
+
+  DeviceEgressClose._();
+
+  factory DeviceEgressClose.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeviceEgressClose()..mergeFromBuffer(data, registry);
+  factory DeviceEgressClose.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      DeviceEgressClose()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'DeviceEgressClose',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: DeviceEgressClose.$_createMessage)
+    ..a<$fixnum.Int64>(
+        1, _omitFieldNames ? '' : 'tunnelId', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOS(2, _omitFieldNames ? '' : 'reason')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeviceEgressClose clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  DeviceEgressClose copyWith(void Function(DeviceEgressClose) updates) =>
+      super.copyWith((message) => updates(message as DeviceEgressClose))
+          as DeviceEgressClose;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use DeviceEgressClose() / DeviceEgressClose.new instead')
+  static DeviceEgressClose create() => DeviceEgressClose._();
+  static $pb.GeneratedMessage $_createMessage() => DeviceEgressClose._();
+  @$core.override
+  DeviceEgressClose createEmptyInstance() => DeviceEgressClose._();
+  @$core.pragma('dart2js:noInline')
+  static DeviceEgressClose getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<DeviceEgressClose>(
+          DeviceEgressClose.$_createMessage);
+  static DeviceEgressClose? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get tunnelId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set tunnelId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTunnelId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTunnelId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reason => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reason($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReason() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReason() => $_clearField(2);
+}
+
 class ReqRemoteFsList extends $pb.GeneratedMessage {
   factory ReqRemoteFsList({
     $fixnum.Int64? deviceIid,

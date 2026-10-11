@@ -100,6 +100,8 @@ message InvokeReq {
     ReqBillingVoucherVoid billing_voucher_void = 140;
     ReqAdminLlmCatalogList admin_llm_catalog_list = 141;
     ReqBillingAdminPlanChange billing_admin_plan_change = 142;
+    ReqAdminPlatformUserMetrics admin_platform_user_metrics = 143;
+    ReqDeviceEgressLease device_egress_lease = 144;
   }
 }
 
@@ -171,6 +173,8 @@ message InvokeRes {
     ResBillingVoucherVoid billing_voucher_void = 140;
     ResAdminLlmCatalogList admin_llm_catalog_list = 141;
     ResBillingPlanChange billing_admin_plan_change = 142;
+    ResAdminPlatformUserMetrics admin_platform_user_metrics = 143;
+    ResDeviceEgressLease device_egress_lease = 144;
   }
 }
 
@@ -343,6 +347,10 @@ message WsReq {
     ReqScopeInstructionGet scope_instruction_get = 215;
     ReqScopeInstructionPut scope_instruction_put = 216;
     ReqSiteEditorWarm site_editor_warm = 217;
+    ReqDeviceEgressOpen req_device_egress_open = 218;
+    ReqDeviceEgressData req_device_egress_data = 219;
+    ReqDeviceEgressClose req_device_egress_close = 220;
+    ReqRootConsole root_console = 221;
   }
 }
 
@@ -537,6 +545,11 @@ message WsRes {
     ResScopeInstructionGet scope_instruction_get = 215;
     ResScopeInstructionPut scope_instruction_put = 216;
     ResSiteEditorWarm site_editor_warm = 217;
+    ResDeviceEgressOpen res_device_egress_open = 218;
+    DeviceEgressData device_egress_data = 219;
+    DeviceEgressClose device_egress_close = 220;
+    ResStatsSubscribe stats_subscribe = 221;
+    ResRootConsole root_console = 222;
   }
 }
 

@@ -8,6 +8,7 @@ mod device_pair_register;
 mod device_meta;
 mod mention_identity_icon;
 mod device_unpair;
+mod egress;
 mod mcp_client;
 mod mcp_device;
 mod release_config;
@@ -22,6 +23,7 @@ pub use agent_presence::{
 };
 pub use mcp_client::mcp_client_list;
 pub use device_pair::device_pair;
+pub use egress::{captcha_egress_hosts, device_egress_lease_mint, egress_proxy_spawn};
 pub use device_pair_poll::device_pair_poll;
 pub use device_meta::device_browser_engine;
 pub use mention_identity_icon::mention_identity_icon;

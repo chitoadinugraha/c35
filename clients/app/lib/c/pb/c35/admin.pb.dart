@@ -1164,6 +1164,264 @@ class ResAdminLlmCatalogList extends $pb.GeneratedMessage {
   $pb.PbList<AdminServiceRateRow> get live => $_getList(3);
 }
 
+/// Root console — registrations, app activity (WS), settled payments per window.
+class PlatformUserMetricsWindowCounts extends $pb.GeneratedMessage {
+  factory PlatformUserMetricsWindowCounts({
+    $fixnum.Int64? h24,
+    $fixnum.Int64? d7,
+    $fixnum.Int64? d30,
+    $fixnum.Int64? y1,
+  }) {
+    final result = PlatformUserMetricsWindowCounts._();
+    if (h24 != null) result.h24 = h24;
+    if (d7 != null) result.d7 = d7;
+    if (d30 != null) result.d30 = d30;
+    if (y1 != null) result.y1 = y1;
+    return result;
+  }
+
+  PlatformUserMetricsWindowCounts._();
+
+  factory PlatformUserMetricsWindowCounts.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PlatformUserMetricsWindowCounts()..mergeFromBuffer(data, registry);
+  factory PlatformUserMetricsWindowCounts.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PlatformUserMetricsWindowCounts()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PlatformUserMetricsWindowCounts',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PlatformUserMetricsWindowCounts.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'h24')
+    ..aInt64(2, _omitFieldNames ? '' : 'd7')
+    ..aInt64(3, _omitFieldNames ? '' : 'd30')
+    ..aInt64(4, _omitFieldNames ? '' : 'y1')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PlatformUserMetricsWindowCounts clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PlatformUserMetricsWindowCounts copyWith(
+          void Function(PlatformUserMetricsWindowCounts) updates) =>
+      super.copyWith(
+              (message) => updates(message as PlatformUserMetricsWindowCounts))
+          as PlatformUserMetricsWindowCounts;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use PlatformUserMetricsWindowCounts() / PlatformUserMetricsWindowCounts.new instead')
+  static PlatformUserMetricsWindowCounts create() =>
+      PlatformUserMetricsWindowCounts._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      PlatformUserMetricsWindowCounts._();
+  @$core.override
+  PlatformUserMetricsWindowCounts createEmptyInstance() =>
+      PlatformUserMetricsWindowCounts._();
+  @$core.pragma('dart2js:noInline')
+  static PlatformUserMetricsWindowCounts getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PlatformUserMetricsWindowCounts>(
+          PlatformUserMetricsWindowCounts.$_createMessage);
+  static PlatformUserMetricsWindowCounts? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get h24 => $_getI64(0);
+  @$pb.TagNumber(1)
+  set h24($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasH24() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearH24() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get d7 => $_getI64(1);
+  @$pb.TagNumber(2)
+  set d7($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasD7() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearD7() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get d30 => $_getI64(2);
+  @$pb.TagNumber(3)
+  set d30($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasD30() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearD30() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get y1 => $_getI64(3);
+  @$pb.TagNumber(4)
+  set y1($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasY1() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearY1() => $_clearField(4);
+}
+
+class ReqAdminPlatformUserMetrics extends $pb.GeneratedMessage {
+  factory ReqAdminPlatformUserMetrics() => ReqAdminPlatformUserMetrics._();
+
+  ReqAdminPlatformUserMetrics._();
+
+  factory ReqAdminPlatformUserMetrics.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminPlatformUserMetrics()..mergeFromBuffer(data, registry);
+  factory ReqAdminPlatformUserMetrics.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminPlatformUserMetrics()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAdminPlatformUserMetrics',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAdminPlatformUserMetrics.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminPlatformUserMetrics clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminPlatformUserMetrics copyWith(
+          void Function(ReqAdminPlatformUserMetrics) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqAdminPlatformUserMetrics))
+          as ReqAdminPlatformUserMetrics;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqAdminPlatformUserMetrics() / ReqAdminPlatformUserMetrics.new instead')
+  static ReqAdminPlatformUserMetrics create() =>
+      ReqAdminPlatformUserMetrics._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqAdminPlatformUserMetrics._();
+  @$core.override
+  ReqAdminPlatformUserMetrics createEmptyInstance() =>
+      ReqAdminPlatformUserMetrics._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAdminPlatformUserMetrics getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqAdminPlatformUserMetrics>(
+          ReqAdminPlatformUserMetrics.$_createMessage);
+  static ReqAdminPlatformUserMetrics? _defaultInstance;
+}
+
+class ResAdminPlatformUserMetrics extends $pb.GeneratedMessage {
+  factory ResAdminPlatformUserMetrics({
+    PlatformUserMetricsWindowCounts? users,
+    PlatformUserMetricsWindowCounts? activeUsers,
+    PlatformUserMetricsWindowCounts? paidUsers,
+    $fixnum.Int64? totalUsers,
+  }) {
+    final result = ResAdminPlatformUserMetrics._();
+    if (users != null) result.users = users;
+    if (activeUsers != null) result.activeUsers = activeUsers;
+    if (paidUsers != null) result.paidUsers = paidUsers;
+    if (totalUsers != null) result.totalUsers = totalUsers;
+    return result;
+  }
+
+  ResAdminPlatformUserMetrics._();
+
+  factory ResAdminPlatformUserMetrics.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminPlatformUserMetrics()..mergeFromBuffer(data, registry);
+  factory ResAdminPlatformUserMetrics.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminPlatformUserMetrics()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAdminPlatformUserMetrics',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAdminPlatformUserMetrics.$_createMessage)
+    ..aOM<PlatformUserMetricsWindowCounts>(1, _omitFieldNames ? '' : 'users',
+        subBuilder: PlatformUserMetricsWindowCounts.$_createMessage)
+    ..aOM<PlatformUserMetricsWindowCounts>(
+        2, _omitFieldNames ? '' : 'activeUsers',
+        subBuilder: PlatformUserMetricsWindowCounts.$_createMessage)
+    ..aOM<PlatformUserMetricsWindowCounts>(
+        3, _omitFieldNames ? '' : 'paidUsers',
+        subBuilder: PlatformUserMetricsWindowCounts.$_createMessage)
+    ..aInt64(4, _omitFieldNames ? '' : 'totalUsers')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminPlatformUserMetrics clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminPlatformUserMetrics copyWith(
+          void Function(ResAdminPlatformUserMetrics) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResAdminPlatformUserMetrics))
+          as ResAdminPlatformUserMetrics;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResAdminPlatformUserMetrics() / ResAdminPlatformUserMetrics.new instead')
+  static ResAdminPlatformUserMetrics create() =>
+      ResAdminPlatformUserMetrics._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResAdminPlatformUserMetrics._();
+  @$core.override
+  ResAdminPlatformUserMetrics createEmptyInstance() =>
+      ResAdminPlatformUserMetrics._();
+  @$core.pragma('dart2js:noInline')
+  static ResAdminPlatformUserMetrics getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResAdminPlatformUserMetrics>(
+          ResAdminPlatformUserMetrics.$_createMessage);
+  static ResAdminPlatformUserMetrics? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  PlatformUserMetricsWindowCounts get users => $_getN(0);
+  @$pb.TagNumber(1)
+  set users(PlatformUserMetricsWindowCounts value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasUsers() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearUsers() => $_clearField(1);
+  @$pb.TagNumber(1)
+  PlatformUserMetricsWindowCounts ensureUsers() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  PlatformUserMetricsWindowCounts get activeUsers => $_getN(1);
+  @$pb.TagNumber(2)
+  set activeUsers(PlatformUserMetricsWindowCounts value) =>
+      $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasActiveUsers() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearActiveUsers() => $_clearField(2);
+  @$pb.TagNumber(2)
+  PlatformUserMetricsWindowCounts ensureActiveUsers() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  PlatformUserMetricsWindowCounts get paidUsers => $_getN(2);
+  @$pb.TagNumber(3)
+  set paidUsers(PlatformUserMetricsWindowCounts value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPaidUsers() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPaidUsers() => $_clearField(3);
+  @$pb.TagNumber(3)
+  PlatformUserMetricsWindowCounts ensurePaidUsers() => $_ensure(2);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get totalUsers => $_getI64(3);
+  @$pb.TagNumber(4)
+  set totalUsers($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTotalUsers() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTotalUsers() => $_clearField(4);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

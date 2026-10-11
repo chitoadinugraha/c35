@@ -5,10 +5,6 @@ const billingTopupMinUsd = 10.0;
 const billingTopupPacksIdr = [50000.0, 100000.0, 200000.0, 500000.0, 1000000.0];
 const billingTopupPacksUsd = [10.0, 20.0, 50.0];
 
-const billingManualBank = 'BCA';
-const billingManualAccount = '0113543750';
-const billingManualAccountName = 'PT Percepatan Akhir Semesta';
-
 bool billingUsesIdr({double balanceIdr = 0}) => balanceIdr > 0;
 
 double billingUsdToIdr(double usd, {double fxRate = 17630}) => usd * fxRate;
@@ -21,19 +17,3 @@ String billingTopupUsdLabel(double usd) => moneyFmtUsd(usd, decimals: 0);
 
 bool billingTopupAmountOk({required double amountUsd, double amountIdr = 0, bool usesIdr = false}) =>
     usesIdr ? amountIdr >= billingTopupMinIdr : amountUsd >= billingTopupMinUsd;
-
-String billingManualTransferInstructions({required double amountIdr}) =>
-    billingManualTransferInstructionsFromAccount(
-      amountIdr: amountIdr,
-      bankId: billingManualBank,
-      accountNumber: billingManualAccount,
-      accountName: billingManualAccountName,
-    );
-
-String billingManualTransferInstructionsFromAccount({
-  required double amountIdr,
-  required String bankId,
-  required String accountNumber,
-  required String accountName,
-}) =>
-    'Transfer ${billingTopupIdrLabel(amountIdr)} ke $bankId $accountNumber a.n. $accountName, lalu upload bukti transfer.';

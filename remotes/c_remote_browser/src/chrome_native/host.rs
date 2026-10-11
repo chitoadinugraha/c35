@@ -504,6 +504,14 @@ fn handle_request(
             Ok(r)
         }
 
+        "extension.install_version" => {
+            let mut r = ExtResponse::ok();
+            r.data = json!({
+                "version": crate::extension_install::install_extension_manifest_version(),
+            });
+            Ok(r)
+        }
+
         "agent.ensure" => {
             ensure_extension_agent_running();
             wait_for_extension_agent(Duration::from_secs(8));
@@ -654,6 +662,7 @@ fn agent_status_from_ui_snapshot() -> Value {
         "webrtc_subtitle": c_remote_core::agent_ui::user_app_subtitle(snap.webrtc_connecting),
         "device_iid": device_iid,
         "agent_version": c_remote_core::version::agent_version_label(),
+        "extension_install_version": crate::extension_install::install_extension_manifest_version(),
         "server_url": c_remote_core::config::server_url(),
         "log_lines": log_lines,
     }))

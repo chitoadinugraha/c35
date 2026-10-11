@@ -76,6 +76,13 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
             .await;
         });
     }
+    {
+        let pool = state.pool.clone();
+        let nats = state.nats.clone();
+        tokio::spawn(async move {
+            c35_mod_billing::billing_cache_warmup(&pool, nats.as_ref(), caller_iid).await;
+        });
+    }
     let mut prompt_flight: Option<PromptFlight> = None;
     let mut app_client_id = String::new();
     if let Some(nats) = state.nats.clone() {
@@ -1322,11 +1329,33 @@ async fn dispatch(
                 ctx.caller_iid,
                 admin_session_id,
                 out_tx.clone(),
+                false,
             )
             .await
             {
-                Ok(()) => WsRes { req_id, body: None },
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::StatsSubscribe(res)),
+                },
                 Err(e) => err_res(req_id, WireErr::client("stats_subscribe_failed", e.message)),
+            }
+        }
+        Some(ws_req::Body::RootConsole(r)) => {
+            match crate::admin_fanout::admin_root_console(
+                &state.pool,
+                state.nats.as_ref(),
+                ctx.caller_iid,
+                admin_session_id,
+                out_tx.clone(),
+                r,
+            )
+            .await
+            {
+                Ok(res) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::RootConsole(res)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("root_console_failed", e.message)),
             }
         }
         Some(ws_req::Body::StatsUnsubscribe(_)) => {
@@ -1793,7 +1822,7 @@ async fn session_init(
         res.mentions = Some(mentions);
     }
     let locale = locale.as_str();
-    if let Ok(hints) = c35_mod_hint::hint_bundle_get(&ctx.pool, ctx.caller_iid, locale, hints_since_ms).await {
+    if let Ok(hints) = c35_mod_hint::hint_bundle_get_nats(&ctx.pool, ctx.nats.as_ref(), ctx.caller_iid, locale, hints_since_ms).await {
         res.hints = Some(hints);
     }
     if let Some(nav) = res.nav.as_mut() {

@@ -4,6 +4,7 @@ mod fetch_vendor;
 mod fx_usd;
 mod period;
 mod pnl;
+mod user_metrics;
 mod vendor_cost;
 
 /// Serializes integration tests that mutate process env vars.
@@ -27,6 +28,7 @@ pub use period::{
 pub use pnl::{
     platform_pnl_query, pnl_ai_cogs_drift_pct, PlatformPnl, VendorCostBreakdown,
 };
+pub use user_metrics::{platform_user_metrics_query, PlatformUserMetrics};
 pub use vendor_cost::{
     parse_vendor_csv, vendor_cost_finalize_period, vendor_cost_upsert_batch, VendorCostLine,
 };

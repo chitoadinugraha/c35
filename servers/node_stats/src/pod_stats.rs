@@ -60,16 +60,26 @@ fn sample_pod(node_name: &str, pod: &NodePodMeta, sampler: &mut PodSampler) -> R
     let key = format!("{}/{}", pod.namespace, pod.name);
     let cgroup = pod_cgroup_dir(HOST_PREFIX, &pod.uid).context("pod cgroup")?;
     let mem_used = read_u64_file(&format!("{cgroup}/memory.current"))?;
-    let mem_limit = read_memory_limit(&format!("{cgroup}/memory.max"))
-        .unwrap_or(pod.mem_limit_bytes);
+    let mem_k8s_limit = pod.mem_limit_bytes;
+    let mem_cgroup_cap = read_memory_limit(&format!("{cgroup}/memory.max"));
     let cpu_used = cpu_used_cores(&cgroup, &key, sampler)?;
     let cpu_limit = pod.cpu_limit_cores;
     let cpu_request = pod.cpu_request_cores;
     let mem_request = pod.mem_request_bytes;
     let cpu_bar = bar_denom_f64(cpu_used, cpu_limit, cpu_request);
-    let mem_bar = bar_denom_u64(mem_used, mem_limit, mem_request);
+    let mem_bar_limit = if mem_k8s_limit > 0 {
+        mem_k8s_limit
+    } else {
+        mem_cgroup_cap.unwrap_or(0)
+    };
+    let mem_bar = bar_denom_u64(mem_used, mem_bar_limit, mem_request);
     let cpu_pct = ((cpu_used / cpu_bar) * 100.0).clamp(0.0, 100.0);
-    let mem_pct = ((mem_used as f64 / mem_bar as f64) * 100.0).clamp(0.0, 100.0);
+    // No Kubernetes memory limit: UI uses blue informational bar (not request-scaled %).
+    let mem_pct = if mem_k8s_limit == 0 {
+        0.0
+    } else {
+        ((mem_used as f64 / mem_bar as f64) * 100.0).clamp(0.0, 100.0)
+    };
     Ok(PodStat {
         node_name: node_name.to_string(),
         namespace: pod.namespace.clone(),
@@ -79,7 +89,7 @@ fn sample_pod(node_name: &str, pod: &NodePodMeta, sampler: &mut PodSampler) -> R
         cpu_request_cores: cpu_request,
         cpu_pct,
         mem_used_bytes: mem_used,
-        mem_limit_bytes: mem_limit,
+        mem_limit_bytes: mem_k8s_limit,
         mem_request_bytes: mem_request,
         mem_pct,
         net_in_bps: 0.0,

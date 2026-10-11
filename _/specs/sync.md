@@ -207,7 +207,7 @@ c35.stats.volume.{node_name}.{namespace}.{pvc_name}
 | `c35.stats.node.{node_name}` | `c35-node-stats` DaemonSet | `StatsPush` (`node` body) |
 | `c35.stats.volume.{node_name}.{namespace}.{pvc_name}` | `c35-node-stats` DaemonSet | `StatsPush` (`volume` body) |
 
-Published every ~2s per node. Root Flutter clients subscribe via WS `ReqStatsSubscribe`; `server_ai` relays `c35.stats.>` as `WsRes.stats_push` with per-subject snapshot cache.
+Published every ~2s per node. Root Flutter **dashboard** uses one WS `ReqRootConsole` on open (stats KV snapshot + user metrics + 24h peaks + optional live subscribe). Ongoing updates: `ReqStatsSubscribe` → `ResStatsSubscribe.snapshot` from KV/relay, then `WsRes.stats_push` on `c35.stats.>`.
 
 **JetStream KV (latest sample per key):** bucket `c35_stats`, bootstrapped by `c35_nats::stats_kv_ensure` inside `jetstream_streams_ensure`. Keys: `node/{node_name}`, `vol/{node_name}/{namespace}/{pvc_name}` — values are protobuf `StatsPush` (same as pub/sub). Used for multi-pod snapshot without per-subject NATS replay.
 

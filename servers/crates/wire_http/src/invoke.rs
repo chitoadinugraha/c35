@@ -7,8 +7,8 @@ use axum::{
 };
 use c35_ctx::AppState;
 use c35_mod_admin::{
-    admin_log_list, admin_log_report, admin_ops_peaks, admin_platform_pnl, admin_user_put,
-    admin_user_search,
+    admin_log_list, admin_log_report, admin_ops_peaks, admin_platform_pnl,
+    admin_platform_user_metrics, admin_user_put, admin_user_search,
 };
 use c35_mod_billing::{
     billing_admin_adjust, billing_admin_adjust_list, billing_admin_plan_change, billing_history,
@@ -544,6 +544,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }
         }
+        Some(invoke_req::Body::AdminPlatformUserMetrics(r)) => {
+            match admin_platform_user_metrics(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminPlatformUserMetrics(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
         Some(invoke_req::Body::AdminLlmCatalogList(r)) => {
             match crate::admin_catalog::admin_catalog_prices_list(pool, iid, r).await {
                 Ok(res) => InvokeRes {
@@ -610,6 +621,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
             },
             Err(msg) => invoke_error(&req_id, 400, msg),
         },
+        Some(invoke_req::Body::DeviceEgressLease(r)) => {
+            match c35_mod_device::device_egress_lease_mint(pool, iid, r, None).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::DeviceEgressLease(res)),
+                },
+                Err(msg) => invoke_error(&req_id, 400, msg),
+            }
+        }
         Some(invoke_req::Body::InstList(r)) => match inst_list(pool, iid, r).await {
             Ok(res) => InvokeRes {
                 req_id,

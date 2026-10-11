@@ -13,16 +13,20 @@ Operators debug parity across **three surfaces**. Do not compare the wrong pair.
 | Surface | Data source | Typical URL / entry |
 |---------|-------------|---------------------|
 | **In-app preview (Flutter)** | `site.boot_get` with `mode: draft` or `published` | Site editor or `UiSitePreview` (`SitePreviewMode`) |
-| **Draft browser HTML** | Live `site.draft` via `page_html_render` (not `site.render`) | `https://alienai.id/{alien_id}?draft=1&ptoken=…` or dev `http://localhost:10000/{alien_id}?draft=1&ptoken=…` |
+| **Draft browser HTML** | Live `site.draft` via `page_html_render` (not `site.render`) | `https://alienai.id/{alien_id}?draft=1` or dev `http://localhost:10000/{alien_id}?draft=1` |
 | **Published browser HTML** | Rows in `site.render` (`render_key` `html:*`) from the last **Publish** | Bare slug: `http://localhost:10000/{alien_id}` (prod: `https://alienai.id/{alien_id}`) |
 
-**Draft preview vs published HTML:** In-app **Draft** matches unsaved editor work and the **Visit** link (draft + `ptoken`). The bare slug without query serves the **last publish** only. Edits that are not published will not appear on the bare URL.
+**Draft preview vs published HTML:** In-app **Draft** matches unsaved editor work and the **Visit** link (`?draft=1`). The bare slug without query serves the **last publish** only. Edits that are not published will not appear on the bare URL.
 
 **Published mode in preview:** Use **Published** in the preview toggle only when checking public behavior. That mode loads `boot_get` published boot and the Visit overlay opens the bare slug. It should match the browser **after** **Publish** in the app.
 
 **Before comparing to the bare URL:** Run **Publish** so `site.publish` / `site.render` refresh. `site_publish_pending_for_draft` compares draft `render_hash` to the active publish; until they match, the public URL is stale.
 
-**Visit link:** Editor preview **Open in browser** uses `?draft=1&ptoken={token}` in **Draft** mode (`site_preview_token_issue` + `site_draft_html_render`). In **Published** mode it opens `/{alien_id}` with no query. Draft and published browser paths both use the same `page_html_render` pipeline; only the doc snapshot and caching differ.
+**Visit link:** Editor **Draft** + **Open in browser** uses `/{alien_id}?draft=1`. **Published** mode opens `/{alien_id}` with no query. Draft HTML uses `site_draft_html_render` on current `site.draft`.
+
+**Sharing drafts:** `?draft=1` is enough — no preview token. Anyone with the link sees the current draft (same as a public URL with a different snapshot). Legacy `ptoken` query params are ignored.
+
+**Local dev (`dev_server.ps1`):** `C35_GUEST_DEV_LIVE_RENDER=1` (default) re-runs `page_html_render` on each `localhost` request using the **published doc snapshot**, so renderer/CSS/JS code changes show without republishing. Production and non-local hosts still serve cached `site.render` until **Publish**. Unpublished **draft** edits still require the Visit link or in-app Draft preview.
 
 ## Web guest assets
 
@@ -32,6 +36,7 @@ Operators debug parity across **three surfaces**. Do not compare the wrong pair.
 - Boot effect rows: `presetId`, `params` object, `active`.
 - `commerce_boot.payment_methods` from `doc_json.payment_accounts`.
 - `contact_form` HTML uses `data-guest="form"`.
+- Guest HTML `<head>`: `<link rel="icon">` from `meta.favicon`, else `meta.avatar_url`, else hub profile `pic`, else site identity `pic` (not platform `/favicon.ico`).
 - Minified JS, `Cache-Control: public, max-age=86400`, gzip at the Cloudflare edge (origin does not store .gz).
 
 Web effects host is `site-guest.effects.v1.js` (WASM). Flutter effects use `GuestSiteEffectStack` (Dart painters).

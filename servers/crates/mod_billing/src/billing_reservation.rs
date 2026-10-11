@@ -248,6 +248,55 @@ pub async fn billing_gate_with_hold_model(
     billing_gate_with_hold_model_opt(pool, owner_iid, row, req_id, hold_usd, model, None).await
 }
 
+/// When NATS KV already marked sufficient allowance, avoid 4–5 WAN round-trips on every turn.
+/// Still idempotent on `req_id` and runs freemium reserve when needed.
+pub async fn billing_gate_trusted_allowance_fast(
+    pool: &PgPool,
+    owner_iid: i64,
+    row: &BillingRow,
+    req_id: &str,
+    hold_usd: f64,
+    known_freemium: bool,
+) -> Result<()> {
+    let req_id = req_id.trim();
+    if req_id.is_empty() {
+        anyhow::bail!("req_id required");
+    }
+    if known_freemium {
+        return crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await;
+    }
+    if let Ok(Some((status,))) = sqlx::query_as::<_, (String,)>(
+        "SELECT status FROM ai.billing_reservation WHERE req_id = $1",
+    )
+    .bind(req_id)
+    .fetch_optional(pool)
+    .await
+    {
+        if status == "held" || status == "settled" {
+            return Ok(());
+        }
+    }
+    let rem = allowance_remaining(
+        row.alien_allow_5h_used,
+        row.alien_allow_5h_limit,
+        row.alien_allow_weekly_used,
+        row.alien_allow_weekly_limit,
+    );
+    if rem >= hold_usd {
+        return Ok(());
+    }
+    billing_gate_with_hold_model_opt(
+        pool,
+        owner_iid,
+        row,
+        req_id,
+        hold_usd,
+        None,
+        Some(known_freemium),
+    )
+    .await
+}
+
 pub async fn billing_gate_with_hold_model_opt(
     pool: &PgPool,
     owner_iid: i64,
@@ -271,6 +320,15 @@ pub async fn billing_gate_with_hold_model_opt(
     };
     if freemium_eligible && is_free {
         crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
+        return Ok(());
+    }
+    let fast_rem = allowance_remaining(
+        row.alien_allow_5h_used,
+        row.alien_allow_5h_limit,
+        row.alien_allow_weekly_used,
+        row.alien_allow_weekly_limit,
+    );
+    if freemium_eligible && fast_rem >= hold_usd {
         return Ok(());
     }
     let profile_fut = async {
@@ -371,6 +429,10 @@ pub async fn billing_gate_with_hold_model_opt(
             hold_native,
         );
         anyhow::bail!(reason);
+    }
+
+    if hold_usd_amt <= 0.0 && hold_idr <= 0.0 {
+        return Ok(());
     }
 
     let id = snowflake_id();

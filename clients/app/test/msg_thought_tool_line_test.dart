@@ -13,4 +13,15 @@ void main() {
     final view = msgThoughtView(thought: 'Using consumption.add…', content: '', thinking: false);
     expect(view.thought, isNull);
   });
+
+  test('msgThoughtLiveStatusLabel surfaces latest tool hop', () {
+    expect(
+      msgThoughtLiveStatusLabel(thought: 'Using web.search…', defaultLabel: 'Alien AI is thinking'),
+      'Using web.search…',
+    );
+    expect(
+      msgThoughtLiveStatusLabel(thought: '', defaultLabel: 'Alien AI is thinking'),
+      'Alien AI is thinking',
+    );
+  });
 }

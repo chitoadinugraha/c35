@@ -3,6 +3,19 @@ use std::collections::HashSet;
 use anyhow::Result;
 use sqlx::PgPool;
 
+pub async fn hint_invalidate_nats(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    user_iid: i64,
+) -> Result<()> {
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::hint_bundle_kv_ensure(client).await {
+            let _ = c35_nats::hint_bundle_cache_delete(&store, user_iid).await;
+        }
+    }
+    hint_invalidate(pool, user_iid).await
+}
+
 pub async fn hint_invalidate(pool: &PgPool, user_iid: i64) -> Result<()> {
     sqlx::query("DELETE FROM ai.hint_bundle WHERE user_iid = $1")
         .bind(user_iid)

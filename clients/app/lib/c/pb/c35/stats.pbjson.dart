@@ -225,6 +225,26 @@ const ReqStatsSubscribe$json = {
 final $typed_data.Uint8List reqStatsSubscribeDescriptor =
     $convert.base64Decode('ChFSZXFTdGF0c1N1YnNjcmliZQ==');
 
+@$core.Deprecated('Use resStatsSubscribeDescriptor instead')
+const ResStatsSubscribe$json = {
+  '1': 'ResStatsSubscribe',
+  '2': [
+    {
+      '1': 'snapshot',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.StatsPush',
+      '10': 'snapshot'
+    },
+  ],
+};
+
+/// Descriptor for `ResStatsSubscribe`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resStatsSubscribeDescriptor = $convert.base64Decode(
+    'ChFSZXNTdGF0c1N1YnNjcmliZRIqCghzbmFwc2hvdBgBIAMoCzIOLmMzNS5TdGF0c1B1c2hSCH'
+    'NuYXBzaG90');
+
 @$core.Deprecated('Use reqStatsUnsubscribeDescriptor instead')
 const ReqStatsUnsubscribe$json = {
   '1': 'ReqStatsUnsubscribe',
@@ -233,6 +253,90 @@ const ReqStatsUnsubscribe$json = {
 /// Descriptor for `ReqStatsUnsubscribe`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List reqStatsUnsubscribeDescriptor =
     $convert.base64Decode('ChNSZXFTdGF0c1Vuc3Vic2NyaWJl');
+
+@$core.Deprecated('Use reqRootConsoleDescriptor instead')
+const ReqRootConsole$json = {
+  '1': 'ReqRootConsole',
+  '2': [
+    {
+      '1': 'peaks_since_ms',
+      '3': 1,
+      '4': 1,
+      '5': 3,
+      '9': 0,
+      '10': 'peaksSinceMs',
+      '17': true
+    },
+    {
+      '1': 'peaks_until_ms',
+      '3': 2,
+      '4': 1,
+      '5': 3,
+      '9': 1,
+      '10': 'peaksUntilMs',
+      '17': true
+    },
+    {
+      '1': 'subscribe_stats',
+      '3': 3,
+      '4': 1,
+      '5': 8,
+      '9': 2,
+      '10': 'subscribeStats',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_peaks_since_ms'},
+    {'1': '_peaks_until_ms'},
+    {'1': '_subscribe_stats'},
+  ],
+};
+
+/// Descriptor for `ReqRootConsole`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqRootConsoleDescriptor = $convert.base64Decode(
+    'Cg5SZXFSb290Q29uc29sZRIpCg5wZWFrc19zaW5jZV9tcxgBIAEoA0gAUgxwZWFrc1NpbmNlTX'
+    'OIAQESKQoOcGVha3NfdW50aWxfbXMYAiABKANIAVIMcGVha3NVbnRpbE1ziAEBEiwKD3N1YnNj'
+    'cmliZV9zdGF0cxgDIAEoCEgCUg5zdWJzY3JpYmVTdGF0c4gBAUIRCg9fcGVha3Nfc2luY2VfbX'
+    'NCEQoPX3BlYWtzX3VudGlsX21zQhIKEF9zdWJzY3JpYmVfc3RhdHM=');
+
+@$core.Deprecated('Use resRootConsoleDescriptor instead')
+const ResRootConsole$json = {
+  '1': 'ResRootConsole',
+  '2': [
+    {
+      '1': 'stats_snapshot',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.StatsPush',
+      '10': 'statsSnapshot'
+    },
+    {
+      '1': 'user_metrics',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminPlatformUserMetrics',
+      '10': 'userMetrics'
+    },
+    {
+      '1': 'peaks_24h',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminOpsPeaks',
+      '10': 'peaks24h'
+    },
+  ],
+};
+
+/// Descriptor for `ResRootConsole`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resRootConsoleDescriptor = $convert.base64Decode(
+    'Cg5SZXNSb290Q29uc29sZRI1Cg5zdGF0c19zbmFwc2hvdBgBIAMoCzIOLmMzNS5TdGF0c1B1c2'
+    'hSDXN0YXRzU25hcHNob3QSQwoMdXNlcl9tZXRyaWNzGAIgASgLMiAuYzM1LlJlc0FkbWluUGxh'
+    'dGZvcm1Vc2VyTWV0cmljc1ILdXNlck1ldHJpY3MSMgoJcGVha3NfMjRoGAMgASgLMhUuYzM1Ll'
+    'Jlc0FkbWluT3BzUGVha3NSCHBlYWtzMjRo');
 
 @$core.Deprecated('Use reqLogSubscribeDescriptor instead')
 const ReqLogSubscribe$json = {

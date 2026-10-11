@@ -23,17 +23,23 @@ class UiAdminNetworkRow extends StatelessWidget {
 
   double _frac(double bps) => (bps / _scale).clamp(0, 1);
 
+  Color _inColor(double bps) => adminBarFillForUtil(_frac(bps), normal: adminBarIn);
+
+  Color _outColor(double bps) => adminBarFillForUtil(_frac(bps), normal: adminBarOut);
+
   @override
   Widget build(BuildContext context) {
     if (!compact) {
+      final inFrac = inBps / _scale;
+      final outFrac = outBps / _scale;
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _wideBar(label: 'In ${adminFmtBps(inBps)}', value: inBps / _scale, color: adminBarIn),
+            _wideBar(label: 'In ${adminFmtBps(inBps)}', value: inFrac, color: _inColor(inBps)),
             const SizedBox(height: 8),
-            _wideBar(label: 'Out ${adminFmtBps(outBps)}', value: outBps / _scale, color: adminBarOut),
+            _wideBar(label: 'Out ${adminFmtBps(outBps)}', value: outFrac, color: _outColor(outBps)),
           ],
         ),
       );
@@ -51,7 +57,7 @@ class UiAdminNetworkRow extends StatelessWidget {
             width: kAdminStatDetailWidth,
             child: Row(
               children: [
-                Icon(Icons.arrow_downward_rounded, size: 12, color: adminBarIn),
+                Icon(Icons.arrow_downward_rounded, size: 12, color: _inColor(inBps)),
                 const SizedBox(width: 3),
                 Expanded(
                   child: Text(
@@ -74,12 +80,12 @@ class UiAdminNetworkRow extends StatelessWidget {
                       value: _frac(inBps),
                       minHeight: 7,
                       backgroundColor: adminBarBg,
-                      color: adminBarIn,
+                      color: _inColor(inBps),
                     ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                Icon(Icons.arrow_upward_rounded, size: 13, color: adminBarOut),
+                Icon(Icons.arrow_upward_rounded, size: 13, color: _outColor(outBps)),
                 const SizedBox(width: 4),
                 SizedBox(
                   width: 58,
@@ -98,7 +104,7 @@ class UiAdminNetworkRow extends StatelessWidget {
                       value: _frac(outBps),
                       minHeight: 7,
                       backgroundColor: adminBarBg,
-                      color: adminBarOut,
+                      color: _outColor(outBps),
                     ),
                   ),
                 ),

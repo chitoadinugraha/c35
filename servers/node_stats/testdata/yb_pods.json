@@ -1,0 +1,1039 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "checksum/gflags": "98cff482daf527c20e006b5cf01d4fa161f0ac693667aa3c4626096df63ade41",
+                    "kubectl.kubernetes.io/restartedAt": "2026-09-19T07:17:04+07:00"
+                },
+                "creationTimestamp": "2026-10-03T13:49:13Z",
+                "generateName": "yb-master-",
+                "generation": 1,
+                "labels": {
+                    "app": "yb-master",
+                    "apps.kubernetes.io/pod-index": "0",
+                    "chart": "yugabyte",
+                    "component": "yugabytedb",
+                    "controller-revision-hash": "yb-master-84dc7cbb9c",
+                    "heritage": "Helm",
+                    "release": "yb",
+                    "statefulset.kubernetes.io/pod-name": "yb-master-0",
+                    "yugabytedUi": "true"
+                },
+                "name": "yb-master-0",
+                "namespace": "yugabyte",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "StatefulSet",
+                        "name": "yb-master",
+                        "uid": "d928228d-d754-4354-a3e8-9b8ffb998000"
+                    }
+                ],
+                "resourceVersion": "17340867",
+                "uid": "42c87b27-33a8-410a-9564-948b8da696d9"
+            },
+            "spec": {
+                "affinity": {
+                    "podAntiAffinity": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "podAffinityTerm": {
+                                    "labelSelector": {
+                                        "matchExpressions": [
+                                            {
+                                                "key": "app",
+                                                "operator": "In",
+                                                "values": [
+                                                    "yb-master"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "topologyKey": "kubernetes.io/hostname"
+                                },
+                                "weight": 100
+                            }
+                        ]
+                    }
+                },
+                "containers": [
+                    {
+                        "args": [
+                            "/bin/bash",
+                            "-c",
+                            "if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  /home/yugabyte/tools/k8s_preflight.py all\nfi \u0026\u0026 \\\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"${HOSTNAME}.yb-masters.${NAMESPACE}.svc.cluster.local\" \\\n    --port=\"7100\"\nfi \u0026\u0026 \\\n\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"${HOSTNAME}.yb-masters.${NAMESPACE}.svc.cluster.local:7100\" \\\n    --port=\"7100\"\nfi \u0026\u0026 \\\n\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"0.0.0.0\" \\\n    --port=\"7000\"\nfi \u0026\u0026 \\\n\nif [[ -f /home/yugabyte/bin/post_install.sh ]]; then\n  /home/yugabyte/bin/post_install.sh\nfi \u0026\u0026 \\\nif [[ -f /home/yugabyte/tools/k8s_parent.py ]]; then\n  k8s_parent=\"/home/yugabyte/tools/k8s_parent.py\"\nelse\n  k8s_parent=\"\"\nfi \u0026\u0026 \\\nmkdir -p /tmp/yugabyte/master/conf \u0026\u0026 \\\nenvsubst \u003c /opt/master/conf/server.conf.template \u003e /tmp/yugabyte/master/conf/server.conf \u0026\u0026 \\\nexec ${k8s_parent} /home/yugabyte/bin/yb-master \\\n  --flagfile /tmp/yugabyte/master/conf/server.conf\n"
+                        ],
+                        "command": [
+                            "/sbin/tini",
+                            "--"
+                        ],
+                        "env": [
+                            {
+                                "name": "POD_IP",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "status.podIP"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "HOSTNAME",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.name"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "NAMESPACE",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.namespace"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "YBDEVOPS_CORECOPY_DIR",
+                                "value": "/mnt/disk0/cores"
+                            },
+                            {
+                                "name": "CERT_MANAGER_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "SERVER_FQDN",
+                                "value": "${HOSTNAME}.yb-masters.${NAMESPACE}.svc.cluster.local"
+                            }
+                        ],
+                        "image": "yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imagePullPolicy": "IfNotPresent",
+                        "lifecycle": {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "bash",
+                                        "-c",
+                                        "mkdir -p /mnt/disk0/cores; mkdir -p /mnt/disk0/yb-data/scripts; if [ ! -f /mnt/disk0/yb-data/scripts/log_cleanup.sh ]; then\n  if [ -f /home/yugabyte/bin/log_cleanup.sh ]; then\n    cp /home/yugabyte/bin/log_cleanup.sh /mnt/disk0/yb-data/scripts;\n  fi;\nfi\n"
+                                    ]
+                                }
+                            }
+                        },
+                        "name": "yb-master",
+                        "ports": [
+                            {
+                                "containerPort": 7000,
+                                "name": "http-ui",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 7100,
+                                "name": "tcp-rpc-port",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 15433,
+                                "name": "yugabyted-ui",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "384Mi"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/master/conf",
+                                "name": "master-gflags"
+                            },
+                            {
+                                "mountPath": "/opt/debug_hooks_config",
+                                "name": "debug-hooks-volume"
+                            },
+                            {
+                                "mountPath": "/mnt/disk0",
+                                "name": "datadir0",
+                                "subPath": "master"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-jqdcw",
+                                "readOnly": true
+                            }
+                        ],
+                        "workingDir": "/mnt/disk0/cores"
+                    },
+                    {
+                        "args": [
+                            "/bin/bash",
+                            "-c",
+                            "while true; do\n/home/yugabyte/bin/yugabyted-ui \\\n  -database_host=${HOSTNAME}.yb-masters.${NAMESPACE}.svc.cluster.local \\\n  -bind_address=0.0.0.0 \\\n  -ysql_port=5433 \\\n  -ycql_port=9042 \\\n  -master_ui_port=7000 \\\n  -tserver_ui_port=9000 \\\n|| echo \"ERROR: yugabyted-ui failed. This might be because your yugabyte \\\nversion is older than 2.21.0. If this is the case, set yugabytedUi.enabled to false \\\nin helm to disable yugabyted-ui, or upgrade to a version 2.21.0 or newer.\"; \\\necho \"Attempting restart in 30s.\"\ntrap break TERM INT; \\\nsleep 30s \u0026 wait; \\\ntrap - TERM INT;\ndone \\\n"
+                        ],
+                        "command": [
+                            "/sbin/tini",
+                            "--"
+                        ],
+                        "env": [
+                            {
+                                "name": "HOSTNAME",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.name"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "NAMESPACE",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.namespace"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "YUGABYTED_UI_K8S",
+                                "value": "true"
+                            }
+                        ],
+                        "image": "yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "yugabyted-ui",
+                        "resources": {
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "256Mi"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-jqdcw",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "hostname": "yb-master-0",
+                "nodeName": "10.0.85.142",
+                "nodeSelector": {
+                    "kubernetes.io/hostname": "10.0.85.142"
+                },
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {},
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "subdomain": "yb-masters",
+                "terminationGracePeriodSeconds": 300,
+                "tolerations": [
+                    {
+                        "effect": "NoSchedule",
+                        "key": "node.kubernetes.io/disk-pressure",
+                        "operator": "Exists"
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "configMap": {
+                            "defaultMode": 493,
+                            "name": "yb-yugabyte-master-hooks"
+                        },
+                        "name": "debug-hooks-volume"
+                    },
+                    {
+                        "name": "master-gflags",
+                        "secret": {
+                            "defaultMode": 493,
+                            "secretName": "yb-yugabyte-master-gflags"
+                        }
+                    },
+                    {
+                        "name": "datadir0",
+                        "persistentVolumeClaim": {
+                            "claimName": "yb-data"
+                        }
+                    },
+                    {
+                        "name": "kube-api-access-jqdcw",
+                        "projected": {
+                            "defaultMode": 420,
+                            "sources": [
+                                {
+                                    "serviceAccountToken": {
+                                        "expirationSeconds": 3607,
+                                        "path": "token"
+                                    }
+                                },
+                                {
+                                    "configMap": {
+                                        "items": [
+                                            {
+                                                "key": "ca.crt",
+                                                "path": "ca.crt"
+                                            }
+                                        ],
+                                        "name": "kube-root-ca.crt"
+                                    }
+                                },
+                                {
+                                    "downwardAPI": {
+                                        "items": [
+                                            {
+                                                "fieldRef": {
+                                                    "apiVersion": "v1",
+                                                    "fieldPath": "metadata.namespace"
+                                                },
+                                                "path": "namespace"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:49:16Z",
+                        "status": "True",
+                        "type": "PodReadyToStartContainers"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:49:13Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:49:16Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:49:16Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:49:13Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "allocatedResources": {
+                            "cpu": "100m",
+                            "memory": "384Mi"
+                        },
+                        "containerID": "cri-o://a28ae9d79ea20e969d06122b7859df9bd53f5c4912848dc42f0a979aed9de038",
+                        "image": "docker.io/yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imageID": "docker.io/yugabytedb/yugabyte@sha256:bf2e1b9b6cca97bae418dda21010045f43da348c2722cc62f84d2961567e627c",
+                        "lastState": {},
+                        "name": "yb-master",
+                        "ready": true,
+                        "resources": {
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "384Mi"
+                            }
+                        },
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-10-03T13:49:15Z"
+                            }
+                        },
+                        "user": {
+                            "linux": {
+                                "gid": 0,
+                                "supplementalGroups": [
+                                    0
+                                ],
+                                "uid": 0
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/opt/master/conf",
+                                "name": "master-gflags"
+                            },
+                            {
+                                "mountPath": "/opt/debug_hooks_config",
+                                "name": "debug-hooks-volume"
+                            },
+                            {
+                                "mountPath": "/mnt/disk0",
+                                "name": "datadir0"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-jqdcw",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    },
+                    {
+                        "allocatedResources": {
+                            "cpu": "100m",
+                            "memory": "256Mi"
+                        },
+                        "containerID": "cri-o://594fd608e0667c4fb0261276e698fcd70f2f6aece0be2ac6bc09a6873cb10734",
+                        "image": "docker.io/yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imageID": "docker.io/yugabytedb/yugabyte@sha256:bf2e1b9b6cca97bae418dda21010045f43da348c2722cc62f84d2961567e627c",
+                        "lastState": {},
+                        "name": "yugabyted-ui",
+                        "ready": true,
+                        "resources": {
+                            "limits": {
+                                "cpu": "500m",
+                                "memory": "1Gi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "256Mi"
+                            }
+                        },
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-10-03T13:49:16Z"
+                            }
+                        },
+                        "user": {
+                            "linux": {
+                                "gid": 0,
+                                "supplementalGroups": [
+                                    0
+                                ],
+                                "uid": 0
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-jqdcw",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    }
+                ],
+                "hostIP": "10.0.85.142",
+                "hostIPs": [
+                    {
+                        "ip": "10.0.85.142"
+                    }
+                ],
+                "phase": "Running",
+                "podIP": "10.244.0.45",
+                "podIPs": [
+                    {
+                        "ip": "10.244.0.45"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2026-10-03T13:49:13Z"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "annotations": {
+                    "checksum/gflags": "e447338fcf8042c3132c9e20941052fbb47e2808167318c7a4dcfa1bf2196564",
+                    "kubectl.kubernetes.io/restartedAt": "2026-09-19T07:17:17+07:00"
+                },
+                "creationTimestamp": "2026-10-03T13:50:30Z",
+                "generateName": "yb-tserver-",
+                "generation": 1,
+                "labels": {
+                    "app": "yb-tserver",
+                    "apps.kubernetes.io/pod-index": "0",
+                    "chart": "yugabyte",
+                    "component": "yugabytedb",
+                    "controller-revision-hash": "yb-tserver-7dcfb59b65",
+                    "heritage": "Helm",
+                    "release": "yb",
+                    "statefulset.kubernetes.io/pod-name": "yb-tserver-0",
+                    "yugabytedUi": "true"
+                },
+                "name": "yb-tserver-0",
+                "namespace": "yugabyte",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "StatefulSet",
+                        "name": "yb-tserver",
+                        "uid": "5e7f1433-d85e-4aec-beb5-72fe4c31e15f"
+                    }
+                ],
+                "resourceVersion": "20489723",
+                "uid": "12cfde43-4bec-4012-915c-120d1f7dafea"
+            },
+            "spec": {
+                "affinity": {
+                    "podAntiAffinity": {
+                        "preferredDuringSchedulingIgnoredDuringExecution": [
+                            {
+                                "podAffinityTerm": {
+                                    "labelSelector": {
+                                        "matchExpressions": [
+                                            {
+                                                "key": "app",
+                                                "operator": "In",
+                                                "values": [
+                                                    "yb-tserver"
+                                                ]
+                                            }
+                                        ]
+                                    },
+                                    "topologyKey": "kubernetes.io/hostname"
+                                },
+                                "weight": 100
+                            }
+                        ]
+                    }
+                },
+                "containers": [
+                    {
+                        "args": [
+                            "/bin/bash",
+                            "-c",
+                            "if [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  /home/yugabyte/tools/k8s_preflight.py all\nfi \u0026\u0026 \\\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"${HOSTNAME}.yb-tservers.${NAMESPACE}.svc.cluster.local\" \\\n    --port=\"9100\"\nfi \u0026\u0026 \\\n\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"${HOSTNAME}.yb-tservers.${NAMESPACE}.svc.cluster.local:9100\" \\\n    --port=\"9100\"\nfi \u0026\u0026 \\\n\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"0.0.0.0\" \\\n    --port=\"9000\"\nfi \u0026\u0026 \\\n\nif [[ -f /home/yugabyte/bin/post_install.sh ]]; then\n  /home/yugabyte/bin/post_install.sh\nfi \u0026\u0026 \\\nif [[ -f /home/yugabyte/tools/k8s_parent.py ]]; then\n  k8s_parent=\"/home/yugabyte/tools/k8s_parent.py\"\nelse\n  k8s_parent=\"\"\nfi \u0026\u0026 \\\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"0.0.0.0:9042\" \\\n    --port=\"9042\"\nfi \u0026\u0026 \\\n\nif [ -f /home/yugabyte/tools/k8s_preflight.py ]; then\n  PYTHONUNBUFFERED=\"true\" /home/yugabyte/tools/k8s_preflight.py \\\n    dnscheck \\\n    --addr=\"0.0.0.0:5433\" \\\n    --port=\"5433\"\nfi \u0026\u0026 \\\n\n  mkdir -p /tmp/yugabyte/tserver/conf \u0026\u0026 \\\n  envsubst \u003c /opt/tserver/conf/server.conf.template \u003e /tmp/yugabyte/tserver/conf/server.conf \u0026\u0026 \\\n  exec ${k8s_parent} /home/yugabyte/bin/yb-tserver \\\n    --flagfile /tmp/yugabyte/tserver/conf/server.conf\n"
+                        ],
+                        "command": [
+                            "/sbin/tini",
+                            "--"
+                        ],
+                        "env": [
+                            {
+                                "name": "POD_IP",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "status.podIP"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "HOSTNAME",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.name"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "NAMESPACE",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.namespace"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "YBDEVOPS_CORECOPY_DIR",
+                                "value": "/mnt/disk0/cores"
+                            },
+                            {
+                                "name": "CERT_MANAGER_ENABLED",
+                                "value": "false"
+                            },
+                            {
+                                "name": "SERVER_FQDN",
+                                "value": "${HOSTNAME}.yb-tservers.${NAMESPACE}.svc.cluster.local"
+                            },
+                            {
+                                "name": "YSQL_DB",
+                                "value": "yugabyte"
+                            }
+                        ],
+                        "image": "yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imagePullPolicy": "IfNotPresent",
+                        "lifecycle": {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "bash",
+                                        "-c",
+                                        "mkdir -p /mnt/disk0/cores; mkdir -p /mnt/disk0/yb-data/scripts; if [ ! -f /mnt/disk0/yb-data/scripts/log_cleanup.sh ]; then\n  if [ -f /home/yugabyte/bin/log_cleanup.sh ]; then\n    cp /home/yugabyte/bin/log_cleanup.sh /mnt/disk0/yb-data/scripts;\n  fi;\nfi\n"
+                                    ]
+                                }
+                            }
+                        },
+                        "name": "yb-tserver",
+                        "ports": [
+                            {
+                                "containerPort": 9000,
+                                "name": "http-ui",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 12000,
+                                "name": "http-ycql-met",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 11000,
+                                "name": "http-yedis-met",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 13000,
+                                "name": "http-ysql-met",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 9100,
+                                "name": "tcp-rpc-port",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 6379,
+                                "name": "tcp-yedis-port",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 9042,
+                                "name": "tcp-yql-port",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 5433,
+                                "name": "tcp-ysql-port",
+                                "protocol": "TCP"
+                            },
+                            {
+                                "containerPort": 15433,
+                                "name": "yugabyted-ui",
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {
+                            "limits": {
+                                "cpu": "2",
+                                "memory": "6Gi"
+                            },
+                            "requests": {
+                                "cpu": "500m",
+                                "memory": "3Gi"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/tmp",
+                                "name": "tserver-tmp"
+                            },
+                            {
+                                "mountPath": "/opt/tserver/conf",
+                                "name": "tserver-gflags"
+                            },
+                            {
+                                "mountPath": "/opt/debug_hooks_config",
+                                "name": "debug-hooks-volume"
+                            },
+                            {
+                                "mountPath": "/mnt/disk0",
+                                "name": "datadir0",
+                                "subPath": "tserver"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-t5b84",
+                                "readOnly": true
+                            }
+                        ],
+                        "workingDir": "/mnt/disk0/cores"
+                    },
+                    {
+                        "args": [
+                            "/bin/bash",
+                            "-c",
+                            "while true; do\n/home/yugabyte/bin/yugabyted-ui \\\n  -database_host=${HOSTNAME}.yb-tservers.${NAMESPACE}.svc.cluster.local \\\n  -bind_address=0.0.0.0 \\\n  -ysql_port=5433 \\\n  -ycql_port=9042 \\\n  -master_ui_port=7000 \\\n  -tserver_ui_port=9000 \\\n|| echo \"ERROR: yugabyted-ui failed. This might be because your yugabyte \\\nversion is older than 2.21.0. If this is the case, set yugabytedUi.enabled to false \\\nin helm to disable yugabyted-ui, or upgrade to a version 2.21.0 or newer.\"; \\\necho \"Attempting restart in 30s.\"\ntrap break TERM INT; \\\nsleep 30s \u0026 wait; \\\ntrap - TERM INT;\ndone \\\n"
+                        ],
+                        "command": [
+                            "/sbin/tini",
+                            "--"
+                        ],
+                        "env": [
+                            {
+                                "name": "HOSTNAME",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.name"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "NAMESPACE",
+                                "valueFrom": {
+                                    "fieldRef": {
+                                        "apiVersion": "v1",
+                                        "fieldPath": "metadata.namespace"
+                                    }
+                                }
+                            },
+                            {
+                                "name": "YUGABYTED_UI_K8S",
+                                "value": "true"
+                            }
+                        ],
+                        "image": "yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imagePullPolicy": "IfNotPresent",
+                        "name": "yugabyted-ui",
+                        "resources": {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "256Mi"
+                            },
+                            "requests": {
+                                "cpu": "25m",
+                                "memory": "64Mi"
+                            }
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-t5b84",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "hostname": "yb-tserver-0",
+                "nodeName": "10.0.85.142",
+                "nodeSelector": {
+                    "kubernetes.io/hostname": "10.0.85.142"
+                },
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {},
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "subdomain": "yb-tservers",
+                "terminationGracePeriodSeconds": 300,
+                "tolerations": [
+                    {
+                        "effect": "NoSchedule",
+                        "key": "node.kubernetes.io/disk-pressure",
+                        "operator": "Exists"
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "configMap": {
+                            "defaultMode": 493,
+                            "name": "yb-yugabyte-tserver-hooks"
+                        },
+                        "name": "debug-hooks-volume"
+                    },
+                    {
+                        "name": "tserver-gflags",
+                        "secret": {
+                            "defaultMode": 493,
+                            "secretName": "yb-yugabyte-tserver-gflags"
+                        }
+                    },
+                    {
+                        "emptyDir": {},
+                        "name": "tserver-tmp"
+                    },
+                    {
+                        "name": "datadir0",
+                        "persistentVolumeClaim": {
+                            "claimName": "yb-data"
+                        }
+                    },
+                    {
+                        "name": "kube-api-access-t5b84",
+                        "projected": {
+                            "defaultMode": 420,
+                            "sources": [
+                                {
+                                    "serviceAccountToken": {
+                                        "expirationSeconds": 3607,
+                                        "path": "token"
+                                    }
+                                },
+                                {
+                                    "configMap": {
+                                        "items": [
+                                            {
+                                                "key": "ca.crt",
+                                                "path": "ca.crt"
+                                            }
+                                        ],
+                                        "name": "kube-root-ca.crt"
+                                    }
+                                },
+                                {
+                                    "downwardAPI": {
+                                        "items": [
+                                            {
+                                                "fieldRef": {
+                                                    "apiVersion": "v1",
+                                                    "fieldPath": "metadata.namespace"
+                                                },
+                                                "path": "namespace"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:50:34Z",
+                        "status": "True",
+                        "type": "PodReadyToStartContainers"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:50:30Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-11T01:50:25Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-11T01:50:25Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-10-03T13:50:30Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "allocatedResources": {
+                            "cpu": "500m",
+                            "memory": "3Gi"
+                        },
+                        "containerID": "cri-o://59983564f6df866c88a2679d8c4402529f04b5d02cce4c4a0cc31e452e43186d",
+                        "image": "docker.io/yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imageID": "docker.io/yugabytedb/yugabyte@sha256:bf2e1b9b6cca97bae418dda21010045f43da348c2722cc62f84d2961567e627c",
+                        "lastState": {
+                            "terminated": {
+                                "containerID": "cri-o://33e57b5989221897fb1c3ce3a67ee5028d54b0f3f43c3e3819f0fc7f5fb97d6a",
+                                "exitCode": 137,
+                                "finishedAt": "2026-10-11T01:50:22Z",
+                                "reason": "Error",
+                                "startedAt": "2026-10-03T13:50:32Z"
+                            }
+                        },
+                        "name": "yb-tserver",
+                        "ready": true,
+                        "resources": {
+                            "limits": {
+                                "cpu": "2",
+                                "memory": "6Gi"
+                            },
+                            "requests": {
+                                "cpu": "500m",
+                                "memory": "3Gi"
+                            }
+                        },
+                        "restartCount": 1,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-10-11T01:50:25Z"
+                            }
+                        },
+                        "user": {
+                            "linux": {
+                                "gid": 0,
+                                "supplementalGroups": [
+                                    0
+                                ],
+                                "uid": 0
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/tmp",
+                                "name": "tserver-tmp"
+                            },
+                            {
+                                "mountPath": "/opt/tserver/conf",
+                                "name": "tserver-gflags"
+                            },
+                            {
+                                "mountPath": "/opt/debug_hooks_config",
+                                "name": "debug-hooks-volume"
+                            },
+                            {
+                                "mountPath": "/mnt/disk0",
+                                "name": "datadir0"
+                            },
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-t5b84",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    },
+                    {
+                        "allocatedResources": {
+                            "cpu": "25m",
+                            "memory": "64Mi"
+                        },
+                        "containerID": "cri-o://6ecad0602c91123cac81987e35a4cc4b2ed99bb6d39e794c40acbfeece0fdb83",
+                        "image": "docker.io/yugabytedb/yugabyte:2026.1.1.2-b9",
+                        "imageID": "docker.io/yugabytedb/yugabyte@sha256:bf2e1b9b6cca97bae418dda21010045f43da348c2722cc62f84d2961567e627c",
+                        "lastState": {},
+                        "name": "yugabyted-ui",
+                        "ready": true,
+                        "resources": {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "256Mi"
+                            },
+                            "requests": {
+                                "cpu": "25m",
+                                "memory": "64Mi"
+                            }
+                        },
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-10-03T13:50:33Z"
+                            }
+                        },
+                        "user": {
+                            "linux": {
+                                "gid": 0,
+                                "supplementalGroups": [
+                                    0
+                                ],
+                                "uid": 0
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-t5b84",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    }
+                ],
+                "hostIP": "10.0.85.142",
+                "hostIPs": [
+                    {
+                        "ip": "10.0.85.142"
+                    }
+                ],
+                "phase": "Running",
+                "podIP": "10.244.0.47",
+                "podIPs": [
+                    {
+                        "ip": "10.244.0.47"
+                    }
+                ],
+                "qosClass": "Burstable",
+                "startTime": "2026-10-03T13:50:30Z"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

@@ -150,7 +150,18 @@ class AdminApi {
     return res.objectAliasPut.doc;
   }
 
-  Future<void> statsSubscribe() => chatConn.statsSubscribe();
+  Future<ResStatsSubscribe> statsSubscribe() => chatConn.statsSubscribe();
+
+  Future<ResRootConsole> rootConsoleInit({
+    Int64? peaksSinceMs,
+    Int64? peaksUntilMs,
+    bool subscribeStats = true,
+  }) {
+    final req = ReqRootConsole(subscribeStats: subscribeStats);
+    if (peaksSinceMs != null) req.peaksSinceMs = peaksSinceMs;
+    if (peaksUntilMs != null) req.peaksUntilMs = peaksUntilMs;
+    return chatConn.rootConsole(req: req);
+  }
 
   Future<void> statsUnsubscribe() => chatConn.statsUnsubscribe();
 
@@ -181,5 +192,15 @@ class AdminApi {
     invokeResThrow(res, fallback: 'Failed to load ops peaks');
     if (!res.hasAdminOpsPeaks()) throw 'Failed to load ops peaks';
     return res.adminOpsPeaks;
+  }
+
+  Future<ResAdminPlatformUserMetrics> adminPlatformUserMetrics() async {
+    final res = await _invoke(InvokeReq(
+      reqId: const Uuid().v4(),
+      adminPlatformUserMetrics: ReqAdminPlatformUserMetrics(),
+    ));
+    invokeResThrow(res, fallback: 'Failed to load user metrics');
+    if (!res.hasAdminPlatformUserMetrics()) throw 'Failed to load user metrics';
+    return res.adminPlatformUserMetrics;
   }
 }

@@ -18,9 +18,15 @@ After changing `remotes/c_remote_browser/**` or before sheet batch writes when I
 
 `browser.sheets.row_set` calls `agent.restart` and retries once on stale agent errors.
 
-## Extension reload (tell the user only when needed)
+## Extension reload (automatic when possible)
 
-Ask the user to reload Alien AI Remote on chrome://extensions only when `dist/` or `manifest.json` changed and `browser.extension` version is still old after `sync_chrome_extension_install.ps1`.
+After `sync_chrome_extension_install.ps1` or `restart_chrome_remote_agent.ps1` (syncs `install/alienai_remote`):
+
+1. Call `browser.extension` with `op: ensure_updated` (or rely on `agent.ensure` on popup connect — SW reloads when install `manifest.json` version is newer).
+2. Fallback: `browser.extension` `op: reload`.
+3. Ask the user to use chrome://extensions **only** if install version matches but the SW is still stale (wrong unpacked load path).
+
+Chrome must load the unpacked extension from `%LOCALAPPDATA%\AlienAI\chrome_extension\install\alienai_remote` for install-folder auto-update to apply.
 
 ## Sheet writes
 

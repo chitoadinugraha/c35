@@ -533,6 +533,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "c35_mod_captcha"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "c35_mod_billing",
+ "c35_proto",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
 name = "c35_mod_channel"
 version = "0.1.0"
 dependencies = [
@@ -576,6 +591,7 @@ dependencies = [
  "c35_fcm",
  "c35_mod_admin",
  "c35_mod_billing",
+ "c35_mod_captcha",
  "c35_mod_consumption",
  "c35_mod_data_source",
  "c35_mod_device",
@@ -784,7 +800,9 @@ name = "c35_mod_hint"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-nats",
  "c35_ctx",
+ "c35_nats",
  "c35_proto",
  "c35_store",
  "chrono",
@@ -1249,6 +1267,7 @@ dependencies = [
  "c35_proto",
  "c35_wire",
  "c35_wire_http",
+ "chrono",
  "futures-util",
  "prost 0.13.5",
  "serde",

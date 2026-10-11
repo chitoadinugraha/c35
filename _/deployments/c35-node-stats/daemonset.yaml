@@ -30,7 +30,7 @@ spec:
         - name: docker-registry-auth
       containers:
         - name: c-node-stats
-          image: hsg.ocir.io/axr8wqrrukgm/c35-node-stats:2026-10-11-no-chef
+          image: hsg.ocir.io/axr8wqrrukgm/c35-node-stats:latest
           imagePullPolicy: Always
           envFrom:
             - secretRef:
@@ -60,9 +60,8 @@ spec:
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 65532
-            runAsGroup: 65532
+            runAsUser: 0
+            runAsGroup: 0
             capabilities:
               drop:
                 - ALL

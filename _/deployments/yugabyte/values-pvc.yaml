@@ -23,10 +23,10 @@ resource:
   tserver:
     limits:
       cpu: 2000m
-      memory: 6Gi
+      memory: 9Gi
     requests:
       cpu: 500m
-      memory: 3Gi
+      memory: 4Gi
 service:
   endpoints:
     - name: ysql

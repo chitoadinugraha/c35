@@ -3,8 +3,12 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use c35_mod_admin::{require_root, AdminError};
-use c35_nats::{stats_kv_ensure, stats_kv_list_pushes};
-use c35_proto::{stats_push, Event, EventPush, Log, LogPush, StatsPush, WsRes, ws_res};
+use c35_nats::{stats_kv_ensure, stats_kv_key_for_push, stats_kv_list_pushes, stats_kv_put};
+use c35_proto::{
+    stats_push, Event, EventPush, Log, LogPush, ReqAdminOpsPeaks, ReqAdminPlatformUserMetrics,
+    ReqRootConsole, ResRootConsole, ResStatsSubscribe,
+    StatsPush, WsRes, ws_res,
+};
 use futures_util::StreamExt;
 use prost::Message as ProstMessage;
 use tokio::sync::{mpsc, Mutex};
@@ -95,13 +99,73 @@ pub async fn admin_session_drop(session_id: u64) {
     admin_log_unsubscribe(session_id).await;
 }
 
+async fn admin_stats_snapshot_merge(
+    relay_arc: &Arc<Mutex<AdminRelay>>,
+    nats: &async_nats::Client,
+) -> HashMap<String, StatsPush> {
+    let mut merged = {
+        let guard = relay_arc.lock().await;
+        guard.last_stats.clone()
+    };
+    if let Ok(store) = stats_kv_ensure(nats).await {
+        for push in stats_kv_list_pushes(&store).await {
+            let key = stats_push_subject_key(&push);
+            if !key.is_empty() {
+                merged.entry(key).or_insert(push);
+            }
+        }
+    }
+    merged
+}
+
+fn snapshot_vec(merged: &HashMap<String, StatsPush>) -> Vec<StatsPush> {
+    let mut nodes = Vec::new();
+    let mut volumes = Vec::new();
+    let mut pods = Vec::new();
+    for push in merged.values() {
+        match &push.body {
+            Some(stats_push::Body::Node(_)) => nodes.push(push.clone()),
+            Some(stats_push::Body::Volume(_)) => volumes.push(push.clone()),
+            Some(stats_push::Body::Pod(_)) => pods.push(push.clone()),
+            None => {}
+        }
+    }
+    fn node_name(push: &StatsPush) -> &str {
+        match &push.body {
+            Some(stats_push::Body::Node(n)) => n.node_name.as_str(),
+            _ => "",
+        }
+    }
+    fn volume_key(push: &StatsPush) -> String {
+        match &push.body {
+            Some(stats_push::Body::Volume(v)) => {
+                format!("{}.{}.{}", v.node_name, v.namespace, v.pvc_name)
+            }
+            _ => String::new(),
+        }
+    }
+    fn pod_key(push: &StatsPush) -> String {
+        match &push.body {
+            Some(stats_push::Body::Pod(p)) => {
+                format!("{}.{}.{}", p.node_name, p.namespace, p.pod_name)
+            }
+            _ => String::new(),
+        }
+    }
+    nodes.sort_by(|a, b| node_name(a).cmp(node_name(b)));
+    volumes.sort_by(|a, b| volume_key(a).cmp(&volume_key(b)));
+    pods.sort_by(|a, b| pod_key(a).cmp(&pod_key(b)));
+    nodes.into_iter().chain(volumes).chain(pods).collect()
+}
+
 pub async fn admin_stats_subscribe(
     pool: &sqlx::PgPool,
     nats: Option<&async_nats::Client>,
     viewer_iid: i64,
     session_id: u64,
     out_tx: mpsc::UnboundedSender<WsRes>,
-) -> Result<(), AdminError> {
+    fanout_snapshot: bool,
+) -> Result<ResStatsSubscribe, AdminError> {
     require_root(pool, viewer_iid).await?;
     let Some(nats) = nats else {
         return Err(AdminError::bad("nats unavailable"));
@@ -112,22 +176,68 @@ pub async fn admin_stats_subscribe(
         let mut guard = relay_arc.lock().await;
         guard.stats_sessions.insert(session_id, out_tx.clone());
         guard.stats_ref.fetch_add(1, Ordering::AcqRel);
-        let mut merged = guard.last_stats.clone();
         drop(guard);
-        if let Ok(store) = stats_kv_ensure(nats).await {
-            for push in stats_kv_list_pushes(&store).await {
-                let key = stats_push_subject_key(&push);
-                if !key.is_empty() {
-                    merged.entry(key).or_insert(push);
-                }
-            }
-        }
-        merged
+        admin_stats_snapshot_merge(&relay_arc, nats).await
     };
-    for push in merged.values() {
-        let _ = out_tx.send(stats_ws_res(push.clone()));
+    let snapshot = snapshot_vec(&merged);
+    if fanout_snapshot {
+        for push in &snapshot {
+            let _ = out_tx.send(stats_ws_res(push.clone()));
+        }
     }
-    Ok(())
+    Ok(ResStatsSubscribe { snapshot })
+}
+
+pub async fn admin_root_console(
+    pool: &sqlx::PgPool,
+    nats: Option<&async_nats::Client>,
+    viewer_iid: i64,
+    session_id: u64,
+    out_tx: mpsc::UnboundedSender<WsRes>,
+    req: ReqRootConsole,
+) -> Result<ResRootConsole, AdminError> {
+    require_root(pool, viewer_iid).await?;
+    let Some(nats) = nats else {
+        return Err(AdminError::bad("nats unavailable"));
+    };
+    let relay_arc = admin_relay();
+    ensure_stats_listener(relay_arc.clone(), nats.clone()).await;
+    let merged = admin_stats_snapshot_merge(&relay_arc, nats).await;
+    let stats_snapshot = snapshot_vec(&merged);
+
+    let until_ms = req.peaks_until_ms.unwrap_or_else(|| chrono::Utc::now().timestamp_millis());
+    let since_ms = req
+        .peaks_since_ms
+        .unwrap_or(until_ms - 86_400_000);
+    let peaks_req = ReqAdminOpsPeaks {
+        since_ms,
+        until_ms,
+        entity_type: Some("node".into()),
+        node_name: None,
+    };
+
+    let (user_metrics, peaks_24h) = tokio::join!(
+        c35_mod_admin::admin_platform_user_metrics(
+            pool,
+            viewer_iid,
+            ReqAdminPlatformUserMetrics {},
+        ),
+        c35_mod_admin::admin_ops_peaks(pool, viewer_iid, peaks_req),
+    );
+    let user_metrics = user_metrics?;
+    let peaks_24h = peaks_24h?;
+
+    if req.subscribe_stats.unwrap_or(true) {
+        let mut guard = relay_arc.lock().await;
+        guard.stats_sessions.insert(session_id, out_tx.clone());
+        guard.stats_ref.fetch_add(1, Ordering::AcqRel);
+    }
+
+    Ok(ResRootConsole {
+        stats_snapshot,
+        user_metrics: Some(user_metrics),
+        peaks_24h: Some(peaks_24h),
+    })
 }
 
 pub async fn admin_stats_unsubscribe(session_id: u64) {
@@ -193,6 +303,7 @@ async fn stats_nats_loop(
     nats: async_nats::Client,
     cancel: CancellationToken,
 ) {
+    let kv = stats_kv_ensure(&nats).await.ok();
     let mut sub = match nats.subscribe("c35.stats.>").await {
         Ok(s) => s,
         Err(e) => {
@@ -209,6 +320,17 @@ async fn stats_nats_loop(
                 let key = stats_push_subject_key(&push);
                 if key.is_empty() {
                     continue;
+                }
+                if let Some(store) = kv.as_ref() {
+                    if let Some(kv_key) = stats_kv_key_for_push(&push) {
+                        let store = store.clone();
+                        let push_kv = push.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = stats_kv_put(&store, &kv_key, &push_kv).await {
+                                warn!(key = %kv_key, error = %e, "stats KV relay put failed");
+                            }
+                        });
+                    }
                 }
                 let ws = stats_ws_res(push.clone());
                 let sessions = {

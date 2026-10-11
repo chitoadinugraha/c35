@@ -62,6 +62,11 @@ async fn enrich_one(row: &InstRow, ctx: &InstEnrichCtx<'_>) -> Option<(String, S
                 .ok()?;
             Some(("consumption.nutrition".into(), v.to_string()))
         }
+        "inst.me" => {
+            let block = crate::prompt::user_me_enrich::user_me_enrich(ctx.pool, ctx.owner_iid)
+                .await?;
+            Some(("user.me".into(), block))
+        }
         _ => None,
     }
 }

@@ -57,6 +57,37 @@ pub async fn hint_bundle_get(
     hint_bundle_compile(pool, user_iid, locale).await
 }
 
+pub async fn hint_bundle_get_nats(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    user_iid: i64,
+    locale: &str,
+    since_ms: i64,
+) -> Result<HintCatalog> {
+    let lang = locale_lang(locale);
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::hint_bundle_kv_ensure(client).await {
+            if let Some(cached) = c35_nats::hint_bundle_cache_get(&store, user_iid, &lang).await {
+                if cached.updated_ts_ms > 0 && since_ms >= cached.updated_ts_ms {
+                    return Ok(HintCatalog {
+                        updated_ts_ms: cached.updated_ts_ms,
+                        items: vec![],
+                    });
+                }
+                return Ok(cached);
+            }
+        }
+    }
+
+    let catalog = hint_bundle_get(pool, user_iid, locale, since_ms).await?;
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::hint_bundle_kv_ensure(client).await {
+            let _ = c35_nats::hint_bundle_cache_put(&store, user_iid, &lang, &catalog).await;
+        }
+    }
+    Ok(catalog)
+}
+
 pub async fn hint_bundle_compile(pool: &PgPool, user_iid: i64, locale: &str) -> Result<HintCatalog> {
     let lang = locale_lang(locale);
     let en = translation_get(pool, "en", &["hint"]).await;

@@ -21,6 +21,7 @@ base64 = { workspace = true }
 urlencoding = { workspace = true }
 webrtc = { workspace = true }
 zip = { workspace = true }
+dashmap = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

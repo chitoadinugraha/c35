@@ -13,3 +13,6 @@ spec:
     - name: http
       port: 10000
       targetPort: http
+    - name: egress
+      port: 8443
+      targetPort: egress

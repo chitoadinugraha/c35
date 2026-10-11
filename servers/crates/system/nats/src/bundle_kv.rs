@@ -1,7 +1,7 @@
 use anyhow::Context as _;
 use async_nats::jetstream::{self, kv::Store};
 use async_nats::Client;
-use c35_proto::{ScopeInstructionBundle, UserMemoryBundle};
+use c35_proto::{HintCatalog, ScopeInstructionBundle, UserMemoryBundle};
 use prost::Message;
 use std::time::Duration;
 
@@ -94,3 +94,84 @@ pub async fn scope_inst_bundle_delete(store: &Store, owner_iid: i64) -> anyhow::
     let _ = store.delete(&key).await;
     Ok(())
 }
+
+pub const DEVICE_PRESENCE_KV_BUCKET: &str = "c35_device_presence";
+pub const DEVICE_PRESENCE_TTL_SECS: u64 = 30; // 30 seconds
+
+pub fn device_presence_kv_key(device_iid: i64) -> String {
+    format!("dev_{device_iid}")
+}
+
+pub async fn device_presence_kv_ensure(client: &Client) -> anyhow::Result<Store> {
+    let js = jetstream::new(client.clone());
+    match js.get_key_value(DEVICE_PRESENCE_KV_BUCKET).await {
+        Ok(store) => Ok(store),
+        Err(_) => js
+            .create_key_value(jetstream::kv::Config {
+                bucket: DEVICE_PRESENCE_KV_BUCKET.into(),
+                history: 1,
+                max_age: Duration::from_secs(DEVICE_PRESENCE_TTL_SECS),
+                ..Default::default()
+            })
+            .await
+            .context("create c35_device_presence KV"),
+    }
+}
+
+pub async fn device_presence_put(store: &Store, device_iid: i64) -> anyhow::Result<()> {
+    let key = device_presence_kv_key(device_iid);
+    store.put(&key, "online".into()).await?;
+    Ok(())
+}
+
+pub async fn device_presence_get(store: &Store, device_iid: i64) -> bool {
+    let key = device_presence_kv_key(device_iid);
+    matches!(store.get(&key).await, Ok(Some(_)))
+}
+
+pub const HINT_BUNDLE_KV_BUCKET: &str = "c35_hint_bundle_cache";
+
+pub fn hint_bundle_kv_key(user_iid: i64, lang: &str) -> String {
+    format!("hint_{user_iid}_{lang}")
+}
+
+pub async fn hint_bundle_kv_ensure(client: &Client) -> anyhow::Result<Store> {
+    let js = jetstream::new(client.clone());
+    match js.get_key_value(HINT_BUNDLE_KV_BUCKET).await {
+        Ok(store) => Ok(store),
+        Err(_) => js
+            .create_key_value(jetstream::kv::Config {
+                bucket: HINT_BUNDLE_KV_BUCKET.into(),
+                history: 1,
+                max_age: Duration::from_secs(BUNDLE_CACHE_TTL_SECS),
+                ..Default::default()
+            })
+            .await
+            .context("create c35_hint_bundle_cache KV"),
+    }
+}
+
+pub async fn hint_bundle_cache_get(store: &Store, user_iid: i64, lang: &str) -> Option<HintCatalog> {
+    let key = hint_bundle_kv_key(user_iid, lang);
+    let Ok(Some(bytes)) = store.get(&key).await else {
+        return None;
+    };
+    HintCatalog::decode(bytes.as_ref()).ok()
+}
+
+pub async fn hint_bundle_cache_put(store: &Store, user_iid: i64, lang: &str, catalog: &HintCatalog) -> anyhow::Result<()> {
+    let key = hint_bundle_kv_key(user_iid, lang);
+    let bytes = catalog.encode_to_vec();
+    store.put(&key, bytes.into()).await?;
+    Ok(())
+}
+
+pub async fn hint_bundle_cache_delete(store: &Store, user_iid: i64) -> anyhow::Result<()> {
+    for lang in &["en", "id"] {
+        let key = hint_bundle_kv_key(user_iid, lang);
+        let _ = store.delete(&key).await;
+    }
+    Ok(())
+}
+
+

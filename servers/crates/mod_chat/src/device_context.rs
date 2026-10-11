@@ -615,10 +615,42 @@ pub async fn device_prompt_tool_exclude(
     out
 }
 
+/// Local file/folder delete or remove on a paired PC (not cloud task.delete).
+pub fn user_asks_local_file_op(text: &str) -> bool {
+    let t = text.to_ascii_lowercase();
+    let verb = [
+        "delete",
+        "remove",
+        "unlink",
+        "hapus",
+        "buang",
+        "erase",
+    ]
+    .iter()
+    .any(|k| t.contains(k));
+    if !verb {
+        return false;
+    }
+    [
+        ".txt",
+        ".pdf",
+        ".doc",
+        ".csv",
+        " file",
+        "folder",
+        "desktop",
+        "download",
+        "documents",
+        "test.txt",
+    ]
+    .iter()
+    .any(|k| t.contains(k))
+}
+
 pub async fn chat_bound_device_iid_for_owner(pool: &PgPool, owner_iid: i64, chat_id: i64) -> i64 {
-    let row: Option<(i64, Value)> = sqlx::query_as(
+    let row: Option<(i64, i64, Value)> = sqlx::query_as(
         r#"
-        SELECT owner_iid, COALESCE(meta, '{}'::jsonb)
+        SELECT owner_iid, COALESCE(bound_device_iid, 0), COALESCE(meta, '{}'::jsonb)
         FROM ai.chat
         WHERE id = $1 AND deleted_ts IS NULL
         "#,
@@ -628,7 +660,13 @@ pub async fn chat_bound_device_iid_for_owner(pool: &PgPool, owner_iid: i64, chat
     .await
     .unwrap_or(None);
     match row {
-        Some((oid, meta)) if oid == owner_iid => chat_bound_device_iid(&meta),
+        Some((oid, bound_col, meta)) if oid == owner_iid => {
+            if bound_col > 0 {
+                bound_col
+            } else {
+                chat_bound_device_iid(&meta)
+            }
+        }
         _ => 0,
     }
 }
@@ -636,6 +674,12 @@ pub async fn chat_bound_device_iid_for_owner(pool: &PgPool, owner_iid: i64, chat
 #[cfg(test)]
 mod platform_tests {
     use super::*;
+
+    #[test]
+    fn user_asks_local_file_op_matches_delete_txt() {
+        assert!(user_asks_local_file_op("delete that test.txt file"));
+        assert!(!user_asks_local_file_op("delete my expense from yesterday"));
+    }
 
     #[test]
     fn android_only_scope_sets_signal_and_shell_hint() {

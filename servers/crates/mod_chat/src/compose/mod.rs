@@ -37,6 +37,11 @@ pub use tool_select::{
 };
 pub use topic::{tool_topic_eligible, topic_resolve};
 
+mod context_web;
+pub use context_web::{
+    compose_skip_web_prefetch_for_context, compose_suppress_web_when_context_ready,
+};
+
 #[derive(Clone)]
 pub struct ComposePreload {
     pub staff: StaffView,
@@ -72,6 +77,7 @@ pub fn compose_force_web_tool_call(
     matched_ids: &[String],
     tools: &[ToolDef],
     user_text: &str,
+    enrich_keys: &[String],
 ) -> bool {
     if matched_ids.iter().any(|id| {
         id == "inst.mention.sheets"
@@ -87,6 +93,9 @@ pub fn compose_force_web_tool_call(
         user_text,
         matched_ids,
     ) {
+        return false;
+    }
+    if context_web::compose_suppress_web_when_context_ready(matched_ids, enrich_keys, user_text) {
         return false;
     }
     matched_ids.iter().any(|id| id == "inst.web_search")
@@ -209,7 +218,7 @@ pub fn compose_force_site_query_tool_call(matched_ids: &[String], tools: &[ToolD
 }
 
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
-    compose_force_web_tool_call(matched_ids, tools, "")
+    compose_force_web_tool_call(matched_ids, tools, "", &[])
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)
@@ -222,7 +231,7 @@ pub fn compose_force_tool_call_with_text(
     tools: &[ToolDef],
     user_text: &str,
 ) -> bool {
-    compose_force_web_tool_call(matched_ids, tools, user_text)
+    compose_force_web_tool_call(matched_ids, tools, user_text, &[])
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)

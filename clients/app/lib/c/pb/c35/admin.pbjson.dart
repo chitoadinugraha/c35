@@ -371,3 +371,69 @@ final $typed_data.Uint8List resAdminLlmCatalogListDescriptor = $convert.base64De
     'NhdGFsb2dSb3dSBm1vZGVscxIjCg1yZXRhaWxfbWFya3VwGAIgASgBUgxyZXRhaWxNYXJrdXAS'
     'NAoIc2VydmljZXMYAyADKAsyGC5jMzUuQWRtaW5TZXJ2aWNlUmF0ZVJvd1IIc2VydmljZXMSLA'
     'oEbGl2ZRgEIAMoCzIYLmMzNS5BZG1pblNlcnZpY2VSYXRlUm93UgRsaXZl');
+
+@$core.Deprecated('Use platformUserMetricsWindowCountsDescriptor instead')
+const PlatformUserMetricsWindowCounts$json = {
+  '1': 'PlatformUserMetricsWindowCounts',
+  '2': [
+    {'1': 'h24', '3': 1, '4': 1, '5': 3, '10': 'h24'},
+    {'1': 'd7', '3': 2, '4': 1, '5': 3, '10': 'd7'},
+    {'1': 'd30', '3': 3, '4': 1, '5': 3, '10': 'd30'},
+    {'1': 'y1', '3': 4, '4': 1, '5': 3, '10': 'y1'},
+  ],
+};
+
+/// Descriptor for `PlatformUserMetricsWindowCounts`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List platformUserMetricsWindowCountsDescriptor =
+    $convert.base64Decode(
+        'Ch9QbGF0Zm9ybVVzZXJNZXRyaWNzV2luZG93Q291bnRzEhAKA2gyNBgBIAEoA1IDaDI0Eg4KAm'
+        'Q3GAIgASgDUgJkNxIQCgNkMzAYAyABKANSA2QzMBIOCgJ5MRgEIAEoA1ICeTE=');
+
+@$core.Deprecated('Use reqAdminPlatformUserMetricsDescriptor instead')
+const ReqAdminPlatformUserMetrics$json = {
+  '1': 'ReqAdminPlatformUserMetrics',
+};
+
+/// Descriptor for `ReqAdminPlatformUserMetrics`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqAdminPlatformUserMetricsDescriptor =
+    $convert.base64Decode('ChtSZXFBZG1pblBsYXRmb3JtVXNlck1ldHJpY3M=');
+
+@$core.Deprecated('Use resAdminPlatformUserMetricsDescriptor instead')
+const ResAdminPlatformUserMetrics$json = {
+  '1': 'ResAdminPlatformUserMetrics',
+  '2': [
+    {
+      '1': 'users',
+      '3': 1,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.PlatformUserMetricsWindowCounts',
+      '10': 'users'
+    },
+    {
+      '1': 'active_users',
+      '3': 2,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.PlatformUserMetricsWindowCounts',
+      '10': 'activeUsers'
+    },
+    {
+      '1': 'paid_users',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.PlatformUserMetricsWindowCounts',
+      '10': 'paidUsers'
+    },
+    {'1': 'total_users', '3': 4, '4': 1, '5': 3, '10': 'totalUsers'},
+  ],
+};
+
+/// Descriptor for `ResAdminPlatformUserMetrics`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resAdminPlatformUserMetricsDescriptor = $convert.base64Decode(
+    'ChtSZXNBZG1pblBsYXRmb3JtVXNlck1ldHJpY3MSOgoFdXNlcnMYASABKAsyJC5jMzUuUGxhdG'
+    'Zvcm1Vc2VyTWV0cmljc1dpbmRvd0NvdW50c1IFdXNlcnMSRwoMYWN0aXZlX3VzZXJzGAIgASgL'
+    'MiQuYzM1LlBsYXRmb3JtVXNlck1ldHJpY3NXaW5kb3dDb3VudHNSC2FjdGl2ZVVzZXJzEkMKCn'
+    'BhaWRfdXNlcnMYAyABKAsyJC5jMzUuUGxhdGZvcm1Vc2VyTWV0cmljc1dpbmRvd0NvdW50c1IJ'
+    'cGFpZFVzZXJzEh8KC3RvdGFsX3VzZXJzGAQgASgDUgp0b3RhbFVzZXJz');

@@ -8,7 +8,7 @@ const adminAccent = Color(0xFF34D399);
 const adminAccentFg = Color(0xFF052E16);
 const adminBarBg = Color(0xFF27272A);
 const adminBarFill = Color(0xFF34D399);
-const adminBarWarn = Color(0xFFFBBF24);
+const adminBarWarn = Color(0xFFF97316);
 const adminBarCrit = Color(0xFFF87171);
 const adminBarIn = Color(0xFF60A5FA);
 const adminBarOut = Color(0xFF34D399);
@@ -16,6 +16,14 @@ const adminHealthOk = Color(0xFF34D399);
 const adminHealthStale = Color(0xFFF87171);
 
 Color adminBarFillForPct(double pct) => pct > 90 ? adminBarCrit : pct > 80 ? adminBarWarn : adminBarFill;
+
+/// Bar fill 0–1 (e.g. bps ÷ scale). Below warn/crit thresholds, uses [normal].
+Color adminBarFillForUtil(double frac, {required Color normal}) {
+  final pct = frac.clamp(0.0, 1.0) * 100;
+  if (pct > 90) return adminBarCrit;
+  if (pct > 80) return adminBarWarn;
+  return normal;
+}
 
 const adminDashboardMaxWidth = 800.0;
 

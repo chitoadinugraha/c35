@@ -14,3 +14,5 @@ tracing = { workspace = true }
 c35_ctx = { path = "../system/ctx", package = "c35_ctx" }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_store = { path = "../store", package = "c35_store" }
+c35_nats = { path = "../system/nats", package = "c35_nats" }
+async-nats = { workspace = true }

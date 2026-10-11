@@ -29,6 +29,18 @@ Uses `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` / `_/certs/google-play-upload-service-ac
 
 Edits commit immediately (Google sends listing changes for review when required).
 
+## Sync billing SKUs (subscriptions + credit packs)
+
+From `_/scripts/deploy` (same service account as AAB upload; needs `YB_PASSWORD` for catalog prices):
+
+```powershell
+dart run deploy_app/play_store_billing_sync.dart
+dart run deploy_app/play_store_billing_sync.dart --apply
+dart run deploy_app/play_store_billing_sync.dart --apply --create-missing
+```
+
+Prices follow server rules: `ai.billing_plan_price` x **1.15** (`PLAY_MARKUP`), product IDs `id.alienai.plan.*` and `id.alienai.credit.*`. Optional: `PLAY_REGIONS_VERSION`, `--currency=USD|all`.
+
 ## Manual paste
 
 If you prefer Console: Play Console → Grow → Store presence → Main store listing → paste from the locale folder.

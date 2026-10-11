@@ -54,7 +54,8 @@ use crate::prompt::ChatReq;
 use crate::prompt_run::prompt_run_get;
 use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
-use crate::user_asset_rag::user_asset_retrieve;
+use crate::user_asset_rag::{user_asset_retrieve, UserAssetRetrieveResult};
+use crate::device_context::user_asks_local_file_op;
 use crate::tools::{http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::{timed, StageClock, TurnTracer};
 
@@ -321,19 +322,56 @@ where
     };
     let st = Instant::now();
     if !hooks.skip_billing_gate {
-        c35_mod_billing::billing_gate_with_hold_model_opt(
-            pool,
-            owner_iid,
-            &brow,
-            req_id,
-            c35_mod_billing::DEFAULT_HOLD_USD,
-            Some(requested_model),
-            Some(freemium),
-        )
-        .await?;
+        if let Some(ref cached) = cached_billing {
+            if cached.has_sufficient_allowance {
+                c35_mod_billing::billing_gate_trusted_allowance_fast(
+                    pool,
+                    owner_iid,
+                    &brow,
+                    req_id,
+                    c35_mod_billing::DEFAULT_HOLD_USD,
+                    freemium,
+                )
+                .await?;
+            } else {
+                c35_mod_billing::billing_gate_with_hold_model_opt(
+                    pool,
+                    owner_iid,
+                    &brow,
+                    req_id,
+                    c35_mod_billing::DEFAULT_HOLD_USD,
+                    Some(requested_model),
+                    Some(freemium),
+                )
+                .await?;
+            }
+        } else {
+            c35_mod_billing::billing_gate_with_hold_model_opt(
+                pool,
+                owner_iid,
+                &brow,
+                req_id,
+                c35_mod_billing::DEFAULT_HOLD_USD,
+                Some(requested_model),
+                Some(freemium),
+            )
+            .await?;
+        }
     }
     if cached_billing.is_none() {
-        let has_sufficient = c35_mod_billing::evaluate_allowance_sufficient(&brow, freemium, 0.0);
+        let profile_remaining = if freemium {
+            0.0
+        } else {
+            match c35_mod_billing::billing_profile_fetch(pool, owner_iid).await {
+                Ok(Some(p)) if c35_mod_billing::profile_has_rings(&p) => {
+                    let (a, f) = c35_mod_billing::profile_ring_remaining_usd(&p.rings);
+                    a + f
+                }
+                _ => 0.0,
+            }
+        };
+        let has_sufficient =
+            c35_mod_billing::evaluate_allowance_sufficient(&brow, freemium, profile_remaining);
         c35_mod_billing::billing_cache_put(
             nats,
             &c35_mod_billing::BillingGateCached {
@@ -510,12 +548,22 @@ where
         timed(async { prompt_run_get(pool, req_id).await.ok().flatten() }),
         timed(mention_resolve_all(pool, owner_iid, &mention_ids)),
         timed(user_prompt_context_get(pool, owner_iid)),
-        timed(user_asset_retrieve(pool, &http, owner_iid, &req.text)),
         timed(async {
-            site_context_resolve(pool, owner_iid, &req.text, &inst_mention_ids)
-                .await
-                .ok()
-                .flatten()
+            if is_simple_time {
+                UserAssetRetrieveResult::default()
+            } else {
+                user_asset_retrieve(pool, &http, owner_iid, &req.text).await
+            }
+        }),
+        timed(async {
+            if is_simple_time {
+                None
+            } else {
+                site_context_resolve(pool, owner_iid, &req.text, &inst_mention_ids)
+                    .await
+                    .ok()
+                    .flatten()
+            }
         }),
         timed(chat_bound_device_iid_for_owner(pool, owner_iid, chat_id)),
         timed(chat_last_assistant_content(pool, chat_id)),
@@ -595,15 +643,19 @@ where
             }
         }),
         timed(async {
-            crate::scope_instruction::scope_instruction_load_for_prompt_nats(
-                pool,
-                nats,
-                owner_iid,
-                &site_iids,
-                &site_names,
-            )
-            .await
-            .unwrap_or((None, vec![]))
+            if is_simple_time {
+                (None, vec![])
+            } else {
+                crate::scope_instruction::scope_instruction_load_for_prompt_nats(
+                    pool,
+                    nats,
+                    owner_iid,
+                    &site_iids,
+                    &site_names,
+                )
+                .await
+                .unwrap_or((None, vec![]))
+            }
         }),
 
         timed(site_capability_view_for_mention(pool, &mention_ctx)),
@@ -626,7 +678,9 @@ where
             (scope, exclude)
         }),
         timed(async {
-            if mention_ctx.sites.is_empty() {
+            if is_simple_time {
+                None
+            } else if mention_ctx.sites.is_empty() {
                 Some(c35_mod_site::site_granted_iids(pool, owner_iid).await)
             } else {
                 None
@@ -682,6 +736,11 @@ where
     let mut device_tool_exclude = device_tool_exclude;
     if let Some(c) = &commerce_followup {
         device_tool_exclude.extend(c.tool_exclude.clone());
+    }
+    if bound_device_iid > 0 && user_asks_local_file_op(&req.text) {
+        catalog_force_tools.push("shell.run".to_string());
+        device_tool_exclude.push("web.search".to_string());
+        device_tool_exclude.push("web.visit".to_string());
     }
     let mut compose_signals = vec![inst_pool_signal(&model).to_string(), "wire:date_range".into()];
     compose_signals.extend(device_platform_compose_signals(&platform_scope));
@@ -743,8 +802,12 @@ where
     };
     let force_tool_call =
         compose_force_tool_call_with_text(&composed.matched_ids, &tools, &req.text);
-    let force_web_tool_call =
-        compose_force_web_tool_call(&composed.matched_ids, &tools, &req.text);
+    let force_web_tool_call = compose_force_web_tool_call(
+        &composed.matched_ids,
+        &tools,
+        &req.text,
+        &composed.trace.inst_enrich_keys,
+    );
 
     let tz = time_timezone_resolve(&user_ctx.tz, locale_eff, &req.text);
     let time_block = time_prompt_block(&tz);
@@ -917,8 +980,14 @@ where
             None => false,
         };
     let catalog_web = catalog_web_phase(&composed.matched_ids, has_site);
-    let skip_web_prefetch = catalog_skip_web_prefetch(&composed.matched_ids, catalog_web)
-        || site_commerce_skip_web_prefetch(&req.text, &composed.matched_ids);
+    let skip_web_prefetch = is_simple_time
+        || catalog_skip_web_prefetch(&composed.matched_ids, catalog_web)
+        || site_commerce_skip_web_prefetch(&req.text, &composed.matched_ids)
+        || crate::compose::compose_skip_web_prefetch_for_context(
+            &composed.matched_ids,
+            &composed.trace.inst_enrich_keys,
+            &req.text,
+        );
     let chat_req = ChatReq {
         model: model.clone(),
         system,
@@ -1001,6 +1070,9 @@ where
     if let Ok(extra) = turn_ctx.doc_ocr.lock() {
         context_billing.merge(&extra);
     }
+    if !res.text.is_empty() {
+        on_delta(false, res.text.clone());
+    }
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     let assistant_msg_id = snowflake_id();
     let blocks_json = if res.blocks_json.is_empty() {
@@ -1021,20 +1093,7 @@ where
             &res.text,
         )
         .await;
-    let st = Instant::now();
-    match memory_extract_turn_gate(pool, &http, owner_iid, None, req_id, &req.text, &res.text).await
-    {
-        Ok((writes, tin, tout, cost)) => {
-            context_billing.memory_extract_writes += writes;
-            context_billing.memory_extract_cost_usd += cost;
-            context_billing.compaction_tokens_in += tin;
-            context_billing.compaction_tokens_out += tout;
-        }
-        Err(e) => crate::memory_extract::memory_extract_log_err(&e),
-    }
-    settle.seq("memory_extract", "Memory extract", st);
     let context_extra = context_billing.total_extra_usd();
-    let usage_meta = context_billing.to_log_meta();
     let llm_cost = c35_mod_billing::billing_cost_usd(&res.model_used, res.tokens_in, res.tokens_out);
     let extra_cost = res.tools_cost_usd
         + context_extra
@@ -1053,12 +1112,44 @@ where
     let req_id_bg = req_id.to_string();
     let model_bg = res.model_used.clone();
     let bctx_bg = bctx.clone();
-    let usage_meta_bg = if usage_meta.as_object().map(|o| !o.is_empty()).unwrap_or(false) {
-        Some(usage_meta)
-    } else {
-        None
-    };
+    let user_text_bg = req.text.clone();
+    let assistant_text_bg = res.text.clone();
+    let mut context_billing_bg = context_billing;
+    let tools_cost_bg = res.tools_cost_usd;
+    let tool_embed_cost_bg = composed.trace.tool_embed_cost_usd;
+    let memory_embed_cost_bg = memory.trace.embed_cost_usd;
+    let tokens_in_bg = res.tokens_in;
+    let tokens_out_bg = res.tokens_out;
     tokio::spawn(async move {
+        let http_bg = http_client(std::time::Duration::from_secs(30));
+        match memory_extract_turn_gate(
+            &pool_bg,
+            &http_bg,
+            owner_iid,
+            None,
+            &req_id_bg,
+            &user_text_bg,
+            &assistant_text_bg,
+        )
+        .await
+        {
+            Ok((writes, tin, tout, cost)) => {
+                context_billing_bg.memory_extract_writes += writes;
+                context_billing_bg.memory_extract_cost_usd += cost;
+                context_billing_bg.compaction_tokens_in += tin;
+                context_billing_bg.compaction_tokens_out += tout;
+            }
+            Err(e) => crate::memory_extract::memory_extract_log_err(&e),
+        }
+        let context_extra_bg = context_billing_bg.total_extra_usd();
+        let usage_meta_bg = context_billing_bg.to_log_meta();
+        let extra_cost_bg =
+            tools_cost_bg + context_extra_bg + tool_embed_cost_bg + memory_embed_cost_bg;
+        let usage_meta_opt = if usage_meta_bg.as_object().map(|o| !o.is_empty()).unwrap_or(false) {
+            Some(usage_meta_bg)
+        } else {
+            None
+        };
         if let Err(e) = c35_mod_billing::billing_usage_report(
             &pool_bg,
             nats_bg.as_ref(),
@@ -1066,12 +1157,12 @@ where
             &req_id_bg,
             chat_id,
             &model_bg,
-            res.tokens_in,
-            res.tokens_out,
+            tokens_in_bg,
+            tokens_out_bg,
             duration_ms,
             Some(&bctx_bg),
-            extra_cost,
-            usage_meta_bg,
+            extra_cost_bg,
+            usage_meta_opt,
         )
         .await
         {

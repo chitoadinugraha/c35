@@ -588,6 +588,24 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'billingAdminPlanChange'
     },
+    {
+      '1': 'admin_platform_user_metrics',
+      '3': 143,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqAdminPlatformUserMetrics',
+      '9': 0,
+      '10': 'adminPlatformUserMetrics'
+    },
+    {
+      '1': 'device_egress_lease',
+      '3': 144,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDeviceEgressLease',
+      '9': 0,
+      '10': 'deviceEgressLease'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -685,7 +703,10 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'bV9jYXRhbG9nX2xpc3QYjQEgASgLMhsuYzM1LlJlcUFkbWluTGxtQ2F0YWxvZ0xpc3RIAFITYW'
     'RtaW5MbG1DYXRhbG9nTGlzdBJcChliaWxsaW5nX2FkbWluX3BsYW5fY2hhbmdlGI4BIAEoCzIe'
     'LmMzNS5SZXFCaWxsaW5nQWRtaW5QbGFuQ2hhbmdlSABSFmJpbGxpbmdBZG1pblBsYW5DaGFuZ2'
-    'VCBgoEYm9keQ==');
+    'USYgobYWRtaW5fcGxhdGZvcm1fdXNlcl9tZXRyaWNzGI8BIAEoCzIgLmMzNS5SZXFBZG1pblBs'
+    'YXRmb3JtVXNlck1ldHJpY3NIAFIYYWRtaW5QbGF0Zm9ybVVzZXJNZXRyaWNzEkwKE2RldmljZV'
+    '9lZ3Jlc3NfbGVhc2UYkAEgASgLMhkuYzM1LlJlcURldmljZUVncmVzc0xlYXNlSABSEWRldmlj'
+    'ZUVncmVzc0xlYXNlQgYKBGJvZHk=');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -1252,6 +1273,24 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'billingAdminPlanChange'
     },
+    {
+      '1': 'admin_platform_user_metrics',
+      '3': 143,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminPlatformUserMetrics',
+      '9': 0,
+      '10': 'adminPlatformUserMetrics'
+    },
+    {
+      '1': 'device_egress_lease',
+      '3': 144,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResDeviceEgressLease',
+      '9': 0,
+      '10': 'deviceEgressLease'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1348,7 +1387,10 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     '1pbl9sbG1fY2F0YWxvZ19saXN0GI0BIAEoCzIbLmMzNS5SZXNBZG1pbkxsbUNhdGFsb2dMaXN0'
     'SABSE2FkbWluTGxtQ2F0YWxvZ0xpc3QSVwoZYmlsbGluZ19hZG1pbl9wbGFuX2NoYW5nZRiOAS'
     'ABKAsyGS5jMzUuUmVzQmlsbGluZ1BsYW5DaGFuZ2VIAFIWYmlsbGluZ0FkbWluUGxhbkNoYW5n'
-    'ZUIGCgRib2R5');
+    'ZRJiChthZG1pbl9wbGF0Zm9ybV91c2VyX21ldHJpY3MYjwEgASgLMiAuYzM1LlJlc0FkbWluUG'
+    'xhdGZvcm1Vc2VyTWV0cmljc0gAUhhhZG1pblBsYXRmb3JtVXNlck1ldHJpY3MSTAoTZGV2aWNl'
+    'X2VncmVzc19sZWFzZRiQASABKAsyGS5jMzUuUmVzRGV2aWNlRWdyZXNzTGVhc2VIAFIRZGV2aW'
+    'NlRWdyZXNzTGVhc2VCBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {
@@ -2759,6 +2801,42 @@ const WsReq$json = {
       '9': 0,
       '10': 'siteEditorWarm'
     },
+    {
+      '1': 'req_device_egress_open',
+      '3': 218,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDeviceEgressOpen',
+      '9': 0,
+      '10': 'reqDeviceEgressOpen'
+    },
+    {
+      '1': 'req_device_egress_data',
+      '3': 219,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDeviceEgressData',
+      '9': 0,
+      '10': 'reqDeviceEgressData'
+    },
+    {
+      '1': 'req_device_egress_close',
+      '3': 220,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqDeviceEgressClose',
+      '9': 0,
+      '10': 'reqDeviceEgressClose'
+    },
+    {
+      '1': 'root_console',
+      '3': 221,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqRootConsole',
+      '9': 0,
+      '10': 'rootConsole'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2957,7 +3035,12 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     '9uR2V0SABSE3Njb3BlSW5zdHJ1Y3Rpb25HZXQSUgoVc2NvcGVfaW5zdHJ1Y3Rpb25fcHV0GNgB'
     'IAEoCzIbLmMzNS5SZXFTY29wZUluc3RydWN0aW9uUHV0SABSE3Njb3BlSW5zdHJ1Y3Rpb25QdX'
     'QSQwoQc2l0ZV9lZGl0b3Jfd2FybRjZASABKAsyFi5jMzUuUmVxU2l0ZUVkaXRvcldhcm1IAFIO'
-    'c2l0ZUVkaXRvcldhcm1CBgoEYm9keQ==');
+    'c2l0ZUVkaXRvcldhcm0SUAoWcmVxX2RldmljZV9lZ3Jlc3Nfb3BlbhjaASABKAsyGC5jMzUuUm'
+    'VxRGV2aWNlRWdyZXNzT3BlbkgAUhNyZXFEZXZpY2VFZ3Jlc3NPcGVuElAKFnJlcV9kZXZpY2Vf'
+    'ZWdyZXNzX2RhdGEY2wEgASgLMhguYzM1LlJlcURldmljZUVncmVzc0RhdGFIAFITcmVxRGV2aW'
+    'NlRWdyZXNzRGF0YRJTChdyZXFfZGV2aWNlX2VncmVzc19jbG9zZRjcASABKAsyGS5jMzUuUmVx'
+    'RGV2aWNlRWdyZXNzQ2xvc2VIAFIUcmVxRGV2aWNlRWdyZXNzQ2xvc2USOQoMcm9vdF9jb25zb2'
+    'xlGN0BIAEoCzITLmMzNS5SZXFSb290Q29uc29sZUgAUgtyb290Q29uc29sZUIGCgRib2R5');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -4468,6 +4551,51 @@ const WsRes$json = {
       '9': 0,
       '10': 'siteEditorWarm'
     },
+    {
+      '1': 'res_device_egress_open',
+      '3': 218,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResDeviceEgressOpen',
+      '9': 0,
+      '10': 'resDeviceEgressOpen'
+    },
+    {
+      '1': 'device_egress_data',
+      '3': 219,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.DeviceEgressData',
+      '9': 0,
+      '10': 'deviceEgressData'
+    },
+    {
+      '1': 'device_egress_close',
+      '3': 220,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.DeviceEgressClose',
+      '9': 0,
+      '10': 'deviceEgressClose'
+    },
+    {
+      '1': 'stats_subscribe',
+      '3': 221,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResStatsSubscribe',
+      '9': 0,
+      '10': 'statsSubscribe'
+    },
+    {
+      '1': 'root_console',
+      '3': 222,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResRootConsole',
+      '9': 0,
+      '10': 'rootConsole'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4679,7 +4807,13 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'ZUluc3RydWN0aW9uR2V0ElIKFXNjb3BlX2luc3RydWN0aW9uX3B1dBjYASABKAsyGy5jMzUuUm'
     'VzU2NvcGVJbnN0cnVjdGlvblB1dEgAUhNzY29wZUluc3RydWN0aW9uUHV0EkMKEHNpdGVfZWRp'
     'dG9yX3dhcm0Y2QEgASgLMhYuYzM1LlJlc1NpdGVFZGl0b3JXYXJtSABSDnNpdGVFZGl0b3JXYX'
-    'JtQgYKBGJvZHk=');
+    'JtElAKFnJlc19kZXZpY2VfZWdyZXNzX29wZW4Y2gEgASgLMhguYzM1LlJlc0RldmljZUVncmVz'
+    'c09wZW5IAFITcmVzRGV2aWNlRWdyZXNzT3BlbhJGChJkZXZpY2VfZWdyZXNzX2RhdGEY2wEgAS'
+    'gLMhUuYzM1LkRldmljZUVncmVzc0RhdGFIAFIQZGV2aWNlRWdyZXNzRGF0YRJJChNkZXZpY2Vf'
+    'ZWdyZXNzX2Nsb3NlGNwBIAEoCzIWLmMzNS5EZXZpY2VFZ3Jlc3NDbG9zZUgAUhFkZXZpY2VFZ3'
+    'Jlc3NDbG9zZRJCCg9zdGF0c19zdWJzY3JpYmUY3QEgASgLMhYuYzM1LlJlc1N0YXRzU3Vic2Ny'
+    'aWJlSABSDnN0YXRzU3Vic2NyaWJlEjkKDHJvb3RfY29uc29sZRjeASABKAsyEy5jMzUuUmVzUm'
+    '9vdENvbnNvbGVIAFILcm9vdENvbnNvbGVCBgoEYm9keQ==');
 
 @$core.Deprecated('Use notifyItemDescriptor instead')
 const NotifyItem$json = {

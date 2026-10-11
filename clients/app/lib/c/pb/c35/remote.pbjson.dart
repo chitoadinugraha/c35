@@ -425,6 +425,126 @@ final $typed_data.Uint8List resRemoteBrowserInvokeDescriptor =
         'ChZSZXNSZW1vdGVCcm93c2VySW52b2tlEg4KAm9rGAEgASgIUgJvaxIUCgVlcnJvchgCIAEoCV'
         'IFZXJyb3ISHwoLcmVzdWx0X2pzb24YAyABKAlSCnJlc3VsdEpzb24=');
 
+@$core.Deprecated('Use reqDeviceEgressLeaseDescriptor instead')
+const ReqDeviceEgressLease$json = {
+  '1': 'ReqDeviceEgressLease',
+  '2': [
+    {'1': 'device_iid', '3': 1, '4': 1, '5': 3, '10': 'deviceIid'},
+    {'1': 'req_id', '3': 2, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'ttl_sec', '3': 3, '4': 1, '5': 13, '10': 'ttlSec'},
+  ],
+};
+
+/// Descriptor for `ReqDeviceEgressLease`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqDeviceEgressLeaseDescriptor = $convert.base64Decode(
+    'ChRSZXFEZXZpY2VFZ3Jlc3NMZWFzZRIdCgpkZXZpY2VfaWlkGAEgASgDUglkZXZpY2VJaWQSFQ'
+    'oGcmVxX2lkGAIgASgJUgVyZXFJZBIXCgd0dGxfc2VjGAMgASgNUgZ0dGxTZWM=');
+
+@$core.Deprecated('Use resDeviceEgressLeaseDescriptor instead')
+const ResDeviceEgressLease$json = {
+  '1': 'ResDeviceEgressLease',
+  '2': [
+    {'1': 'proxy_url', '3': 1, '4': 1, '5': 9, '10': 'proxyUrl'},
+    {'1': 'username', '3': 2, '4': 1, '5': 9, '10': 'username'},
+    {'1': 'password', '3': 3, '4': 1, '5': 9, '10': 'password'},
+    {'1': 'expires_ts_ms', '3': 4, '4': 1, '5': 3, '10': 'expiresTsMs'},
+    {'1': 'device_iid', '3': 5, '4': 1, '5': 3, '10': 'deviceIid'},
+  ],
+};
+
+/// Descriptor for `ResDeviceEgressLease`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resDeviceEgressLeaseDescriptor = $convert.base64Decode(
+    'ChRSZXNEZXZpY2VFZ3Jlc3NMZWFzZRIbCglwcm94eV91cmwYASABKAlSCHByb3h5VXJsEhoKCH'
+    'VzZXJuYW1lGAIgASgJUgh1c2VybmFtZRIaCghwYXNzd29yZBgDIAEoCVIIcGFzc3dvcmQSIgoN'
+    'ZXhwaXJlc190c19tcxgEIAEoA1ILZXhwaXJlc1RzTXMSHQoKZGV2aWNlX2lpZBgFIAEoA1IJZG'
+    'V2aWNlSWlk');
+
+@$core.Deprecated('Use reqDeviceEgressOpenDescriptor instead')
+const ReqDeviceEgressOpen$json = {
+  '1': 'ReqDeviceEgressOpen',
+  '2': [
+    {'1': 'tunnel_id', '3': 1, '4': 1, '5': 4, '10': 'tunnelId'},
+    {'1': 'host', '3': 2, '4': 1, '5': 9, '10': 'host'},
+    {'1': 'port', '3': 3, '4': 1, '5': 13, '10': 'port'},
+  ],
+};
+
+/// Descriptor for `ReqDeviceEgressOpen`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqDeviceEgressOpenDescriptor = $convert.base64Decode(
+    'ChNSZXFEZXZpY2VFZ3Jlc3NPcGVuEhsKCXR1bm5lbF9pZBgBIAEoBFIIdHVubmVsSWQSEgoEaG'
+    '9zdBgCIAEoCVIEaG9zdBISCgRwb3J0GAMgASgNUgRwb3J0');
+
+@$core.Deprecated('Use resDeviceEgressOpenDescriptor instead')
+const ResDeviceEgressOpen$json = {
+  '1': 'ResDeviceEgressOpen',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'error', '3': 2, '4': 1, '5': 9, '10': 'error'},
+    {'1': 'tunnel_id', '3': 3, '4': 1, '5': 4, '10': 'tunnelId'},
+  ],
+};
+
+/// Descriptor for `ResDeviceEgressOpen`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resDeviceEgressOpenDescriptor = $convert.base64Decode(
+    'ChNSZXNEZXZpY2VFZ3Jlc3NPcGVuEg4KAm9rGAEgASgIUgJvaxIUCgVlcnJvchgCIAEoCVIFZX'
+    'Jyb3ISGwoJdHVubmVsX2lkGAMgASgEUgh0dW5uZWxJZA==');
+
+@$core.Deprecated('Use reqDeviceEgressDataDescriptor instead')
+const ReqDeviceEgressData$json = {
+  '1': 'ReqDeviceEgressData',
+  '2': [
+    {'1': 'tunnel_id', '3': 1, '4': 1, '5': 4, '10': 'tunnelId'},
+    {'1': 'payload', '3': 2, '4': 1, '5': 12, '10': 'payload'},
+  ],
+};
+
+/// Descriptor for `ReqDeviceEgressData`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqDeviceEgressDataDescriptor = $convert.base64Decode(
+    'ChNSZXFEZXZpY2VFZ3Jlc3NEYXRhEhsKCXR1bm5lbF9pZBgBIAEoBFIIdHVubmVsSWQSGAoHcG'
+    'F5bG9hZBgCIAEoDFIHcGF5bG9hZA==');
+
+@$core.Deprecated('Use reqDeviceEgressCloseDescriptor instead')
+const ReqDeviceEgressClose$json = {
+  '1': 'ReqDeviceEgressClose',
+  '2': [
+    {'1': 'tunnel_id', '3': 1, '4': 1, '5': 4, '10': 'tunnelId'},
+    {'1': 'reason', '3': 2, '4': 1, '5': 9, '10': 'reason'},
+  ],
+};
+
+/// Descriptor for `ReqDeviceEgressClose`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqDeviceEgressCloseDescriptor = $convert.base64Decode(
+    'ChRSZXFEZXZpY2VFZ3Jlc3NDbG9zZRIbCgl0dW5uZWxfaWQYASABKARSCHR1bm5lbElkEhYKBn'
+    'JlYXNvbhgCIAEoCVIGcmVhc29u');
+
+@$core.Deprecated('Use deviceEgressDataDescriptor instead')
+const DeviceEgressData$json = {
+  '1': 'DeviceEgressData',
+  '2': [
+    {'1': 'tunnel_id', '3': 1, '4': 1, '5': 4, '10': 'tunnelId'},
+    {'1': 'payload', '3': 2, '4': 1, '5': 12, '10': 'payload'},
+  ],
+};
+
+/// Descriptor for `DeviceEgressData`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List deviceEgressDataDescriptor = $convert.base64Decode(
+    'ChBEZXZpY2VFZ3Jlc3NEYXRhEhsKCXR1bm5lbF9pZBgBIAEoBFIIdHVubmVsSWQSGAoHcGF5bG'
+    '9hZBgCIAEoDFIHcGF5bG9hZA==');
+
+@$core.Deprecated('Use deviceEgressCloseDescriptor instead')
+const DeviceEgressClose$json = {
+  '1': 'DeviceEgressClose',
+  '2': [
+    {'1': 'tunnel_id', '3': 1, '4': 1, '5': 4, '10': 'tunnelId'},
+    {'1': 'reason', '3': 2, '4': 1, '5': 9, '10': 'reason'},
+  ],
+};
+
+/// Descriptor for `DeviceEgressClose`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List deviceEgressCloseDescriptor = $convert.base64Decode(
+    'ChFEZXZpY2VFZ3Jlc3NDbG9zZRIbCgl0dW5uZWxfaWQYASABKARSCHR1bm5lbElkEhYKBnJlYX'
+    'NvbhgCIAEoCVIGcmVhc29u');
+
 @$core.Deprecated('Use reqRemoteFsListDescriptor instead')
 const ReqRemoteFsList$json = {
   '1': 'ReqRemoteFsList',

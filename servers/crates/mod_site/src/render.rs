@@ -616,6 +616,65 @@ fn profile_pic_url(props: &Value, site_meta: &Value) -> String {
     }
 }
 
+async fn site_identity_pic(pool: &PgPool, site_iid: i64) -> String {
+    sqlx::query(
+        r#"SELECT COALESCE(pic, '') AS pic FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .map(|r| r.get::<String, _>("pic"))
+    .unwrap_or_default()
+}
+
+/// Favicon URL: explicit `meta.favicon`, then `meta.avatar_url`, hub `pic`, then identity `pic`.
+pub fn guest_site_favicon_url(site_meta: &Value, doc: &SiteDoc, identity_pic: &str) -> String {
+    for key in ["favicon", "avatar_url"] {
+        if let Some(raw) = site_meta.get(key).and_then(|x| x.as_str()) {
+            let t = raw.trim();
+            if !t.is_empty() {
+                return pic_url(t);
+            }
+        }
+    }
+    for page in &doc.pages {
+        for block in &page.blocks {
+            if block.r#type != "hub_profile" {
+                continue;
+            }
+            let props: Value = if block.props_json.is_empty() {
+                Value::Object(Default::default())
+            } else {
+                serde_json::from_str(&block.props_json)
+                    .unwrap_or(Value::Object(Default::default()))
+            };
+            let pic = profile_pic_url(&props, site_meta);
+            if !pic.is_empty() {
+                return pic_url(&pic);
+            }
+        }
+    }
+    let id_pic = identity_pic.trim();
+    if !id_pic.is_empty() {
+        return pic_url(id_pic);
+    }
+    String::new()
+}
+
+pub fn guest_favicon_head_markup(favicon_url: &str) -> String {
+    let url = favicon_url.trim();
+    if url.is_empty() {
+        return String::new();
+    }
+    let href = esc_attr(url);
+    format!(
+        r#"<link rel="icon" href="{href}" sizes="any"/><link rel="apple-touch-icon" href="{href}"/>"#,
+        href = href
+    )
+}
+
 fn guest_hub_hero_inner_html(
     props: &Value,
     profile: &ProfileDesign,
@@ -1079,8 +1138,22 @@ pub async fn page_html_render(
     };
     let product_design = product_design_from_site_meta(&site_meta);
     let doc_title = site_doc_html_title(site_name, &site_meta, &page.title);
+    let hub_shows_hours = page.blocks.iter().any(|b| {
+        if b.r#type != "hub_profile" {
+            return false;
+        }
+        let props: Value = if b.props_json.is_empty() {
+            Value::Object(Default::default())
+        } else {
+            serde_json::from_str(&b.props_json).unwrap_or(Value::Object(Default::default()))
+        };
+        props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false)
+    });
     let mut body = String::new();
     for block in &page.blocks {
+        if block.r#type == "hours" && hub_shows_hours {
+            continue;
+        }
         let props: Value = if block.props_json.is_empty() {
             Value::Object(Default::default())
         } else {
@@ -1118,8 +1191,10 @@ pub async fn page_html_render(
     }
     let root = guest_root_css(&design);
     let image = page_bg_image_html(&design);
+    let identity_pic = site_identity_pic(pool, site_iid).await;
+    let favicon_tags = guest_favicon_head_markup(&guest_site_favicon_url(&site_meta, doc, &identity_pic));
     Ok(format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title><style>
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}<style>
 {root}
 body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
 .wrap{{max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
@@ -1187,6 +1262,7 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
 <button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
 {client_js}</body></html>"#,
         esc(&doc_title),
+        favicon = favicon_tags,
         root = root,
         bd = design.backdrop_id,
         image = image,
@@ -1458,8 +1534,15 @@ async fn guest_storefront_page_html(
     let image = page_bg_image_html(&design);
     let effects = theme_effects(&doc.theme_json);
     let client_js = guest_client_script_tags(pool, site_iid, &effects).await;
+    let site_meta: Value = if doc.meta_json.is_empty() {
+        Value::Object(Default::default())
+    } else {
+        serde_json::from_str(&doc.meta_json).unwrap_or(Value::Object(Default::default()))
+    };
+    let identity_pic = site_identity_pic(pool, site_iid).await;
+    let favicon_tags = guest_favicon_head_markup(&guest_site_favicon_url(&site_meta, doc, &identity_pic));
     Ok(format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title><style>
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}<style>
 {root}
 {extra}
 body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
@@ -1477,6 +1560,7 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
 <button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
 {client_js}</body></html>"#,
         esc(document_title),
+        favicon = favicon_tags,
         root = root,
         extra = GUEST_STOREFRONT_EXTRA_CSS,
         bd = design.backdrop_id,
