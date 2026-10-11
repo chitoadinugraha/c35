@@ -440,6 +440,7 @@ class NodeStat extends $pb.GeneratedMessage {
     $core.Iterable<DiskDeviceStat>? devices,
     $fixnum.Int64? swapUsedBytes,
     $fixnum.Int64? swapTotalBytes,
+    $core.String? displayAddress,
   }) {
     final result = NodeStat._();
     if (nodeName != null) result.nodeName = nodeName;
@@ -454,6 +455,7 @@ class NodeStat extends $pb.GeneratedMessage {
     if (devices != null) result.devices.addAll(devices);
     if (swapUsedBytes != null) result.swapUsedBytes = swapUsedBytes;
     if (swapTotalBytes != null) result.swapTotalBytes = swapTotalBytes;
+    if (displayAddress != null) result.displayAddress = displayAddress;
     return result;
   }
 
@@ -492,6 +494,7 @@ class NodeStat extends $pb.GeneratedMessage {
     ..a<$fixnum.Int64>(
         12, _omitFieldNames ? '' : 'swapTotalBytes', $pb.PbFieldType.OU6,
         defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOS(13, _omitFieldNames ? '' : 'displayAddress')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -609,6 +612,16 @@ class NodeStat extends $pb.GeneratedMessage {
   $core.bool hasSwapTotalBytes() => $_has(11);
   @$pb.TagNumber(12)
   void clearSwapTotalBytes() => $_clearField(12);
+
+  /// Public or external address for UI (k8s node ExternalIP when available).
+  @$pb.TagNumber(13)
+  $core.String get displayAddress => $_getSZ(12);
+  @$pb.TagNumber(13)
+  set displayAddress($core.String value) => $_setString(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasDisplayAddress() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearDisplayAddress() => $_clearField(13);
 }
 
 enum StatsPush_Body { node, volume, notSet }

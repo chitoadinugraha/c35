@@ -7,7 +7,9 @@ metadata:
     app: c35-node-stats
     app.kubernetes.io/part-of: c35
 data:
-  C35_NODE_MOUNTS: "/,/var/log"
+  C35_NODE_MOUNTS: "/,/var/log,/mnt/disk0"
+  # Optional longest-prefix overrides (mount path=label):
+  C35_NODE_DISK_LABELS: "/mnt/disk0=YB data"
   C35_VOLUME_PATHS: ""
   C35_VOLUME_DISCOVER: "1"
-  C35_VOLUME_DISCOVER_NS: "yugabyte"
+  C35_VOLUME_DISCOVER_NS: "yugabyte,build"

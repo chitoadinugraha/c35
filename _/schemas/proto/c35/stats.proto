@@ -46,6 +46,8 @@ message NodeStat {
   repeated DiskDeviceStat devices = 10;
   uint64 swap_used_bytes = 11;
   uint64 swap_total_bytes = 12;
+  // Public or external address for UI (k8s node ExternalIP when available).
+  string display_address = 13;
 }
 
 message StatsPush {

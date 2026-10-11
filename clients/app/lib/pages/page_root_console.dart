@@ -141,6 +141,7 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                           final boot = _bootStorage(node);
                           return UiAdminNodeCard(
                             nodeName: node.nodeName,
+                            headerTitle: adminNodeDisplayTitle(node),
                             cpuPct: node.cpuPct,
                             cpuCores: node.cpuCores,
                             memUsed: node.memUsedBytes,
@@ -292,11 +293,10 @@ class _NodeHeader extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              node.nodeName.isNotEmpty ? node.nodeName : 'Node',
+              adminNodeDisplayTitle(node),
               style: const TextStyle(color: adminText, fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ),
-          if (node.cpuCores > 0) Text('${node.cpuCores} cores', style: const TextStyle(color: adminMuted, fontSize: 11)),
         ],
       );
 }
@@ -315,47 +315,31 @@ class _NodeStatsBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const UiAdminSectionTitle('Host'),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 520;
-            final cpu = UiAdminStatBar(
+        Column(
+          children: [
+            UiAdminStatBar(
               label: 'CPU',
               detail: '${node.cpuCores} cores',
               pct: node.cpuPct.clamp(0, 100),
               dense: true,
-            );
-            final mem = UiAdminStatBar(
+            ),
+            UiAdminStatBar(
               label: 'Memory',
-              detail: '${adminFmtBytes(node.memUsedBytes)} / ${adminFmtBytes(node.memTotalBytes)}',
+              detail: adminFmtBytesPair(node.memUsedBytes, node.memTotalBytes),
               pct: adminPct(node.memUsedBytes, node.memTotalBytes),
               dense: true,
-            );
-            if (!wide) {
-              return Column(children: [cpu, mem]);
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: cpu),
-                const SizedBox(width: 16),
-                Expanded(child: mem),
-              ],
-            );
-          },
+            ),
+          ],
         ),
         if (node.swapTotalBytes > 0)
           UiAdminStatBar(
             label: 'Swap',
-            detail: '${adminFmtBytes(node.swapUsedBytes)} / ${adminFmtBytes(node.swapTotalBytes)}',
+            detail: adminFmtBytesPair(node.swapUsedBytes, node.swapTotalBytes),
             pct: adminPct(node.swapUsedBytes, node.swapTotalBytes),
             warnPct: 50,
             critPct: 80,
             dense: true,
           ),
-        const Padding(
-          padding: EdgeInsets.only(top: 6, bottom: 2),
-          child: Text('Network', style: TextStyle(color: adminMuted, fontSize: 11, fontWeight: FontWeight.w500)),
-        ),
         UiAdminNetworkRow(
           inBps: node.netInBps,
           outBps: node.netOutBps,

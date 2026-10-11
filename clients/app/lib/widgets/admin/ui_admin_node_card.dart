@@ -7,6 +7,7 @@ class UiAdminNodeCard extends StatelessWidget {
   const UiAdminNodeCard({
     super.key,
     required this.nodeName,
+    this.headerTitle,
     required this.cpuPct,
     required this.cpuCores,
     required this.memUsed,
@@ -21,6 +22,7 @@ class UiAdminNodeCard extends StatelessWidget {
   });
 
   final String nodeName;
+  final String? headerTitle;
   final double cpuPct;
   final int cpuCores;
   final Int64 memUsed;
@@ -87,12 +89,10 @@ class UiAdminNodeCard extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            nodeName,
+                            headerTitle ?? nodeName,
                             style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
                           ),
                         ),
-                        if (cpuCores > 0)
-                          Text('$cpuCores cores', style: const TextStyle(color: _muted, fontSize: 11)),
                       ],
                     )
                   else

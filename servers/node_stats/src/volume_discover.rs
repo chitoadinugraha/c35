@@ -16,6 +16,70 @@ pub fn discover_namespace() -> String {
     std::env::var("C35_VOLUME_DISCOVER_NS").unwrap_or_else(|_| "yugabyte".into())
 }
 
+pub async fn node_display_address(node_name: &str) -> String {
+    match node_display_address_inner(node_name).await {
+        Ok(s) => s,
+        Err(e) => {
+            warn!(error = %e, "node display address lookup failed");
+            String::new()
+        }
+    }
+}
+
+async fn node_display_address_inner(node_name: &str) -> Result<String> {
+    if !Path::new(SA_TOKEN).exists() {
+        return Ok(String::new());
+    }
+    let k8s = k8s_client().await?;
+    let path = format!("/api/v1/nodes/{}", urlencoding::encode(node_name));
+    let json = k8s_get_json(&k8s, &path).await.context("get node")?;
+    Ok(pick_node_display_address(&json))
+}
+
+pub fn pick_node_display_address(v: &serde_json::Value) -> String {
+    let addrs = v
+        .get("status")
+        .and_then(|s| s.get("addresses"))
+        .and_then(|a| a.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let mut external = None;
+    let mut hostname = None;
+    for entry in addrs {
+        let ty = entry.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let addr = entry.get("address").and_then(|a| a.as_str()).unwrap_or("");
+        if addr.is_empty() {
+            continue;
+        }
+        match ty {
+            "ExternalIP" => external = Some(addr.to_string()),
+            "Hostname" => hostname = Some(addr.to_string()),
+            _ => {}
+        }
+    }
+    if let Some(e) = external {
+        return e;
+    }
+    if let Some(h) = hostname {
+        if !is_likely_private_host(&h) {
+            return h;
+        }
+    }
+    String::new()
+}
+
+fn is_likely_private_host(host: &str) -> bool {
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        return match ip {
+            std::net::IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),
+            std::net::IpAddr::V6(v6) => v6.is_loopback() || v6.is_unique_local(),
+        };
+    }
+    host.starts_with("10.")
+        || host.starts_with("192.168.")
+        || host.contains(".internal")
+}
+
 pub async fn volume_discover(node_name: &str) -> Vec<VolumeConfig> {
     match volume_discover_inner(node_name).await {
         Ok(v) => v,
@@ -258,6 +322,19 @@ pub fn merge_volume_configs(manual: Vec<VolumeConfig>, discovered: Vec<VolumeCon
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pick_external_ip_over_internal() {
+        let json = serde_json::json!({
+            "status": {
+                "addresses": [
+                    {"type": "InternalIP", "address": "10.0.85.12"},
+                    {"type": "ExternalIP", "address": "168.110.203.3"}
+                ]
+            }
+        });
+        assert_eq!(pick_node_display_address(&json), "168.110.203.3");
+    }
 
     #[test]
     fn merge_manual_overrides_discovered() {

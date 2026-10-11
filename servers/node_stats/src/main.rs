@@ -19,7 +19,8 @@ use tracing::{info, warn};
 use crate::metric_rollup::{pg_pool_from_env, MetricRollup};
 use crate::node::{node_push, node_subject, NodeSampler};
 use crate::volume::{sample_volume, volume_configs, volume_push, volume_subject, VolumeConfig};
-use crate::volume_discover::{discover_namespace, merge_volume_configs, volume_discover};
+use crate::device::disk_labels_from_volumes;
+use crate::volume_discover::{discover_namespace, merge_volume_configs, node_display_address, volume_discover};
 
 const TICK: Duration = Duration::from_secs(2);
 const DISCOVER_INTERVAL: Duration = Duration::from_secs(60);
@@ -36,7 +37,9 @@ async fn main() -> Result<()> {
     let pool = pg_pool_from_env().await;
     let mut rollup = MetricRollup::new(node_name.clone(), pool);
     let mut sampler = NodeSampler::new(node_name.clone());
+    sampler.set_display_address(node_display_address(&node_name).await);
     let mut volumes = merge_volume_configs(volume_configs(), volume_discover(&node_name).await);
+    sampler.set_disk_labels(disk_labels_from_volumes("/host", &volumes));
     let mut last_discover = std::time::Instant::now();
 
     info!(
@@ -53,6 +56,8 @@ async fn main() -> Result<()> {
         tick.tick().await;
         if last_discover.elapsed() >= DISCOVER_INTERVAL {
             volumes = merge_volume_configs(volume_configs(), volume_discover(&node_name).await);
+            sampler.set_disk_labels(disk_labels_from_volumes("/host", &volumes));
+            sampler.set_display_address(node_display_address(&node_name).await);
             last_discover = std::time::Instant::now();
         }
         publish_node(&nats, &kv, &mut sampler, &node_name, &mut rollup).await;

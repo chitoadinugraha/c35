@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/admin/admin_format.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_stat_bar.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
 import 'package:flutter/material.dart';
 
@@ -18,10 +19,7 @@ class UiAdminNetworkRow extends StatelessWidget {
 
   double get _scale => maxBps < 1 ? 1 : maxBps;
 
-  bool _showBar(double bps) {
-    final frac = bps / _scale;
-    return bps > 0 && frac >= 0.08;
-  }
+  double _frac(double bps) => (bps / _scale).clamp(0, 1);
 
   @override
   Widget build(BuildContext context) {
@@ -39,52 +37,76 @@ class UiAdminNetworkRow extends StatelessWidget {
       );
     }
     return Padding(
-      padding: const EdgeInsets.only(top: 2, bottom: 4),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          _compactChip(icon: Icons.arrow_downward_rounded, label: adminFmtBps(inBps), color: adminBarIn, showBar: _showBar(inBps), frac: inBps / _scale),
-          const SizedBox(width: 16),
-          _compactChip(icon: Icons.arrow_upward_rounded, label: adminFmtBps(outBps), color: adminBarOut, showBar: _showBar(outBps), frac: outBps / _scale),
+          const SizedBox(
+            width: kAdminStatLabelWidth,
+            child: Text('Network', style: TextStyle(color: adminText, fontSize: 12, fontWeight: FontWeight.w600)),
+          ),
+          SizedBox(
+            width: kAdminStatDetailWidth,
+            child: Row(
+              children: [
+                Icon(Icons.arrow_downward_rounded, size: 12, color: adminBarIn),
+                const SizedBox(width: 3),
+                Expanded(
+                  child: Text(
+                    adminFmtBps(inBps),
+                    style: const TextStyle(color: adminMuted, fontSize: 10),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: _frac(inBps),
+                      minHeight: 7,
+                      backgroundColor: adminBarBg,
+                      color: adminBarIn,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Icon(Icons.arrow_upward_rounded, size: 13, color: adminBarOut),
+                const SizedBox(width: 4),
+                SizedBox(
+                  width: 58,
+                  child: Text(
+                    adminFmtBps(outBps),
+                    style: const TextStyle(color: adminMuted, fontSize: 10),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: _frac(outBps),
+                      minHeight: 7,
+                      backgroundColor: adminBarBg,
+                      color: adminBarOut,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
-
-  Widget _compactChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required bool showBar,
-    required double frac,
-  }) =>
-      Expanded(
-        child: Row(
-          children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(label, style: const TextStyle(color: adminText, fontSize: 12, fontWeight: FontWeight.w500)),
-                  if (showBar) ...[
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: LinearProgressIndicator(
-                        value: frac.clamp(0, 1),
-                        minHeight: 4,
-                        backgroundColor: adminBarBg,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
 
   Widget _wideBar({required String label, required double value, required Color color}) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

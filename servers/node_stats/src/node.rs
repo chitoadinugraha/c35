@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::time::Instant;
 
 use c35_proto::{DiskDeviceStat, DiskMountStat, NodeStat, StatsPush};
@@ -21,6 +22,8 @@ struct MountConfig {
 pub struct NodeSampler {
     mounts: Vec<MountConfig>,
     node_name: String,
+    display_address: String,
+    disk_labels: HashMap<String, String>,
     prev: Option<SampleSnapshot>,
     prev_cpu: Option<CpuSample>,
 }
@@ -30,9 +33,21 @@ impl NodeSampler {
         Self {
             mounts: mount_configs(),
             node_name,
+            display_address: String::new(),
+            disk_labels: HashMap::new(),
             prev: None,
             prev_cpu: None,
         }
+    }
+
+    pub fn set_display_address(&mut self, addr: String) {
+        if !addr.is_empty() {
+            self.display_address = addr;
+        }
+    }
+
+    pub fn set_disk_labels(&mut self, labels: HashMap<String, String>) {
+        self.disk_labels = labels;
     }
 
     pub fn sample(&mut self) -> NodeStat {
@@ -67,7 +82,23 @@ impl NodeSampler {
             .collect();
         let devices = block_devs
             .into_iter()
-            .map(|d| self.device_stat(d, &cur))
+            .map(|d| {
+                let label = self
+                    .disk_labels
+                    .get(&d.name)
+                    .cloned()
+                    .filter(|l| !l.is_empty())
+                    .unwrap_or(d.label);
+                let d = crate::device::BlockDevice {
+                    name: d.name,
+                    mount: d.mount,
+                    is_boot: d.is_boot,
+                    used_bytes: d.used_bytes,
+                    total_bytes: d.total_bytes,
+                    label,
+                };
+                self.device_stat(d, &cur)
+            })
             .collect();
 
         self.prev = Some(cur);
@@ -85,6 +116,7 @@ impl NodeSampler {
             devices,
             swap_used_bytes,
             swap_total_bytes,
+            display_address: self.display_address.clone(),
         }
     }
 

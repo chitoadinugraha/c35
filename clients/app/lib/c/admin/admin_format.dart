@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:fixnum/fixnum.dart';
 
 String adminFmtBytes(Int64 bytes) {
@@ -28,6 +29,14 @@ double adminPct(Int64 used, Int64 total) {
 }
 
 String adminFmtPct(double pct) => '${pct.toStringAsFixed(0)}%';
+
+String adminNodeDisplayTitle(NodeStat node) {
+  final addr = node.displayAddress;
+  if (addr.isNotEmpty) return addr;
+  final name = node.nodeName;
+  if (name.isNotEmpty) return name;
+  return 'Node';
+}
 
 String adminFmtBytesPair(Int64 used, Int64 total) {
   final t = total.toInt();

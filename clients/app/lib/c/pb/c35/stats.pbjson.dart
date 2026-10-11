@@ -111,6 +111,7 @@ const NodeStat$json = {
     },
     {'1': 'swap_used_bytes', '3': 11, '4': 1, '5': 4, '10': 'swapUsedBytes'},
     {'1': 'swap_total_bytes', '3': 12, '4': 1, '5': 4, '10': 'swapTotalBytes'},
+    {'1': 'display_address', '3': 13, '4': 1, '5': 9, '10': 'displayAddress'},
   ],
 };
 
@@ -123,7 +124,8 @@ final $typed_data.Uint8List nodeStatDescriptor = $convert.base64Decode(
     'X2luX2JwcxgHIAEoAVIIbmV0SW5CcHMSHgoLbmV0X291dF9icHMYCCABKAFSCW5ldE91dEJwcx'
     'ITCgV0c19tcxgJIAEoA1IEdHNNcxItCgdkZXZpY2VzGAogAygLMhMuYzM1LkRpc2tEZXZpY2VT'
     'dGF0UgdkZXZpY2VzEiYKD3N3YXBfdXNlZF9ieXRlcxgLIAEoBFINc3dhcFVzZWRCeXRlcxIoCh'
-    'Bzd2FwX3RvdGFsX2J5dGVzGAwgASgEUg5zd2FwVG90YWxCeXRlcw==');
+    'Bzd2FwX3RvdGFsX2J5dGVzGAwgASgEUg5zd2FwVG90YWxCeXRlcxInCg9kaXNwbGF5X2FkZHJl'
+    'c3MYDSABKAlSDmRpc3BsYXlBZGRyZXNz');
 
 @$core.Deprecated('Use statsPushDescriptor instead')
 const StatsPush$json = {

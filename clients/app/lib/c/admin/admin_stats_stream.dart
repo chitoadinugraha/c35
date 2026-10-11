@@ -6,8 +6,11 @@ import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:flutter/foundation.dart';
 
 class _NetPeak {
+  static const double _minScaleBps = 100 * 1024; // 100 KB/s — keeps low rates from filling the bar
+  static const double _defaultScaleBps = 10 * 1024 * 1024; // 10 MB/s until we see higher traffic
+
   DateTime _since = DateTime.now();
-  double _max = 1;
+  double _max = _defaultScaleBps;
 
   double get max => _max;
 
@@ -16,11 +19,11 @@ class _NetPeak {
     final sample = inBps > outBps ? inBps : outBps;
     if (now.difference(_since).inSeconds > 60) {
       _since = now;
-      _max = sample < 1 ? 1 : sample;
-      return;
+      _max = (_max * 0.65).clamp(_minScaleBps, _defaultScaleBps).toDouble();
     }
-    if (sample > _max) _max = sample;
-    if (_max < 1) _max = 1;
+    if (sample > _max * 0.92) {
+      _max = (sample * 1.15).clamp(_minScaleBps, double.infinity).toDouble();
+    }
   }
 }
 
@@ -63,7 +66,7 @@ class AdminStatsStream extends ChangeNotifier {
   List<VolumeStat> volumesForNode(String nodeName) =>
       volumes.where((v) => v.nodeName.isEmpty || v.nodeName == nodeName).toList();
 
-  double networkMaxBps(String nodeName) => _netPeaks[nodeName]?.max ?? 1;
+  double networkMaxBps(String nodeName) => _netPeaks[nodeName]?.max ?? _NetPeak._defaultScaleBps;
 
   List<DiskDeviceStat> storagesFor(NodeStat node) {
     if (node.devices.isNotEmpty) return node.devices;
