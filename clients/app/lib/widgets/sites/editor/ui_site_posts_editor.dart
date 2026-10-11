@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/sites/editor/site_editor_nav.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_post_detail.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_posts_section.dart';
@@ -31,7 +34,7 @@ class UiSitePostsEditor extends StatefulWidget {
   State<UiSitePostsEditor> createState() => _UiSitePostsEditorState();
 }
 
-class _UiSitePostsEditorState extends State<UiSitePostsEditor> {
+class _UiSitePostsEditorState extends State<UiSitePostsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
   var _loading = true;
@@ -89,11 +92,34 @@ class _UiSitePostsEditorState extends State<UiSitePostsEditor> {
     }
   }
 
+  void _reportNavLabel(String id) {
+    final post = _byId[id];
+    if (post == null) return;
+    final title = post.title.trim();
+    if (title.isEmpty) return;
+    SiteEditorNavScope.reportDetailLabel(context, id, title);
+  }
+
   void _select(String id) {
     if (widget.masterDetail) {
       setState(() => _selectedId = id);
     } else {
       widget.onDetailIdChanged?.call(id);
+      _reportNavLabel(id);
+    }
+  }
+
+  @override
+  void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    _byId
+      ..clear()
+      ..addEntries(catalog.posts.map((p) => MapEntry('${p.postId}', p)));
+    _pickDefault();
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+      });
     }
   }
 
@@ -103,7 +129,11 @@ class _UiSitePostsEditorState extends State<UiSitePostsEditor> {
       _error = null;
     });
     try {
+      if (await ensureEditorCatalog()) return;
       final items = await widget.api.sitePostList(widget.siteIid);
+      for (final p in items) {
+        editorCatalog?.upsertPost(p);
+      }
       _byId
         ..clear()
         ..addEntries(items.map((p) => MapEntry('${p.postId}', p)));
@@ -121,6 +151,7 @@ class _UiSitePostsEditorState extends State<UiSitePostsEditor> {
       final saved = await widget.api.sitePostPut(widget.siteIid, draft);
       if (!mounted) return;
       _byId['${saved.postId}'] = saved;
+      editorCatalog?.upsertPost(saved);
       setState(() => _error = null);
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));

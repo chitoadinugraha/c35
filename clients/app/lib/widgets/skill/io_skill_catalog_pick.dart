@@ -5,6 +5,7 @@ import 'package:alienai_c35/c/skill/skill_api.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -93,7 +94,7 @@ class _IoSkillCatalogDialogState extends State<_IoSkillCatalogDialog> {
           const SizedBox(height: 10),
               Expanded(
                 child: _loading
-                    ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF34D399)))
+                    ? const UILoading()
                     : _error != null
                         ? Center(child: Text(_error!, style: const TextStyle(color: _muted, fontSize: 13), textAlign: TextAlign.center))
                         : _items.isEmpty

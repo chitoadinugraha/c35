@@ -332,6 +332,9 @@ fn stats_push_subject_key(push: &StatsPush) -> String {
         Some(stats_push::Body::Volume(v)) => {
             format!("c35.stats.volume.{}.{}.{}", v.node_name, v.namespace, v.pvc_name)
         }
+        Some(stats_push::Body::Pod(p)) => {
+            format!("c35.stats.pod.{}.{}.{}", p.node_name, p.namespace, p.pod_name)
+        }
         None => String::new(),
     }
 }

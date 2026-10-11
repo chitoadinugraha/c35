@@ -337,7 +337,30 @@ message ResMemoryDelete {
   bool ok = 1;
 }
 
+message UserMemoryBundleItem {
+  int64 id = 1;
+  string key = 2;
+  string content = 3;
+  bool is_pinned = 4;
+  repeated string tags = 5;
+  repeated float embedding = 6;
+}
+
+message UserMemoryBundle {
+  int64 owner_iid = 1;
+  int64 bot_iid = 2;
+  int64 updated_ts_ms = 3;
+  repeated UserMemoryBundleItem items = 4;
+}
+
+message ScopeInstructionBundle {
+  int64 owner_iid = 1;
+  int64 updated_ts_ms = 2;
+  repeated ScopeInstruction items = 3;
+}
+
 // Owner / site assistant instructions (ai.scope_instruction)
+
 message ScopeInstruction {
   int64 id = 1;
   int64 owner_iid = 2;

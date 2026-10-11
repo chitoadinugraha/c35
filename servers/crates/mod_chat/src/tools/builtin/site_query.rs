@@ -5,7 +5,7 @@ use c35_mod_site::{
 };
 use c35_time_range::timezone_default_from_locale;
 use crate::site_query_export::{export_formats_from_params, tx_browse_export_files};
-use crate::site_query_present::{site_query_llm_compact, site_query_summary_blocks};
+use crate::site_query_present::site_query_llm_compact;
 use crate::tx_browse_render::tx_browse_llm_payload;
 use serde_json::{json, Value};
 
@@ -21,16 +21,82 @@ fn json_value_i64(v: &Value) -> Option<i64> {
         .or_else(|| v.as_str().and_then(|s| s.trim().parse().ok()))
 }
 
+fn site_iid_from_entry(v: &Value) -> Option<i64> {
+    json_value_i64(v).or_else(|| v.get("iid").and_then(json_value_i64))
+}
+
 fn args_site_iids(args: &Value) -> Vec<i64> {
     args.get("site_iids")
         .and_then(|v| v.as_array())
         .map(|arr| {
             arr.iter()
-                .filter_map(json_value_i64)
+                .filter_map(site_iid_from_entry)
                 .filter(|i| *i > 0)
                 .collect()
         })
         .unwrap_or_default()
+}
+
+fn merge_nested_query_params(params: &mut Value) {
+    let inner = params.get("params").cloned();
+    if let Some(inner) = inner {
+        if let Some(obj) = params.as_object_mut() {
+            obj.remove("params");
+            if let Some(inner_obj) = inner.as_object() {
+                for (k, v) in inner_obj {
+                    if !obj.contains_key(k) {
+                        obj.insert(k.clone(), v.clone());
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Coerce common LLM wire mistakes (query_id under params, nested params, site_iids objects).
+pub fn site_query_args_normalize(args: &Value) -> Value {
+    let mut out = args.clone();
+    let has_top_qid = out
+        .get("query_id")
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| !s.trim().is_empty());
+    if !has_top_qid {
+        let lifted = out
+            .get("params")
+            .and_then(|p| p.get("query_id"))
+            .or_else(|| {
+                out.get("params")
+                    .and_then(|p| p.get("params"))
+                    .and_then(|pp| pp.get("query_id"))
+            })
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+        if let Some(qid) = lifted {
+            out["query_id"] = json!(qid);
+            if let Some(params) = out.get_mut("params").and_then(|p| p.as_object_mut()) {
+                params.remove("query_id");
+                if let Some(inner) = params.get_mut("params").and_then(|p| p.as_object_mut()) {
+                    inner.remove("query_id");
+                }
+            }
+        }
+    }
+    if let Some(params) = out.get_mut("params") {
+        merge_nested_query_params(params);
+    }
+    if let Some(arr) = out.get("site_iids").and_then(|v| v.as_array()) {
+        let flat: Vec<Value> = arr
+            .iter()
+            .filter_map(site_iid_from_entry)
+            .filter(|i| *i > 0)
+            .map(|i| json!(i))
+            .collect();
+        if !flat.is_empty() {
+            out["site_iids"] = json!(flat);
+        }
+    }
+    out
 }
 
 async fn site_iids_resolve(ctx: &ToolContext, args: &Value) -> Result<Vec<i64>> {
@@ -111,14 +177,15 @@ fn stock_tool_response(query_id: &str, built_llm: Value) -> Value {
 }
 
 pub async fn site_query_run_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    let args = site_query_args_normalize(args);
     let query_id = args
         .get("query_id")
         .and_then(|v| v.as_str())
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .ok_or_else(|| anyhow!("query_id is required"))?;
-    let site_iids = site_iids_resolve(ctx, args).await?;
-    let params_json = params_json_resolve(args, ctx.locale.as_str(), query_id)?;
+    let site_iids = site_iids_resolve(ctx, &args).await?;
+    let params_json = params_json_resolve(&args, ctx.locale.as_str(), query_id)?;
     let params: Value = serde_json::from_str(&params_json).unwrap_or(json!({}));
     let res = site_query_run(&ctx.pool, ctx.owner_iid, site_iids, query_id, &params_json).await?;
     if stock_report_query_id(query_id) {
@@ -150,20 +217,13 @@ pub async fn site_query_run_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
         }));
     }
     let llm = site_query_llm_compact(query_id, &res.rows, &res.result_json);
-    let mut out = json!({
+    Ok(json!({
         "ok": true,
         "query_id": query_id,
         "llm": llm,
         "rows": llm.get("sites").cloned().unwrap_or(json!([])),
         "result_json": res.result_json,
-    });
-    if matches!(query_id, "tx.sales_summary" | "tx.profit_summary") {
-        let blocks = site_query_summary_blocks(query_id, &res.rows, &params, ctx.locale.as_str());
-        if let Some(block) = blocks.first() {
-            out["block"] = block.clone();
-        }
-    }
-    Ok(out)
+    }))
 }
 
 tool! {
@@ -189,5 +249,36 @@ tool! {
     },
     execute: |args, ctx| {
         site_query_run_exec(ctx, &args).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_lifts_query_id_from_params() {
+        let raw = json!({
+            "params": { "query_id": "product.list" },
+            "site_iids": [{ "iid": 101 }]
+        });
+        let n = site_query_args_normalize(&raw);
+        assert_eq!(n["query_id"], "product.list");
+        assert_eq!(n["site_iids"], json!([101]));
+        assert!(n["params"].get("query_id").is_none());
+    }
+
+    #[test]
+    fn normalize_lifts_nested_params_query_id() {
+        let raw = json!({
+            "params": {
+                "query_id": "tx.top_products",
+                "params": { "range": "today" }
+            }
+        });
+        let n = site_query_args_normalize(&raw);
+        assert_eq!(n["query_id"], "tx.top_products");
+        assert_eq!(n["params"]["range"], "today");
+        assert!(n["params"].get("params").is_none());
     }
 }

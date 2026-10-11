@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
@@ -53,9 +56,20 @@ class _UiSiteNotificationsEditorState extends State<UiSiteNotificationsEditor> {
     }
   }
 
-  Future<void> _set(String value) async {
-    if (value == _orderRing) return;
-    setState(() => _orderRing = value);
+  void _previewOrderRing(String value) {
+    siteEditorPreviewPatch(context, (boot) {
+      final base = boot['meta'] is Map
+          ? Map<String, dynamic>.from(boot['meta'] as Map)
+          : <String, dynamic>{};
+      final merged = siteDraftExtrasMerge(
+        base.isEmpty ? '{}' : jsonEncode(base),
+        orderRing: value,
+      );
+      siteEditorPreviewMergeMetaJson(boot, merged);
+    });
+  }
+
+  Future<void> _saveOrderRing(String value) async {
     await SiteEditorSaveScope.run(context, () async {
       final draft = await widget.api.draftGet(widget.siteIid);
       final next = draft.clone();
@@ -65,6 +79,13 @@ class _UiSiteNotificationsEditorState extends State<UiSiteNotificationsEditor> {
       await widget.api.draftPut(next);
       widget.onDraftSaved?.call();
     });
+  }
+
+  void _set(String value) {
+    if (value == _orderRing) return;
+    setState(() => _orderRing = value);
+    _previewOrderRing(value);
+    siteEditorScheduleSave(context, key: 'notifications', save: () => _saveOrderRing(value));
   }
 
   @override
@@ -86,7 +107,7 @@ class _UiSiteNotificationsEditorState extends State<UiSiteNotificationsEditor> {
         RadioGroup<String>(
           groupValue: _orderRing,
           onChanged: (v) {
-            if (v != null) unawaited(_set(v));
+            if (v != null) _set(v);
           },
           child: Column(
             children: [

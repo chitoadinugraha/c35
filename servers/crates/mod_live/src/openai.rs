@@ -299,22 +299,11 @@ pub async fn live_openai_run(
                             if msg_type == "response.audio.delta" {
                                 if let Some(delta) = v.get("delta").and_then(|d| d.as_str()) {
                                     if let Ok(pcm_bytes) = B64.decode(delta) {
-                                        // Relay as binary PCM frames to client
-                                        let _ = client.send(Message::Binary(pcm_bytes.into())).await;
-                                    }
-                                    // Also relay Gemini-compatible inlineData JSON for universal client support
-                                    let _ = client.send(Message::Text(json!({
-                                        "serverContent": {
-                                            "modelTurn": {
-                                                "parts": [{
-                                                    "inlineData": {
-                                                        "mimeType": "audio/pcm;rate=24000",
-                                                        "data": delta
-                                                    }
-                                                }]
-                                            }
+                                        if !pcm_bytes.is_empty() {
+                                            let frame = crate::ws_audio::encode_audio_frame(24_000, &pcm_bytes);
+                                            let _ = client.send(Message::Binary(frame.into())).await;
                                         }
-                                    }).to_string().into())).await;
+                                    }
                                 }
                             }
 

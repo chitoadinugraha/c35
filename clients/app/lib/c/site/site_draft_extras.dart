@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:alienai_c35/c/site/site_ai_assistant.dart';
+
 /// Draft extras stored on `SiteDoc.metaJson` (the `meta` object inside `site.draft.doc_json`).
 /// `draftPut` round-trips `meta`, so these keys survive the existing Info save path.
 
@@ -66,11 +68,13 @@ class SiteDraftExtras {
     this.knowledge = const [],
     this.orderRing = kSiteOrderRingUntilHandled,
     this.paymentAccounts = const [],
+    this.aiAssistant = const SiteAiAssistantDraft(configured: false),
   });
 
   final List<SiteKnowledgeDraft> knowledge;
   final String orderRing;
   final List<SitePaymentAccountDraft> paymentAccounts;
+  final SiteAiAssistantDraft aiAssistant;
 }
 
 Map<String, dynamic> siteDraftJsonMap(String raw) {
@@ -143,6 +147,7 @@ SiteDraftExtras siteDraftExtrasParse(String metaJson) {
     knowledge: siteKnowledgeListRead(map['knowledge']),
     orderRing: siteOrderRingRead(map),
     paymentAccounts: sitePaymentAccountListRead(map['payment_accounts']),
+    aiAssistant: siteAiAssistantRead(map['ai_assistant']),
   );
 }
 
@@ -151,6 +156,7 @@ String siteDraftExtrasMerge(
   List<SiteKnowledgeDraft>? knowledge,
   String? orderRing,
   List<SitePaymentAccountDraft>? paymentAccounts,
+  SiteAiAssistantDraft? aiAssistant,
 }) {
   final map = siteDraftJsonMap(metaJson);
   if (knowledge != null) {
@@ -163,6 +169,9 @@ String siteDraftExtrasMerge(
   }
   if (paymentAccounts != null) {
     map['payment_accounts'] = paymentAccounts.map((e) => e.toJson()).toList(growable: false);
+  }
+  if (aiAssistant != null) {
+    map['ai_assistant'] = siteAiAssistantToJson(aiAssistant.copyWith(configured: true));
   }
   return jsonEncode(map);
 }

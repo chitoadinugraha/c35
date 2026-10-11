@@ -1,7 +1,13 @@
+mod c35_server;
 mod migrate;
 mod pool;
 mod schema;
 mod snowflake;
+
+pub use c35_server::{
+    CLUSTER_BASE_URL as C35_SERVER_CLUSTER_BASE_URL, HTTP_PORT as C35_SERVER_HTTP_PORT,
+    LISTEN_DEFAULT as C35_SERVER_LISTEN_DEFAULT, LOCAL_BASE_URL as C35_SERVER_LOCAL_BASE_URL,
+};
 
 pub use migrate::{
     db_retry, env_load, migrate_apply, migrate_audit, migrate_boot, migrate_startup, missing_schema,

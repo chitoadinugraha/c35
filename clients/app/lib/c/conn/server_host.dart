@@ -8,11 +8,13 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'server_host_port.dart';
+
 const serverHostProductionUrl = 'https://api.alienai.id';
-const serverHostLocalUrl = 'http://127.0.0.1:8080';
+const serverHostLocalUrl = 'http://127.0.0.1:$c35ServerHttpPort';
 /// Android emulator alias for the host machine's loopback (see `adb reverse` in dev_app_android.ps1).
-const serverHostAndroidEmulatorLocalUrl = 'http://10.0.2.2:8080';
-const serverHostTailscaleUrl = 'http://100.100.1.10:8080';
+const serverHostAndroidEmulatorLocalUrl = 'http://10.0.2.2:$c35ServerHttpPort';
+const serverHostTailscaleUrl = 'http://100.100.1.10:$c35ServerHttpPort';
 const serverHostCompile = String.fromEnvironment('C35_SERVER', defaultValue: '');
 const _serverHostPrefKey = C35AppId.serverHostKey;
 
@@ -83,7 +85,8 @@ Future<String> serverHostResolveReachable(String preferred) async {
 
 final serverHostTick = ValueNotifier(0);
 
-bool serverHostPickerVisible() => kDebugMode || Session.instance.isRoot || Session.instance.isTester;
+bool serverHostPickerVisible() =>
+    kDebugMode || Session.instance.hasRootRole || Session.instance.isTester;
 
 String serverHostLabelFromUrl(String url) {
   try {

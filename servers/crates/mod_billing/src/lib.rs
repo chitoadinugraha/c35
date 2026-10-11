@@ -1,6 +1,7 @@
 mod billing_admin_adjust;
 mod billing_admin_plan_change;
 mod billing_account_get;
+mod billing_cache;
 mod billing_cost;
 mod fetch_fx;
 mod fx_live;
@@ -13,6 +14,7 @@ mod billing_midtrans;
 mod billing_on_demand;
 mod billing_entitlement;
 mod billing_package;
+mod billing_apple;
 mod billing_play;
 mod billing_voucher;
 mod billing_pool;
@@ -34,7 +36,14 @@ mod billing_wallet;
 mod billing_webhook;
 mod bot_usage;
 
+pub use billing_cache::{
+    billing_cache_get, billing_cache_invalidate, billing_cache_put, cached_to_billing_row,
+    evaluate_allowance_sufficient,
+};
+pub use c35_nats::BillingGateCached;
 pub use billing_account_get::billing_account_get;
+
+
 pub use rate_card::{rate_card_retail_usd, rate_card_rows, RateCardRow};
 pub use billing_cost::{
     billing_cost_usd, billing_cost_wholesale_usd, billing_embed_cost_usd, billing_to_retail_usd,
@@ -46,7 +55,9 @@ pub use billing_cost::{
 };
 pub use billing_entitlement::{billing_entitlement_list, billing_entitlement_recompute};
 pub use billing_package::{billing_package_preview, billing_package_redeem};
-pub use billing_play::{billing_play_product_list, billing_play_verify, play_price_idr, PLAY_MARKUP};
+pub use billing_play::{
+    billing_play_product_list, billing_play_sync_owner, billing_play_verify, play_price_idr, PLAY_MARKUP,
+};
 pub use billing_voucher::{
     billing_voucher_before_code_delete, billing_voucher_issue, billing_voucher_limit_get,
     billing_voucher_limit_put, billing_voucher_list, billing_voucher_public, billing_voucher_redeem_list,
@@ -114,10 +125,11 @@ pub use billing_on_demand::{
 };
 pub use billing_reservation::{
     billing_can_afford_tool, billing_gate_with_hold, billing_gate_with_hold_custom,
-    billing_gate_with_hold_model, billing_held_totals, billing_held_totals_exec,
-    billing_reservation_hold, billing_reservation_hold_custom, billing_reservation_refund,
-    billing_reservation_settle,
+    billing_gate_with_hold_model, billing_gate_with_hold_model_opt, billing_held_totals,
+    billing_held_totals_exec, billing_reservation_hold, billing_reservation_hold_custom,
+    billing_reservation_refund, billing_reservation_settle,
 };
+
 pub use billing_turn::{
     billing_account_ensure, billing_deduct, billing_deduct_allowance, billing_deduct_personal_profile,
     billing_gate, billing_gate_model, billing_usage_report,

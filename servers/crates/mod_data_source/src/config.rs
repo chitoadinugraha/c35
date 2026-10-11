@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 pub const SOURCE_KIND_GOOGLE_SHEET: &str = "google_sheet";
+pub const SOURCE_KIND_ALIEN_SITE: &str = "alien_site";
 
 pub const DATA_SOURCE_SMALL_ROW_LIMIT: usize = 50;
 pub const DATA_SOURCE_RETRIEVE_LIMIT: usize = 8;

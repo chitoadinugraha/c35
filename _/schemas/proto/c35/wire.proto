@@ -342,6 +342,7 @@ message WsReq {
     ReqAppPresence app_presence = 213;
     ReqScopeInstructionGet scope_instruction_get = 215;
     ReqScopeInstructionPut scope_instruction_put = 216;
+    ReqSiteEditorWarm site_editor_warm = 217;
   }
 }
 
@@ -535,6 +536,7 @@ message WsRes {
     NotifyPush notify_push = 214;
     ResScopeInstructionGet scope_instruction_get = 215;
     ResScopeInstructionPut scope_instruction_put = 216;
+    ResSiteEditorWarm site_editor_warm = 217;
   }
 }
 

@@ -3084,6 +3084,7 @@ enum WsReq_Body {
   appPresence,
   scopeInstructionGet,
   scopeInstructionPut,
+  siteEditorWarm,
   notSet
 }
 
@@ -3246,6 +3247,7 @@ class WsReq extends $pb.GeneratedMessage {
     ReqAppPresence? appPresence,
     $15.ReqScopeInstructionGet? scopeInstructionGet,
     $15.ReqScopeInstructionPut? scopeInstructionPut,
+    $17.ReqSiteEditorWarm? siteEditorWarm,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3432,6 +3434,7 @@ class WsReq extends $pb.GeneratedMessage {
       result.scopeInstructionGet = scopeInstructionGet;
     if (scopeInstructionPut != null)
       result.scopeInstructionPut = scopeInstructionPut;
+    if (siteEditorWarm != null) result.siteEditorWarm = siteEditorWarm;
     return result;
   }
 
@@ -3600,6 +3603,7 @@ class WsReq extends $pb.GeneratedMessage {
     213: WsReq_Body.appPresence,
     215: WsReq_Body.scopeInstructionGet,
     216: WsReq_Body.scopeInstructionPut,
+    217: WsReq_Body.siteEditorWarm,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3761,7 +3765,8 @@ class WsReq extends $pb.GeneratedMessage {
       212,
       213,
       215,
-      216
+      216,
+      217
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$13.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -4122,6 +4127,8 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$15.ReqScopeInstructionPut>(
         216, _omitFieldNames ? '' : 'scopeInstructionPut',
         subBuilder: $15.ReqScopeInstructionPut.$_createMessage)
+    ..aOM<$17.ReqSiteEditorWarm>(217, _omitFieldNames ? '' : 'siteEditorWarm',
+        subBuilder: $17.ReqSiteEditorWarm.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4299,6 +4306,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(213)
   @$pb.TagNumber(215)
   @$pb.TagNumber(216)
+  @$pb.TagNumber(217)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4455,6 +4463,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(213)
   @$pb.TagNumber(215)
   @$pb.TagNumber(216)
+  @$pb.TagNumber(217)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6214,6 +6223,17 @@ class WsReq extends $pb.GeneratedMessage {
   void clearScopeInstructionPut() => $_clearField(216);
   @$pb.TagNumber(216)
   $15.ReqScopeInstructionPut ensureScopeInstructionPut() => $_ensure(155);
+
+  @$pb.TagNumber(217)
+  $17.ReqSiteEditorWarm get siteEditorWarm => $_getN(156);
+  @$pb.TagNumber(217)
+  set siteEditorWarm($17.ReqSiteEditorWarm value) => $_setField(217, value);
+  @$pb.TagNumber(217)
+  $core.bool hasSiteEditorWarm() => $_has(156);
+  @$pb.TagNumber(217)
+  void clearSiteEditorWarm() => $_clearField(217);
+  @$pb.TagNumber(217)
+  $17.ReqSiteEditorWarm ensureSiteEditorWarm() => $_ensure(156);
 }
 
 enum WsRes_Body {
@@ -6384,6 +6404,7 @@ enum WsRes_Body {
   notifyPush,
   scopeInstructionGet,
   scopeInstructionPut,
+  siteEditorWarm,
   notSet
 }
 
@@ -6558,6 +6579,7 @@ class WsRes extends $pb.GeneratedMessage {
     NotifyPush? notifyPush,
     $15.ResScopeInstructionGet? scopeInstructionGet,
     $15.ResScopeInstructionPut? scopeInstructionPut,
+    $17.ResSiteEditorWarm? siteEditorWarm,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -6758,6 +6780,7 @@ class WsRes extends $pb.GeneratedMessage {
       result.scopeInstructionGet = scopeInstructionGet;
     if (scopeInstructionPut != null)
       result.scopeInstructionPut = scopeInstructionPut;
+    if (siteEditorWarm != null) result.siteEditorWarm = siteEditorWarm;
     return result;
   }
 
@@ -6938,6 +6961,7 @@ class WsRes extends $pb.GeneratedMessage {
     214: WsRes_Body.notifyPush,
     215: WsRes_Body.scopeInstructionGet,
     216: WsRes_Body.scopeInstructionPut,
+    217: WsRes_Body.siteEditorWarm,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -7111,7 +7135,8 @@ class WsRes extends $pb.GeneratedMessage {
       213,
       214,
       215,
-      216
+      216,
+      217
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -7498,6 +7523,8 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$15.ResScopeInstructionPut>(
         216, _omitFieldNames ? '' : 'scopeInstructionPut',
         subBuilder: $15.ResScopeInstructionPut.$_createMessage)
+    ..aOM<$17.ResSiteEditorWarm>(217, _omitFieldNames ? '' : 'siteEditorWarm',
+        subBuilder: $17.ResSiteEditorWarm.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7687,6 +7714,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(214)
   @$pb.TagNumber(215)
   @$pb.TagNumber(216)
+  @$pb.TagNumber(217)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -7855,6 +7883,7 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(214)
   @$pb.TagNumber(215)
   @$pb.TagNumber(216)
+  @$pb.TagNumber(217)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -9745,6 +9774,17 @@ class WsRes extends $pb.GeneratedMessage {
   void clearScopeInstructionPut() => $_clearField(216);
   @$pb.TagNumber(216)
   $15.ResScopeInstructionPut ensureScopeInstructionPut() => $_ensure(167);
+
+  @$pb.TagNumber(217)
+  $17.ResSiteEditorWarm get siteEditorWarm => $_getN(168);
+  @$pb.TagNumber(217)
+  set siteEditorWarm($17.ResSiteEditorWarm value) => $_setField(217, value);
+  @$pb.TagNumber(217)
+  $core.bool hasSiteEditorWarm() => $_has(168);
+  @$pb.TagNumber(217)
+  void clearSiteEditorWarm() => $_clearField(217);
+  @$pb.TagNumber(217)
+  $17.ResSiteEditorWarm ensureSiteEditorWarm() => $_ensure(168);
 }
 
 class NotifyItem extends $pb.GeneratedMessage {

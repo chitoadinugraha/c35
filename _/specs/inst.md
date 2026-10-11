@@ -33,6 +33,8 @@ Wire: `ReqScopeInstructionGet` / `ReqScopeInstructionPut`. DDL: [`../schemas/sco
 
 Prepare trace: `trace_scope_instruction` on `ai.log` (topic) with `entries[]` (`scope_kind`, `scope_iid`, `mode`, `applied`, `body_preview`) and `block_preview` of text injected into the system prompt.
 
+Prepare trace also records **`trace_user_assets`** when user-asset RAG runs ([site-ai.md](site-ai.md) — Voice & unmentioned site names). Same **root trace** surface as other prepare branches (`ai.log`, MCP `trace_get`; not NATS). Meta uses `topic: trace_user_assets`, branch `user_assets`, group `prepare`, plus `injected`, `block_chars`, and embed timing/cost when the query was embedded. **`sites[]`** and **`bots[]`** list every candidate scored for the turn; each element carries **`name`**, **`asset_iid`**, **`sim`**, and **`injected`** (whether that row was written into `[USER SITES]` / `[USER BOTS]`). Rows below the inject floor may appear in trace for debugging and must not be injected into the prompt.
+
 ---
 
 ## Table: `ai.inst`

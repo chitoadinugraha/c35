@@ -425,6 +425,78 @@ class ResLiveStart extends $pb.GeneratedMessage {
   void clearWsPath() => $_clearField(3);
 }
 
+/// Live WebSocket downlink audio: magic 0xC3 0x35 + protobuf bytes (see mod_live::ws_audio).
+class LiveWsAudio extends $pb.GeneratedMessage {
+  factory LiveWsAudio({
+    $core.int? sampleRateHz,
+    $core.List<$core.int>? pcmS16le,
+  }) {
+    final result = LiveWsAudio._();
+    if (sampleRateHz != null) result.sampleRateHz = sampleRateHz;
+    if (pcmS16le != null) result.pcmS16le = pcmS16le;
+    return result;
+  }
+
+  LiveWsAudio._();
+
+  factory LiveWsAudio.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LiveWsAudio()..mergeFromBuffer(data, registry);
+  factory LiveWsAudio.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      LiveWsAudio()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'LiveWsAudio',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: LiveWsAudio.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'sampleRateHz',
+        fieldType: $pb.PbFieldType.OU3)
+    ..a<$core.List<$core.int>>(
+        2, _omitFieldNames ? '' : 'pcmS16le', $pb.PbFieldType.OY)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LiveWsAudio clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  LiveWsAudio copyWith(void Function(LiveWsAudio) updates) =>
+      super.copyWith((message) => updates(message as LiveWsAudio))
+          as LiveWsAudio;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use LiveWsAudio() / LiveWsAudio.new instead')
+  static LiveWsAudio create() => LiveWsAudio._();
+  static $pb.GeneratedMessage $_createMessage() => LiveWsAudio._();
+  @$core.override
+  LiveWsAudio createEmptyInstance() => LiveWsAudio._();
+  @$core.pragma('dart2js:noInline')
+  static LiveWsAudio getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<LiveWsAudio>(
+          LiveWsAudio.$_createMessage);
+  static LiveWsAudio? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get sampleRateHz => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set sampleRateHz($core.int value) => $_setUnsignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSampleRateHz() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSampleRateHz() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.List<$core.int> get pcmS16le => $_getN(1);
+  @$pb.TagNumber(2)
+  set pcmS16le($core.List<$core.int> value) => $_setBytes(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPcmS16le() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPcmS16le() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

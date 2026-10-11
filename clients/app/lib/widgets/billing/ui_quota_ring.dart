@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/billing/billing_format.dart';
+import 'package:alienai_c35/c/billing/billing_platform.dart';
+import 'package:alienai_c35/c/billing/billing_store_manage.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
@@ -136,6 +140,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
     this.freemiumTokensLimit = billingFreemiumTokensLimit,
     this.trialExpiresTsMs,
     this.planExpiresTsMs,
+    this.planAutoRenew = false,
   });
 
   final String planTier;
@@ -160,6 +165,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
   final int freemiumTokensLimit;
   final int? trialExpiresTsMs;
   final int? planExpiresTsMs;
+  final bool planAutoRenew;
 
   bool get _isPaidPlan => planTier.isNotEmpty && planTier != 'free';
 
@@ -185,6 +191,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
         context,
         planTier: planTier,
         planTierLoading: planTierLoading,
+        planAutoRenew: planAutoRenew,
         onPackageTap: onPackageTap,
         alien5hUsed: alien5hUsed,
         alien5hLimit: alien5hLimit,
@@ -197,22 +204,76 @@ class UiQuotaPackagePanel extends StatelessWidget {
         fxMicroPerUsd: fxMicroPerUsd,
       );
 
-  Widget _packageHeaderRow({bool includeBottomPadding = true}) => Padding(
-        padding: EdgeInsets.fromLTRB(2, 8, 2, includeBottomPadding ? 4 : 0),
-        child: Row(
-          children: [
-            const Icon(Icons.workspace_premium_outlined, size: 15, color: Color(0xFFFBBF24)),
-            const SizedBox(width: 8),
-            Text('settings.package'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
-            const Spacer(),
-            Text(
-              planTierLoading ? '…' : billingPlanTierLabel(planTier),
-              style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            if (onPackageTap != null) ...[const SizedBox(width: 4), const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A))],
-          ],
+  bool get _showManageStoreSubscription =>
+      billingUseNativeStoreCheckout() && _isPaidPlan && planAutoRenew;
+
+  Widget _manageStoreSubscriptionButton({EdgeInsetsGeometry padding = const EdgeInsets.fromLTRB(2, 0, 2, 4)}) {
+    if (!_showManageStoreSubscription) return const SizedBox.shrink();
+    return Padding(
+      padding: padding,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+          onPressed: () => unawaited(billingStoreManageSubscriptions()),
+          icon: const Icon(Icons.open_in_new, size: 14, color: Color(0xFF38BDF8)),
+          label: Text(
+            'billing.manageStoreSubscription'.tr(namedArgs: {'store': billingNativeStoreLabel()}),
+            style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600),
+          ),
         ),
-      );
+      ),
+    );
+  }
+
+  String? _packagePeriodCompactHint() {
+    if (planTierLoading || !_isPaidPlan) return null;
+    final ms = planExpiresTsMs ?? 0;
+    if (ms <= 0) return null;
+    final label = billingPlanPeriodEndCompactLabel(planAutoRenew: planAutoRenew, planExpiresTsMs: ms);
+    return label.isEmpty ? null : label;
+  }
+
+  Widget _packageHeaderRow({bool includeBottomPadding = true}) {
+    final periodHint = _packagePeriodCompactHint();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(2, 8, 2, includeBottomPadding ? 4 : 0),
+      child: Row(
+        children: [
+          const Icon(Icons.workspace_premium_outlined, size: 15, color: Color(0xFFFBBF24)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Row(
+              children: [
+                Text('settings.package'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
+                if (periodHint != null) ...[
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(
+                      periodHint,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Color(0xFF52525B), fontSize: 10, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Text(
+            planTierLoading ? '…' : billingPlanTierLabel(planTier),
+            style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+          if (onPackageTap != null) ...[const SizedBox(width: 4), const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A))],
+        ],
+      ),
+    );
+  }
 
   Widget _freemiumPackageBlock(BuildContext context) => uiTooltip(
         message: 'billing.freemiumPackageTooltip'.tr(),
@@ -316,6 +377,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
                     child: _packageHeaderRow(),
                   ),
                 ),
+                _manageStoreSubscriptionButton(),
                 Material(
                   color: Colors.transparent,
                   child: InkWell(
@@ -435,6 +497,7 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromSummary(
     freemiumTokensLimit: summary.freemiumTokensLimit > 0 ? summary.freemiumTokensLimit : billingFreemiumTokensLimit,
     trialExpiresTsMs: summary.hasTrialExpiresTsMs() ? summary.trialExpiresTsMs.toInt() : null,
     planExpiresTsMs: summary.hasPlanExpiresTsMs() ? summary.planExpiresTsMs.toInt() : null,
+    planAutoRenew: summary.planAutoRenew,
   );
 }
 
@@ -442,6 +505,7 @@ Future<void> quotaUsageDialogShow(
   BuildContext context, {
   required String planTier,
   bool planTierLoading = false,
+  bool planAutoRenew = false,
   VoidCallback? onPackageTap,
   required double alien5hUsed,
   required double alien5hLimit,
@@ -507,8 +571,22 @@ Future<void> quotaUsageDialogShow(
                       ),
                     ),
                   ),
-                )
-              else
+                ),
+              if (billingUseNativeStoreCheckout() && planAutoRenew && planTier.isNotEmpty && planTier != 'free') ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => unawaited(billingStoreManageSubscriptions()),
+                    icon: const Icon(Icons.open_in_new, size: 16, color: Color(0xFF38BDF8)),
+                    label: Text(
+                      'billing.manageStoreSubscription'.tr(namedArgs: {'store': billingNativeStoreLabel()}),
+                      style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+              if (onPackageTap == null)
                 UiQuotaDialogPanel(
                   child: Row(
                     children: [
@@ -728,5 +806,6 @@ UiQuotaPackagePanel uiQuotaPackagePanelFromAccount(
     freemiumTokensLimit: account.freemiumTokensLimit > 0 ? account.freemiumTokensLimit : billingFreemiumTokensLimit,
     trialExpiresTsMs: quota?.hasTrialExpiresTsMs() == true ? quota!.trialExpiresTsMs.toInt() : (account.hasTrialExpiresTsMs() ? account.trialExpiresTsMs.toInt() : null),
     planExpiresTsMs: quota?.hasPlanExpiresTsMs() == true ? quota!.planExpiresTsMs.toInt() : (account.hasPlanExpiresTsMs() ? account.planExpiresTsMs.toInt() : null),
+    planAutoRenew: quota?.hasPlanAutoRenew() == true ? quota!.planAutoRenew : account.planAutoRenew,
   );
 }

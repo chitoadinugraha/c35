@@ -50,7 +50,7 @@ class UiDeviceRow extends StatelessWidget {
       kind.toLowerCase() == 'remote' && !clusterOnline ? 'Device is offline' : _typeSubtitle;
 
   String? get _engineBadge => type.toLowerCase() == 'browser'
-      ? (browserEngine.toLowerCase() == 'extension' ? 'Extension' : 'Automated')
+      ? (browserEngine.toLowerCase() == 'extension' ? 'Extension' : 'Browser')
       : null;
 
   @override

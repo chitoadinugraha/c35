@@ -12,8 +12,11 @@ class UiReferralForestNode extends StatelessWidget {
     this.canExpand = false,
     this.expanding = false,
     this.remaining = 0,
+    this.branchCollapsed = false,
+    this.branchChildCount = 0,
     this.onTap,
     this.onExpand,
+    this.onToggleBranch,
   });
 
   final ReferralTreeNode node;
@@ -21,8 +24,11 @@ class UiReferralForestNode extends StatelessWidget {
   final bool canExpand;
   final bool expanding;
   final int remaining;
+  final bool branchCollapsed;
+  final int branchChildCount;
   final VoidCallback? onTap;
   final VoidCallback? onExpand;
+  final VoidCallback? onToggleBranch;
 
   static const _accent = Color(0xFF34D399);
   static const _text = Color(0xFFF4F4F5);
@@ -84,6 +90,27 @@ class UiReferralForestNode extends StatelessWidget {
                         ],
                       ),
                     ],
+                    if (branchChildCount > 0 && onToggleBranch != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: TextButton.icon(
+                            onPressed: onToggleBranch,
+                            icon: Icon(branchCollapsed ? Icons.unfold_more : Icons.unfold_less, size: 16),
+                            label: Text(
+                              branchCollapsed
+                                  ? 'Show $branchChildCount referral${branchChildCount == 1 ? '' : 's'}'
+                                  : 'Hide referrals',
+                            ),
+                            style: TextButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: _muted,
+                              backgroundColor: const Color(0xFF27272A).withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (canExpand)
                       Padding(
                         padding: const EdgeInsets.only(top: 6),

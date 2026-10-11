@@ -62,7 +62,7 @@ RUN apt-get update \
 
 WORKDIR /app
 
-ENV LISTEN=0.0.0.0:8080
+ENV LISTEN=0.0.0.0:10000
 ENV YB_DATABASE=c35
 ENV CAS_DIR=/data/cas
 ENV PPTX_RENDER_BIN=/app/render_pptx
@@ -75,9 +75,9 @@ COPY --from=rust-build /app/server_ai.sha /app/server_ai.sha
 COPY --from=bun-build /app/render_pptx /app/render_pptx
 COPY clients/web /app/clients/web
 
-EXPOSE 8080
+EXPOSE 10000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8080/livez || exit 1
+    CMD curl -fsS http://127.0.0.1:10000/livez || exit 1
 
 ENTRYPOINT ["/app/server_ai"]

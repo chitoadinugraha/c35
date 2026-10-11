@@ -140,6 +140,26 @@ const collectDiagnostics = async () => {
   };
 };
 
+const agentEnsure = async () => {
+  try {
+    nmConnect();
+    const raw = await nmPortRequest({ type: "agent.ensure" }, 22000);
+    const reachable =
+      raw?.data?.agent_reachable === true || raw?.agent_reachable === true;
+    extLog("info", `agent.ensure reachable=${reachable}`);
+    return raw;
+  } catch (e) {
+    try {
+      const raw = await nmRequest({ type: "agent.ensure" }, 22000);
+      extLog("info", "agent.ensure via sendNativeMessage");
+      return raw;
+    } catch (e2) {
+      extLog("error", `agent.ensure: ${e2.message || e2}`);
+      return null;
+    }
+  }
+};
+
 const nmConnect = () => {
   if (nativePort) return nativePort;
   if (nmConnectBusy) return null;
@@ -157,6 +177,7 @@ const nmConnect = () => {
     nmConnectBusy = false;
     extLog("info", "native port connected");
     broadcastStatus({ type: "native", state: "connected" });
+    void agentEnsure();
   } catch (e) {
     nativePort = null;
     nmConnectBusy = false;
@@ -559,6 +580,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       return true;
     case "diagnostics.logs":
       sendResponse({ ok: true, extLogs: extLogs.slice(), captureActive });
+      return true;
+    case "agent.ensure":
+      agentEnsure()
+        .then((raw) => {
+          const agent =
+            raw?.data && typeof raw.data === "object" && Object.keys(raw.data).length
+              ? { ...raw.data, ...raw }
+              : raw || {};
+          sendResponse({ ok: true, agent });
+        })
+        .catch((e) => sendResponse({ ok: false, error: String(e.message || e) }));
       return true;
     case "agent.status":
       nmPortRequest({ type: "agent.status" }, 10000)

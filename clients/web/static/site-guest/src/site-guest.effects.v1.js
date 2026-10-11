@@ -74,7 +74,8 @@
       canvas.id = "guest-effects";
       canvas.setAttribute("aria-hidden", "true");
       canvas.style.cssText = "position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0";
-      var page = document.querySelector("main") || document.body;
+      var page = document.querySelector("main.guest-page-main") || document.querySelector("main") || document.body;
+      document.body.classList.add("guest-storefront");
       if (page && page.parentNode) page.parentNode.insertBefore(canvas, page);
       else document.body.appendChild(canvas);
       if (page && page !== document.body) {

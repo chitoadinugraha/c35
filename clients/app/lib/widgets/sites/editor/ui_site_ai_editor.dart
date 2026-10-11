@@ -1,8 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:alienai_c35/c/site/site_ai_assistant.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ai/alien_icon_svg.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
@@ -10,9 +15,19 @@ import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
+const _accent = Color(0xFF34D399);
+
+enum SiteAiPane { list, chat, call }
+
+String siteAiPaneLabel(SiteAiPane pane) => switch (pane) {
+      SiteAiPane.list => 'AI',
+      SiteAiPane.chat => 'AI Chat',
+      SiteAiPane.call => 'AI Call',
+    };
 
 class UiSiteAiEditor extends StatefulWidget {
   const UiSiteAiEditor({
@@ -20,6 +35,8 @@ class UiSiteAiEditor extends StatefulWidget {
     required this.api,
     required this.siteIid,
     required this.masterDetail,
+    this.pane = SiteAiPane.list,
+    this.onPaneChanged,
     this.detailId,
     this.onDetailIdChanged,
     this.onDraftSaved,
@@ -28,6 +45,8 @@ class UiSiteAiEditor extends StatefulWidget {
   final SiteApi api;
   final int siteIid;
   final bool masterDetail;
+  final SiteAiPane pane;
+  final ValueChanged<SiteAiPane>? onPaneChanged;
   final String? detailId;
   final ValueChanged<String?>? onDetailIdChanged;
   final VoidCallback? onDraftSaved;
@@ -40,29 +59,38 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
   late final _searchCtrl = TextEditingController();
   late final _titleCtrl = TextEditingController();
   late final _contentCtrl = TextEditingController();
+  late final _chatIntroCtrl = TextEditingController();
+  late final _chatPlaceholderCtrl = TextEditingController();
+  late final _callIntroCtrl = TextEditingController();
   var _search = '';
   var _loading = true;
   String? _error;
   String? _selectedId;
   String? _editingId;
   var _suppress = false;
-  Timer? _saveTimer;
+  var _suppressAi = false;
   final _items = <SiteKnowledgeDraft>[];
+  var _aiAssistant = SiteAiAssistantDraft.legacyDefaults;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl.addListener(_onField);
     _contentCtrl.addListener(_onField);
+    _chatIntroCtrl.addListener(_onAiField);
+    _chatPlaceholderCtrl.addListener(_onAiField);
+    _callIntroCtrl.addListener(_onAiField);
     unawaited(_load());
   }
 
   @override
   void dispose() {
-    _saveTimer?.cancel();
     _searchCtrl.dispose();
     _titleCtrl.dispose();
     _contentCtrl.dispose();
+    _chatIntroCtrl.dispose();
+    _chatPlaceholderCtrl.dispose();
+    _callIntroCtrl.dispose();
     super.dispose();
   }
 
@@ -89,9 +117,12 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     });
     try {
       final draft = await widget.api.draftGet(widget.siteIid);
+      final extras = siteDraftExtrasParse(draft.doc.metaJson);
       _items
         ..clear()
-        ..addAll(siteDraftExtrasParse(draft.doc.metaJson).knowledge);
+        ..addAll(extras.knowledge);
+      _aiAssistant = extras.aiAssistant;
+      _bindAiFields();
       _pickDefault();
       _bindActive();
     } catch (e) {
@@ -99,6 +130,14 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _bindAiFields() {
+    _suppressAi = true;
+    _chatIntroCtrl.text = _aiAssistant.chatIntro;
+    _chatPlaceholderCtrl.text = _aiAssistant.chatPlaceholder;
+    _callIntroCtrl.text = _aiAssistant.callIntro;
+    _suppressAi = false;
   }
 
   void _pickDefault() {
@@ -148,9 +187,41 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     _scheduleSave();
   }
 
+  void _onAiField() {
+    if (_loading || _suppressAi) return;
+    _aiAssistant = _aiAssistant.copyWith(
+      configured: true,
+      chatIntro: _chatIntroCtrl.text,
+      chatPlaceholder: _chatPlaceholderCtrl.text.trim().isEmpty ? 'Ask Alien AI...' : _chatPlaceholderCtrl.text,
+      callIntro: _callIntroCtrl.text,
+    );
+    _scheduleSave();
+  }
+
+  void _setPane(SiteAiPane pane) => widget.onPaneChanged?.call(pane);
+
+  void _patchAi(SiteAiAssistantDraft next) {
+    setState(() => _aiAssistant = next.copyWith(configured: true));
+    _scheduleSave();
+  }
+
+  void _previewDraftMeta() {
+    siteEditorPreviewPatch(context, (boot) {
+      final base = boot['meta'] is Map
+          ? Map<String, dynamic>.from(boot['meta'] as Map)
+          : <String, dynamic>{};
+      final merged = siteDraftExtrasMerge(
+        base.isEmpty ? '{}' : jsonEncode(base),
+        knowledge: List<SiteKnowledgeDraft>.from(_items),
+        aiAssistant: _aiAssistant,
+      );
+      siteEditorPreviewMergeMetaJson(boot, merged);
+    });
+  }
+
   void _scheduleSave() {
-    _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 500), () => unawaited(_save()));
+    _previewDraftMeta();
+    siteEditorScheduleSave(context, key: 'ai', save: _save);
   }
 
   Future<void> _save() async {
@@ -158,7 +229,11 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
       final draft = await widget.api.draftGet(widget.siteIid);
       final next = draft.clone();
       final doc = next.doc.clone();
-      doc.metaJson = siteDraftExtrasMerge(doc.metaJson, knowledge: List<SiteKnowledgeDraft>.from(_items));
+      doc.metaJson = siteDraftExtrasMerge(
+        doc.metaJson,
+        knowledge: List<SiteKnowledgeDraft>.from(_items),
+        aiAssistant: _aiAssistant,
+      );
       next.doc = doc;
       await widget.api.draftPut(next);
       widget.onDraftSaved?.call();
@@ -187,31 +262,32 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     await _save();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
-    if (_error != null && _items.isEmpty) {
-      return Center(child: Text(_error!, style: const TextStyle(color: _muted, fontSize: 13)));
-    }
-    final detailId = _activeId;
-    if (widget.masterDetail) {
-      if (_items.isEmpty) return _listPane(selectedId: null);
-      final selected = detailId ?? _items.first.id;
-      if (_editingId != selected) _bindActive();
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _aiFeatureFooter() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+      child: Column(
         children: [
-          SizedBox(width: siteCatalogMasterListW, child: _listPane(selectedId: selected)),
-          siteCatalogMasterDivider(context),
-          Expanded(child: _detail(selected)),
+          _AiFeatureRow(
+            icon: Icons.chat_bubble_outline,
+            alienIcon: true,
+            title: 'AI Chat',
+            subtitle: _aiAssistant.featureChatEnabled ? 'On for guests' : 'Off',
+            enabled: _aiAssistant.featureChatEnabled,
+            onEnabledChanged: (v) => _patchAi(_aiAssistant.copyWith(chatEnabled: v)),
+            onOpenSettings: () => _setPane(SiteAiPane.chat),
+          ),
+          const SizedBox(height: 8),
+          _AiFeatureRow(
+            icon: Icons.phone_in_talk_outlined,
+            title: 'AI Call',
+            subtitle: _aiAssistant.featureCallEnabled ? 'On for guests' : 'Off',
+            enabled: _aiAssistant.featureCallEnabled,
+            onEnabledChanged: (v) => _patchAi(_aiAssistant.copyWith(callEnabled: v)),
+            onOpenSettings: () => _setPane(SiteAiPane.call),
+          ),
         ],
-      );
-    }
-    if (detailId != null && _items.any((k) => k.id == detailId)) {
-      if (_editingId != detailId) _bindActive();
-      return _detail(detailId);
-    }
-    return _listPane(selectedId: null);
+      ),
+    );
   }
 
   Widget _listPane({required String? selectedId}) {
@@ -235,7 +311,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
                   subtitle: searching ? 'Try a different search.' : 'Add facts the site can keep on the draft.',
                 )
               : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
                   itemCount: items.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 6),
                   itemBuilder: (context, i) {
@@ -275,9 +351,68 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
                   },
                 ),
         ),
+        _aiFeatureFooter(),
       ],
     );
   }
+
+  Widget _chatSettingsPane() => UiSiteEditorFormScroll(
+        children: [
+          const UiSiteEditorPaneHeader(
+            title: 'AI Chat',
+            subtitle: 'Floating chat on the published guest site. Knowledge facts are included in replies.',
+          ),
+          UiSiteEditorSwitchRow(
+            label: 'Show chat bubble on guest site',
+            value: _aiAssistant.featureChatEnabled,
+            onChanged: (v) => _patchAi(_aiAssistant.copyWith(chatEnabled: v)),
+          ),
+          const SizedBox(height: 8),
+          UiSiteEditorLabeledField(
+            label: 'Welcome message',
+            child: TextField(
+              controller: _chatIntroCtrl,
+              minLines: 2,
+              maxLines: 5,
+              style: const TextStyle(color: _text, fontSize: 14),
+              decoration: siteEditorInputDecoration(hintText: 'Ask anything about this business.'),
+            ),
+          ),
+          UiSiteEditorLabeledField(
+            label: 'Input placeholder',
+            child: TextField(
+              controller: _chatPlaceholderCtrl,
+              style: const TextStyle(color: _text, fontSize: 14),
+              decoration: siteEditorInputDecoration(hintText: 'Ask Alien AI...'),
+            ),
+          ),
+        ],
+      );
+
+  Widget _callSettingsPane() => UiSiteEditorFormScroll(
+        children: [
+          const UiSiteEditorPaneHeader(
+            title: 'AI Call',
+            subtitle: 'Voice call entry on the guest site. Uses the same knowledge as chat.',
+          ),
+          UiSiteEditorSwitchRow(
+            label: 'Show call button on guest site',
+            value: _aiAssistant.featureCallEnabled,
+            onChanged: (v) => _patchAi(_aiAssistant.copyWith(callEnabled: v)),
+          ),
+          const SizedBox(height: 8),
+          UiSiteEditorLabeledField(
+            label: 'Welcome message',
+            child: TextField(
+              controller: _callIntroCtrl,
+              minLines: 2,
+              maxLines: 5,
+              style: const TextStyle(color: _text, fontSize: 14),
+              decoration: siteEditorInputDecoration(hintText: 'Tap to talk with Alien AI about this site.'),
+            ),
+          ),
+        ],
+      );
 
   Widget _detail(String id) {
     return ListView(
@@ -306,6 +441,113 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _paneBody({String? selectedId}) {
+    return switch (widget.pane) {
+      SiteAiPane.chat => _chatSettingsPane(),
+      SiteAiPane.call => _callSettingsPane(),
+      SiteAiPane.list => widget.masterDetail
+          ? _listPane(selectedId: selectedId)
+          : (selectedId != null ? _detail(selectedId) : _listPane(selectedId: null)),
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+    if (_error != null && _items.isEmpty && widget.pane == SiteAiPane.list) {
+      return Center(child: Text(_error!, style: const TextStyle(color: _muted, fontSize: 13)));
+    }
+    final detailId = _activeId;
+    if (widget.masterDetail && widget.pane == SiteAiPane.list) {
+      if (_items.isEmpty) return _listPane(selectedId: null);
+      final selected = detailId ?? _items.first.id;
+      if (_editingId != selected) _bindActive();
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(width: siteCatalogMasterListW, child: _listPane(selectedId: selected)),
+          siteCatalogMasterDivider(context),
+          Expanded(child: _detail(selected)),
+        ],
+      );
+    }
+    if (!widget.masterDetail && widget.pane == SiteAiPane.list && detailId != null && _items.any((k) => k.id == detailId)) {
+      if (_editingId != detailId) _bindActive();
+      return _detail(detailId);
+    }
+    return _paneBody(selectedId: detailId);
+  }
+}
+
+class _AiFeatureRow extends StatelessWidget {
+  const _AiFeatureRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onEnabledChanged,
+    required this.onOpenSettings,
+    this.alienIcon = false,
+  });
+
+  final IconData icon;
+  final bool alienIcon;
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final ValueChanged<bool> onEnabledChanged;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: siteEditorCardBg,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: siteEditorFieldBorder.withValues(alpha: 0.85)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onOpenSettings,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: alienIcon ? Colors.black : siteEditorFieldFill,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: siteEditorFieldBorder),
+                ),
+                child: alienIcon
+                    ? Padding(
+                        padding: const EdgeInsets.all(5),
+                        child: SvgPicture.string(alienIconSvg, fit: BoxFit.contain),
+                      )
+                    : Icon(icon, size: 16, color: _accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text(subtitle, style: const TextStyle(color: _muted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              UiSiteCatalogActiveSwitch(value: enabled, onChanged: onEnabledChanged),
+              const Text('Manage', style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)),
+              const Icon(Icons.chevron_right, size: 18, color: _muted),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

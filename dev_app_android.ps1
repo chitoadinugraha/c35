@@ -212,12 +212,13 @@ if (-not $serial) {
 Write-Host "==> waiting for boot: $targetLabel"
 Emulator-WaitBoot $adb $serial
 
-$port = if ($env:LISTEN) { [int](($env:LISTEN -split ':')[-1]) } else { 8080 }
+. (Join-Path $PSScriptRoot '_\scripts\dev\c35_server_port.ps1')
+$port = if ($env:LISTEN) { [int](($env:LISTEN -split ':')[-1]) } else { $C35ServerHttpPort }
 $serverUrl = if ($env:C35_SERVER_URL) { $env:C35_SERVER_URL.Trim().TrimEnd('/') } else { "http://127.0.0.1:$port" }
 Write-Host "==> adb reverse tcp:$port (device 127.0.0.1:$port -> host PC)"
 Invoke-Adb $adb @('reverse', "tcp:$port", "tcp:$port") $serial | Out-Null
 Write-Host "==> API base: $serverUrl"
-Write-Host '    (cluster: set C35_SERVER_URL=https://api.alienai.id; tailscale dev: http://100.100.1.10:8080)'
+Write-Host "    (cluster: set C35_SERVER_URL=https://api.alienai.id; tailscale dev: http://100.100.1.10:$C35ServerHttpPort)"
 try {
     $healthHost = if ($serverUrl -match '^https?://([^/:]+)') { $Matches[1] } else { '127.0.0.1' }
     $healthUrl = if ($healthHost -in @('10.0.2.2', '127.0.0.1')) { "http://127.0.0.1:$port/health" } else { "$serverUrl/health" }

@@ -11,5 +11,5 @@ spec:
     app.kubernetes.io/name: c35-server
   ports:
     - name: http
-      port: 8080
+      port: 10000
       targetPort: http

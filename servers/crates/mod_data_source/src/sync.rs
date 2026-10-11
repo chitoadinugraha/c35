@@ -7,8 +7,10 @@ use tracing::info;
 use crate::chunk::{
     chunk_content_hash, chunk_embed_eligible, embed_normalize, sheet_csv_chunk_rows, snapshot_hash,
 };
+use crate::alien_site::alien_site_sync_run;
 use crate::config::{
-    data_source_sync_ttl_sec, DATA_SOURCE_SYNCING_STUCK_SEC, SOURCE_KIND_GOOGLE_SHEET,
+    data_source_sync_ttl_sec, DATA_SOURCE_SYNCING_STUCK_SEC, SOURCE_KIND_ALIEN_SITE,
+    SOURCE_KIND_GOOGLE_SHEET,
 };
 use crate::google_sheet::{google_sheet_config_from_row, google_sheet_read_csv, sheet_tab_name};
 use crate::store::{
@@ -52,6 +54,7 @@ pub async fn data_source_sync_run(http: &Client, pool: &PgPool, data_source_id: 
             }
             Ok(())
         }
+        SOURCE_KIND_ALIEN_SITE => alien_site_sync_run(pool, data_source_id).await,
         other => {
             let msg = format!("unsupported source_kind: {other}");
             let _ = sync_upsert_error(pool, data_source_id, other, &msg).await;

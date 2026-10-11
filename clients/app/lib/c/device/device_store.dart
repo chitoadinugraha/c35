@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:alienai_c35/c/api/referral_conn.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
@@ -214,7 +213,132 @@ class DeviceStore extends ChangeNotifier {
     }
   }
 
-  Future<void> pinPut(String id, bool pinned) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), isPinned: pinned));
+  IdentityListRow _rowCopy(
+    IdentityListRow row, {
+    bool? isPinned,
+    int? sortOrder,
+  }) =>
+      IdentityListRow(
+        identity: row.identity,
+        grantRole: row.grantRole,
+        isPinned: isPinned ?? row.isPinned,
+        sortOrder: sortOrder ?? row.sortOrder,
+        archivedTsMs: row.archivedTsMs,
+      );
+
+  int _nextSortOrderInGroup(bool pinned) {
+    var next = 10;
+    for (final r in _rows) {
+      if (r.isPinned != pinned) continue;
+      if (r.sortOrder >= next) next = r.sortOrder + 10;
+    }
+    return next;
+  }
+
+  void _reassignSortOrdersInGroup(bool pinned) {
+    var order = 10;
+    for (var i = 0; i < _rows.length; i++) {
+      if (_rows[i].isPinned != pinned) continue;
+      _rows[i] = _rowCopy(_rows[i], sortOrder: order);
+      order += 10;
+    }
+  }
+
+  Future<void> pinPut(String id, bool pinned) async {
+    final i = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+    if (i < 0) throw 'Device not found';
+    final previous = _rows[i];
+    if (previous.isPinned == pinned) return;
+
+    final newSort = _nextSortOrderInGroup(pinned);
+    _rows[i] = _rowCopy(previous, isPinned: pinned, sortOrder: newSort);
+    _sortRows();
+    notifyListeners();
+    unawaited(deviceListCacheSave(Session.instance.uid, _rows));
+
+    try {
+      await ensureConnected();
+      final res = await identityGrantPatch(
+        _conn,
+        ReqIdentityGrantPatch(
+          resourceIid: previous.identity.iid,
+          isPinned: pinned,
+          sortOrder: newSort,
+        ),
+      );
+      final j = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+      if (j >= 0) {
+        _rows[j] = res.row;
+      } else {
+        _rows.add(res.row);
+      }
+      _sortRows();
+      _shellDevicesCountSync();
+      notifyListeners();
+      await deviceListCacheSave(Session.instance.uid, _rows);
+    } catch (e) {
+      final j = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+      if (j >= 0) _rows[j] = previous;
+      _sortRows();
+      notifyListeners();
+      unawaited(deviceListCacheSave(Session.instance.uid, _rows));
+      lError('device pin put: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> reorderPut(int oldIndex, int newIndex) async {
+    if (_search.trim().isNotEmpty) return;
+    if (oldIndex == newIndex ||
+        oldIndex < 0 ||
+        newIndex < 0 ||
+        oldIndex >= _rows.length ||
+        newIndex >= _rows.length) {
+      return;
+    }
+    final pinned = _rows[oldIndex].isPinned;
+    if (_rows[newIndex].isPinned != pinned) {
+      notifyListeners();
+      return;
+    }
+
+    final snapshot = List<IdentityListRow>.from(_rows);
+    final item = _rows.removeAt(oldIndex);
+    _rows.insert(newIndex, item);
+    _reassignSortOrdersInGroup(pinned);
+    notifyListeners();
+    unawaited(deviceListCacheSave(Session.instance.uid, _rows));
+
+    try {
+      await ensureConnected();
+      for (final row in _rows) {
+        if (row.isPinned != pinned) continue;
+        final sid = row.identity.iid.toString();
+        final before = snapshot.firstWhere((r) => r.identity.iid.toString() == sid);
+        if (before.sortOrder == row.sortOrder) continue;
+        final res = await identityGrantPatch(
+          _conn,
+          ReqIdentityGrantPatch(
+            resourceIid: row.identity.iid,
+            sortOrder: row.sortOrder,
+          ),
+        );
+        final j = _rows.indexWhere((r) => r.identity.iid.toString() == sid);
+        if (j >= 0) _rows[j] = res.row;
+      }
+      notifyListeners();
+      await deviceListCacheSave(Session.instance.uid, _rows);
+    } catch (e) {
+      _rows
+        ..clear()
+        ..addAll(snapshot);
+      _sortRows();
+      notifyListeners();
+      unawaited(deviceListCacheSave(Session.instance.uid, _rows));
+      lError('device reorder: $e');
+      rethrow;
+    }
+  }
 
   Future<void> archivePut(String id, bool archived) => _grantPatch(id, ReqIdentityGrantPatch(resourceIid: Int64.parseInt(id), archived: archived));
 
@@ -242,11 +366,25 @@ class DeviceStore extends ChangeNotifier {
   }
 
   Future<void> namePut(String id, String name) async {
-    final row = rowById(id);
-    if (row == null) throw 'Device not found';
+    final i = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+    if (i < 0) throw 'Device not found';
+    final row = _rows[i];
     final trimmed = name.trim();
     if (trimmed.isEmpty) throw 'Name required';
-    final identity = row.identity;
+    if (row.identity.name == trimmed) return;
+
+    final previous = _rows[i];
+    final identity = row.identity.clone()..name = trimmed;
+    _rows[i] = IdentityListRow(
+      identity: identity,
+      grantRole: row.grantRole,
+      isPinned: row.isPinned,
+      sortOrder: row.sortOrder,
+      archivedTsMs: row.archivedTsMs,
+    );
+    notifyListeners();
+    unawaited(deviceListCacheSave(Session.instance.uid, _rows));
+
     try {
       await ensureConnected();
       final res = await identityPut(
@@ -254,9 +392,9 @@ class DeviceStore extends ChangeNotifier {
         ReqIdentityPut(iid: identity.iid, kind: identity.kind, type: identity.type, name: trimmed, metaJson: identity.metaJson),
       );
       if (!res.hasRow()) return;
-      final i = _rows.indexWhere((r) => r.identity.iid.toString() == id);
-      if (i >= 0) {
-        _rows[i] = res.row;
+      final j = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+      if (j >= 0) {
+        _rows[j] = res.row;
       } else {
         _rows.add(res.row);
       }
@@ -264,6 +402,10 @@ class DeviceStore extends ChangeNotifier {
       notifyListeners();
       await deviceListCacheSave(Session.instance.uid, _rows);
     } catch (e) {
+      final j = _rows.indexWhere((r) => r.identity.iid.toString() == id);
+      if (j >= 0) _rows[j] = previous;
+      notifyListeners();
+      unawaited(deviceListCacheSave(Session.instance.uid, _rows));
       lError('device name put: $e');
       rethrow;
     }

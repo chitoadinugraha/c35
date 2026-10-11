@@ -53,7 +53,7 @@ Map<String, dynamic> _designBoot() => {
                 ],
               },
             },
-            {'id': 'grid', 'type': 'product_grid', 'props': {'title': 'Shop'}},
+            {'id': 'grid', 'type': 'product_grid', 'props': {'title': 'Shop', 'display': 'list'}},
             {'id': 'partners', 'type': 'partners_display', 'props': <String, dynamic>{}},
             {'id': 'clients', 'type': 'clients_display', 'props': <String, dynamic>{}},
           ],
@@ -98,24 +98,16 @@ void main() {
   });
 
   testWidgets('guest page paints design chrome, profile, links, products, and strips', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: SingleChildScrollView(
-            child: SizedBox.shrink(),
-          ),
-        ),
-      ),
-    );
+    await tester.binding.setSurfaceSize(const Size(400, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(
-            child: GuestSiteView.bootJson(bootJson: _designBoot()),
-          ),
+          body: GuestSiteView.bootJson(bootJson: _designBoot()),
         ),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('guest-profile-avatar')), findsNothing);
     expect(find.text('Demo'), findsOneWidget);

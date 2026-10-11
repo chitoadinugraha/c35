@@ -55,10 +55,22 @@ String siteTaxDefaultName(String type) => switch (siteTaxTypeNormalize(type)) {
     };
 
 class SiteDraftMeta {
-  const SiteDraftMeta({this.taxes = const [], this.productDesign = const SiteProductDesignDraft()});
+  const SiteDraftMeta({
+    this.taxes = const [],
+    this.productDesign = const SiteProductDesignDraft(),
+    this.catalogDisplay = 'grid',
+  });
 
   final List<SiteTaxDraft> taxes;
   final SiteProductDesignDraft productDesign;
+
+  /// Site-wide default for product grid: `grid` or `list`.
+  final String catalogDisplay;
+}
+
+String siteCatalogDisplayNormalize(String? raw) {
+  final t = (raw ?? '').trim().toLowerCase();
+  return t == 'list' ? 'list' : 'grid';
 }
 
 Map<String, dynamic> _metaMap(String metaJson) {
@@ -145,6 +157,7 @@ SiteDraftMeta siteDraftMetaParse(String metaJson) {
   return SiteDraftMeta(
     taxes: taxes,
     productDesign: siteProductDesignFromJson(map['product_design']),
+    catalogDisplay: siteCatalogDisplayNormalize(map['catalog_display']?.toString()),
   );
 }
 
@@ -152,10 +165,15 @@ String siteDraftMetaMerge(
   String metaJson, {
   List<SiteTaxDraft>? taxes,
   SiteProductDesignDraft? productDesign,
+  String? catalogDisplay,
 }) {
   final map = _metaMap(metaJson);
   if (taxes != null) map['taxes'] = taxes.map(siteTaxDraftToJson).toList(growable: false);
   if (productDesign != null) map['product_design'] = siteProductDesignToJson(productDesign);
+  if (catalogDisplay != null) {
+    final v = siteCatalogDisplayNormalize(catalogDisplay);
+    map['catalog_display'] = v;
+  }
   return jsonEncode(map);
 }
 

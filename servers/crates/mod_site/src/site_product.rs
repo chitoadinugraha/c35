@@ -10,6 +10,7 @@ use sqlx::PgPool;
 use tokio::sync::mpsc;
 
 use crate::grant::site_grant_check;
+use crate::guest_product::{product_cursor_decode, product_cursor_encode};
 use crate::product_icon::{product_icon_ensure, product_icon_ids};
 use crate::rows::product_from_row;
 use crate::sync_push::site_sync_push;
@@ -72,26 +73,111 @@ async fn product_embed_reconcile_tx(
     Ok(())
 }
 
-pub async fn site_product_list(
-    pool: &PgPool,
-    caller_iid: i64,
-    req: ReqSiteProductList,
-) -> Result<ResSiteProductList> {
-    let _ = site_grant_check(pool, caller_iid, req.site_iid, false).await?;
-    let rows = sqlx::query(
+/// Mark catalog row used after it appears on a transaction line (idempotent).
+pub async fn site_product_mark_used(
+    conn: &mut sqlx::PgConnection,
+    site_iid: i64,
+    product_id: i64,
+) -> Result<()> {
+    if site_iid <= 0 || product_id <= 0 {
+        return Ok(());
+    }
+    sqlx::query(
         r#"
-        SELECT site_iid, product_id, type, name, "desc", unit, sku, rev,
-               can_sell, can_reserve, track_stock, stock_qty, price, pic, category,
-               product_json, is_archived, sort_order, created_ts, updated_ts, deleted_ts
-        FROM site.product
-        WHERE site_iid = $1 AND deleted_ts IS NULL
-        ORDER BY sort_order, product_id
+        UPDATE site.product
+        SET is_used = TRUE, updated_ts = NOW()
+        WHERE site_iid = $1 AND product_id = $2 AND is_used = FALSE AND deleted_ts IS NULL
         "#,
     )
-    .bind(req.site_iid)
-    .fetch_all(pool)
+    .bind(site_iid)
+    .bind(product_id)
+    .execute(conn)
     .await?;
-    let mut products: Vec<SiteProduct> = rows.iter().map(product_from_row).collect();
+    Ok(())
+}
+
+pub async fn site_product_list_page(
+    pool: &PgPool,
+    site_iid: i64,
+    limit: i32,
+    cursor: &str,
+) -> Result<ResSiteProductList> {
+    if limit <= 0 {
+        let rows = sqlx::query(
+            r#"
+            SELECT site_iid, product_id, type, name, "desc", unit, sku, rev,
+                   can_sell, can_reserve, track_stock, stock_qty, price, pic, category,
+                   product_json, is_archived, sort_order, is_used, created_ts, updated_ts, deleted_ts
+            FROM site.product
+            WHERE site_iid = $1 AND deleted_ts IS NULL
+            ORDER BY sort_order, product_id
+            "#,
+        )
+        .bind(site_iid)
+        .fetch_all(pool)
+        .await?;
+        let mut products: Vec<SiteProduct> = rows.iter().map(product_from_row).collect();
+        let pairs: Vec<(String, String)> = products
+            .iter()
+            .map(|p| (p.pic.clone(), p.name.clone()))
+            .collect();
+        let icons = product_icon_ids(pool, &pairs).await;
+        for (product, icon) in products.iter_mut().zip(icons) {
+            product.icon = icon;
+        }
+        return Ok(ResSiteProductList {
+            products,
+            next_cursor: String::new(),
+            has_more: false,
+        });
+    }
+
+    let page_size = limit.min(48).max(1);
+    let fetch = page_size + 1;
+    let keyset = product_cursor_decode(cursor)?;
+    let rows = if let Some((sort_order, product_id)) = keyset {
+        sqlx::query(
+            r#"
+            SELECT site_iid, product_id, type, name, "desc", unit, sku, rev,
+                   can_sell, can_reserve, track_stock, stock_qty, price, pic, category,
+                   product_json, is_archived, sort_order, is_used, created_ts, updated_ts, deleted_ts
+            FROM site.product
+            WHERE site_iid = $1 AND deleted_ts IS NULL
+              AND (sort_order, product_id) > ($2, $3)
+            ORDER BY sort_order, product_id
+            LIMIT $4
+            "#,
+        )
+        .bind(site_iid)
+        .bind(sort_order)
+        .bind(product_id)
+        .bind(fetch)
+        .fetch_all(pool)
+        .await?
+    } else {
+        sqlx::query(
+            r#"
+            SELECT site_iid, product_id, type, name, "desc", unit, sku, rev,
+                   can_sell, can_reserve, track_stock, stock_qty, price, pic, category,
+                   product_json, is_archived, sort_order, is_used, created_ts, updated_ts, deleted_ts
+            FROM site.product
+            WHERE site_iid = $1 AND deleted_ts IS NULL
+            ORDER BY sort_order, product_id
+            LIMIT $2
+            "#,
+        )
+        .bind(site_iid)
+        .bind(fetch)
+        .fetch_all(pool)
+        .await?
+    };
+    let has_more = rows.len() > page_size as usize;
+    let page_rows: Vec<_> = if has_more {
+        rows.into_iter().take(page_size as usize).collect()
+    } else {
+        rows
+    };
+    let mut products: Vec<SiteProduct> = page_rows.iter().map(product_from_row).collect();
     let pairs: Vec<(String, String)> = products
         .iter()
         .map(|p| (p.pic.clone(), p.name.clone()))
@@ -100,7 +186,26 @@ pub async fn site_product_list(
     for (product, icon) in products.iter_mut().zip(icons) {
         product.icon = icon;
     }
-    Ok(ResSiteProductList { products })
+    let next_cursor = if has_more {
+        let last = products.last().expect("has_more implies page");
+        product_cursor_encode(last.sort_order, last.product_id)
+    } else {
+        String::new()
+    };
+    Ok(ResSiteProductList {
+        products,
+        next_cursor,
+        has_more,
+    })
+}
+
+pub async fn site_product_list(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteProductList,
+) -> Result<ResSiteProductList> {
+    let _ = site_grant_check(pool, caller_iid, req.site_iid, false).await?;
+    site_product_list_page(pool, req.site_iid, req.limit, &req.cursor).await
 }
 
 pub async fn site_product_put(
@@ -260,6 +365,22 @@ pub async fn site_product_delete(
         return Err(anyhow!("site_iid and product_id required"));
     }
     let _owner_iid = site_grant_check(pool, caller_iid, site_iid, true).await?;
+    let is_used: bool = sqlx::query_scalar(
+        r#"
+        SELECT is_used FROM site.product
+        WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(site_iid)
+    .bind(product_id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| anyhow!("product {product_id} not found or already deleted"))?;
+    if is_used {
+        return Err(anyhow!(
+            "product has been used in sales or orders; archive it instead of deleting"
+        ));
+    }
     let row = sqlx::query(
         r#"
         UPDATE site.product
@@ -267,7 +388,7 @@ pub async fn site_product_delete(
         WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL
         RETURNING site_iid, product_id, type, name, "desc", unit, sku, rev,
                   can_sell, can_reserve, track_stock, stock_qty, price, pic, category,
-                  product_json, is_archived, sort_order, created_ts, updated_ts, deleted_ts
+                  product_json, is_archived, sort_order, is_used, created_ts, updated_ts, deleted_ts
         "#,
     )
     .bind(site_iid)

@@ -2,6 +2,7 @@ mod device;
 mod host;
 mod metric_rollup;
 mod node;
+mod pod_stats;
 mod sample;
 mod volume;
 mod volume_discover;
@@ -12,12 +13,13 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use async_nats::jetstream::kv::Store;
 use async_nats::Client;
-use c35_nats::{stats_kv_ensure, stats_kv_key_node, stats_kv_key_volume, stats_kv_put};
+use c35_nats::{stats_kv_ensure, stats_kv_key_node, stats_kv_key_pod, stats_kv_key_volume, stats_kv_put};
 use prost::Message;
 use tracing::{info, warn};
 
 use crate::metric_rollup::{pg_pool_from_env, MetricRollup};
 use crate::node::{node_push, node_subject, NodeSampler};
+use crate::pod_stats::{pod_push, pod_subject, PodSampler};
 use crate::volume::{sample_volume, volume_configs, volume_push, volume_subject, VolumeConfig};
 use crate::device::disk_labels_from_volumes;
 use crate::volume_discover::{discover_namespace, merge_volume_configs, node_display_address, volume_discover};
@@ -41,6 +43,7 @@ async fn main() -> Result<()> {
     let mut volumes = merge_volume_configs(volume_configs(), volume_discover(&node_name).await);
     sampler.set_disk_labels(disk_labels_from_volumes("/host", &volumes));
     let mut last_discover = std::time::Instant::now();
+    let mut pod_sampler = PodSampler::new();
 
     info!(
         node = %node_name,
@@ -61,7 +64,27 @@ async fn main() -> Result<()> {
             last_discover = std::time::Instant::now();
         }
         publish_node(&nats, &kv, &mut sampler, &node_name, &mut rollup).await;
+        publish_pods(&nats, &kv, &mut pod_sampler, &node_name).await;
         publish_volumes(&nats, &kv, &volumes, &node_name, &mut rollup).await;
+    }
+}
+
+async fn publish_pods(nats: &Client, kv: &Store, sampler: &mut PodSampler, node_name: &str) {
+    let stats = sampler.sample(node_name).await;
+    for stat in stats {
+        let ns = stat.namespace.clone();
+        let pod = stat.pod_name.clone();
+        let subject = pod_subject(node_name, &ns, &pod);
+        let push = pod_push(stat);
+        let payload = push.encode_to_vec();
+        if let Err(e) = nats.publish(subject.clone(), payload.into()).await {
+            warn!(subject = %subject, error = %e, "pod stats publish failed");
+            continue;
+        }
+        let key = stats_kv_key_pod(node_name, &ns, &pod);
+        if let Err(e) = stats_kv_put(kv, &key, &push).await {
+            warn!(key = %key, error = %e, "stats KV pod put failed");
+        }
     }
 }
 

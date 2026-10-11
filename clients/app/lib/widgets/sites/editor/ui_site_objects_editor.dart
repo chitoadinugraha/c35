@@ -7,6 +7,10 @@ import 'package:alienai_c35/c/media/ask_media.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/site/site_object_batch.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/io/in_site_product.dart';
@@ -63,7 +67,7 @@ class UiSiteObjectsEditor extends StatefulWidget {
   State<UiSiteObjectsEditor> createState() => _UiSiteObjectsEditorState();
 }
 
-class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
+class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
   var _loading = true;
@@ -71,7 +75,6 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
   String? _error;
   String? _selectedId;
   final _byId = <String, SiteObject>{};
-  final _debounceTimers = <String, Timer>{};
   List<SiteProduct> _products = const [];
 
   @override
@@ -82,9 +85,6 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
 
   @override
   void dispose() {
-    for (final t in _debounceTimers.values) {
-      t.cancel();
-    }
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -155,12 +155,31 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
     }
   }
 
+  @override
+  void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    _byId
+      ..clear()
+      ..addEntries(catalog.objects.map((o) => MapEntry('${o.id}', o)));
+    _products = catalog.products;
+    _pickDefault();
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+      });
+    }
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
+      if (await ensureEditorCatalog()) {
+        unawaited(editorCatalog?.ensureAllProducts());
+        return;
+      }
       final items = await widget.api.objectList(widget.siteIid);
       List<SiteProduct> products = _products;
       try {
@@ -168,6 +187,10 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
       } catch (e) {
         _error = uiFriendlyError(e);
       }
+      for (final o in items) {
+        editorCatalog?.upsertObject(o);
+      }
+      editorCatalog?.replaceProducts(products);
       _byId
         ..clear()
         ..addEntries(items.map((o) => MapEntry('${o.id}', o)));
@@ -225,8 +248,12 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
   }
 
   void _debouncedPut(String id, SiteObject draft) {
-    _debounceTimers[id]?.cancel();
-    _debounceTimers[id] = Timer(const Duration(milliseconds: 450), () => unawaited(_put(id, draft)));
+    siteEditorScheduleSave(
+      context,
+      key: 'object:$id',
+      debounce: const Duration(milliseconds: 450),
+      save: () => _put(id, draft),
+    );
   }
 
   Future<void> _put(String id, SiteObject draft) async {
@@ -247,12 +274,17 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> {
     }
   }
 
+  void _patchCommercePreview() {
+    siteEditorPreviewPatch(context, (boot) => siteEditorPreviewRefreshCommerceObjects(boot, _byId.values));
+  }
+
   void _patch(String id, void Function(SiteObject o) fn) {
     final base = _byId[id];
     if (base == null) return;
     final next = base.clone();
     fn(next);
     setState(() => _byId[id] = next);
+    _patchCommercePreview();
     _debouncedPut(id, next);
   }
 

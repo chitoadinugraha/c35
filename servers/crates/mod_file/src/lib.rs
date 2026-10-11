@@ -45,6 +45,40 @@ use s3::{BlobS3, S3BlobError};
 pub const CAS_INLINE_MAX_BYTES: i64 = 524_288;
 pub const CAS_URL_TTL: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
+/// Controls post-insert behavior for [`cas_put_opts`].
+#[derive(Debug, Clone, Copy)]
+pub struct CasPutOptions {
+    /// When true, enqueue thumb/small on upload (off by default; use `IMAGE_OPTIMIZE_ON_PUT=1`).
+    /// Normal path: variants are built lazily on first `GET /fs/{hash}?v=thumb|small`.
+    pub optimize_image: bool,
+}
+
+impl Default for CasPutOptions {
+    fn default() -> Self {
+        Self::user_upload()
+    }
+}
+
+impl CasPutOptions {
+    pub fn user_upload() -> Self {
+        Self {
+            optimize_image: false,
+        }
+    }
+
+    pub fn derivative() -> Self {
+        Self {
+            optimize_image: false,
+        }
+    }
+}
+
+fn image_optimize_on_put_env() -> bool {
+    std::env::var("IMAGE_OPTIMIZE_ON_PUT")
+        .ok()
+        .is_some_and(|v| v.trim() == "1")
+}
+
 static S3_CLIENT: OnceLock<Option<BlobS3>> = OnceLock::new();
 
 fn s3_client() -> Option<&'static BlobS3> {
@@ -300,6 +334,17 @@ pub async fn cas_put(
     body: &[u8],
     mime_type: &str,
 ) -> Result<CasPutResult, sqlx::Error> {
+    cas_put_opts(pool, cas_dir, secret, body, mime_type, CasPutOptions::default()).await
+}
+
+pub async fn cas_put_opts(
+    pool: &sqlx::PgPool,
+    cas_dir: &Path,
+    secret: &str,
+    body: &[u8],
+    mime_type: &str,
+    opts: CasPutOptions,
+) -> Result<CasPutResult, sqlx::Error> {
     let hash = cas_hash(body);
     let size = body.len() as i64;
     let is_inline = size < CAS_INLINE_MAX_BYTES;
@@ -388,7 +433,7 @@ pub async fn cas_put(
         }
     }
 
-    if mime_type.starts_with("image/") {
+    if (opts.optimize_image || image_optimize_on_put_env()) && mime_type.starts_with("image/") {
         optimize::spawn_image_optimize(
             pool.clone(),
             cas_dir.to_path_buf(),
@@ -625,6 +670,17 @@ async fn file_get_response(
         return (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
     }
 
+    if let Some(vk) = q.v.as_deref().filter(|k| !k.is_empty()) {
+        optimize::ensure_image_variants_on_read(
+            &st.pool,
+            &st.cas_dir,
+            &st.cas_secret,
+            &canonical,
+            vk,
+        )
+        .await;
+    }
+
     let fetch_hash = match resolve_fetch_hash(&st.pool, &canonical, q.v.as_deref()).await {
         Ok(h) => h,
         Err(_) => return (StatusCode::NOT_FOUND, "not found").into_response(),
@@ -685,6 +741,17 @@ async fn head_file_handler(
         return (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
     }
 
+    if let Some(vk) = q.v.as_deref().filter(|k| !k.is_empty()) {
+        optimize::ensure_image_variants_on_read(
+            &st.pool,
+            &st.cas_dir,
+            &st.cas_secret,
+            &canonical,
+            vk,
+        )
+        .await;
+    }
+
     let fetch_hash = match resolve_fetch_hash(&st.pool, &canonical, q.v.as_deref()).await {
         Ok(h) => h,
         Err(_) => return (StatusCode::NOT_FOUND, "not found").into_response(),
@@ -715,6 +782,12 @@ async fn put_file_handler(
     }
     if cas_meta_get(&st.pool, &hash).await.ok().flatten().is_some() {
         return StatusCode::NO_CONTENT.into_response();
+    }
+    if auth_session_caller_iid(&st.pool, &headers, None)
+        .await
+        .is_none_or(|id| id <= 0)
+    {
+        return (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
     }
     if let Err(msg) = cas_hash_verify(&hash, &body) {
         return (StatusCode::BAD_REQUEST, msg).into_response();

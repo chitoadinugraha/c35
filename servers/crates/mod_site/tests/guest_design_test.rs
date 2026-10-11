@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use c35_mod_site::guest_design::{FeaturedContact, GuestDesign};
-use c35_mod_site::render::{block_html_render, guest_shell_html, ProductRow};
+use c35_mod_site::render::{block_html_render, guest_root_css, guest_shell_html, ProductRow};
 use c35_mod_site::site_boot_json_assemble;
 use c35_proto::SiteBootMode;
 use serde_json::json;
@@ -70,6 +70,7 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
         None,
         &design,
         &[],
+        &json!({}),
     );
     let links = block_html_render(
         "links",
@@ -83,6 +84,7 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
         None,
         &design,
         &[],
+        &json!({}),
     );
     let product = block_html_render(
         "product_grid",
@@ -111,6 +113,7 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
         None,
         &design,
         &[],
+        &json!({}),
     );
     let featured = [FeaturedContact {
         id: 42,
@@ -130,6 +133,7 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
         None,
         &design,
         &featured,
+        &json!({}),
     );
     let clients = block_html_render(
         "clients_display",
@@ -143,6 +147,7 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
         None,
         &design,
         &featured,
+        &json!({}),
     );
     let html = guest_shell_html(
         &design,
@@ -158,8 +163,11 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
     assert!(profile_html.contains("data-guest=\"profile\""));
     assert!(!profile_html.contains("<img"));
     assert!(profile_html.contains("Rose Atelier"));
+    assert!(profile_html.contains("guest-hub-cta"));
 
     let link_html = section(&html, "link");
+    assert!(link_html.contains("guest-link-list"));
+    assert!(link_html.contains("guest-link-label"));
     assert!(!link_html.contains("class=\"card\""));
     assert!(!link_html.contains(" card"));
 
@@ -175,6 +183,18 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
     let clients_html = section(&html, "clients");
     assert!(clients_html.contains("Featured Clients"));
     assert_eq!(clients_html.matches("strip-item strip-").count(), 0);
+}
+
+#[test]
+fn guest_root_css_includes_typography_tokens() {
+    let design = GuestDesign::from_theme_json(&fixture_theme());
+    let css = guest_root_css(&design);
+    assert!(css.contains("--hub-title-size:"));
+    assert!(css.contains("--hub-bio-size:"));
+    assert!(css.contains("--hub-avatar-size:"));
+    assert!(css.contains("--product-title-size:"));
+    assert!(css.contains("--product-subtitle-size:"));
+    assert!(css.contains("--product-price-size:"));
 }
 
 #[test]

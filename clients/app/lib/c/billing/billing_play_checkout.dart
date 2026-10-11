@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/billing/billing_platform.dart';
 import 'package:alienai_c35/c/billing/billing_play_api.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
+import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 
@@ -66,7 +69,16 @@ ProductDetails? billingPlayProductDetailsPick(ProductDetailsResponse catalog, Li
       if (p.id.endsWith(id) || id.endsWith(p.id)) return p;
     }
   }
-  return catalog.productDetails.isNotEmpty ? catalog.productDetails.first : null;
+  return null;
+}
+
+String _nativeStoreUnavailableMessage() {
+  if (!kIsWeb && Platform.isIOS) {
+    return 'App Store purchases are not available on this device.\n'
+        'Check that you are signed into the App Store with a valid Apple ID.';
+  }
+  return 'Google Play Billing is not available on this device.\n'
+      'Check that Google Play Store is installed, updated, and signed into a Google account.';
 }
 
 Future<ResBillingPlayVerify> billingPlayPurchaseAndVerify(
@@ -75,8 +87,7 @@ Future<ResBillingPlayVerify> billingPlayPurchaseAndVerify(
 }) async {
   final iap = InAppPurchase.instance;
   if (!await iap.isAvailable()) {
-    throw 'Google Play Billing is not available on this device.\n'
-        'Check that Google Play Store is installed, updated, and signed into a Google account.';
+    throw _nativeStoreUnavailableMessage();
   }
   final productId = product.productId.trim();
   if (productId.isEmpty) throw 'Missing Play product id';
@@ -88,9 +99,9 @@ Future<ResBillingPlayVerify> billingPlayPurchaseAndVerify(
   final details = billingPlayProductDetailsPick(catalog, candidates);
   if (details == null) {
     final missing = catalog.notFoundIDs.isEmpty ? candidates.join(', ') : catalog.notFoundIDs.join(', ');
-    throw 'Subscription or product not found in Google Play ($missing).\n'
-        'Check that SKU "$productId" is set to Active in Google Play Console (id.alienai), '
-        'and your Google account is added as a License Tester under Setup → License testing.';
+    final store = billingNativeStoreLabel();
+    throw 'Subscription or product not found in $store ($missing).\n'
+        'Check that SKU "$productId" is active in the store console for this app.';
   }
 
   final purchase = await _awaitPurchase(iap, details, product.kind == 'credit');
@@ -137,8 +148,8 @@ Future<PurchaseDetails> _awaitPurchase(InAppPurchase iap, ProductDetails details
         : PurchaseParam(productDetails: details);
     final started = consumable ? await iap.buyConsumable(purchaseParam: param) : await iap.buyNonConsumable(purchaseParam: param);
     if (!started) {
-      throw 'Could not start Google Play purchase.\n'
-          'Ensure Google Play Store is up to date and signed into an active Google account.';
+      throw 'Could not start ${billingNativeStoreLabel()} purchase.\n'
+          'Ensure the store app is available and you are signed in.';
     }
     return await completer.future.timeout(const Duration(minutes: 8));
   } finally {

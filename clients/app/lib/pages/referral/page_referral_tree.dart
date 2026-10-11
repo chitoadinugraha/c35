@@ -39,6 +39,9 @@ class _PageReferralTreeState extends State<PageReferralTree> {
   Map<String, int> _percentages = {};
   int _platformUserCount = 0;
   var _expandingId = 0;
+  var _forestFullyLoaded = false;
+  var _autoCollapsedBusyRoots = false;
+  final _collapsedBranches = <int>{};
   late var _rootId = _initialRootId;
   var _focusId = 0;
   var _searchOpen = false;
@@ -59,6 +62,31 @@ class _PageReferralTreeState extends State<PageReferralTree> {
       _nodes = List<ReferralTreeNode>.from(slice.nodes);
       _percentages = shareResult.shares;
       if (slice.platformUserCount > 0) _platformUserCount = slice.platformUserCount.toInt();
+    });
+    _maybeAutoCollapseBusyRoots();
+  }
+
+  void _maybeAutoCollapseBusyRoots() {
+    if (_autoCollapsedBusyRoots || _forestFullyLoaded) return;
+    final forest = referralForestFromAccounts(_nodes);
+    var changed = false;
+    for (final root in forest.roots) {
+      final n = referralDirectChildDisplayCount(forest, root);
+      if (n >= referralForestAutoCollapseMinChildren) {
+        changed = _collapsedBranches.add(root.id);
+      }
+    }
+    _autoCollapsedBusyRoots = true;
+    if (changed && mounted) setState(() {});
+  }
+
+  void _toggleBranchCollapse(int parentId) {
+    setState(() {
+      if (_collapsedBranches.contains(parentId)) {
+        _collapsedBranches.remove(parentId);
+      } else {
+        _collapsedBranches.add(parentId);
+      }
     });
   }
 
@@ -124,6 +152,9 @@ class _PageReferralTreeState extends State<PageReferralTree> {
       _error = null;
       _loading = true;
       _rootId = _initialRootId;
+      _forestFullyLoaded = false;
+      _autoCollapsedBusyRoots = false;
+      _collapsedBranches.clear();
     });
     _load(rootId: _rootId);
   }
@@ -264,10 +295,13 @@ class _PageReferralTreeState extends State<PageReferralTree> {
                 ? null
                 : () {
                     setState(() {
-                      _rootId = 0;
+                      _rootId = _initialRootId;
                       _focusId = 0;
+                      _forestFullyLoaded = false;
+                      _autoCollapsedBusyRoots = false;
+                      _collapsedBranches.clear();
                     });
-                    _load(rootId: 0);
+                    _load(rootId: _initialRootId);
                   },
             icon: _loadBusy
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _accent))
@@ -317,8 +351,40 @@ class _PageReferralTreeState extends State<PageReferralTree> {
     }
   }
 
+  int get _loadAllRootId => _wideAccess ? 0 : widget.viewerId;
+
+  Future<void> _loadAllForest() async {
+    if (_loadBusy || _forestFullyLoaded) return;
+    setState(() {
+      _loadBusy = true;
+      _error = null;
+    });
+    try {
+      final slice = await _treeGet(rootId: _loadAllRootId, depth: referralForestMaxLoadDepth);
+      if (!mounted) return;
+      _applySlice(slice);
+      setState(() {
+        _rootId = _loadAllRootId;
+        _forestFullyLoaded = true;
+        _loadBusy = false;
+        _loading = false;
+      });
+      _autoCollapsedBusyRoots = false;
+      _maybeAutoCollapseBusyRoots();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _forestCtrl.fitEntireTree();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = uiReferralError(e, fallback: 'Failed to load referral tree');
+        _loadBusy = false;
+      });
+    }
+  }
+
   Future<void> _expand(int parentId) async {
-    if (_expandingId != 0) return;
+    if (_expandingId != 0 || _forestFullyLoaded) return;
     setState(() {
       _expandingId = parentId;
       _error = null;
@@ -409,10 +475,13 @@ class _PageReferralTreeState extends State<PageReferralTree> {
                 percentages: _percentages,
                 searchMatchIds: _searchMatchIdSet,
                 viewerIsRoot: _wideAccess,
+                forestFullyLoaded: _forestFullyLoaded,
+                collapsedBranches: _collapsedBranches,
                 expandingId: _expandingId == 0 ? null : _expandingId,
                 focusId: _searchQuery.isNotEmpty && _focusId != 0 ? _focusId : (_focusId == 0 ? widget.viewerId : _focusId),
                 controller: _forestCtrl,
                 onExpand: _expand,
+                onToggleBranchCollapse: _toggleBranchCollapse,
                 onPercentChange: _setPercent,
                 onNodeTap: _openProfile,
               ),
@@ -439,17 +508,40 @@ class _PageReferralTreeState extends State<PageReferralTree> {
                         onPressed: _loadBusy
                             ? null
                             : () async {
-                                if (_rootId != 0) {
+                                final wideRoot = _wideAccess ? 0 : widget.viewerId;
+                                if (_rootId != wideRoot) {
                                   setState(() {
-                                    _rootId = 0;
+                                    _rootId = wideRoot;
                                     _focusId = 0;
                                   });
-                                  await _load(rootId: 0);
+                                  await _load(rootId: wideRoot);
                                 }
                                 if (mounted) _forestCtrl.fitEntireTree();
                               },
                         icon: const Icon(Icons.filter_center_focus_rounded, size: 20, color: Color(0xFFA1A1AA)),
                       ),
+                      if (!_forestFullyLoaded) ...[
+                        Container(width: 1, height: 20, color: const Color(0xFF27272A)),
+                        Tooltip(
+                          message: 'Load all referrals you can access',
+                          child: TextButton(
+                            onPressed: _loadBusy ? null : _loadAllForest,
+                            style: TextButton.styleFrom(
+                              foregroundColor: _accent,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              minimumSize: const Size(0, 36),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: _loadBusy
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: _accent),
+                                  )
+                                : const Text('Load all', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

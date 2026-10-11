@@ -1,4 +1,5 @@
 use anyhow::Result;
+use c35_mod_site::site_product_mark_used;
 use c35_proto::Tx;
 use c35_store::snowflake_id;
 use sqlx::postgres::PgConnection;
@@ -212,6 +213,9 @@ pub async fn tx_children_put(conn: &mut PgConnection, tx: &mut Tx) -> Result<()>
         .bind(item.total_unpaid)
         .execute(&mut *conn)
         .await?;
+        if item.product_id > 0 {
+            site_product_mark_used(&mut *conn, site_iid, item.product_id).await?;
+        }
         for src in &item.sources {
             let src_id = if src.src_id > 0 { src.src_id } else { snowflake_id() };
             sqlx::query(

@@ -9,8 +9,8 @@ if (Test-Path -LiteralPath $mcpPath) {
 }
 if (-not $env:C35_SERVER_URL) {
     try {
-        $null = Invoke-WebRequest -Uri 'http://127.0.0.1:8080/health' -UseBasicParsing -TimeoutSec 2
-        $env:C35_SERVER_URL = 'http://127.0.0.1:8080'
+        $null = Invoke-WebRequest -Uri 'http://127.0.0.1:10000/health' -UseBasicParsing -TimeoutSec 2
+        $env:C35_SERVER_URL = 'http://127.0.0.1:10000'
     } catch {
         $env:C35_SERVER_URL = 'https://alienai.id'
     }

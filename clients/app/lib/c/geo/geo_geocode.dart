@@ -10,6 +10,19 @@ class GeoPointValue {
   final double longitude;
 }
 
+class GeoAreaPoint {
+  const GeoAreaPoint({required this.lat, required this.lng});
+
+  final double lat;
+  final double lng;
+}
+
+class GeoAreaValue {
+  const GeoAreaValue({required this.points});
+
+  final List<GeoAreaPoint> points;
+}
+
 class GeocodeResult {
   const GeocodeResult({required this.lat, required this.lng, required this.label});
 

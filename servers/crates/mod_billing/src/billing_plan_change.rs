@@ -560,6 +560,7 @@ async fn apply_immediate_plan(
             window_5h_start = NOW(),
             window_weekly_start = NOW(),
             plan_expires_ts = $8,
+            plan_auto_renew = FALSE,
             pending_plan_slug = NULL,
             pending_billing_period = NULL,
             default_wallet_currency = $9,

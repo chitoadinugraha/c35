@@ -30,6 +30,13 @@ void main() {
     );
     await tester.pump();
     expect(find.byType(UiOverlayEffectStack), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(GuestSiteEffectStack),
+        matching: find.byWidgetPredicate((w) => w is IgnorePointer && w.ignoring),
+      ),
+      findsWidgets,
+    );
     expect(find.text('page'), findsOneWidget);
 
     await tester.pumpWidget(

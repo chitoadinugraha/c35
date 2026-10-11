@@ -90,6 +90,36 @@ void main() {
     expect(branch.toolCandidates.where((c) => !c.isInst).map((c) => c.toolId), ['memory.user']);
   });
 
+  test('buildTraceView parses trace_user_assets prepare branch', () {
+    final view = buildTraceView([
+      TraceLogDoc(
+        kind: 'system',
+        topic: 'trace_user_assets',
+        text: 'User assets',
+        durationMs: 8,
+        metaJson: jsonEncode({
+          'step': 1,
+          'branch': 'user_assets',
+          'injected': true,
+          'block_chars': 120,
+          'sites': [
+            {'name': 'Guci Cha', 'asset_iid': 123, 'alien_id': 'guci-cha', 'sim': 0.91, 'injected': true},
+            {'name': 'Other Site', 'asset_iid': 124, 'alien_id': 'other', 'sim': 0.42, 'injected': false},
+          ],
+          'bots': [],
+        }),
+      ),
+    ]);
+    final branch = view.steps.first.branches.firstWhere((b) => b.label == 'User assets');
+    expect(branch.detail, 'Sites: Guci Cha · 0.91');
+    expect(branch.toolCandidates, hasLength(2));
+    expect(branch.toolCandidates.first.toolId, 'Guci Cha');
+    expect(branch.toolCandidates.first.fed, isTrue);
+    expect(branch.toolCandidates.first.sim, 0.91);
+    expect(branch.toolCandidates.last.fed, isFalse);
+    expect(branch.hasToolFilterDetail, isTrue);
+  });
+
   test('buildTraceView parses tool filter candidates', () {
     final view = buildTraceView([
       TraceLogDoc(

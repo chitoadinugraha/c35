@@ -10,7 +10,10 @@ use std::time::Duration;
 
 use tracing::{info, warn};
 
-use crate::extension_ipc::{extension_ipc_addr, extension_ipc_port_in_use};
+use crate::extension_ipc::{
+    extension_ipc_addr, extension_ipc_listener_pid, extension_ipc_port_in_use, kill_process_pid,
+    HostIpcClient,
+};
 
 fn ipc_reachable() -> bool {
     TcpStream::connect_timeout(&extension_ipc_addr(), Duration::from_millis(300)).is_ok()
@@ -21,6 +24,49 @@ static EMBEDDED_AGENT: AtomicBool = AtomicBool::new(false);
 
 pub fn embedded_agent_active() -> bool {
     EMBEDDED_AGENT.load(Ordering::SeqCst)
+}
+
+fn ipc_agent_healthy() -> bool {
+    if embedded_agent_active() {
+        return true;
+    }
+    match HostIpcClient::connect_quick() {
+        Ok(c) => c
+            .fetch_agent_status(Duration::from_millis(1200))
+            .is_ok(),
+        Err(_) => false,
+    }
+}
+
+/// Start or recover the WebRTC agent (embedded in NM host, or detached exe).
+pub fn ensure_extension_agent_running() {
+    if ipc_agent_healthy() {
+        return;
+    }
+    let _guard = SPAWN_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    if ipc_agent_healthy() {
+        return;
+    }
+    let my_pid = std::process::id();
+    if extension_ipc_port_in_use() {
+        if let Some(pid) = extension_ipc_listener_pid() {
+            if pid != my_pid {
+                info!(pid, "extension agent: stopping stale listener");
+                kill_process_pid(pid);
+                thread::sleep(Duration::from_millis(400));
+            }
+        }
+    }
+    if !extension_ipc_port_in_use() {
+        if EMBEDDED_AGENT.load(Ordering::SeqCst) {
+            EMBEDDED_AGENT.store(false, Ordering::SeqCst);
+        }
+        spawn_embedded_extension_agent();
+        wait_for_extension_agent(Duration::from_secs(12));
+    }
+    if !ipc_agent_healthy() {
+        ensure_detached_extension_agent();
+    }
 }
 
 /// Wait for extension IPC (agent on 37538).

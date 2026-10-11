@@ -6,7 +6,7 @@ use c35_proto::{DiskDeviceStat, DiskMountStat, NodeStat, StatsPush};
 use crate::device::block_devices;
 use crate::host::{
     cpu_cores, cpu_pct as cpu_usage_pct, cpu_sample, disk_io_by_device, disk_io_by_mount, exists,
-    host_path, mem_bytes, net_totals, stat_bytes, swap_bytes, CpuSample,
+    host_path, mem_bytes, net_totals, primary_net_iface, stat_bytes, swap_bytes, CpuSample,
 };
 use crate::sample::{self, SampleSnapshot};
 
@@ -117,6 +117,7 @@ impl NodeSampler {
             swap_used_bytes,
             swap_total_bytes,
             display_address: self.display_address.clone(),
+            net_iface: primary_net_iface(HOST_PREFIX),
         }
     }
 

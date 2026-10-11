@@ -16,10 +16,11 @@ import 'package:alienai_c35/c/site/pos_shortcut_install.dart';
 import 'package:alienai_c35/c/site/site_info_sync.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
 import 'package:alienai_c35/widgets/io/in_geo_point.dart';
 import 'package:alienai_c35/widgets/io/in_site_schedule.dart';
 import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/io_site_handle_claim_dialog.dart';
@@ -68,7 +69,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   double? _lat;
   double? _lng;
   List<SiteScheduleSlot> _hours = [];
-  Timer? _saveTimer;
+  SiteDoc? _draftDoc;
   var _suppressSave = false;
 
   String get _geoBaseUrl => C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
@@ -100,7 +101,6 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
 
   @override
   void dispose() {
-    _saveTimer?.cancel();
     _nameCtrl.dispose();
     _taglineCtrl.dispose();
     super.dispose();
@@ -110,6 +110,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     setState(() => _loading = true);
     try {
       final draft = await widget.api.draftGet(widget.siteIid);
+      _draftDoc = draft.doc.clone();
       final meta = draft.doc.metaJson;
       _taglineCtrl.text = siteMetaTaglineRead(meta);
       _hours = siteScheduleSlotsFromMetaJson(meta);
@@ -128,8 +129,16 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
 
   void _scheduleSave() {
     if (_loading || _suppressSave) return;
-    _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 500), () => unawaited(_save()));
+    final snap = _snapshot();
+    SiteEditorSaveScope.previewCache(context).patch((boot) {
+      boot['name'] = snap.name;
+      if (snap.pic.isNotEmpty) boot['avatar_url'] = snap.pic;
+      final baseDoc = _draftDoc ?? SiteDoc();
+      final doc = siteInfoApplyToDoc(baseDoc, snap);
+      siteEditorPreviewMergeMetaJson(boot, doc.metaJson);
+      siteEditorPreviewPatchDocPages(boot, doc);
+    });
+    siteEditorScheduleSave(context, key: 'info', save: _save);
   }
 
   void _generateTagline() {
@@ -150,6 +159,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       );
 
   Future<void> _save() async {
+    if (!mounted) return;
     await SiteEditorSaveScope.run(context, () async {
       final name = _nameCtrl.text.trim();
       if (name.isNotEmpty && name != widget.row.name) {
@@ -168,6 +178,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       final next = draft.clone();
       next.doc = siteInfoApplyToDoc(draft.doc, _snapshot());
       await widget.api.draftPut(next);
+      _draftDoc = next.doc.clone();
       widget.onDraftSaved?.call();
     });
   }
@@ -182,6 +193,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       isChange: hasHandle,
     );
     if (picked == null || picked.isEmpty || picked == widget.row.alienId) return;
+    if (!mounted) return;
     await SiteEditorSaveScope.run(context, () async {
       final res = await widget.api.handlePut(widget.siteIid, picked);
       widget.onRowChanged(widget.row.clone()..alienId = res.alienId);
@@ -208,7 +220,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
               onTap: () => Navigator.pop(ctx, _AvatarChoice.upload),
             ),
             ListTile(
-              leading: const UiAlienIcon(size: 24, color: _text),
+              leading: const Icon(Icons.auto_awesome_outlined, color: _text),
               title: const Text('Generate', style: TextStyle(color: _text)),
               onTap: () => Navigator.pop(ctx, _AvatarChoice.generate),
             ),
@@ -381,9 +393,8 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     }
     final handle = widget.row.alienId.trim();
     final platformHome = isPlatformSiteAlienId(handle);
-    final handlePreview = platformHome
-        ? 'alienai.id/alienai is not the public home — the public home is https://alienai.id/.'
-        : (handle.isNotEmpty ? '$siteUrlPrefix$handle' : 'Tap to claim your site link');
+    final handlePreview =
+        handle.isNotEmpty ? '$siteUrlPrefix$handle' : 'Tap to claim your site link';
     return UiSiteEditorFormScroll(
       children: [
         const Text('Site info', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
@@ -404,10 +415,8 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
                       ? InputDecorator(
                           decoration: UiInputDecoration.of(context, labelText: 'Site link'),
                           child: Text(
-                            handlePreview,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 14, color: _text),
+                            'Managed',
+                            style: const TextStyle(fontSize: 14, color: _muted),
                           ),
                         )
                       : InkWell(

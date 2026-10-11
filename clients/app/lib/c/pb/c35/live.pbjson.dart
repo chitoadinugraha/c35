@@ -113,3 +113,17 @@ const ResLiveStart$json = {
 final $typed_data.Uint8List resLiveStartDescriptor = $convert.base64Decode(
     'CgxSZXNMaXZlU3RhcnQSFAoFZXJyb3IYASABKAlSBWVycm9yEiYKD2xpdmVfc2Vzc2lvbl9pZB'
     'gCIAEoCVINbGl2ZVNlc3Npb25JZBIXCgd3c19wYXRoGAMgASgJUgZ3c1BhdGg=');
+
+@$core.Deprecated('Use liveWsAudioDescriptor instead')
+const LiveWsAudio$json = {
+  '1': 'LiveWsAudio',
+  '2': [
+    {'1': 'sample_rate_hz', '3': 1, '4': 1, '5': 13, '10': 'sampleRateHz'},
+    {'1': 'pcm_s16le', '3': 2, '4': 1, '5': 12, '10': 'pcmS16le'},
+  ],
+};
+
+/// Descriptor for `LiveWsAudio`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List liveWsAudioDescriptor = $convert.base64Decode(
+    'CgtMaXZlV3NBdWRpbxIkCg5zYW1wbGVfcmF0ZV9oehgBIAEoDVIMc2FtcGxlUmF0ZUh6EhsKCX'
+    'BjbV9zMTZsZRgCIAEoDFIIcGNtUzE2bGU=');

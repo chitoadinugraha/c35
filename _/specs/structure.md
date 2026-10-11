@@ -214,7 +214,7 @@ Implementation plan: [`plans/2026-09-21-remote-agent-pairing.md`](plans/2026-09-
 
 | Var | Purpose |
 |-----|---------|
-| `LISTEN` | HTTP bind (default `0.0.0.0:8080`) |
+| `LISTEN` | HTTP bind (default `0.0.0.0:10000`; see `c35_store::c35_server`) |
 | `C35_DB_MIGRATE` | `1` = apply `_/schemas/*.sql` on boot |
 | `YB_*` / `POSTGRES_*` | Yugabyte connection |
 | `PG_MAX_CONNECTIONS` | SQLx pool size per process (default `48`) |

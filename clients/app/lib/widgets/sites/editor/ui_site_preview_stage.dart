@@ -110,7 +110,7 @@ class _UiSitePreviewStageState extends State<UiSitePreviewStage> {
                     child: InteractiveViewer(
                       transformationController: _transformationCtrl,
                       panEnabled: panMode,
-                      scaleEnabled: true,
+                      scaleEnabled: panMode,
                       minScale: FloorplanConfig.minScale,
                       maxScale: FloorplanConfig.maxScale,
                       boundaryMargin: const EdgeInsets.all(double.infinity),

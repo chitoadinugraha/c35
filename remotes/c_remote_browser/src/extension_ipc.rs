@@ -33,6 +33,50 @@ pub fn extension_ipc_port_in_use() -> bool {
     TcpStream::connect_timeout(&extension_ipc_addr(), Duration::from_millis(250)).is_ok()
 }
 
+/// PID listening on the extension IPC port (Windows `netstat -ano`), if any.
+pub fn extension_ipc_listener_pid() -> Option<u32> {
+    #[cfg(windows)]
+    {
+        let port = extension_ipc_addr().port();
+        let needle = format!(":{port}");
+        let out = std::process::Command::new("netstat")
+            .args(["-ano"])
+            .output()
+            .ok()?;
+        let text = String::from_utf8_lossy(&out.stdout);
+        for line in text.lines() {
+            if !line.contains("LISTENING") {
+                continue;
+            }
+            if !line.contains(&needle) {
+                continue;
+            }
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if let Some(pid) = parts.last() {
+                return pid.parse().ok();
+            }
+        }
+    }
+    None
+}
+
+#[cfg(windows)]
+pub fn kill_process_pid(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+    std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+#[cfg(not(windows))]
+pub fn kill_process_pid(_pid: u32) -> bool {
+    false
+}
+
 pub fn extension_ipc_addr() -> SocketAddr {
     let port = std::env::var("C35_BROWSER_EXTENSION_IPC_PORT")
         .ok()

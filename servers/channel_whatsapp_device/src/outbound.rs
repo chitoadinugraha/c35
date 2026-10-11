@@ -284,7 +284,7 @@ async fn fs_download(http: &reqwest::Client, hash: &str) -> anyhow::Result<Vec<u
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "http://c35-server.c35.svc.cluster.local:8080".to_string());
+        .unwrap_or_else(|| c35_store::C35_SERVER_CLUSTER_BASE_URL.to_string());
     let url = format!("{base}/fs/{hash}");
     let res = http.get(url).send().await?;
     Ok(res.error_for_status()?.bytes().await?.to_vec())

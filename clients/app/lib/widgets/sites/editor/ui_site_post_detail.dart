@@ -6,6 +6,8 @@ import 'package:alienai_c35/c/media/ask_media.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/site/site_post_media.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/io/in_media_list.dart';
@@ -45,7 +47,6 @@ class _UiSitePostDetailState extends State<UiSitePostDetail> {
   late final _titleCtrl = TextEditingController();
   late final _captionCtrl = TextEditingController();
   late final _bodyCtrl = TextEditingController();
-  Timer? _persistTimer;
   var _mediaUploading = false;
   String _localError = '';
 
@@ -65,7 +66,6 @@ class _UiSitePostDetailState extends State<UiSitePostDetail> {
 
   @override
   void dispose() {
-    _persistTimer?.cancel();
     _titleCtrl.dispose();
     _captionCtrl.dispose();
     _bodyCtrl.dispose();
@@ -79,9 +79,13 @@ class _UiSitePostDetailState extends State<UiSitePostDetail> {
     _bodyCtrl.text = p.body;
   }
 
-  void _schedulePersist() {
-    _persistTimer?.cancel();
-    _persistTimer = Timer(const Duration(milliseconds: 500), () => unawaited(_persistNow()));
+  void _schedulePersist(SitePost draft) {
+    siteEditorPreviewPatch(context, (boot) => siteEditorPreviewUpsertPost(boot, draft));
+    siteEditorScheduleSave(
+      context,
+      key: 'post:${draft.postId}',
+      save: _persistNow,
+    );
   }
 
   Future<void> _persistNow() async {
@@ -107,7 +111,7 @@ class _UiSitePostDetailState extends State<UiSitePostDetail> {
     }
     widget.onPostUpdated(next);
     if (debounce) {
-      _schedulePersist();
+      _schedulePersist(next);
     } else {
       unawaited(_persistNow());
     }
@@ -162,6 +166,9 @@ class _UiSitePostDetailState extends State<UiSitePostDetail> {
     widget.onBusy(true);
     try {
       await widget.api.sitePostDelete(widget.siteIid, postId);
+      if (mounted) {
+        siteEditorPreviewPatch(context, (boot) => siteEditorPreviewRemovePost(boot, postId));
+      }
       widget.onDeleted();
     } catch (e) {
       if (mounted) setState(() => _localError = uiFriendlyError(e));

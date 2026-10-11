@@ -320,8 +320,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   void _onConnStatusChanged() {
-    _connStatusLast = _conn.status.value;
-    if (_conn.status.value == ChatConnStatus.connected) return;
+    final next = _conn.status.value;
+    final prev = _connStatusLast;
+    _connStatusLast = next;
+    if (next == ChatConnStatus.connected) {
+      if (prev != ChatConnStatus.connected) {
+        unawaited(_reconcilePromptState());
+      }
+      return;
+    }
     _promptCutOnDisconnect();
   }
 
@@ -440,6 +447,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     if (_store.promptBusyFor(chatId)) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     _store.promptBusyPut(true, chatId: chatId, reqId: reqId);
+    _promptWatchdogStart(reqId);
     _store.msgPut(MsgRow(
       id: _store.msgNextLocalId(),
       chatId: chatId,
@@ -453,6 +461,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     try {
       await for (final ev in _conn.promptAttach(reqId: reqId)) {
         if (ev.kind == 'delta') {
+          _promptWatchdogReset(reqId);
           if (ev.thought) {
             _store.msgStreamThought(ev.text, chatId: chatId);
           } else if (ev.blocksJson.isNotEmpty) {
@@ -487,6 +496,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final recovered = await _promptStreamRecoverFromServer(chatId, reqId);
       if (!recovered) _store.msgStreamFail(msgErrorNormalize(e), chatId: chatId, startedAtMs: startedAt);
     } finally {
+      _promptWatchdogCancel();
       _store.msgStreamFinalize(chatId: chatId, model: _model.id, startedAtMs: startedAt);
       if (_store.promptBusyFor(chatId)) _store.promptBusyPut(false, chatId: chatId);
       PromptFollowupStore.instance.clear();
@@ -658,11 +668,17 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final cid = _store.promptChatId ?? _store.activeChatId;
     if (cid == null || !_store.promptBusyFor(cid) || _store.pendingPromptReqId != reqId) return;
     l('prompt watchdog: reqId=$reqId chatId=$cid reason=$reason');
-    if (cid > 0) await _reconcilePromptState(force: true);
-    if (!_store.promptBusyFor(cid)) return;
-    _store.msgStreamFail(reason, chatId: cid);
+    final offline = _conn.status.value != ChatConnStatus.connected;
+    if (!offline && cid > 0) {
+      try {
+        await _reconcilePromptState(force: true).timeout(const Duration(seconds: 8));
+      } catch (_) {}
+    }
+    if (!_store.promptBusyFor(cid) || _store.pendingPromptReqId != reqId) return;
+    final failReason = offline ? uiConnectionFailed : reason;
+    _store.msgStreamFail(failReason, chatId: cid, reqId: reqId);
     try {
-      await _conn.promptAbort(chatId: cid > 0 ? Int64(cid) : Int64.ZERO, reqId: reqId);
+      await _conn.promptAbort(chatId: cid > 0 ? Int64(cid) : Int64.ZERO, reqId: reqId).timeout(const Duration(seconds: 5));
     } catch (_) {}
     _store.promptBusyPut(false, chatId: cid);
     _promptWatchdogCancel();

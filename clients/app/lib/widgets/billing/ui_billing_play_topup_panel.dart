@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
+import 'package:alienai_c35/c/billing/billing_platform.dart';
 import 'package:alienai_c35/c/billing/billing_play_api.dart';
+import 'package:alienai_c35/c/billing/billing_store_catalog.dart';
 import 'package:alienai_c35/c/billing/billing_play_checkout.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/widgets/billing/billing_topup.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_purchase_disclaimer.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_purchase_success_dialog.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +45,7 @@ class _UiBillingPlayTopupPanelState extends State<UiBillingPlayTopupPanel> {
       _error = null;
     });
     try {
-      final res = await billingPlayProductList(widget.conn);
+      final res = await billingPlayProductList(widget.conn, currency: billingCurrencyForDeviceLocale());
       if (!mounted) return;
       setState(() {
         _credits = res.products.where((p) => p.kind == 'credit').toList();
@@ -91,7 +93,7 @@ class _UiBillingPlayTopupPanelState extends State<UiBillingPlayTopupPanel> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text('Top up via Google Play', style: TextStyle(color: _text, fontWeight: FontWeight.w600, fontSize: 14)),
+        Text('Top up via ${billingNativeStoreLabel()}', style: const TextStyle(color: _text, fontWeight: FontWeight.w600, fontSize: 14)),
         const SizedBox(height: 6),
         const Text('Prices include Play billing fee. Credit applies after Google confirms payment.', style: TextStyle(color: _muted, fontSize: 12, height: 1.35)),
         const SizedBox(height: 14),
@@ -104,7 +106,7 @@ class _UiBillingPlayTopupPanelState extends State<UiBillingPlayTopupPanel> {
             children: _credits
                 .map(
                   (p) => ActionChip(
-                    label: Text(billingTopupIdrLabel(p.playPriceIdr > 0 ? p.playPriceIdr : p.creditIdr)),
+                    label: Text(billingStoreProductPriceLabel(p, currency: billingCurrencyForDeviceLocale())),
                     backgroundColor: const Color(0xFF1A1A1E),
                     labelStyle: const TextStyle(color: Color(0xFFD4D4D8), fontSize: 12),
                     side: const BorderSide(color: _border),

@@ -43,7 +43,7 @@ Use the **same** key in MCP config env. Restart `dev_server.ps1` after server or
 | `DATABASE_URL` | required | YSQL `c35` — **do not commit** |
 | `C35_DEBUG_OWNER_IID` | `99000` | Chito — log/msg defaults |
 | `C35_TEST_OWNER_IID` | `33000` | Automated tests / agent HTTP owner |
-| `C35_SERVER_URL` | `http://127.0.0.1:8080` | `tool_exec`, `prompt_*` |
+| `C35_SERVER_URL` | `http://127.0.0.1:10000` | `tool_exec`, `prompt_*` |
 | `C35_MCP_AGENT_KEY` | **required** | Must match server; no code fallback |
 
 ## Tools

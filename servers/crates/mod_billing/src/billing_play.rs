@@ -10,7 +10,7 @@ use c35_proto::{
     ResBillingPlayVerify,
 };
 use c35_store::snowflake_id;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -29,9 +29,9 @@ const CREDIT_PREFIX: &str = "id.alienai.credit.";
 const USER_PLAN_SLUGS: &[&str] = &["lite", "plus", "pro", "ultra"];
 
 #[derive(Clone, Debug)]
-enum PlayProduct {
+pub(crate) enum PlayProduct {
     Plan { slug: String, period: String, months: i32 },
-    Credit { amount_idr: f64 },
+    Credit { amount_idr: f64, credit_usd: f64 },
 }
 
 #[derive(Deserialize)]
@@ -89,10 +89,6 @@ struct SubscriptionPurchase {
     order_id: Option<String>,
     #[serde(default, rename = "orderId")]
     order_id_camel: Option<String>,
-    #[serde(default)]
-    expiry_time_millis: Option<String>,
-    #[serde(default, rename = "expiryTimeMillis")]
-    expiry_time_millis_camel: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -111,6 +107,10 @@ static PLAY_API: OnceLock<Option<Arc<PlayApi>>> = OnceLock::new();
 
 pub fn play_price_idr(web_idr: f64) -> f64 {
     (web_idr * PLAY_MARKUP).round()
+}
+
+pub fn store_price_usd(web_usd: f64) -> f64 {
+    ((web_usd * PLAY_MARKUP) * 100.0).round() / 100.0
 }
 
 async fn plan_web_price_idr(pool: &PgPool, slug: &str, period: &str) -> Result<i64, String> {
@@ -140,7 +140,7 @@ pub fn play_stub_enabled() -> bool {
         .unwrap_or(false)
 }
 
-fn play_package_name(override_name: &str) -> String {
+pub(crate) fn play_package_name(override_name: &str) -> String {
     let trimmed = override_name.trim();
     if !trimmed.is_empty() {
         return trimmed.to_string();
@@ -152,7 +152,7 @@ fn play_package_name(override_name: &str) -> String {
         .unwrap_or_else(|| DEFAULT_PACKAGE.to_string())
 }
 
-fn parse_play_product(product_id: &str) -> Result<PlayProduct, String> {
+pub(crate) fn parse_play_product(product_id: &str) -> Result<PlayProduct, String> {
     let mut id = product_id.trim();
     if let Some(rest) = id.strip_prefix("id.alienai.") {
         id = rest;
@@ -162,6 +162,18 @@ fn parse_play_product(product_id: &str) -> Result<PlayProduct, String> {
     if id.starts_with("credit.") || id.starts_with("credit_") {
         let amount_part = id.strip_prefix("credit.").or_else(|| id.strip_prefix("credit_")).unwrap_or("");
         let amount_lower = amount_part.trim().to_lowercase();
+        if let Some(usd_raw) = amount_lower.strip_prefix("usd.") {
+            let amount: f64 = usd_raw
+                .parse::<f64>()
+                .map_err(|_| "invalid USD credit amount in product id".to_string())?;
+            if amount < 0.01 {
+                return Err("credit amount must be positive".into());
+            }
+            return Ok(PlayProduct::Credit {
+                amount_idr: 0.0,
+                credit_usd: amount,
+            });
+        }
         let amount: f64 = if let Some(k) = amount_lower.strip_suffix('k') {
             k.parse::<f64>().map(|v| v * 1_000.0).map_err(|_| "invalid credit amount in product id".to_string())?
         } else if let Some(m) = amount_lower.strip_suffix('m') {
@@ -172,7 +184,10 @@ fn parse_play_product(product_id: &str) -> Result<PlayProduct, String> {
         if amount < 1.0 {
             return Err("credit amount must be positive".into());
         }
-        return Ok(PlayProduct::Credit { amount_idr: amount });
+        return Ok(PlayProduct::Credit {
+            amount_idr: amount,
+            credit_usd: 0.0,
+        });
     }
 
     // Check if it's a plan product
@@ -313,12 +328,60 @@ async fn access_token(api: &PlayApi) -> Result<String> {
     Ok(res.access_token)
 }
 
+/// Max subscription end from Google Publisher JSON (v1 millis or v2 lineItems expiryTime).
+pub fn play_subscription_expiry_from_body(body: &Value) -> Option<DateTime<Utc>> {
+    for key in ["expiryTimeMillis", "expiry_time_millis"] {
+        if let Some(v) = body.get(key) {
+            let ms = v
+                .as_i64()
+                .or_else(|| v.as_str().and_then(|s| s.parse::<i64>().ok()));
+            if let Some(ms) = ms {
+                if let Some(dt) = DateTime::from_timestamp_millis(ms) {
+                    return Some(dt);
+                }
+            }
+        }
+    }
+    let items = body
+        .get("lineItems")
+        .or_else(|| body.get("line_items"))
+        .and_then(|v| v.as_array());
+    if let Some(items) = items {
+        let mut max: Option<DateTime<Utc>> = None;
+        for item in items {
+            let raw = item
+                .get("expiryTime")
+                .or_else(|| item.get("expiry_time"))
+                .and_then(|v| v.as_str());
+            if let Some(s) = raw {
+                if let Ok(parsed) = DateTime::parse_from_rfc3339(s) {
+                    let utc = parsed.with_timezone(&Utc);
+                    max = Some(max.map(|m| m.max(utc)).unwrap_or(utc));
+                }
+            }
+        }
+        return max;
+    }
+    None
+}
+
 async fn verify_with_google(
     api: &PlayApi,
     package: &str,
     product_id: &str,
     token: &str,
     product: &PlayProduct,
+) -> Result<(String, Value)> {
+    verify_with_google_opts(api, package, product_id, token, product, true).await
+}
+
+async fn verify_with_google_opts(
+    api: &PlayApi,
+    package: &str,
+    product_id: &str,
+    token: &str,
+    product: &PlayProduct,
+    require_active: bool,
 ) -> Result<(String, Value)> {
     let access = access_token(api).await?;
     match product {
@@ -341,16 +404,14 @@ async fn verify_with_google(
                 let sub: SubscriptionPurchase = serde_json::from_value(body.clone())
                     .context("parse subscription purchase")?;
                 let payment = sub.payment_state.or(sub.payment_state_camel).unwrap_or(-1);
-                if payment != 1 && payment != 2 {
+                if require_active && payment != 1 && payment != 2 {
                     return Err(anyhow!("subscription payment not received (state={payment})"));
                 }
-                if let Some(exp_ms) = sub
-                    .expiry_time_millis
-                    .or(sub.expiry_time_millis_camel)
-                    .and_then(|s| s.parse::<i64>().ok())
-                {
-                    if exp_ms <= Utc::now().timestamp_millis() {
-                        return Err(anyhow!("subscription expired"));
+                if require_active {
+                    if let Some(exp) = play_subscription_expiry_from_body(&body) {
+                        if exp <= Utc::now() {
+                            return Err(anyhow!("subscription expired"));
+                        }
                     }
                 }
                 let order_id = sub.order_id.or(sub.order_id_camel).unwrap_or_default();
@@ -379,8 +440,19 @@ async fn verify_with_google(
                         .or(sub2.subscription_state_camel)
                         .unwrap_or_default()
                         .to_uppercase();
-                    if !state.is_empty() && !state.contains("ACTIVE") && !state.contains("GRACE") {
+                    if require_active
+                        && !state.is_empty()
+                        && !state.contains("ACTIVE")
+                        && !state.contains("GRACE")
+                    {
                         return Err(anyhow!("subscription not active in Google Play (state={state})"));
+                    }
+                    if require_active {
+                        if let Some(exp) = play_subscription_expiry_from_body(&body2) {
+                            if exp <= Utc::now() {
+                                return Err(anyhow!("subscription expired"));
+                            }
+                        }
                     }
                     let order_id = sub2.latest_order_id.or(sub2.latest_order_id_camel).unwrap_or_default();
                     return Ok((order_id, body2));
@@ -422,7 +494,135 @@ async fn verify_with_google(
     }
 }
 
-async fn play_purchase_existing(
+pub(crate) async fn play_profile_plan_expires_ms(pool: &PgPool, owner_iid: i64) -> i64 {
+    sqlx::query_scalar::<_, Option<DateTime<Utc>>>(
+        r#"
+        SELECT plan_expires_ts
+        FROM ai.billing_profile
+        WHERE owner_iid = $1 AND deleted_ts IS NULL AND plan_expires_ts IS NOT NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .flatten()
+    .map(|t| t.timestamp_millis())
+    .unwrap_or(0)
+}
+
+async fn play_apply_subscription_expiry(
+    pool: &PgPool,
+    owner_iid: i64,
+    purchase_id: i64,
+    entitlement_id: Option<i64>,
+    google_body: &Value,
+) -> Result<(), String> {
+    let expires = play_subscription_expiry_from_body(google_body);
+    if let Some(ent_id) = entitlement_id {
+        if let Some(exp) = expires {
+            sqlx::query(
+                r#"
+                UPDATE ai.billing_entitlement
+                SET expires_ts = $2
+                WHERE id = $1 AND owner_iid = $3 AND revoked_ts IS NULL
+                "#,
+            )
+            .bind(ent_id)
+            .bind(exp)
+            .bind(owner_iid)
+            .execute(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+        }
+    }
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_play_purchase
+        SET google_response = $2::jsonb, updated_ts = NOW()
+        WHERE id = $1
+        "#,
+    )
+    .bind(purchase_id)
+    .bind(google_body)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_profile
+        SET plan_auto_renew = TRUE, updated_ts = NOW()
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(owner_iid)
+    .execute(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    crate::billing_entitlement::billing_entitlement_recompute(pool, owner_iid)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Refresh Google Play subscription expiry for the owner's latest plan purchase (auto-renew sync).
+pub async fn billing_play_sync_owner(pool: &PgPool, owner_iid: i64) {
+    let row = sqlx::query(
+        r#"
+        SELECT id, product_id, purchase_token, package_name, entitlement_id, status
+        FROM ai.billing_play_purchase
+        WHERE owner_iid = $1 AND kind = 'plan'
+          AND status IN ('verified', 'stub')
+        ORDER BY created_ts DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await;
+    let Ok(Some(row)) = row else {
+        return;
+    };
+    let status: String = row.get("status");
+    if status == "stub" {
+        return;
+    }
+    let product_id: String = row.get("product_id");
+    let token: String = row.get("purchase_token");
+    let package: String = row.get("package_name");
+    let purchase_id: i64 = row.get("id");
+    let ent_id: Option<i64> = row.get("entitlement_id");
+    let product = match parse_play_product(&product_id) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!("play sync parse product: {e}");
+            return;
+        }
+    };
+    if !matches!(product, PlayProduct::Plan { .. }) {
+        return;
+    }
+    let api = match play_api() {
+        Ok(Some(api)) => api,
+        _ => return,
+    };
+    let body = match verify_with_google_opts(&api, &package, &product_id, &token, &product, false).await {
+        Ok((_order, body)) => body,
+        Err(e) => {
+            tracing::debug!("play sync verify skipped owner={owner_iid}: {e}");
+            return;
+        }
+    };
+    if let Err(e) = play_apply_subscription_expiry(pool, owner_iid, purchase_id, ent_id, &body).await {
+        tracing::warn!("play sync apply expiry owner={owner_iid}: {e}");
+    }
+}
+
+pub(crate) async fn play_purchase_existing(
     pool: &PgPool,
     token: &str,
 ) -> Result<Option<sqlx::postgres::PgRow>, String> {
@@ -453,7 +653,7 @@ async fn balance_idr(pool: &PgPool, owner_iid: i64) -> Result<f64, String> {
     Ok(row.map(|r| r.get("balance_idr")).unwrap_or(0.0))
 }
 
-async fn finish_verify_response(
+pub(crate) async fn finish_verify_response(
     pool: &PgPool,
     owner_iid: i64,
     product_id: &str,
@@ -489,6 +689,9 @@ pub async fn billing_play_verify(
     owner_iid: i64,
     req: ReqBillingPlayVerify,
 ) -> Result<ResBillingPlayVerify, String> {
+    if req.store_platform.trim().eq_ignore_ascii_case("ios") {
+        return crate::billing_apple::billing_apple_verify(pool, owner_iid, req).await;
+    }
     let product_id = req.product_id.trim();
     let purchase_token = req.purchase_token.trim();
     if product_id.is_empty() || purchase_token.is_empty() {
@@ -502,8 +705,14 @@ pub async fn billing_play_verify(
         if existing_owner != owner_iid {
             return Err("purchase token already redeemed".into());
         }
+        billing_play_sync_owner(pool, owner_iid).await;
         let ent_id: Option<i64> = row.get("entitlement_id");
-        let expires = Utc::now().timestamp_millis() + 30 * 86400 * 1000;
+        let expires = play_profile_plan_expires_ms(pool, owner_iid).await;
+        let expires = if expires > 0 {
+            expires
+        } else {
+            Utc::now().timestamp_millis() + 30 * 86400 * 1000
+        };
         return finish_verify_response(
             pool,
             owner_iid,
@@ -539,21 +748,55 @@ pub async fn billing_play_verify(
         (order_id, body, "verified")
     };
 
-    let (kind, plan_slug, billing_period, duration_months, credit_idr, expires_ts) = match &product {
-        PlayProduct::Plan { slug, period, months } => (
-            "plan",
-            slug.clone(),
-            period.clone(),
-            *months,
-            0.0,
-            Utc::now() + chrono::Duration::days(30 * (*months as i64)),
-        ),
-        PlayProduct::Credit { amount_idr } => (
+    let source = if stub { "play_stub" } else { "play" };
+    billing_store_commit_purchase(
+        pool,
+        owner_iid,
+        product_id,
+        purchase_token,
+        &package,
+        &product,
+        &google_body,
+        &order_id,
+        source,
+        status_tag,
+    )
+    .await
+}
+
+pub(crate) async fn billing_store_commit_purchase(
+    pool: &PgPool,
+    owner_iid: i64,
+    product_id: &str,
+    purchase_token: &str,
+    package: &str,
+    product: &PlayProduct,
+    verify_body: &Value,
+    order_id: &str,
+    source: &str,
+    status_tag: &str,
+) -> Result<ResBillingPlayVerify, String> {
+    let (kind, plan_slug, billing_period, duration_months, credit_idr, credit_usd, expires_ts) = match product {
+        PlayProduct::Plan { slug, period, months } => {
+            let fallback = Utc::now() + chrono::Duration::days(30 * (*months as i64));
+            let expires = play_subscription_expiry_from_body(verify_body).unwrap_or(fallback);
+            (
+                "plan",
+                slug.clone(),
+                period.clone(),
+                *months,
+                0.0,
+                0.0,
+                expires,
+            )
+        }
+        PlayProduct::Credit { amount_idr, credit_usd } => (
             "credit",
             String::new(),
             String::new(),
             0,
             *amount_idr,
+            *credit_usd,
             Utc::now() + chrono::Duration::days(3650),
         ),
     };
@@ -563,12 +806,13 @@ pub async fn billing_play_verify(
         pool,
         EntitlementGrantSpec {
             owner_iid,
-            source: if stub { "play_stub".into() } else { "play".into() },
+            source: source.into(),
             referral_code: None,
             purchase_id: Some(play_purchase_id),
             plan_slug: plan_slug.clone(),
             duration_months: duration_months.max(1),
             credit_idr,
+            credit_usd,
             highlight: true,
             expires_ts: Some(expires_ts),
             alien_pool_override: None,
@@ -603,7 +847,7 @@ pub async fn billing_play_verify(
     .bind(credit_idr)
     .bind(duration_months)
     .bind(entitlement_id)
-    .bind(google_body)
+    .bind(verify_body.clone())
     .bind(status_tag)
     .execute(pool)
     .await
@@ -614,6 +858,17 @@ pub async fn billing_play_verify(
             e.to_string()
         }
     })?;
+
+    if kind == "plan" {
+        play_apply_subscription_expiry(
+            pool,
+            owner_iid,
+            play_purchase_id,
+            Some(entitlement_id),
+            verify_body,
+        )
+        .await?;
+    }
 
     if kind == "plan" && !plan_slug.is_empty() {
         let commission_idr = plan_web_price_idr(pool, &plan_slug, &billing_period)
@@ -651,23 +906,35 @@ pub async fn billing_play_verify(
 }
 
 pub const PLAY_CREDIT_PACKS: &[f64] = &[50_000.0, 100_000.0, 200_000.0, 500_000.0, 1_000_000.0];
+pub const STORE_CREDIT_PACKS_USD: &[f64] = &[5.0, 10.0, 25.0, 50.0, 100.0];
+
+fn product_list_currency(req: &ReqBillingPlayProductList) -> String {
+    let c = req.currency.trim().to_uppercase();
+    if c == "USD" {
+        "USD".into()
+    } else {
+        "IDR".into()
+    }
+}
 
 pub async fn billing_play_product_list(
     pool: &PgPool,
-    _req: ReqBillingPlayProductList,
+    req: ReqBillingPlayProductList,
 ) -> Result<ResBillingPlayProductList, String> {
+    let currency = product_list_currency(&req);
     let rows = sqlx::query(
         r#"
         SELECT p.plan_slug, p.billing_period, p.amount::float8 AS amount, bp.name
         FROM ai.billing_plan_price p
         JOIN ai.billing_plan bp ON bp.slug = p.plan_slug
-        WHERE p.currency = 'IDR' AND p.is_active = TRUE
+        WHERE p.currency = $2 AND p.is_active = TRUE
           AND bp.scope = 'user' AND bp.is_active = TRUE
           AND p.plan_slug = ANY($1)
         ORDER BY bp.sort_order, p.billing_period
         "#,
     )
     .bind(USER_PLAN_SLUGS)
+    .bind(&currency)
     .fetch_all(pool)
     .await
     .map_err(|e| e.to_string())?;
@@ -678,28 +945,61 @@ pub async fn billing_play_product_list(
             let slug: String = r.get("plan_slug");
             let period: String = r.get("billing_period");
             let web: f64 = r.get("amount");
+            let store = if currency == "USD" {
+                store_price_usd(web)
+            } else {
+                play_price_idr(web)
+            };
             BillingPlayProductDoc {
                 product_id: format!("{PLAN_PREFIX}{slug}.{period}"),
                 kind: "plan".into(),
                 plan_slug: slug,
                 billing_period: period,
                 credit_idr: 0.0,
-                web_price_idr: web,
-                play_price_idr: play_price_idr(web),
+                web_price_idr: if currency == "IDR" { web } else { 0.0 },
+                play_price_idr: if currency == "IDR" { store } else { 0.0 },
+                currency: currency.clone(),
+                web_price: web,
+                store_price: store,
+                credit_usd: 0.0,
             }
         })
         .collect();
 
-    for &credit in PLAY_CREDIT_PACKS {
-        products.push(BillingPlayProductDoc {
-            product_id: format!("{CREDIT_PREFIX}{}", credit.round() as i64),
-            kind: "credit".into(),
-            plan_slug: String::new(),
-            billing_period: String::new(),
-            credit_idr: credit,
-            web_price_idr: credit,
-            play_price_idr: play_price_idr(credit),
-        });
+    if currency == "IDR" {
+        for &credit in PLAY_CREDIT_PACKS {
+            let store = play_price_idr(credit);
+            products.push(BillingPlayProductDoc {
+                product_id: format!("{CREDIT_PREFIX}{}", credit.round() as i64),
+                kind: "credit".into(),
+                plan_slug: String::new(),
+                billing_period: String::new(),
+                credit_idr: credit,
+                web_price_idr: credit,
+                play_price_idr: store,
+                currency: currency.clone(),
+                web_price: credit,
+                store_price: store,
+                credit_usd: 0.0,
+            });
+        }
+    } else {
+        for &credit in STORE_CREDIT_PACKS_USD {
+            let store = store_price_usd(credit);
+            products.push(BillingPlayProductDoc {
+                product_id: format!("{CREDIT_PREFIX}usd.{}", credit),
+                kind: "credit".into(),
+                plan_slug: String::new(),
+                billing_period: String::new(),
+                credit_idr: 0.0,
+                web_price_idr: 0.0,
+                play_price_idr: 0.0,
+                currency: currency.clone(),
+                web_price: credit,
+                store_price: store,
+                credit_usd: credit,
+            });
+        }
     }
 
     Ok(ResBillingPlayProductList { products })
@@ -759,22 +1059,38 @@ mod tests {
     }
 
     #[test]
+    fn play_expiry_from_v1_millis() {
+        let body = json!({ "expiryTimeMillis": "1735689600000" });
+        let exp = play_subscription_expiry_from_body(&body).unwrap();
+        assert_eq!(exp.timestamp_millis(), 1735689600000);
+    }
+
+    #[test]
+    fn play_expiry_from_v2_line_items() {
+        let body = json!({
+            "lineItems": [{ "expiryTime": "2026-12-01T00:00:00.000Z" }]
+        });
+        let exp = play_subscription_expiry_from_body(&body).unwrap();
+        assert_eq!(exp.date_naive(), chrono::NaiveDate::from_ymd_opt(2026, 12, 1).unwrap());
+    }
+
+    #[test]
     fn parse_credit_product() {
         let p = parse_play_product("id.alienai.credit.50000").unwrap();
         match p {
-            PlayProduct::Credit { amount_idr } => assert_eq!(amount_idr, 50_000.0),
+            PlayProduct::Credit { amount_idr, credit_usd: 0.0 } => assert_eq!(amount_idr, 50_000.0),
             _ => panic!("expected credit"),
         }
 
         let p2 = parse_play_product("credit.100k").unwrap();
         match p2 {
-            PlayProduct::Credit { amount_idr } => assert_eq!(amount_idr, 100_000.0),
+            PlayProduct::Credit { amount_idr, credit_usd: 0.0 } => assert_eq!(amount_idr, 100_000.0),
             _ => panic!("expected credit"),
         }
 
         let p3 = parse_play_product("credit_50000").unwrap();
         match p3 {
-            PlayProduct::Credit { amount_idr } => assert_eq!(amount_idr, 50_000.0),
+            PlayProduct::Credit { amount_idr, credit_usd: 0.0 } => assert_eq!(amount_idr, 50_000.0),
             _ => panic!("expected credit"),
         }
     }

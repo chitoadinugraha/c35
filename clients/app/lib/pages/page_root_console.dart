@@ -13,9 +13,9 @@ import 'package:alienai_c35/pages/page_root_objects.dart';
 import 'package:alienai_c35/pages/page_root_llm_prices.dart';
 import 'package:alienai_c35/pages/page_root_pnl.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_action_tile.dart';
-import 'package:alienai_c35/widgets/admin/ui_admin_network_row.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_console_tabs.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_host_metrics.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_node_card.dart';
-import 'package:alienai_c35/widgets/admin/ui_admin_stat_bar.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_storage_row.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_volume_row.dart';
@@ -36,6 +36,7 @@ class _PageRootConsoleState extends State<PageRootConsole> {
   late final AdminStatsStream _stats = AdminStatsStream(_api);
   Map<String, ({double cpuMax, int memUsedMax})> _peaks24h = const {};
   bool _peaksLoading = true;
+  UiAdminConsoleScope _scope = UiAdminConsoleScope.server;
 
   @override
   void initState() {
@@ -111,13 +112,34 @@ class _PageRootConsoleState extends State<PageRootConsole> {
         body: const Center(child: Text('Root access required', style: TextStyle(color: adminMuted))),
       );
     }
-    return UiPage(
-      title: 'Root console',
-      onBack: () => Navigator.pop(context),
-      body: ListenableBuilder(
-        listenable: _stats,
-        builder: (context, _) {
-          final nodes = _stats.nodes;
+    return ListenableBuilder(
+      listenable: _stats,
+      builder: (context, _) {
+        final nodes = _stats.nodes;
+        return UiPage(
+          title: 'Root console',
+          titleWidget: nodes.isEmpty
+              ? null
+              : Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Root console',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFFF4F4F5)),
+                      ),
+                    ),
+                    UiAdminConsoleScopeTabs(
+                      scope: _scope,
+                      onChanged: (s) => setState(() => _scope = s),
+                      compact: true,
+                    ),
+                  ],
+                ),
+          onBack: () => Navigator.pop(context),
+          body: Builder(
+            builder: (context) {
           final selected = _stats.selectedNode;
           final multiNode = nodes.length > 1;
           final volumes = selected != null ? _stats.volumesForNode(selected.nodeName) : const <VolumeStat>[];
@@ -152,7 +174,13 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                             selected: selected?.nodeName == node.nodeName,
                             expanded: selected?.nodeName == node.nodeName,
                             onTap: () => _stats.selectNode(node.nodeName),
-                            expandedBody: _NodeStatsBody(stats: _stats, node: node, embedded: true),
+                            expandedBody: _NodeStatsBody(
+                              stats: _stats,
+                              node: node,
+                              embedded: true,
+                              scope: _scope,
+                              onScopeChanged: (s) => setState(() => _scope = s),
+                            ),
                           );
                         },
                       ),
@@ -166,7 +194,12 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                           const SizedBox(height: 10),
                           const Divider(height: 1, color: adminBorder),
                           const SizedBox(height: 10),
-                          _NodeStatsBody(stats: _stats, node: selected),
+                          _NodeStatsBody(
+                            stats: _stats,
+                            node: selected,
+                            scope: _scope,
+                            onScopeChanged: (s) => setState(() => _scope = s),
+                          ),
                         ],
                       ),
                     ),
@@ -265,8 +298,10 @@ class _PageRootConsoleState extends State<PageRootConsole> {
               ),
             ),
           );
-        },
-      ),
+            },
+          ),
+        );
+      },
     );
   }
 }
@@ -302,51 +337,57 @@ class _NodeHeader extends StatelessWidget {
 }
 
 class _NodeStatsBody extends StatelessWidget {
-  const _NodeStatsBody({required this.stats, required this.node, this.embedded = false});
+  const _NodeStatsBody({
+    required this.stats,
+    required this.node,
+    this.embedded = false,
+    required this.scope,
+    required this.onScopeChanged,
+  });
 
   final AdminStatsStream stats;
   final NodeStat node;
   final bool embedded;
+  final UiAdminConsoleScope scope;
+  final ValueChanged<UiAdminConsoleScope> onScopeChanged;
 
   @override
   Widget build(BuildContext context) {
     final storages = stats.storagesFor(node);
-    final hostSection = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const UiAdminSectionTitle('Host'),
-        Column(
-          children: [
-            UiAdminStatBar(
-              label: 'CPU',
-              detail: '${node.cpuCores} cores',
-              pct: node.cpuPct.clamp(0, 100),
-              dense: true,
-            ),
-            UiAdminStatBar(
-              label: 'Memory',
-              detail: adminFmtBytesPair(node.memUsedBytes, node.memTotalBytes),
-              pct: adminPct(node.memUsedBytes, node.memTotalBytes),
-              dense: true,
-            ),
-          ],
-        ),
-        if (node.swapTotalBytes > 0)
-          UiAdminStatBar(
-            label: 'Swap',
-            detail: adminFmtBytesPair(node.swapUsedBytes, node.swapTotalBytes),
-            pct: adminPct(node.swapUsedBytes, node.swapTotalBytes),
-            warnPct: 50,
-            critPct: 80,
-            dense: true,
-          ),
-        UiAdminNetworkRow(
-          inBps: node.netInBps,
-          outBps: node.netOutBps,
-          maxBps: stats.networkMaxBps(node.nodeName),
-        ),
-      ],
-    );
+    final pods = stats.podsForNode(node.nodeName);
+
+    final metricsSection = scope == UiAdminConsoleScope.server
+        ? UiAdminNodeMetrics(stats: stats, node: node)
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (pods.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('No pod stats yet', style: TextStyle(color: adminMuted, fontSize: 12)),
+                )
+              else ...[
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 6),
+                  child: Text(
+                    'used / request / limit · tick = request',
+                    style: TextStyle(color: adminMuted, fontSize: 11),
+                  ),
+                ),
+                for (final pod in pods) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '${pod.namespace}/${pod.podName}',
+                      style: const TextStyle(color: adminText, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  UiAdminPodMetrics(stats: stats, pod: pod),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            ],
+          );
 
     final devicesSection = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -372,11 +413,13 @@ class _NodeStatsBody extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          hostSection,
-          const SizedBox(height: 8),
-          const Divider(height: 1, color: adminBorder),
-          const SizedBox(height: 8),
-          devicesSection,
+          metricsSection,
+          if (scope == UiAdminConsoleScope.server) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: adminBorder),
+            const SizedBox(height: 8),
+            devicesSection,
+          ],
         ],
       );
     }
@@ -384,11 +427,13 @@ class _NodeStatsBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        hostSection,
-        const SizedBox(height: 12),
-        const Divider(height: 1, color: adminBorder),
-        const SizedBox(height: 4),
-        devicesSection,
+        metricsSection,
+        if (scope == UiAdminConsoleScope.server) ...[
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: adminBorder),
+          const SizedBox(height: 4),
+          devicesSection,
+        ],
       ],
     );
   }

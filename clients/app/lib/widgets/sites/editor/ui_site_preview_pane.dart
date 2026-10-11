@@ -1,6 +1,7 @@
-import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_preview_external_url.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_cache.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_preview_stage.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
@@ -19,14 +20,14 @@ class UiSitePreviewPane extends StatelessWidget {
     required this.row,
     required this.api,
     required this.mode,
-    required this.reloadNonce,
+    this.previewCache,
     this.onModeChanged,
   });
 
   final SiteRow row;
   final SiteApi api;
   final SitePreviewMode mode;
-  final int reloadNonce;
+  final SiteEditorPreviewCache? previewCache;
   final ValueChanged<SitePreviewMode>? onModeChanged;
 
   @override
@@ -59,7 +60,7 @@ class UiSitePreviewPane extends StatelessWidget {
           row: row,
           api: api,
           mode: mode,
-          reloadNonce: reloadNonce,
+          editorPreview: previewCache,
           embedded: true,
           showVisitOverlay: false,
         ),
@@ -75,15 +76,7 @@ class _VisitSiteButton extends StatelessWidget {
   final SiteApi api;
   final SitePreviewMode mode;
 
-  String get _slug => row.alienId.isNotEmpty ? row.alienId : row.siteIid.toString();
-
-  Future<String> _url() async {
-    final origin = C35Config.guestSiteOrigin.replaceAll(RegExp(r'/+$'), '');
-    if (mode == SitePreviewMode.published) return '$origin/$_slug';
-    final res = await api.sitePreviewToken(row.siteIid.toInt());
-    if (res.token.isEmpty) throw 'Preview token missing';
-    return '$origin/$_slug?draft=1&ptoken=${Uri.encodeComponent(res.token)}';
-  }
+  Future<String> _url() => sitePreviewExternalUrl(api: api, row: row, mode: mode);
 
   Future<void> _open(BuildContext context) async {
     try {

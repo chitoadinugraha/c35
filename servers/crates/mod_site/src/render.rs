@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use c35_proto::{SiteDoc, SiteLink, SitePost};
 use serde_json::{json, Value};
-use sqlx::PgPool;
+use sqlx::{PgPool, Row};
 
 use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
 use crate::doc::site_doc_from_json;
@@ -9,9 +9,14 @@ use crate::product_design::{
     product_card_price_style, product_card_subtitle_style, product_card_title_style,
     product_design_from_site_meta,
 };
-use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
+use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign, ProfileDesign};
+use crate::link_platform_icon::link_platform_icon_html;
 use crate::guest_product::{
-    guest_product_get, guest_product_list, guest_product_sell_ids, pic_url, product_grid_page_size,
+    guest_product_get, guest_product_list, guest_product_sell_ids, product_grid_page_size,
+};
+use crate::guest_product_display::{
+    guest_product_can_add_to_cart, guest_product_price_label, pic_url, pic_url_display,
+    product_grid_display,
 };
 use crate::product_icon_svg::product_icon_svg;
 use crate::site_link::site_link_boot_rows;
@@ -40,8 +45,9 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
         product_placeholder_html(&p.icon)
     } else {
         format!(
-            r#"<img src="{}" alt="" loading="lazy"/>"#,
-            esc(&pic_url(&p.pic))
+            r#"<img class="guest-pic-thumb" src="{}" alt="" loading="lazy" data-pic-display="{}" role="button" tabindex="0"/>"#,
+            esc(&pic_url(&p.pic)),
+            esc_attr(&pic_url_display(&p.pic)),
         )
     };
     let title_style = product_card_title_style(product_design);
@@ -66,7 +72,7 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
     let action = product_purchase_button(p);
     let stock = product_stock_line(p);
     format!(
-        r#"<article class="product-card" data-pid="{pid}"{reserve_attr}>{img}<div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom"><span class="price"{price_attr}>{price_str}</span>{action}</div></div></article>"#,
+        r#"<article class="product-card guest-product-tile" data-pid="{pid}"{reserve_attr}><div class="guest-product-thumb-wrap">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom"><span class="price"{price_attr}>{price_str}</span>{action}</div></div></article>"#,
         pid = p.product_id,
         reserve_attr = reserve_attr,
         img = img,
@@ -76,7 +82,59 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
         desc = esc(&p.desc),
         stock = stock,
         price_attr = price_attr,
-        price_str = esc(&format_currency(p.price)),
+        price_str = esc(&guest_product_price_label(p.price)),
+        action = action,
+    )
+}
+
+pub fn product_list_row_html(p: &ProductRow, product_design: Option<&Value>) -> String {
+    let img = if p.pic.is_empty() {
+        product_placeholder_html(&p.icon)
+    } else {
+        format!(
+            r#"<img class="guest-pic-thumb" src="{}" alt="" loading="lazy" data-pic-display="{}" role="button" tabindex="0"/>"#,
+            esc(&pic_url(&p.pic)),
+            esc_attr(&pic_url_display(&p.pic)),
+        )
+    };
+    let title_style = product_card_title_style(product_design);
+    let subtitle_style = product_card_subtitle_style(product_design);
+    let price_style = product_card_price_style(product_design);
+    let title_attr = if title_style.is_empty() {
+        String::new()
+    } else {
+        format!(r#" style="{}""#, esc_attr(&title_style))
+    };
+    let subtitle_attr = if subtitle_style.is_empty() {
+        String::new()
+    } else {
+        format!(r#" style="{}""#, esc_attr(&subtitle_style))
+    };
+    let price_attr = if price_style.is_empty() {
+        String::new()
+    } else {
+        format!(r#" style="{}""#, esc_attr(&price_style))
+    };
+    let reserve_attr = product_reserve_attrs(p);
+    let action = product_purchase_button(p);
+    let stock = product_stock_line(p);
+    let price_str = guest_product_price_label(p.price);
+    let price_html = if price_str.is_empty() {
+        String::new()
+    } else {
+        format!(r#"<span class="price"{price_attr}>{price}</span>"#, price_attr = price_attr, price = esc(&price_str))
+    };
+    format!(
+        r#"<article class="product-list-row guest-product-tile" data-pid="{pid}"{reserve_attr}><div class="product-list-thumb">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-list-body"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}</div><div class="product-list-trail">{price_html}{action}</div></article>"#,
+        pid = p.product_id,
+        reserve_attr = reserve_attr,
+        img = img,
+        title_attr = title_attr,
+        name = esc(&p.name),
+        subtitle_attr = subtitle_attr,
+        desc = esc(&p.desc),
+        stock = stock,
+        price_html = price_html,
         action = action,
     )
 }
@@ -107,11 +165,21 @@ fn product_reserve_attrs(p: &ProductRow) -> String {
 }
 
 fn product_purchase_button(p: &ProductRow) -> String {
+    format!(
+        r#"<button type="button" class="guest-product-info-btn" data-product-info="{}" aria-label="Detail">&#9432;</button>"#,
+        p.product_id
+    )
+}
+
+fn product_detail_actions(p: &ProductRow) -> String {
     if p.can_reserve {
         return format!(
             r#"<button type="button" class="guest-reserve-btn" data-reserve-product="{}">Reservasi</button>"#,
             p.product_id
         );
+    }
+    if !guest_product_can_add_to_cart(p.price) {
+        return String::new();
     }
     format!(
         r#"<button type="button" class="guest-add-btn" onclick="c35GuestCart.add({}, '{}', {}, '{}')">+ Pesan</button>"#,
@@ -128,19 +196,21 @@ pub fn product_detail_article_html(p: &ProductRow) -> String {
         product_placeholder_html(&p.icon)
     } else {
         format!(
-            r#"<img src="{}" alt="" loading="lazy" class="product-detail-pic"/>"#,
-            esc(&pic_url(&p.pic))
+            r#"<img class="guest-pic-thumb product-detail-pic" src="{}" alt="" loading="lazy" data-pic-display="{}" role="button" tabindex="0"/>"#,
+            esc(&pic_url(&p.pic)),
+            esc_attr(&pic_url_display(&p.pic)),
         )
     };
     format!(
-        r#"<article class="product-detail" data-pid="{pid}"{reserve_attr}>{img}<h1>{name}</h1><p>{desc}</p><p class="price">{price_str}</p>{action}</article>"#,
+        r#"<article class="product-detail block" data-guest="site_product" data-pid="{pid}"{reserve_attr}>{img}<h1>{name}</h1><p>{desc}</p>{stock}<p class="price">{price_str}</p>{action}</article>"#,
         pid = p.product_id,
         reserve_attr = product_reserve_attrs(p),
         img = img,
         name = esc(&p.name),
         desc = esc(&p.desc),
-        price_str = esc(&format_currency(p.price)),
-        action = product_purchase_button(p),
+        price_str = esc(&guest_product_price_label(p.price)),
+        stock = product_stock_line(p),
+        action = product_detail_actions(p),
     )
 }
 
@@ -223,19 +293,6 @@ fn esc(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
-fn format_currency(amount: i64) -> String {
-    let s = amount.to_string();
-    let mut out = String::new();
-    let len = s.len();
-    for (i, c) in s.chars().enumerate() {
-        if i > 0 && (len - i) % 3 == 0 {
-            out.push('.');
-        }
-        out.push(c);
-    }
-    format!("Rp {}", out)
-}
-
 fn esc_js(s: &str) -> String {
     s.replace('\\', "\\\\")
         .replace('\'', "\\'")
@@ -254,10 +311,6 @@ async fn site_capabilities(pool: &PgPool, site_iid: i64) -> Value {
     .ok()
     .flatten()
     .unwrap_or_else(|| Value::Object(Default::default()))
-}
-
-fn capability_enabled(caps: &Value, key: &str) -> bool {
-    caps.get(key).and_then(|v| v.as_bool()).unwrap_or(true)
 }
 
 fn strip_script_tags(html: &str) -> String {
@@ -279,7 +332,42 @@ fn strip_script_tags(html: &str) -> String {
     out
 }
 
-fn link_item_html(item: &Value) -> String {
+fn link_icon_id(item: &Value) -> &str {
+    item.get("icon")
+        .and_then(|x| x.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("website")
+}
+
+fn link_row_html(
+    label: &str,
+    url: &str,
+    icon_id: &str,
+    design: &GuestDesign,
+    link_id: Option<i64>,
+) -> String {
+    if label.is_empty() {
+        return String::new();
+    }
+    let href = if url.trim().is_empty() { "#" } else { url };
+    let icon = link_platform_icon_html(icon_id);
+    let (card_open, card_close) = design.card_wrap("link");
+    let link_id_attr = link_id
+        .filter(|id| *id > 0)
+        .map(|id| format!(r#" data-link-id="{id}""#))
+        .unwrap_or_default();
+    format!(
+        r#"<li class="guest-link-row" data-guest="link"{link_id_attr}>{card_open}<a class="guest-link-list" href="{href}" rel="noopener noreferrer">{icon}<span class="guest-link-label">{label}</span></a>{card_close}</li>"#,
+        link_id_attr = link_id_attr,
+        card_open = card_open,
+        href = esc(href),
+        icon = icon,
+        label = esc(label),
+        card_close = card_close,
+    )
+}
+
+fn link_item_html(item: &Value, design: &GuestDesign) -> String {
     let label = item
         .get("label")
         .or_else(|| item.get("title"))
@@ -289,15 +377,8 @@ fn link_item_html(item: &Value) -> String {
         .get("url")
         .or_else(|| item.get("href"))
         .and_then(|x| x.as_str())
-        .unwrap_or("#");
-    if label.is_empty() {
-        return String::new();
-    }
-    format!(
-        r#"<li data-guest="link"><a href="{}" rel="noopener noreferrer">{}</a></li>"#,
-        esc(url),
-        esc(label)
-    )
+        .unwrap_or("");
+    link_row_html(label, url, link_icon_id(item), design, None)
 }
 
 fn post_feed_card_html(post: &SitePost) -> String {
@@ -328,19 +409,19 @@ fn post_feed_card_html(post: &SitePost) -> String {
     )
 }
 
-fn link_hub_html(link: &SiteLink) -> String {
+fn link_hub_html(link: &SiteLink, design: &GuestDesign) -> String {
     let label = link.label.trim();
     let url = link.url.trim();
     if label.is_empty() && url.is_empty() {
         return String::new();
     }
     let display = if label.is_empty() { url } else { label };
-    format!(
-        r#"<li data-guest="link" data-link-id="{}"><a href="{}" rel="noopener noreferrer">{}</a></li>"#,
-        link.link_id,
-        esc(if url.is_empty() { "#" } else { url }),
-        esc(display)
-    )
+    let icon = if link.icon.trim().is_empty() {
+        "website"
+    } else {
+        link.icon.trim()
+    };
+    link_row_html(display, url, icon, design, Some(link.link_id))
 }
 
 fn contact_field_html(field: &Value) -> String {
@@ -359,6 +440,32 @@ fn contact_field_html(field: &Value) -> String {
         esc(label),
         esc(field_type),
         esc(name)
+    )
+}
+
+fn open_hours_from_meta(meta: &Value) -> Vec<Value> {
+    meta
+        .get("open_hours")
+        .and_then(|x| x.as_array())
+        .map(|a| a.clone())
+        .unwrap_or_default()
+}
+
+fn hub_hours_compact_html(schedule: &[Value]) -> String {
+    if schedule.is_empty() {
+        return String::new();
+    }
+    let rows = schedule
+        .iter()
+        .map(hours_row_html)
+        .collect::<Vec<_>>()
+        .join("");
+    if rows.is_empty() {
+        return String::new();
+    }
+    format!(
+        r#"<div class="hub-hours-compact"><table class="hours"><tbody>{rows}</tbody></table></div>"#,
+        rows = rows
     )
 }
 
@@ -390,8 +497,22 @@ fn hours_row_html(row: &Value) -> String {
 }
 
 pub fn guest_root_css(design: &GuestDesign) -> String {
+    let p = &design.profile;
+    let prod = &design.product;
+    let product_title = prod
+        .get("titleFontSize")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(14.0);
+    let product_subtitle = prod
+        .get("subtitleFontSize")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(12.0);
+    let product_price = prod
+        .get("priceFontSize")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(13.0);
     format!(
-        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};}}",
+        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};--hub-title-size:{hub_title};--hub-bio-size:{hub_bio};--hub-avatar-size:{hub_avatar};--product-title-size:{product_title};--product-subtitle-size:{product_subtitle};--product-price-size:{product_price};}}",
         accent = design.accent,
         page_bg = design.page_bg,
         fg = design.fg,
@@ -399,13 +520,19 @@ pub fn guest_root_css(design: &GuestDesign) -> String {
         radius = design.card_radius_css(),
         card_bg = design.card_bg,
         card_border = design.card_border,
+        hub_title = css_px(p.title_font_size),
+        hub_bio = css_px(p.bio_font_size),
+        hub_avatar = css_px(p.avatar_size),
+        product_title = css_px(product_title),
+        product_subtitle = css_px(product_subtitle),
+        product_price = css_px(product_price),
     )
 }
 
 pub fn guest_shell_html(design: &GuestDesign, inner: &str) -> String {
     let image = page_bg_image_html(design);
     format!(
-        r#"<style>{root}</style><body data-backdrop="{bd}" class="backdrop-{bd}" style="background-color:{page_bg};color:{fg}">{image}<main class="wrap">{inner}</main></body>"#,
+        r#"<style>{root}</style><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront" style="background-color:{page_bg};color:{fg}">{image}<main class="wrap guest-page-main">{inner}</main></body>"#,
         root = guest_root_css(design),
         bd = design.backdrop_id,
         page_bg = design.page_bg,
@@ -453,11 +580,120 @@ fn family_decl(family: &str) -> String {
     }
 }
 
+/// Standalone `hero` block (Flutter `GuestSiteHeroBlock` defaults — not theme `profile` flags).
+fn flutter_hero_profile() -> ProfileDesign {
+    ProfileDesign {
+        show_avatar: true,
+        avatar_size: 72.0,
+        avatar_outline_width: 0.0,
+        avatar_outline_color: String::new(),
+        show_title: true,
+        title_font_size: 18.0,
+        title_font_family: String::new(),
+        title_align: "center".into(),
+        show_bio: true,
+        bio_font_size: 12.0,
+        bio_font_family: String::new(),
+        bio_align: "center".into(),
+        show_location: false,
+        show_hours: false,
+        hub_default_tab: String::new(),
+        hub_posts_preview_limit: 0,
+    }
+}
+
+fn profile_pic_url(props: &Value, site_meta: &Value) -> String {
+    let pic_prop = props.get("pic").and_then(|x| x.as_str()).unwrap_or("").trim();
+    let pic_fallback = site_meta
+        .get("avatar_url")
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .trim();
+    if pic_prop.is_empty() {
+        pic_fallback.to_string()
+    } else {
+        pic_prop.to_string()
+    }
+}
+
+fn guest_hub_hero_inner_html(
+    props: &Value,
+    profile: &ProfileDesign,
+    design: &GuestDesign,
+    site_meta: &Value,
+) -> String {
+    let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
+    let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
+    let pic_use = profile_pic_url(props, site_meta);
+    let cta = props
+        .get("cta_label")
+        .or_else(|| props.get("cta"))
+        .and_then(|x| x.as_str())
+        .unwrap_or("Hubungi Kami");
+    let avatar = if !profile.show_avatar || pic_use.is_empty() {
+        String::new()
+    } else {
+        let mut style = format!(
+            "width:{size};height:{size}",
+            size = css_px(profile.avatar_size)
+        );
+        if profile.avatar_outline_width > 0.0 {
+            let color = if profile.avatar_outline_color.trim().is_empty() {
+                design.accent.as_str()
+            } else {
+                profile.avatar_outline_color.trim()
+            };
+            style.push_str(&format!(
+                ";outline:{} solid {color}",
+                css_px(profile.avatar_outline_width)
+            ));
+        }
+        format!(
+            r#"<img class="hub-avatar guest-hub-avatar" src="{}" alt="" style="{}" loading="lazy"/>"#,
+            esc(&pic_url(&pic_use)),
+            esc_attr(&style)
+        )
+    };
+    let title_html = if profile.show_title {
+        format!(
+            r#"<h1 class="guest-hub-title" style="font-size:{size};text-align:{align}{family}">{title}</h1>"#,
+            size = css_px(profile.title_font_size),
+            align = css_align(&profile.title_align, "center"),
+            family = family_decl(&profile.title_font_family),
+            title = esc(title),
+        )
+    } else {
+        String::new()
+    };
+    let bio_html = if profile.show_bio && !subtitle.trim().is_empty() {
+        format!(
+            r#"<p class="guest-hub-bio" style="font-size:{size};text-align:{align}{family}">{bio}</p>"#,
+            size = css_px(profile.bio_font_size),
+            align = css_align(&profile.bio_align, "center"),
+            family = family_decl(&profile.bio_font_family),
+            bio = esc(subtitle),
+        )
+    } else {
+        String::new()
+    };
+    let cta_html = format!(
+        r#"<div class="guest-hub-cta"><span>{}</span></div>"#,
+        esc(cta)
+    );
+    format!(
+        "{avatar}{title_html}{bio_html}{cta_html}",
+        avatar = avatar,
+        title_html = title_html,
+        bio_html = bio_html,
+        cta_html = cta_html,
+    )
+}
+
 pub fn block_html_render(
     block_type: &str,
     props: &Value,
     products: &[ProductRow],
-    caps: &Value,
+    _caps: &Value,
     grid_ctx: Option<&ProductGridCtx>,
     site_iid: i64,
     hub_links: &[SiteLink],
@@ -465,40 +701,14 @@ pub fn block_html_render(
     product_design: Option<&Value>,
     design: &GuestDesign,
     featured: &[FeaturedContact],
+    site_meta: &Value,
 ) -> String {
     match block_type {
         "hero" => {
-            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
-            let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
-            let pic = props.get("pic").and_then(|x| x.as_str()).unwrap_or("");
-            let cta = props
-                .get("cta")
-                .or_else(|| props.get("cta_label"))
-                .and_then(|x| x.as_str())
-                .unwrap_or("");
-            let cta_url = props
-                .get("cta_url")
-                .or_else(|| props.get("cta_href"))
-                .and_then(|x| x.as_str())
-                .unwrap_or("#");
-            let bg = if pic.is_empty() {
-                String::new()
-            } else {
-                format!(
-                    r#"<div class="hero-bg"><img src="{}" alt="" loading="lazy"/></div>"#,
-                    esc(&pic_url(pic))
-                )
-            };
-            let btn = if cta.is_empty() {
-                String::new()
-            } else {
-                format!(r#"<a class="hero-cta" href="{}">{}</a>"#, esc(cta_url), esc(cta))
-            };
+            let inner = guest_hub_hero_inner_html(props, &flutter_hero_profile(), design, site_meta);
             format!(
-                r#"<section class="block hero">{bg}<div class="hero-inner"><h1>{}</h1><p>{}</p>{}</div></section>"#,
-                esc(title),
-                esc(subtitle),
-                btn
+                r#"<section class="block hero" data-guest="hero"><div class="guest-hub-hero hub-profile">{inner}</div></section>"#,
+                inner = inner,
             )
         }
         "markdown" => {
@@ -544,11 +754,21 @@ pub fn block_html_render(
             } else {
                 product_design
             };
-            let cards = products
-                .iter()
-                .map(|p| product_card_html(p, typography))
-                .collect::<Vec<_>>()
-                .join("");
+            let display = product_grid_display(props, site_meta);
+            let items = if display == "list" {
+                products
+                    .iter()
+                    .map(|p| product_list_row_html(p, typography))
+                    .collect::<Vec<_>>()
+                    .join("")
+            } else {
+                products
+                    .iter()
+                    .map(|p| product_card_html(p, typography))
+                    .collect::<Vec<_>>()
+                    .join("")
+            };
+            let layout_class = if display == "list" { "list" } else { "grid" };
             let (site_iid, block_id, next_cursor) = grid_ctx
                 .map(|g| (g.site_iid, g.block_id.as_str(), g.next_cursor.as_str()))
                 .unwrap_or((0, "", ""));
@@ -560,15 +780,23 @@ pub fn block_html_render(
                 )
             };
             let (card_open, card_close) = design.card_wrap("site_product");
+            let grid_title = props
+                .get("title")
+                .and_then(|x| x.as_str())
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or("Katalog & Layanan");
+            let heading = format!(r#"<h2 class="product-grid-title">{}</h2>"#, esc(grid_title));
             format!(
-                r#"<section class="block product-grid" data-guest="site_product" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{card_open}<div class="grid">{cards}</div>{load_more}{card_close}</section>"#,
+                r#"<section class="block product-grid" data-guest="site_product" data-display="{display}" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{heading}{card_open}<div class="{layout_class}">{items}</div>{load_more}{card_close}</section>"#,
+                display = esc(display),
                 bid = esc(block_id),
                 sid = site_iid,
                 filter = esc(filter),
                 category = esc(category),
                 cursor = esc(next_cursor),
+                layout_class = layout_class,
                 card_open = card_open,
-                cards = cards,
+                items = items,
                 load_more = load_more,
                 card_close = card_close,
             )
@@ -612,14 +840,14 @@ pub fn block_html_render(
             let lis = if !items.is_empty() {
                 items
                     .iter()
-                    .map(link_item_html)
+                    .map(|item| link_item_html(item, design))
                     .filter(|s| !s.is_empty())
                     .collect::<Vec<_>>()
                     .join("")
             } else {
                 hub_links
                     .iter()
-                    .map(link_hub_html)
+                    .map(|link| link_hub_html(link, design))
                     .filter(|s| !s.is_empty())
                     .collect::<Vec<_>>()
                     .join("")
@@ -630,15 +858,12 @@ pub fn block_html_render(
             let heading = if title.is_empty() {
                 String::new()
             } else {
-                format!(r#"<h2>{}</h2>"#, esc(title))
+                format!(r#"<h2 class="links-block-title">{}</h2>"#, esc(title))
             };
-            let (card_open, card_close) = design.card_wrap("link");
             format!(
-                r#"<section class="block links" data-guest="link">{heading}{card_open}<ul class="links">{lis}</ul>{card_close}</section>"#,
+                r#"<section class="block links-block" data-guest="link">{heading}<ul class="guest-links-list">{lis}</ul></section>"#,
                 heading = heading,
-                card_open = card_open,
                 lis = lis,
-                card_close = card_close,
             )
         }
         "contact_form" => {
@@ -670,9 +895,6 @@ pub fn block_html_render(
             )
         }
         "map" => {
-            if !capability_enabled(caps, "booking") {
-                return String::new();
-            }
             let lat = props.get("lat").and_then(|x| x.as_f64()).unwrap_or(0.0);
             let lng = props.get("lng").and_then(|x| x.as_f64()).unwrap_or(0.0);
             let address = props.get("address").and_then(|x| x.as_str()).unwrap_or("");
@@ -690,9 +912,6 @@ pub fn block_html_render(
             )
         }
         "hours" => {
-            if !capability_enabled(caps, "booking") {
-                return String::new();
-            }
             let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
             let schedule = props
                 .get("hours")
@@ -711,94 +930,33 @@ pub fn block_html_render(
                 format!(r#"<h2>{}</h2>"#, esc(title))
             };
             format!(
-                r#"<section class="block hours">{heading}<table class="hours"><tbody>{}</tbody></table></section>"#,
+                r#"<section class="block hours" data-guest="hours">{heading}<table class="hours"><tbody>{}</tbody></table></section>"#,
                 rows
             )
         }
         "hub_profile" => {
-            let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
-            let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
-            let pic = props.get("pic").and_then(|x| x.as_str()).unwrap_or("");
             let location_label = props.get("location_label").and_then(|x| x.as_str()).unwrap_or("");
-            let location_href = props.get("location_href").and_then(|x| x.as_str()).unwrap_or("");
             let show_hours = props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false);
             let profile = &design.profile;
-            let avatar = if !profile.show_avatar || pic.is_empty() {
-                String::new()
-            } else {
-                let mut style = format!(
-                    "width:{size};height:{size}",
-                    size = css_px(profile.avatar_size)
-                );
-                if profile.avatar_outline_width > 0.0 {
-                    let color = if profile.avatar_outline_color.trim().is_empty() {
-                        design.accent.as_str()
-                    } else {
-                        profile.avatar_outline_color.trim()
-                    };
-                    style.push_str(&format!(
-                        ";outline:{} solid {color}",
-                        css_px(profile.avatar_outline_width)
-                    ));
-                }
+            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta);
+            let location_html = if profile.show_location && !location_label.trim().is_empty() {
                 format!(
-                    r#"<img class="hub-avatar" src="{}" alt="" style="{}" loading="lazy"/>"#,
-                    esc(&pic_url(pic)),
-                    esc_attr(&style)
-                )
-            };
-            let title_html = if profile.show_title {
-                format!(
-                    r#"<h1 style="font-size:{size};text-align:{align}{family}">{title}</h1>"#,
-                    size = css_px(profile.title_font_size),
-                    align = css_align(&profile.title_align, "center"),
-                    family = family_decl(&profile.title_font_family),
-                    title = esc(title),
-                )
-            } else {
-                String::new()
-            };
-            let bio_html = if profile.show_bio {
-                format!(
-                    r#"<p style="font-size:{size};text-align:{align}{family}">{bio}</p>"#,
-                    size = css_px(profile.bio_font_size),
-                    align = css_align(&profile.bio_align, "center"),
-                    family = family_decl(&profile.bio_font_family),
-                    bio = esc(subtitle),
-                )
-            } else {
-                String::new()
-            };
-            let mut chips = String::new();
-            if profile.show_location && !location_label.trim().is_empty() {
-                let href = if location_href.trim().is_empty() {
-                    format!(
-                        "https://www.google.com/maps/search/?api=1&query={}",
-                        esc_attr(location_label.trim())
-                    )
-                } else {
-                    esc(location_href.trim())
-                };
-                chips.push_str(&format!(
-                    r#"<a class="hub-chip" href="{}" target="_blank" rel="noopener">{}</a>"#,
-                    href,
+                    r#"<div class="hub-location"><span class="hub-location-icon" aria-hidden="true">&#128205;</span><span class="hub-location-label">{}</span></div>"#,
                     esc(location_label.trim())
-                ));
-            }
-            if profile.show_hours && show_hours {
-                chips.push_str(r#"<span class="hub-chip hub-chip-muted">Open hours</span>"#);
-            }
-            let chips_html = if chips.is_empty() {
-                String::new()
+                )
             } else {
-                format!(r#"<div class="hub-chips">{}</div>"#, chips)
+                String::new()
+            };
+            let hours_html = if profile.show_hours && show_hours {
+                hub_hours_compact_html(&open_hours_from_meta(site_meta))
+            } else {
+                String::new()
             };
             format!(
-                r#"<section class="block hub-profile" data-guest="profile"><div class="hub-profile">{avatar}{title_html}{bio_html}{chips_html}</div></section>"#,
-                avatar = avatar,
-                title_html = title_html,
-                bio_html = bio_html,
-                chips_html = chips_html
+                r#"<section class="block hub-profile" data-guest="profile"><div class="guest-hub-hero hub-profile">{inner}</div>{location_html}{hours_html}</section>"#,
+                inner = inner,
+                location_html = location_html,
+                hours_html = hours_html
             )
         }
         "partners_display" => featured_strip_html("partners", "partners", &design.partners, design, featured),
@@ -841,16 +999,13 @@ pub fn block_html_render(
                 format!(r#"<p class="order-track-hint">{}</p>"#, esc(hint))
             };
             format!(
-                r#"<section class="block order-track" data-site-iid="{site_iid}"><h3>{title}</h3>{hint_html}<label><span>No. pesanan</span><input type="text" name="tx_id" class="order-track-tx" inputmode="numeric" /></label><button type="button" class="guest-order-poll-btn" onclick="c35GuestOrder.poll(this)">Cek status</button><div class="order-track-status"></div></section>"#,
+                r#"<section class="block order-track" data-guest="order" data-site-iid="{site_iid}"><h3>{title}</h3>{hint_html}<label><span>No. pesanan</span><input type="text" name="tx_id" class="order-track-tx" inputmode="numeric" /></label><button type="button" class="guest-order-poll-btn" onclick="c35GuestOrder.poll(this)">Cek status</button><div class="order-track-status"></div></section>"#,
                 site_iid = site_iid,
                 title = esc(title),
                 hint_html = hint_html
             )
         }
         "queue" => {
-            if !capability_enabled(caps, "queue") {
-                return String::new();
-            }
             let title = props
                 .get("title")
                 .or_else(|| props.get("label"))
@@ -958,6 +1113,7 @@ pub async fn page_html_render(
             product_design.as_ref(),
             &design,
             &featured,
+            &site_meta,
         ));
     }
     let root = guest_root_css(&design);
@@ -965,13 +1121,22 @@ pub async fn page_html_render(
     Ok(format!(
         r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title><style>
 {root}
-body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:80px}}
-.wrap{{max-width:960px;margin:0 auto;padding:24px 16px}}
+body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
+.wrap{{max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
 .block{{margin:0 0 24px}}
 .hero{{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,var(--accent),#111);color:#fff;padding:48px 24px}}
 .hero-inner{{position:relative;z-index:1}}
 .hero-bg img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}}
 .product-grid .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}}
+.product-grid .list{{display:flex;flex-direction:column;gap:8px}}
+.product-list-row{{display:flex;gap:10px;align-items:flex-start;padding:12px;background:var(--card-bg,#fff);border-radius:12px;border:1px solid var(--card-border,#eee)}}
+.product-list-thumb{{flex:0 0 56px;width:56px;height:56px;border-radius:8px;overflow:hidden}}
+.product-list-thumb img,.product-list-thumb .product-ph{{width:56px;height:56px;object-fit:cover}}
+.product-list-body{{flex:1;min-width:0}}
+.product-list-body h3{{margin:0;font-size:14px;font-weight:600}}
+.product-list-body p{{margin:4px 0 0;font-size:12px;color:var(--muted,#666);line-height:1.35}}
+.product-list-trail{{display:flex;flex-direction:column;align-items:flex-end;gap:4px}}
+.guest-pic-thumb{{cursor:zoom-in}}
 .product-card{{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;flex-direction:column}}
 .product-card img{{width:100%;aspect-ratio:1;object-fit:cover;display:block}}
 .product-card .product-ph{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#f4f4f5}}
@@ -1004,15 +1169,16 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
 .hub-chip-muted{{color:#666}}
 .order-track label{{display:block;margin:12px 0}}
 .order-track input{{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box}}
-.product-detail .price{{font-size:20px;font-weight:700;color:var(--accent);margin:12px 0}}
+.product-detail .price{{font-size:14px;font-weight:700;margin:8px 0}}
+.product-detail-pic{{width:100%;max-height:280px;object-fit:cover;border-radius:8px;margin-bottom:12px}}
 .product-reserve-placeholder{{margin-top:16px;padding:12px;background:#fff;border-radius:8px;color:#666;font-size:14px}}
 .embed iframe{{display:block;border-radius:8px}}
 .md{{line-height:1.6}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd}">{image}<main class="wrap">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
 <div id="c35-guest-cart-bar" class="guest-cart-bar" style="display:none;" onclick="c35GuestCart.openModal()">
   <div class="guest-cart-count" id="c35-cart-count">0</div>
   <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
-  <button type="button" class="guest-cart-btn">Lihat Pesanan</button>
+  <span class="guest-cart-cta">Lihat</span>
 </div>
 <div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" onclick="if(event.target===this)c35GuestCart.closeModal()">
   <div class="guest-modal-sheet" id="c35-modal-content"></div>
@@ -1058,6 +1224,7 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
         .unwrap_or_else(|_| serde_json::json!({}));
     let guest = serde_json::json!({
         "site_iid": site_iid,
+        "site_id": site_iid,
         "api_base": "",
         "commerce_boot": commerce,
         "order_progress_steps": order_progress_steps_json(),
@@ -1092,6 +1259,39 @@ fn effects_script_enabled(effects: &Value) -> bool {
     rows.iter().any(effect_row_loads_script)
 }
 
+const RUNNABLE_OVERLAY_PRESETS: &[&str] = &[
+    "falling-hearts",
+    "rain-shower",
+    "snow-fall",
+    "floating-bubbles",
+    "thunderstorm",
+    "fireworks",
+    "starry-night",
+    "drifting-clouds",
+    "matrix-rain",
+    "sakura-petals",
+    "moonlight",
+    "autumn-leaves",
+];
+
+fn overlay_effect_preset_canonical(raw: &str) -> Option<&'static str> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if RUNNABLE_OVERLAY_PRESETS.contains(&trimmed) {
+        return RUNNABLE_OVERLAY_PRESETS
+            .iter()
+            .find(|p| **p == trimmed)
+            .copied();
+    }
+    let dashed = trimmed.replace('_', "-");
+    RUNNABLE_OVERLAY_PRESETS
+        .iter()
+        .find(|p| **p == dashed)
+        .copied()
+}
+
 fn effect_row_loads_script(row: &Value) -> bool {
     let Some(obj) = row.as_object() else {
         return false;
@@ -1103,11 +1303,188 @@ fn effect_row_loads_script(row: &Value) -> bool {
         .get("presetId")
         .or_else(|| obj.get("preset_id"))
         .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .trim();
-    !preset.is_empty()
+        .unwrap_or("");
+    overlay_effect_preset_canonical(preset).is_some()
 }
 
+
+const GUEST_STOREFRONT_EXTRA_CSS: &str = r#"
+body.guest-storefront{{position:relative;padding-bottom:0}}
+.guest-page-main{{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
+.product-detail h1{{margin:12px 0 6px;font-size:16px;font-weight:700}}
+.product-detail p{{margin:0 0 8px;font-size:13px;line-height:1.4;color:var(--muted,#666)}}
+.social-post h1{{margin:12px 0 8px;font-size:16px;font-weight:700}}
+.social-post .post-caption{{color:var(--muted,#666);font-size:13px}}
+.social-post .post-body{{font-size:13px;line-height:1.45}}
+.social-post .post-thumb{{width:100%;max-height:280px;object-fit:cover;border-radius:8px;margin-bottom:12px}}
+.guest-post-carousel{{margin-bottom:12px}}
+"#;
+
+fn post_media_paths(post: &SitePost) -> Vec<String> {
+    let media = if post.media_json.is_empty() {
+        json!([])
+    } else {
+        serde_json::from_str(&post.media_json).unwrap_or(json!([]))
+    };
+    let mut paths = Vec::new();
+    if let Some(arr) = media.as_array() {
+        for item in arr {
+            if let Some(src) = item.get("src").and_then(|v| v.as_str()) {
+                let t = src.trim();
+                if !t.is_empty() {
+                    paths.push(t.to_string());
+                }
+            }
+        }
+    }
+    if paths.is_empty() && !post.thumb.trim().is_empty() {
+        paths.push(post.thumb.trim().to_string());
+    }
+    paths
+}
+
+fn post_detail_media_html(paths: &[String]) -> String {
+    if paths.is_empty() {
+        return String::new();
+    }
+    if paths.len() == 1 {
+        let pic = &paths[0];
+        return format!(
+            r#"<img class="guest-pic-thumb post-thumb" src="{}" alt="" loading="lazy" data-pic-display="{}" role="button" tabindex="0"/>"#,
+            esc(&pic_url(pic)),
+            esc_attr(&pic_url_display(pic)),
+        );
+    }
+    let slides = paths
+        .iter()
+        .enumerate()
+        .map(|(i, pic)| {
+            format!(
+                r#"<div class="guest-post-carousel-slide" data-index="{i}" style="display:{disp}"><img class="guest-pic-thumb" src="{thumb}" alt="" loading="lazy" data-pic-display="{display}" role="button" tabindex="0"/></div>"#,
+                i = i,
+                disp = if i == 0 { "block" } else { "none" },
+                thumb = esc(&pic_url(pic)),
+                display = esc_attr(&pic_url_display(pic)),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    let dots = paths
+        .iter()
+        .enumerate()
+        .map(|(i, _)| {
+            format!(
+                r#"<button type="button" class="guest-post-carousel-dot{active}" aria-label="Slide {n}" data-index="{i}"></button>"#,
+                active = if i == 0 { " is-active" } else { "" },
+                n = i + 1,
+                i = i,
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("");
+    format!(
+        r#"<div class="guest-post-carousel" data-guest="post_carousel">{slides}<div class="guest-post-carousel-dots">{dots}</div></div>"#,
+        slides = slides,
+        dots = dots,
+    )
+}
+
+/// Post detail article (carousel when multiple `media_json` images).
+pub fn post_detail_article_html(post: &SitePost) -> String {
+    let paths = post_media_paths(post);
+    let media = post_detail_media_html(&paths);
+    let body_text = if post.body.is_empty() {
+        String::new()
+    } else {
+        format!(
+            r#"<div class="post-body">{}</div>"#,
+            esc(&post.body).replace('\n', "<br/>")
+        )
+    };
+    let caption = if post.caption.is_empty() {
+        String::new()
+    } else {
+        format!(r#"<p class="post-caption">{}</p>"#, esc(&post.caption))
+    };
+    format!(
+        r#"<article class="social-post" data-guest="social_post" data-post-id="{pid}">{media}<h1>{title}</h1>{caption}{body}</article>"#,
+        pid = post.post_id,
+        media = media,
+        title = esc(&post.title),
+        caption = caption,
+        body = body_text,
+    )
+}
+
+async fn published_site_doc(pool: &PgPool, site_iid: i64) -> SiteDoc {
+    if let Ok(Some(row)) = sqlx::query(
+        r#"
+        SELECT doc_json FROM site.publish
+        WHERE site_iid = $1 AND is_active = TRUE AND deleted_ts IS NULL
+        ORDER BY published_ts DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    {
+        let v: Value = row.get("doc_json");
+        return site_doc_from_json(&v);
+    }
+    if let Ok(Some(row)) = sqlx::query(
+        r#"SELECT doc_json FROM site.draft WHERE site_iid = $1 AND deleted_ts IS NULL"#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    {
+        let v: Value = row.get("doc_json");
+        return site_doc_from_json(&v);
+    }
+    site_doc_from_json(&json!({ "pages": [], "theme": {}, "meta": {} }))
+}
+
+async fn guest_storefront_page_html(
+    pool: &PgPool,
+    site_iid: i64,
+    _site_name: &str,
+    doc: &SiteDoc,
+    document_title: &str,
+    body: &str,
+) -> Result<String> {
+    let design = GuestDesign::from_theme_json(&doc.theme_json);
+    let root = guest_root_css(&design);
+    let image = page_bg_image_html(&design);
+    let effects = theme_effects(&doc.theme_json);
+    let client_js = guest_client_script_tags(pool, site_iid, &effects).await;
+    Ok(format!(
+        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title><style>
+{root}
+{extra}
+body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
+.wrap{{max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
+<div id="c35-guest-cart-bar" class="guest-cart-bar" style="display:none;" onclick="c35GuestCart.openModal()">
+  <div class="guest-cart-count" id="c35-cart-count">0</div>
+  <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
+  <span class="guest-cart-cta">Lihat</span>
+</div>
+<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" onclick="if(event.target===this)c35GuestCart.closeModal()">
+  <div class="guest-modal-sheet" id="c35-modal-content"></div>
+</div>
+<div id="c35-guest-toast" class="guest-toast" style="display:none;"></div>
+<button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
+{client_js}</body></html>"#,
+        esc(document_title),
+        root = root,
+        extra = GUEST_STOREFRONT_EXTRA_CSS,
+        bd = design.backdrop_id,
+        image = image,
+        body = body,
+        client_js = client_js,
+    ))
+}
 
 pub async fn product_detail_html_render(
     pool: &PgPool,
@@ -1122,13 +1499,9 @@ pub async fn product_detail_html_render(
     let mut row = detail.row;
     row.can_reserve = detail.can_reserve;
     let body = product_detail_article_html(&row);
-    let html = format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/><style>:root{{--accent:#2563eb}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa}}.wrap{{max-width:720px;margin:0 auto;padding:24px 16px}}.product-detail .product-ph{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#f4f4f5}}.product-detail .product-ph svg{{width:28%;height:28%}}</style></head><body><main class="wrap">{body}</main>{client_js}</body></html>"#,
-        esc(&row.name),
-        esc(site_name),
-        body = body,
-        client_js = guest_client_script_tags(pool, site_iid, &json!([])).await
-    );
+    let doc = published_site_doc(pool, site_iid).await;
+    let title = format!("{} — {}", row.name.trim(), site_name.trim());
+    let html = guest_storefront_page_html(pool, site_iid, site_name, &doc, &title, &body).await?;
     Ok(Some(html))
 }
 
@@ -1143,42 +1516,10 @@ pub async fn post_detail_html_render(
         Some(p) => p,
         None => return Ok(None),
     };
-    let thumb = if post.thumb.is_empty() {
-        String::new()
-    } else {
-        format!(
-            r#"<img src="{}" alt="" loading="lazy" class="post-thumb"/>"#,
-            esc(&pic_url(&post.thumb))
-        )
-    };
-    let body_text = if post.body.is_empty() {
-        String::new()
-    } else {
-        format!(
-            r#"<div class="post-body">{}</div>"#,
-            esc(&post.body).replace('\n', "<br/>")
-        )
-    };
-    let caption = if post.caption.is_empty() {
-        String::new()
-    } else {
-        format!(r#"<p class="post-caption">{}</p>"#, esc(&post.caption))
-    };
-    let article = format!(
-        r#"<article class="social-post" data-guest="social_post" data-post-id="{pid}">{thumb}<h1>{title}</h1>{caption}{body}</article>"#,
-        pid = post.post_id,
-        thumb = thumb,
-        title = esc(&post.title),
-        caption = caption,
-        body = body_text
-    );
-    let html = format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{} — {}</title><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/><style>:root{{--accent:#2563eb}}body{{margin:0;font-family:system-ui,sans-serif;background:#fafafa}}.wrap{{max-width:720px;margin:0 auto;padding:24px 16px}}</style></head><body><main class="wrap">{body}</main>{client_js}</body></html>"#,
-        esc(&post.title),
-        esc(site_name),
-        body = article,
-        client_js = guest_client_script_tags(pool, site_iid, &json!([])).await
-    );
+    let article = post_detail_article_html(&post);
+    let doc = published_site_doc(pool, site_iid).await;
+    let title = format!("{} — {}", post.title.trim(), site_name.trim());
+    let html = guest_storefront_page_html(pool, site_iid, site_name, &doc, &title, &article).await?;
     Ok(Some(html))
 }
 

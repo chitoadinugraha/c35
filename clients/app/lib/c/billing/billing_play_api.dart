@@ -1,11 +1,26 @@
+import 'dart:io';
+
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
+import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-Future<ResBillingPlayProductList> billingPlayProductList(ReferralConn conn) async {
+String billingPlayStorePlatformWire() {
+  if (kIsWeb) return '';
+  if (Platform.isIOS) return 'ios';
+  if (Platform.isAndroid) return 'android';
+  return '';
+}
+
+Future<ResBillingPlayProductList> billingPlayProductList(ReferralConn conn, {String? currency}) async {
+  final cur = (currency ?? billingCurrencyForDeviceLocale()).trim().toUpperCase();
   final res = await conn.invoke(
-    InvokeReq(reqId: const Uuid().v4(), billingPlayProductList: ReqBillingPlayProductList()),
+    InvokeReq(
+      reqId: const Uuid().v4(),
+      billingPlayProductList: ReqBillingPlayProductList(currency: cur == 'USD' ? 'USD' : 'IDR'),
+    ),
     timeout: const Duration(seconds: 15),
   );
   invokeResThrow(res, fallback: 'Failed to load Play products');
@@ -26,6 +41,7 @@ Future<ResBillingPlayVerify> billingPlayVerify(
         productId: productId,
         purchaseToken: purchaseToken,
         packageName: packageName,
+        storePlatform: billingPlayStorePlatformWire(),
       ),
     ),
     timeout: const Duration(seconds: 45),

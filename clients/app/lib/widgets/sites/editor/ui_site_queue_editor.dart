@@ -1,5 +1,7 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:flutter/material.dart';
 
@@ -15,7 +17,7 @@ class UiSiteQueueEditor extends StatefulWidget {
   State<UiSiteQueueEditor> createState() => _UiSiteQueueEditorState();
 }
 
-class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> {
+class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> with SiteEditorCatalogListener {
   var _loading = true;
   var _busy = false;
   String? _error;
@@ -27,13 +29,25 @@ class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> {
     _reload();
   }
 
+  @override
+  void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    if (!mounted) return;
+    setState(() {
+      _queue = catalog.primaryQueue ?? widget.api.queueNew(widget.siteIid);
+      _loading = false;
+      _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+    });
+  }
+
   Future<void> _reload() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
+      if (await ensureEditorCatalog()) return;
       final queues = await widget.api.queueList(widget.siteIid);
+      editorCatalog?.setQueues(queues);
       if (!mounted) return;
       setState(() {
         _queue = queues.isNotEmpty ? queues.first : widget.api.queueNew(widget.siteIid);
@@ -55,7 +69,9 @@ class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> {
     try {
       final serving = await widget.api.queueAdvanceServing(widget.siteIid, queueId: q.queueId.toInt());
       if (!mounted) return;
-      setState(() => _queue = q.clone()..servingTicketNo = serving);
+      final next = q.clone()..servingTicketNo = serving;
+      setState(() => _queue = next);
+      editorCatalog?.upsertQueue(next);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));

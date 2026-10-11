@@ -3,6 +3,7 @@ use c35_proto::{ResSiteGuestProductList, SiteGuestProductItem};
 use serde_json::Value;
 use sqlx::{PgPool, Row};
 
+pub use crate::guest_product_display::pic_url;
 use crate::rows::col_text;
 
 pub struct ProductRow {
@@ -141,17 +142,6 @@ fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
         stock_show_to_customer: stock_show_to_customer_from_product_json(&product_json),
         stock_qty: Some(i64::from(stock_qty)),
     }
-}
-
-pub fn pic_url(pic: &str) -> String {
-    let p = pic.trim();
-    if p.is_empty() {
-        return String::new();
-    }
-    if p.starts_with("http://") || p.starts_with("https://") || p.starts_with("/fs/") {
-        return p.to_string();
-    }
-    format!("/fs/{}?v=thumb", p)
 }
 
 pub struct GuestProductListResult {

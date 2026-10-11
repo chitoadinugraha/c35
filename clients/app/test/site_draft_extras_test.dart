@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/site/site_ai_assistant.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,6 +28,30 @@ void main() {
     expect(parsed.knowledge.single.title, 'Hours');
     expect(parsed.knowledge.single.content, 'Open 9 to 5');
     expect(siteDraftJsonMap(encoded)['tagline'], 'hi');
+  });
+
+  test('ai assistant round-trip and legacy floating_bubble', () {
+    expect(siteDraftExtrasParse('{}').aiAssistant.featureChatEnabled, isTrue);
+    expect(siteDraftExtrasParse('{}').aiAssistant.featureCallEnabled, isFalse);
+
+    const legacy = '{"ai_assistant":{"floating_bubble":false}}';
+    expect(siteDraftExtrasParse(legacy).aiAssistant.featureChatEnabled, isFalse);
+
+    const draft = SiteAiAssistantDraft(
+      chatEnabled: true,
+      callEnabled: true,
+      chatIntro: 'Hi',
+      chatPlaceholder: 'Ask us',
+      callIntro: 'Call intro',
+      configured: true,
+    );
+    final encoded = siteDraftExtrasMerge('{}', aiAssistant: draft);
+    final parsed = siteDraftExtrasParse(encoded).aiAssistant;
+    expect(parsed.featureChatEnabled, isTrue);
+    expect(parsed.featureCallEnabled, isTrue);
+    expect(parsed.chatIntro, 'Hi');
+    expect(parsed.chatPlaceholder, 'Ask us');
+    expect(parsed.callIntro, 'Call intro');
   });
 
   test('payment account round-trip', () {

@@ -17,8 +17,6 @@ tmp_idx/
 tmp_pb_backup/
 
 # Secrets & credentials -- also in .gitignore; keep out of semantic index
-**/.env.local
-**/.env.*.local
 _/certs/
 clients/app/android/key.properties
 clients/app/android/app/upload_keystore.jks

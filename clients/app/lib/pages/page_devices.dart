@@ -12,6 +12,7 @@ import 'package:alienai_c35/widgets/devices/ui_device_row.dart';
 import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_page_bar.dart';
@@ -96,6 +97,91 @@ class _PageDevicesState extends State<PageDevices> {
           ),
         ) ??
         false;
+  }
+
+  Widget _deviceRowTile(IdentityListRow row) {
+    final id = row.identity;
+    final sid = id.iid.toString();
+    final deviceIid = id.iid.toInt();
+    final session = RemoteSession.of(widget.chatConn, deviceIid);
+    return ListenableBuilder(
+      listenable: Listenable.merge([session.presenceListenable, DevicePresenceCache.instance]),
+      builder: (context, _) => UiDeviceRow(
+        name: id.name.isNotEmpty ? id.name : id.type,
+        kind: id.kind,
+        type: id.type,
+        browserEngine: deviceBrowserEngineFromMeta(
+          id.metaJson,
+          deviceName: id.name,
+          deviceType: id.type,
+        ),
+        pinned: row.isPinned,
+        clusterOnline: deviceOnlineFromMeta(
+          DevicePresenceCache.instance.metaFor(id.iid, id.metaJson),
+        ),
+        webrtcConnected: session.connected.value,
+        webrtcConnecting: session.isLinking,
+        webrtcFailed: session.status.value == RemoteSessionStatus.failed,
+        selected: _store.selectedId == sid,
+        onTap: () => _store.select(sid),
+      ),
+    );
+  }
+
+  void _onDeviceReorder(int oldIndex, int newIndex) {
+    if (_store.search.trim().isNotEmpty) return;
+    unawaited(_store.reorderPut(oldIndex, newIndex));
+  }
+
+  Widget _deviceList(DeviceStore store) {
+    final rows = store.filtered;
+    final canReorder = store.search.trim().isEmpty;
+    if (canReorder) {
+      return ReorderableListView.builder(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        physics: const AlwaysScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: rows.length,
+        onReorderItem: _onDeviceReorder,
+        proxyDecorator: (child, _, __) => Material(
+          color: Colors.transparent,
+          elevation: 4,
+          borderRadius: BorderRadius.circular(8),
+          child: child,
+        ),
+        itemBuilder: (context, i) {
+          final row = rows[i];
+          final sid = row.identity.iid.toString();
+          return ReorderableDragStartListener(
+            key: ValueKey(sid),
+            index: i,
+            child: GestureDetector(
+              onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
+              onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: _deviceRowTile(row),
+              ),
+            ),
+          );
+        },
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+      itemCount: rows.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 4),
+      itemBuilder: (context, i) {
+        final row = rows[i];
+        final sid = row.identity.iid.toString();
+        return GestureDetector(
+          key: ValueKey(sid),
+          onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
+          onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
+          child: _deviceRowTile(row),
+        );
+      },
+    );
   }
 
   Future<void> _rowMenu(String id, Offset pos) async {
@@ -189,48 +275,10 @@ class _PageDevicesState extends State<PageDevices> {
               children: [
                 Expanded(
                   child: _store.loading
-                      ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)))
+                      ? const UILoading()
                       : _store.filtered.isEmpty
                           ? _store.rows.isEmpty ? UiEmptyState.devices() : UiEmptyState.noMatches('devices')
-                          : ListView.separated(
-                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                              itemCount: _store.filtered.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 4),
-                              itemBuilder: (context, i) {
-                                final row = _store.filtered[i];
-                                final id = row.identity;
-                                final sid = id.iid.toString();
-                                final deviceIid = id.iid.toInt();
-                                final session = RemoteSession.of(widget.chatConn, deviceIid);
-                                return GestureDetector(
-                                  key: ValueKey(sid),
-                                  onSecondaryTapDown: (d) => _rowMenu(sid, d.globalPosition),
-                                  onLongPress: () => _rowMenu(sid, Offset(MediaQuery.sizeOf(context).width / 2, 200)),
-                                  child: ListenableBuilder(
-                                    listenable: Listenable.merge([session.presenceListenable, DevicePresenceCache.instance]),
-                                    builder: (context, _) => UiDeviceRow(
-                                      name: id.name.isNotEmpty ? id.name : id.type,
-                                      kind: id.kind,
-                                      type: id.type,
-                                      browserEngine: deviceBrowserEngineFromMeta(
-                                        id.metaJson,
-                                        deviceName: id.name,
-                                        deviceType: id.type,
-                                      ),
-                                      pinned: row.isPinned,
-                                      clusterOnline: deviceOnlineFromMeta(
-                                        DevicePresenceCache.instance.metaFor(id.iid, id.metaJson),
-                                      ),
-                                      webrtcConnected: session.connected.value,
-                                      webrtcConnecting: session.isLinking,
-                                      webrtcFailed: session.status.value == RemoteSessionStatus.failed,
-                                      selected: _store.selectedId == sid,
-                                      onTap: () => _store.select(sid),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                          : _deviceList(_store),
                 ),
                 if (selectedSession != null) UiDeviceFsUploadPanel(session: selectedSession),
               ],

@@ -94,6 +94,8 @@ Framing (NM stdin/stdout and IPC socket): **4-byte little-endian length** + UTF-
 | `type` | Direction | Purpose |
 |--------|-----------|---------|
 | `ping` | ext → host → ext | Liveness; response includes `pong: true`. |
+| `agent.ensure` | ext → host → ext | Start embedded agent or recover stale IPC on `37538`; response same shape as `agent.status`. Popup / service worker call this on open. |
+| `agent.status` | ext → host → ext | WS/WebRTC snapshot for extension diagnostics UI. |
 | `pair.start` | ext → host → ext | Register `browser_engine=extension` pair code. |
 | `pair.status` | ext → host → ext | `idle` / `pending` / `claimed` + optional `code`, `device_iid`. |
 | `frame` | ext → host | JPEG capture for WebRTC (`width`, `height`, `jpeg_b64`); host forwards to IPC. |

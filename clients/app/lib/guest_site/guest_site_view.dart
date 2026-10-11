@@ -11,6 +11,7 @@ import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/widgets/sites/ui_powered_by_alien.dart';
 import 'package:flutter/material.dart';
 
@@ -118,7 +119,7 @@ class _GuestSiteBootLoaderState extends State<GuestSiteBootLoader> {
                   ),
                 );
           }
-          return GuestSiteView(
+          return GuestSiteShell(
             boot: snap.data!,
             blockKeyAt: widget.blockKeyAt,
             emptyLabel: widget.emptyLabel,
@@ -164,46 +165,51 @@ class _GuestSiteBody extends StatelessWidget {
     final resolved = boot.design == null ? null : siteDesignResolve(boot.design!);
     final fg = resolved?.fg ?? _guestTextPrimary;
     final muted = resolved?.muted ?? _guestTextSecondary;
-    final column = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < blocks.length; i++)
-          KeyedSubtree(
-            key: blockKeyAt?.call(i),
-            child: guestSiteBlock(
-              block: blocks[i],
-              accent: accent,
-              siteName: boot.name,
-              siteIid: boot.siteIid,
-              productDesign: boot.productDesign,
-              productRows: boot.productsForBlock(blocks[i]['id']?.toString() ?? ''),
-              commerceObjects: boot.commerceObjects,
-              productNextCursor: boot.nextProductCursorForBlock(blocks[i]['id']?.toString() ?? ''),
-              hubLinks: boot.links,
-              postsPreload: boot.postsPreload,
-              openHours: openHours,
-              suppressHoursBlock: hubShowsHours,
-              siteAvatar: boot.avatarUrl,
-              design: boot.design,
-              featuredContacts: boot.featuredContacts,
-              foreground: fg,
-              muted: muted,
-            ),
+    final blockWidgets = <Widget>[
+      for (var i = 0; i < blocks.length; i++)
+        KeyedSubtree(
+          key: blockKeyAt?.call(i),
+          child: guestSiteBlock(
+            block: blocks[i],
+            accent: accent,
+            siteName: boot.name,
+            siteIid: boot.siteIid,
+            productDesign: boot.productDesign,
+            productRows: boot.productsForBlock(blocks[i]['id']?.toString() ?? ''),
+            commerceObjects: boot.commerceObjects,
+            productNextCursor: boot.nextProductCursorForBlock(blocks[i]['id']?.toString() ?? ''),
+            hubLinks: boot.links,
+            postsPreload: boot.postsPreload,
+            openHours: openHours,
+            suppressHoursBlock: hubShowsHours,
+            siteAvatar: boot.avatarUrl,
+            design: boot.design,
+            featuredContacts: boot.featuredContacts,
+            catalogMeta: boot.meta,
+            foreground: fg,
+            muted: muted,
+            orderProgressSteps: boot.orderProgressSteps,
           ),
-        if (boot.shouldShowMetaLocation) _GuestSiteMetaLocationChip(accent: accent, label: boot.locationLabel),
-        if (boot.shouldShowMetaHours && !hubShowsHours)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: GuestSiteHoursCompact(openHours: openHours),
-          ),
-        const SizedBox(height: 28),
-        Center(child: UiPoweredByAlien(color: muted, strongColor: fg)),
-        const SizedBox(height: 88),
-      ],
+        ),
+      if (boot.shouldShowMetaLocation) _GuestSiteMetaLocationChip(accent: accent, label: boot.locationLabel),
+      if (boot.shouldShowMetaHours && !hubShowsHours)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: GuestSiteHoursCompact(openHours: openHours),
+        ),
+      const SizedBox(height: 28),
+      Center(child: UiPoweredByAlien(color: muted, strongColor: fg)),
+      const SizedBox(height: 88),
+    ];
+
+    // CSA `UiSitePreview` scrolls inside the phone frame (ListView), not via an outer wrapper.
+    final scrollBody = ListView(
+      padding: EdgeInsets.zero,
+      children: blockWidgets,
     );
 
-    if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: column);
-    return _GuestSiteCanvas(resolved: resolved, effects: boot.effects, child: column);
+    if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: scrollBody);
+    return _GuestSiteCanvas(resolved: resolved, effects: boot.effects, child: scrollBody);
   }
 }
 

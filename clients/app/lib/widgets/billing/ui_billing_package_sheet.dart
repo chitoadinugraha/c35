@@ -6,6 +6,8 @@ import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_platform.dart';
 import 'package:alienai_c35/c/billing/billing_play_api.dart';
 import 'package:alienai_c35/c/billing/billing_play_checkout.dart';
+import 'package:alienai_c35/c/billing/billing_store_catalog.dart';
+import 'package:alienai_c35/c/billing/billing_store_manage.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
@@ -78,6 +80,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   final _planCarouselScroll = ScrollController();
   bool? _playBillingAvailable;
   String? _playBillingHint;
+  List<BillingPlayProductDoc> _storeProducts = const [];
 
   String _quoteCacheKey(String slug, String period) => '${slug.trim().toLowerCase()}|$period';
 
@@ -152,6 +155,12 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
         _selectedSlug ??= _defaultSelectedSlug(summary);
       });
       await _probePlayBilling();
+      if (billingUsePlayPlans()) {
+        try {
+          final catalog = await billingPlayProductList(widget.conn, currency: _currency);
+          if (mounted) _storeProducts = catalog.products;
+        } catch (_) {}
+      }
       if (!mounted) return;
       setState(() {});
       WidgetsBinding.instance.addPostFrameCallback((_) => _scrollPlanCarouselToSelection());
@@ -231,16 +240,26 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
   /// Play Billing supports fixed subscription SKUs (monthly/yearly plans).
   bool _usePlayForCharge(String kind, double chargeIdr) {
     final k = kind.trim().toLowerCase();
-    if (!billingUsePlayPlans() || _selectionIsNoPlan || chargeIdr <= 0) return false;
+    if (!billingUsePlayPlans() || _selectionIsNoPlan) return false;
     if (k != 'subscribe' && k != 'upgrade') return false;
-    if (_currency != 'IDR') return false;
+    if (k == 'subscribe') return _storeCheckoutPrice('subscribe') > 0;
+    if (chargeIdr <= 0) return false;
     return !billingCreditCoversCharge(_balanceAccount, currency: _currency, chargeIdr: chargeIdr);
   }
 
+  double _storeCheckoutPrice(String kind) {
+    final plan = _selectedPlan;
+    if (plan == null) return _quote?.chargeIdr ?? 0;
+    final store = billingStorePlanProduct(_storeProducts, plan: plan, yearly: _yearly);
+    if (store != null) return billingStoreProductPrice(store);
+    final k = kind.trim().toLowerCase();
+    if (k == 'subscribe') return _quote?.listPriceIdr ?? _quote?.chargeIdr ?? 0;
+    return _quote?.chargeIdr ?? 0;
+  }
+
   String _payButtonSuffix(double chargeIdr, String kind) {
-    if (chargeIdr <= 0 || _currency != 'IDR') return '';
-    if (_usePlayForCharge(kind, chargeIdr)) return ' with Google Play';
-    return ' from credit';
+    if (!_usePlayForCharge(kind, chargeIdr)) return chargeIdr > 0 ? ' from credit' : '';
+    return ' with ${billingNativeStoreLabel()}';
   }
 
   bool get _checkoutUsesPlay {
@@ -318,8 +337,9 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
     if (kind == 'same') return 'Current plan';
     if (kind == 'upgrade') {
       final charge = _quote?.chargeIdr ?? 0;
-      if (charge > 0 && _currency == 'IDR') {
-        return 'Pay ${billingFmtRp(charge)}${_payButtonSuffix(charge, kind)} (prorated)';
+      if (charge > 0) {
+        final label = _currency == 'IDR' ? billingFmtRp(charge) : moneyFmtUsd(charge);
+        return 'Pay $label${_payButtonSuffix(charge, kind)} (prorated)';
       }
       return 'Upgrade now';
     }
@@ -328,9 +348,10 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
       if (when.isNotEmpty) return kind == 'cancel' ? 'Cancel in $when' : 'Downgrade in $when';
       return kind == 'cancel' ? 'Cancel at period end' : 'Downgrade at period end';
     }
-    final charge = _quote?.chargeIdr ?? 0;
-    if (charge > 0 && _currency == 'IDR') {
-      return 'Pay ${billingFmtRp(charge)}${_payButtonSuffix(charge, kind)}';
+    final charge = _storeCheckoutPrice(kind);
+    if (charge > 0) {
+      final label = _currency == 'IDR' ? billingFmtRp(charge) : moneyFmtUsd(charge);
+      return 'Pay $label${_payButtonSuffix(_quote?.chargeIdr ?? charge, kind)}';
     }
     return 'Confirm plan change';
   }
@@ -565,6 +586,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
                         plan: plan,
                         litePlan: _litePlan,
                         currency: _currency,
+                        storeProducts: _storeProducts,
                         yearly: _yearly,
                         selected: plan.slug == _selectedSlug,
                         expanded: false,
@@ -638,6 +660,7 @@ class _BillingPackageSheetState extends State<_BillingPackageSheet> {
           billingPeriod: _selectionPeriod,
           currency: _currency,
           balanceLabel: balanceLabel,
+          planAutoRenew: _summary?.planAutoRenew ?? false,
           playBillingHint: _playBillingHint,
           playBlocksCheckout: _playBillingAvailable == false && _checkoutUsesPlay,
           buttonLabel: _primaryButtonLabel,
@@ -779,6 +802,7 @@ class _BillingCheckoutBar extends StatelessWidget {
     required this.billingPeriod,
     required this.currency,
     required this.balanceLabel,
+    required this.planAutoRenew,
     required this.playBillingHint,
     required this.playBlocksCheckout,
     required this.buttonLabel,
@@ -794,6 +818,7 @@ class _BillingCheckoutBar extends StatelessWidget {
   final String billingPeriod;
   final String currency;
   final String balanceLabel;
+  final bool planAutoRenew;
   final String? playBillingHint;
   final bool playBlocksCheckout;
   final String buttonLabel;
@@ -857,6 +882,25 @@ class _BillingCheckoutBar extends StatelessWidget {
                 ],
               ),
             ],
+            if (planAutoRenew &&
+                billingUsePlayPlans() &&
+                quote != null &&
+                (quote!.kind == 'cancel' || quote!.kind == 'downgrade')) ...[
+              const SizedBox(height: 10),
+              _BillingBanner(
+                message:
+                    'This plan renews through ${billingNativeStoreLabel()}. After scheduling a change here, cancel the recurring subscription in your store account so you are not charged again.',
+                color: _warn,
+                icon: Icons.info_outline,
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () => unawaited(billingStoreManageSubscriptions()),
+                  child: Text('Manage ${billingNativeStoreLabel()} subscription'),
+                ),
+              ),
+            ],
             const SizedBox(height: 10),
             FilledButton(
               onPressed: buttonEnabled ? onConfirm : null,
@@ -876,6 +920,7 @@ class _BillingPlanCard extends StatelessWidget {
     required this.plan,
     required this.litePlan,
     required this.currency,
+    this.storeProducts = const [],
     required this.yearly,
     required this.selected,
     required this.expanded,
@@ -888,6 +933,7 @@ class _BillingPlanCard extends StatelessWidget {
   final BillingPlanDoc plan;
   final BillingPlanDoc? litePlan;
   final String currency;
+  final List<BillingPlayProductDoc> storeProducts;
   final bool yearly;
   final bool selected;
   final bool expanded;
@@ -899,7 +945,9 @@ class _BillingPlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = billingPlanAccentColor(plan.slug);
-    final price = billingPlanPriceLabel(plan, currency: currency, yearly: yearly);
+    final price = billingUsePlayPlans() && storeProducts.isNotEmpty
+        ? billingStorePlanPriceLabel(plan: plan, yearly: yearly, currency: currency, storeProducts: storeProducts)
+        : billingPlanPriceLabel(plan, currency: currency, yearly: yearly);
     final priceSub = billingPlanPriceSubLabel(plan, currency: currency, yearly: yearly);
     final quotaLines = billingPlanQuotaLines(plan, litePlan: litePlan, yearly: yearly);
     final chips = billingPlanSummaryChips(plan, yearly: yearly);

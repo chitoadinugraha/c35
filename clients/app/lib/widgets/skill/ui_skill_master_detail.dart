@@ -8,6 +8,7 @@ import 'package:alienai_c35/widgets/skill/io_skill_add_menu.dart';
 import 'package:alienai_c35/widgets/skill/io_skill_catalog_pick.dart';
 import 'package:alienai_c35/widgets/skill/io_skill_edit.dart';
 import 'package:alienai_c35/widgets/skill/io_skill_teach.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -215,7 +216,7 @@ class UiSkillMasterDetailState extends State<UiSkillMasterDetail> {
       );
 
   Widget _masterList() {
-    if (_loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: _accent));
+    if (_loading) return const UILoading();
     if (_skills.isEmpty) return _masterEmpty();
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 6),

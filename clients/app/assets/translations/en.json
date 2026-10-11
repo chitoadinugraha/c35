@@ -255,7 +255,22 @@
         "welcomeLockedSnack": "Shared plan does not send a welcome message. Upgrade to customize.",
         "welcomeSharedNone": "No welcome message on Shared",
         "assetRemoveTitle": "Remove asset?",
-        "assetRemoveMessage": "Remove {name} from this bot? You can add it again later."
+        "assetRemoveMessage": "Remove {name} from this bot? You can add it again later.",
+        "siteAssetTitle": "Site",
+        "siteAssetSubtitle": "Answer product questions and take orders",
+        "siteAssetNeedSite": "Add a site first to connect",
+        "siteAssetOneOnly": "This bot already has a site connected",
+        "siteAssetLinked": "Connected site",
+        "siteNeedTitle": "Add a site first",
+        "siteNeedMessage": "To connect this chatbot to a site, create a site in Alien AI first.",
+        "siteNeedAdd": "Add site",
+        "siteConnectTitle": "Connect site",
+        "sitePickLabel": "Choose site",
+        "sitePickRequired": "Choose a site",
+        "siteCapabilitiesLabel": "What the bot can do",
+        "siteCapAnswerProducts": "Answer questions about products",
+        "siteCapTakeOrders": "Take new orders",
+        "siteCapShareOrderStatus": "Check and share order status"
     },
     "billing": {
         "purchaseNonRefundable": "All purchases (plans, wallet credit, and add-ons) are final and non-refundable unless required by law or stated otherwise at checkout.",
@@ -265,6 +280,7 @@
         "quotaCurrentPackage": "Current package",
         "freemiumPackageTooltip": "Trial daily message and token limits. Tap to upgrade.",
         "quotaUpgradeTap": "Upgrade",
+        "manageStoreSubscription": "Manage {store} subscription",
         "quotaIncludedIdr": "Allowance amounts are shown in IDR.",
         "quotaPeriodWeekly": "Weekly",
         "quotaPeriod5h": "5 hours",
@@ -275,7 +291,29 @@
         "planDowngradeOn": "Downgrade on {when}",
         "planCancelOn": "Cancel on {when}",
         "planDowngradeAtPeriodEnd": "Downgrade at period end",
-        "planCancelAtPeriodEnd": "Cancel at period end"
+        "planCancelAtPeriodEnd": "Cancel at period end",
+        "planRenewInAt": "Renews in {duration} at {date}",
+        "planEndsInAt": "Ends in {duration} at {date}",
+        "planRenewInCompact": "Renew in {duration}",
+        "planExpiresInCompact": "Expires in {duration}"
+    },
+    "time": {
+        "unitMonth": "1 month",
+        "unitMonths": "{count} months",
+        "unitDay": "1 day",
+        "unitDays": "{count} days",
+        "unitHour": "1 hour",
+        "unitHours": "{count} hours",
+        "unitMinute": "1 minute",
+        "unitMinutes": "{count} minutes",
+        "unitSecond": "1 second",
+        "unitSeconds": "{count} seconds"
+    },
+    "live": {
+        "call": {
+            "noneAvailable": "No time available",
+            "availableDuration": "{duration} available"
+        }
     },
     "media": {
         "providerAuto": "Auto",

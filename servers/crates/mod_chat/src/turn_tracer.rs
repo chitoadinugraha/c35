@@ -1,16 +1,89 @@
+use std::future::Future;
 use std::sync::Mutex;
+use std::time::Instant;
 
 use c35_mod_billing::billing_cost_usd;
 use c35_mod_log::{log_put, LogPut};
+use serde::Serialize;
 use serde_json::Value;
 use sqlx::PgPool;
+use tokio::task::JoinHandle;
 
 use crate::compose::ComposeTrace;
 use crate::memory::MemoryRetrieveTrace;
 use crate::scope_instruction::ScopeInstructionTrace;
+use crate::user_asset_rag::UserAssetRetrieveTrace;
 use crate::tools::device_screenshot_artifact::{
     tool_result_preview_trim, tool_screenshot_log_text, tool_screenshot_meta_from_result,
 };
+
+/// One timed sub-stage of a turn (offsets are relative to the turn start).
+#[derive(Debug, Clone, Serialize)]
+pub struct StageRow {
+    pub key: String,
+    pub label: String,
+    pub start_ms: i64,
+    pub ms: i64,
+    pub parallel: bool,
+}
+
+/// Collects sub-stage timings for the prepare / settle phases of a turn.
+pub struct StageClock {
+    t0: Instant,
+    rows: Vec<StageRow>,
+}
+
+impl StageClock {
+    pub fn new(t0: Instant) -> Self {
+        Self {
+            t0,
+            rows: Vec::new(),
+        }
+    }
+
+    pub fn elapsed_ms(&self) -> i64 {
+        self.t0.elapsed().as_millis() as i64
+    }
+
+    fn push(&mut self, key: &str, label: &str, started: Instant, ms: i64, parallel: bool) {
+        let start_ms = started.saturating_duration_since(self.t0).as_millis() as i64;
+        self.rows.push(StageRow {
+            key: key.to_string(),
+            label: label.to_string(),
+            start_ms,
+            ms,
+            parallel,
+        });
+    }
+
+    /// Stage that ran alone (nothing else in flight).
+    pub fn seq(&mut self, key: &str, label: &str, started: Instant) {
+        let ms = started.elapsed().as_millis() as i64;
+        self.push(key, label, started, ms, false);
+    }
+
+    /// Sequential stage with an explicit duration (e.g. a sub-part of a measured stage).
+    pub fn seq_ms(&mut self, key: &str, label: &str, started: Instant, ms: i64) {
+        self.push(key, label, started, ms.max(0), false);
+    }
+
+    /// Branch measured with [`timed`] that ran concurrently with other branches.
+    pub fn par(&mut self, key: &str, label: &str, started: Instant, ms: i64) {
+        self.push(key, label, started, ms, true);
+    }
+
+    pub fn rows(&self) -> &[StageRow] {
+        &self.rows
+    }
+}
+
+/// Await `f`, returning its output with its start instant and duration in ms.
+pub async fn timed<F: Future>(f: F) -> (F::Output, Instant, i64) {
+    let started = Instant::now();
+    let out = f.await;
+    let ms = started.elapsed().as_millis() as i64;
+    (out, started, ms)
+}
 
 pub struct TurnTracer {
     pool: PgPool,
@@ -19,6 +92,7 @@ pub struct TurnTracer {
     chat_id: i64,
     req_id: String,
     hop: Mutex<u8>,
+    pending: Mutex<Vec<JoinHandle<()>>>,
 }
 
 impl TurnTracer {
@@ -36,9 +110,12 @@ impl TurnTracer {
             chat_id,
             req_id: req_id.to_string(),
             hop: Mutex::new(0),
+            pending: Mutex::new(Vec::new()),
         }
     }
 
+    /// Log rows are written in the background so the turn never waits on trace I/O.
+    /// Call [`TurnTracer::flush`] before the turn returns so readers see every row.
     async fn put(
         &self,
         kind: &str,
@@ -51,27 +128,97 @@ impl TurnTracer {
         duration_ms: i32,
         cost_usd: f64,
     ) {
-        let _ = log_put(
-            &self.pool,
-            self.nats.as_ref(),
-            LogPut {
-                class: None,
-                owner_iid: self.owner_iid,
-                kind,
-                topic,
-                dv: "",
-                req_id: Some(&self.req_id),
-                chat_id: Some(self.chat_id),
-                task_id: None,
-                device_iid: None,
-                text,
-                model,
-                tokens_in,
-                tokens_out,
-                duration_ms,
-                cost_usd,
-                meta,
-            },
+        let pool = self.pool.clone();
+        let nats = self.nats.clone();
+        let owner_iid = self.owner_iid;
+        let chat_id = self.chat_id;
+        let req_id = self.req_id.clone();
+        let kind = kind.to_string();
+        let topic = topic.to_string();
+        let text = text.to_string();
+        let model = model.to_string();
+        let handle = tokio::spawn(async move {
+            let _ = log_put(
+                &pool,
+                nats.as_ref(),
+                LogPut {
+                    class: None,
+                    owner_iid,
+                    kind: &kind,
+                    topic: &topic,
+                    dv: "",
+                    req_id: Some(&req_id),
+                    chat_id: Some(chat_id),
+                    task_id: None,
+                    device_iid: None,
+                    text: &text,
+                    model: &model,
+                    tokens_in,
+                    tokens_out,
+                    duration_ms,
+                    cost_usd,
+                    meta,
+                },
+            )
+            .await;
+        });
+        if let Ok(mut v) = self.pending.lock() {
+            v.retain(|h| !h.is_finished());
+            v.push(handle);
+        }
+    }
+
+    /// Wait for all background log writes issued so far (no-op when already done).
+    pub async fn flush(&self) {
+        let handles: Vec<JoinHandle<()>> = match self.pending.lock() {
+            Ok(mut v) => std::mem::take(&mut *v),
+            Err(_) => return,
+        };
+        for h in handles {
+            let _ = h.await;
+        }
+    }
+
+    /// Per-stage timeline of the prepare phase (`prepare_ms` = wall time from turn start).
+    pub async fn trace_prepare_stages(&self, clock: &StageClock, prepare_ms: i64) {
+        self.put(
+            "system",
+            "trace_stages",
+            &format!("Prepare stages · {prepare_ms}ms"),
+            serde_json::json!({
+                "topic": "trace_stages",
+                "step": 1,
+                "branch": "stages",
+                "prepare_ms": prepare_ms,
+                "duration_ms": prepare_ms,
+                "stages": clock.rows(),
+            }),
+            "",
+            0,
+            0,
+            prepare_ms as i32,
+            0.0,
+        )
+        .await;
+    }
+
+    /// Post-reply work (memory extract, billing, persist) shown as the Settle step.
+    pub async fn trace_settle(&self, clock: &StageClock, settle_ms: i64) {
+        self.put(
+            "system",
+            "trace_settle",
+            &format!("Settle · {settle_ms}ms"),
+            serde_json::json!({
+                "topic": "trace_settle",
+                "step": 9998,
+                "duration_ms": settle_ms,
+                "stages": clock.rows(),
+            }),
+            "",
+            0,
+            0,
+            settle_ms as i32,
+            0.0,
         )
         .await;
     }
@@ -232,6 +379,49 @@ impl TurnTracer {
             0,
             prepare_ms as i32,
             0.0,
+        )
+        .await;
+    }
+
+    pub async fn trace_user_assets(&self, trace: &UserAssetRetrieveTrace) {
+        if trace.sites.is_empty() && trace.bots.is_empty() && !trace.injected {
+            return;
+        }
+        let applied_sites = trace.sites.iter().filter(|e| e.injected).count();
+        let applied_bots = trace.bots.iter().filter(|e| e.injected).count();
+        let mut meta = Self::branch_meta(1, "user_assets", "prepare", "compose_parallel");
+        if let Some(obj) = meta.as_object_mut() {
+            obj.insert("topic".into(), serde_json::json!("trace_user_assets"));
+            obj.insert("injected".into(), serde_json::json!(trace.injected));
+            obj.insert("block_chars".into(), serde_json::json!(trace.block_chars));
+            obj.insert("duration_ms".into(), serde_json::json!(trace.duration_ms));
+            obj.insert("embed_ms".into(), serde_json::json!(trace.embed_ms));
+            obj.insert("embed_cached".into(), serde_json::json!(trace.embed_cached));
+            obj.insert("embed_skipped".into(), serde_json::json!(trace.embed_skipped));
+            obj.insert("sites".into(), serde_json::to_value(&trace.sites).unwrap_or_default());
+            obj.insert("bots".into(), serde_json::to_value(&trace.bots).unwrap_or_default());
+        }
+        let label = if trace.injected {
+            format!(
+                "User assets · {applied_sites} sites · {applied_bots} bots · {} chars",
+                trace.block_chars
+            )
+        } else {
+            format!(
+                "User assets · {} scored · not injected",
+                trace.sites.len() + trace.bots.len()
+            )
+        };
+        self.put(
+            "system",
+            "trace_user_assets",
+            &label,
+            meta,
+            &trace.embed_model,
+            trace.embed_token_in,
+            0,
+            trace.duration_ms as i32,
+            trace.embed_cost_usd,
         )
         .await;
     }

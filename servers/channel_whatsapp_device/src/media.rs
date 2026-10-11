@@ -99,7 +99,7 @@ fn media_upload_base() -> String {
         .ok()
         .map(|s| s.trim().trim_end_matches('/').to_string())
         .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "http://c35-server.c35.svc.cluster.local:8080".to_string())
+        .unwrap_or_else(|| c35_store::C35_SERVER_CLUSTER_BASE_URL.to_string())
 }
 
 const AVATAR_CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);

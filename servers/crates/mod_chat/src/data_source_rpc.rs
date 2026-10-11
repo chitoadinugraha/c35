@@ -1,9 +1,10 @@
 use anyhow::{anyhow, Result};
 use c35_mod_data_source::{
     config_merge_doc_url, config_merge_sheet_url, config_merge_slide_url,
-    config_normalize_access_mode, data_source_check_run, data_source_sync_invalidate,
-    SOURCE_KIND_GOOGLE_DOC, SOURCE_KIND_GOOGLE_SLIDE,
+    config_normalize_access_mode, config_normalize_alien_site, config_site_iid, data_source_check_run,
+    data_source_sync_invalidate, SOURCE_KIND_ALIEN_SITE, SOURCE_KIND_GOOGLE_DOC, SOURCE_KIND_GOOGLE_SLIDE,
 };
+use c35_mod_site::grant::site_grant_check;
 use c35_proto::{
     DataSourceDoc, DataSourceSheetTab, ReqDataSourceCheck, ReqDataSourceDelete, ReqDataSourceList,
     ReqDataSourcePut, ReqDataSourceSync, ResDataSourceCheck, ResDataSourceDelete,
@@ -166,6 +167,30 @@ pub async fn data_source_put(
         }
     }
     config_normalize_access_mode(&mut config, source_kind);
+    if source_kind == SOURCE_KIND_ALIEN_SITE {
+        config_normalize_alien_site(&mut config)?;
+        let site_iid = config_site_iid(&config).unwrap_or(0);
+        site_grant_check(pool, caller_iid, site_iid, false).await?;
+        if doc.bot_iid > 0 {
+            let dup = sqlx::query_scalar::<_, bool>(
+                r#"
+                SELECT EXISTS (
+                    SELECT 1 FROM ai.data_source
+                    WHERE bot_iid = $1 AND source_kind = $2 AND deleted_ts IS NULL
+                      AND ($3 <= 0 OR id <> $3)
+                )
+                "#,
+            )
+            .bind(doc.bot_iid)
+            .bind(SOURCE_KIND_ALIEN_SITE)
+            .bind(doc.id)
+            .fetch_one(pool)
+            .await?;
+            if dup {
+                return Err(anyhow!("this bot already has a site asset"));
+            }
+        }
+    }
     let bot_iid: Option<i64> = if doc.bot_iid > 0 {
         Some(doc.bot_iid)
     } else {

@@ -30,7 +30,7 @@ spec:
         - name: docker-registry-auth
       containers:
         - name: c-node-stats
-          image: hsg.ocir.io/axr8wqrrukgm/c35-node-stats:latest
+          image: hsg.ocir.io/axr8wqrrukgm/c35-node-stats:2026-10-11-no-chef
           imagePullPolicy: Always
           envFrom:
             - secretRef:

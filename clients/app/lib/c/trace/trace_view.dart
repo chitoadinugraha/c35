@@ -335,18 +335,79 @@ String _scopeInstructionTraceDetail(Map<dynamic, dynamic> meta) {
   return preview;
 }
 
+List<TraceToolFilterCandidate> _userAssetsCandidatesFromMeta(Map<dynamic, dynamic> meta) {
+  final out = <TraceToolFilterCandidate>[];
+  for (final raw in [meta['sites'], meta['bots']]) {
+    if (raw is! List) continue;
+    for (final row in raw) {
+      if (row is! Map) continue;
+      final name = _asStr(row['name']).isNotEmpty ? _asStr(row['name']) : _asStr(row['alien_id']);
+      if (name.isEmpty) continue;
+      out.add(TraceToolFilterCandidate(toolId: name, sim: _asFloat(row['sim']), fed: row['injected'] == true));
+    }
+  }
+  return out;
+}
+
+String _userAssetSectionDetail(String sectionLabel, dynamic raw) {
+  if (raw is! List) return '';
+  final injected = <String>[];
+  for (final row in raw) {
+    if (row is! Map || row['injected'] != true) continue;
+    final name = _asStr(row['name']).isNotEmpty ? _asStr(row['name']) : _asStr(row['alien_id']);
+    if (name.isEmpty) continue;
+    final sim = _asFloat(row['sim']);
+    injected.add(sim > 0 ? '$name · ${traceSimLabel(sim)}' : name);
+  }
+  if (injected.isEmpty) return '';
+  return '$sectionLabel: ${injected.join(', ')}';
+}
+
+String _userAssetsTraceDetail(Map<dynamic, dynamic> meta) {
+  final parts = [
+    _userAssetSectionDetail('Sites', meta['sites']),
+    _userAssetSectionDetail('Bots', meta['bots']),
+  ].where((s) => s.isNotEmpty).toList();
+  if (parts.isNotEmpty) return parts.join(' · ');
+  if (meta['injected'] != true) return 'Not injected';
+  final blockChars = _asInt(meta['block_chars']);
+  if (blockChars > 0) return 'Injected · $blockChars chars';
+  return 'Injected';
+}
+
 int _prepareBranchOrder(String topic) => switch (topic) {
       'trace_gate' => -2,
       'trace_setup' => -1,
       'trace_tool_embed' => 0,
       'trace_inst_enrich' => 1,
       'trace_scope_instruction' => 2,
-      'trace_tool_filter' => 3,
-      'trace_prepare' => 4,
-      'trace_memory' => 5,
+      'trace_user_assets' => 3,
+      'trace_tool_filter' => 4,
+      'trace_prepare' => 5,
+      'trace_memory' => 6,
       _ => 9,
     };
 
+List<TraceBranch> _stageBranchesFromRows(List<TraceLogDoc> rows) {
+  final out = <TraceBranch>[];
+  for (final r in rows) {
+    final raw = r.meta['stages'];
+    if (raw is! List) continue;
+    final items = raw.whereType<Map>().toList()
+      ..sort((a, b) => _asInt(a['start_ms']).compareTo(_asInt(b['start_ms'])));
+    for (final s in items) {
+      final label = _asStr(s['label']);
+      if (label.isEmpty) continue;
+      final parallel = s['parallel'] == true;
+      out.add(TraceBranch(
+        label: label,
+        durationMs: _asInt(s['ms']),
+        detail: '+${_asInt(s['start_ms'])}ms${parallel ? ' · parallel' : ''}',
+      ));
+    }
+  }
+  return out;
+}
 String traceHopTitle(int hop, List<String> toolBranches, {required bool hasReplyText}) {
   if (toolBranches.isNotEmpty) return 'Tool run · ${toolBranches.join(', ')}';
   if (hasReplyText || hop >= 99) return 'Reply';
@@ -428,6 +489,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       final settleRow = rows.firstWhere((r) => r.topic == 'trace_settle', orElse: () => rows.first);
       final meta = settleRow.meta;
       final settleMs = settleRow.durationMs > 0 ? settleRow.durationMs : _asInt(meta['duration_ms']);
+      final settleStages = _stageBranchesFromRows([settleRow]);
       final branch = TraceBranch(
         label: 'Billing settle & save',
         durationMs: settleMs,
@@ -437,10 +499,13 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         index: steps.length,
         title: 'Settle',
         durationMs: settleMs,
-        branches: [branch],
+        branches: settleStages.isNotEmpty ? settleStages : [branch],
       );
     } else {
-      final prepRows = [...rows]..sort((a, b) {
+      final stageRows = rows.where((r) => r.topic == 'trace_stages').toList();
+      branches.addAll(_stageBranchesFromRows(stageRows));
+      final prepRows = rows.where((r) => r.topic != 'trace_stages').toList()
+        ..sort((a, b) {
           final ta = a.topic.isNotEmpty ? a.topic : _asStr(a.meta['topic']);
           final tb = b.topic.isNotEmpty ? b.topic : _asStr(b.meta['topic']);
           return _prepareBranchOrder(ta).compareTo(_prepareBranchOrder(tb));
@@ -454,6 +519,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           'trace_memory' => 'Memory',
           'trace_inst_enrich' => 'Inst enrich',
           'trace_scope_instruction' => 'Scope instructions',
+          'trace_user_assets' => 'User assets',
           'trace_tool_filter' => 'Tool filter',
           'trace_prepare' => 'Compose',
           _ => branch.isNotEmpty ? branch : r.topic,
@@ -467,26 +533,30 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           tokensIn: r.tokensIn > 0 ? r.tokensIn : _asInt(r.meta['prompt_tokens']),
           detail: r.topic == 'trace_scope_instruction'
               ? _scopeInstructionTraceDetail(r.meta)
-              : r.text.split('\n').first,
+              : r.topic == 'trace_user_assets'
+                  ? _userAssetsTraceDetail(r.meta)
+                  : r.text.split('\n').first,
           isTool: r.topic == 'trace_inst_enrich' && (instIds.isNotEmpty || enrichKeys.isNotEmpty),
           toolCandidates: r.topic == 'trace_tool_filter'
               ? _toolCandidatesFromMeta(r.meta['candidates'])
-              : r.topic == 'trace_inst_enrich'
-                  ? [
-                      ...instIds.map((id) => TraceToolFilterCandidate(toolId: id, sim: 1, fed: true, isInst: true)),
-                      ...enrichKeys.map((k) => TraceToolFilterCandidate(toolId: k, sim: 1, fed: true)),
-                    ]
-                  : const [],
+              : r.topic == 'trace_user_assets'
+                  ? _userAssetsCandidatesFromMeta(r.meta)
+                  : r.topic == 'trace_inst_enrich'
+                      ? [
+                          ...instIds.map((id) => TraceToolFilterCandidate(toolId: id, sim: 1, fed: true, isInst: true)),
+                          ...enrichKeys.map((k) => TraceToolFilterCandidate(toolId: k, sim: 1, fed: true)),
+                        ]
+                      : const [],
           droppedGap: r.topic == 'trace_tool_filter' ? _toolCandidatesFromMeta(r.meta['dropped_gap']) : const [],
           ragSkipped: r.topic == 'trace_tool_filter' && r.meta['rag_skipped'] == true,
           ragSkipReason: r.topic == 'trace_tool_filter' ? _asStr(r.meta['rag_skip_reason']) : '',
         ));
       }
       final prepareWallMs = rows
-          .where((r) => r.topic == 'trace_prepare')
+          .where((r) => r.topic == 'trace_stages' || r.topic == 'trace_prepare')
           .map((r) => _asInt(r.meta['prepare_ms']))
           .where((ms) => ms > 0)
-          .fold(0, (a, b) => b);
+          .fold(0, (a, b) => b > a ? b : a);
       hopStep = TraceStep(
         index: 0,
         title: 'Prepare',
@@ -500,6 +570,43 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
     steps.add(hopStep);
   }
 
+  // Anything the header total covers but no traced step explains (tool dispatch, streaming,
+  // log I/O between hops) is surfaced explicitly so the trace always adds up.
+  if (totals.durationMs > 0 && steps.isNotEmpty) {
+    var tracked = 0;
+    for (final s in steps) {
+      final toolMax = s.title == 'Prepare'
+          ? 0
+          : s.branches.where((b) => b.isTool).fold<int>(0, (m, b) => b.durationMs > m ? b.durationMs : m);
+      tracked += s.durationMs + toolMax;
+    }
+    final gapMs = totals.durationMs - tracked;
+    if (gapMs >= 300) {
+      final settleIdx = steps.indexWhere((s) => s.title == 'Settle');
+      if (settleIdx >= 0) {
+        final settle = steps[settleIdx];
+        final updatedBranches = [
+          ...settle.branches,
+          TraceBranch(
+            label: 'Other & latency',
+            durationMs: gapMs,
+            detail: 'Tool dispatch, streaming or background latency',
+          ),
+        ];
+        steps[settleIdx] = TraceStep(
+          index: settle.index,
+          title: settle.title,
+          durationMs: settle.durationMs,
+          costUsd: settle.costUsd,
+          tokensIn: settle.tokensIn,
+          tokensOut: settle.tokensOut,
+          model: settle.model,
+          branches: updatedBranches,
+          detail: settle.detail,
+        );
+      }
+    }
+  }
   if (totals.tokensIn == 0 && totals.tokensOut == 0 && steps.isNotEmpty) {
     totals = TraceTotals(
       tokensIn: steps.fold(0, (a, s) => a + s.tokensIn),

@@ -1,6 +1,10 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/c/ui/ui_duration_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:fixnum/fixnum.dart';
 const billingFreemiumMsgsLimit = 30;
 const billingFreemiumTokensLimit = 30000;
@@ -11,6 +15,30 @@ const _billingPaidPlanTiers = {'lite', 'plus', 'pro', 'ultra'};
 const billingFrontierAlienPoolRatio = 0.2;
 
 bool billingPlanTierIsPaid(String tier) => _billingPaidPlanTiers.contains(tier.trim().toLowerCase());
+
+Duration billingPlanPeriodRemaining(int planExpiresTsMs) {
+  if (planExpiresTsMs <= 0) return Duration.zero;
+  final end = DateTime.fromMillisecondsSinceEpoch(planExpiresTsMs, isUtc: true).toLocal();
+  final remaining = end.difference(DateTime.now());
+  return remaining.isNegative ? Duration.zero : remaining;
+}
+
+String billingPlanPeriodEndLabel({required bool planAutoRenew, required int planExpiresTsMs}) {
+  if (planExpiresTsMs <= 0) return '';
+  final end = DateTime.fromMillisecondsSinceEpoch(planExpiresTsMs, isUtc: true).toLocal();
+  final duration = uiFmtDurationTwoMajor(billingPlanPeriodRemaining(planExpiresTsMs));
+  final date = DateFormat('d MMM y').format(end);
+  final key = planAutoRenew ? 'billing.planRenewInAt' : 'billing.planEndsInAt';
+  return key.tr(namedArgs: {'duration': duration, 'date': date});
+}
+
+/// Compact account-menu hint after package label (e.g. `Renew in 4 days`).
+String billingPlanPeriodEndCompactLabel({required bool planAutoRenew, required int planExpiresTsMs}) {
+  if (planExpiresTsMs <= 0) return '';
+  final duration = uiFmtDurationOneMajor(billingPlanPeriodRemaining(planExpiresTsMs));
+  final key = planAutoRenew ? 'billing.planRenewInCompact' : 'billing.planExpiresInCompact';
+  return key.tr(namedArgs: {'duration': duration});
+}
 
 /// Paid signup-trial caps are 0.0125 / 0.25 — below any retail plan ring row.
 bool billingAccountPaidEntitlement(BillingAccount? account) {
@@ -133,12 +161,20 @@ String billingMeterStateFreemium(BillingAccount account) {
   return billingMeterState(pct, 1);
 }
 
+String billingCurrencyForDeviceLocale() {
+  final locale = PlatformDispatcher.instance.locale;
+  final lang = locale.languageCode.toLowerCase();
+  final country = locale.countryCode?.toUpperCase() ?? '';
+  if (lang == 'id' || country == 'ID') return 'IDR';
+  return 'USD';
+}
+
 String billingCurrencyResolve({String? fromAccount, String? fromSummary}) {
   for (final raw in [fromAccount, fromSummary]) {
     final c = raw?.trim().toUpperCase() ?? '';
     if (c.isNotEmpty) return c;
   }
-  return moneyDefaultCurrency;
+  return billingCurrencyForDeviceLocale();
 }
 
 String billingPrimaryCurrency(BillingAccount account) => billingCurrencyResolve(fromAccount: account.billingCurrency);
@@ -294,6 +330,7 @@ BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? bal
       out.freemiumActive = quota.freemiumActive;
       if (quota.hasPlanExpiresTsMs()) out.planExpiresTsMs = quota.planExpiresTsMs;
       if (quota.hasTrialExpiresTsMs()) out.trialExpiresTsMs = quota.trialExpiresTsMs;
+      if (quota.hasPlanAutoRenew()) out.planAutoRenew = quota.planAutoRenew;
       if (billingQuotaPushHasFrontierLimits(quota)) {
         out.frontierAllow5hLimit = quota.frontierAllow5hLimit;
         out.frontierAllowWeeklyLimit = quota.frontierAllowWeeklyLimit;
@@ -302,6 +339,7 @@ BillingAccount billingAccountMerge(BillingAccount base, {BillingPushBalance? bal
       out.freemiumActive = false;
       final qPlanExp = quota.hasPlanExpiresTsMs() ? quota.planExpiresTsMs.toInt() : 0;
       if (qPlanExp > 0) out.planExpiresTsMs = quota.planExpiresTsMs;
+      if (quota.hasPlanAutoRenew()) out.planAutoRenew = quota.planAutoRenew;
     }
   }
   if (commission != null) {

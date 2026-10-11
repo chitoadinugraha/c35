@@ -214,6 +214,79 @@ async fn pvc_storage_class(k8s: &K8sHttp, ns: &str, claim: &str) -> String {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct NodePodMeta {
+    pub namespace: String,
+    pub name: String,
+    pub uid: String,
+    pub cpu_request_cores: f64,
+    pub cpu_limit_cores: f64,
+    pub mem_request_bytes: u64,
+    pub mem_limit_bytes: u64,
+}
+
+pub async fn node_pods_on_node(node_name: &str) -> Vec<NodePodMeta> {
+    match node_pods_on_node_inner(node_name).await {
+        Ok(v) => v,
+        Err(e) => {
+            warn!(error = %e, "list node pods failed");
+            Vec::new()
+        }
+    }
+}
+
+async fn node_pods_on_node_inner(node_name: &str) -> Result<Vec<NodePodMeta>> {
+    if !Path::new(SA_TOKEN).exists() {
+        return Ok(Vec::new());
+    }
+    let k8s = k8s_client().await?;
+    let selector = format!("spec.nodeName={node_name}");
+    let path = format!(
+        "/api/v1/pods?fieldSelector={}",
+        urlencoding::encode(&selector)
+    );
+    let json = k8s_get_json(&k8s, &path).await.context("list node pods")?;
+    let list: PodListAll = serde_json::from_value(json).context("decode node pods")?;
+    Ok(list.items.into_iter().filter_map(pod_row_to_meta).collect())
+}
+
+fn pod_row_to_meta(item: PodItemAll) -> Option<NodePodMeta> {
+    let name = item.metadata.name.filter(|s| !s.is_empty())?;
+    let uid = item.metadata.uid.filter(|s| !s.is_empty())?;
+    let namespace = item
+        .metadata
+        .namespace
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "default".to_string());
+    let mut cpu_request = 0.0f64;
+    let mut cpu_limit = 0.0f64;
+    let mut mem_request = 0u64;
+    let mut mem_limit = 0u64;
+    for c in &item.spec.containers {
+        if let Some(cpu) = c.resources.requests.get("cpu") {
+            cpu_request += crate::pod_stats::parse_cpu_limit(cpu);
+        }
+        if let Some(cpu) = c.resources.limits.get("cpu") {
+            cpu_limit += crate::pod_stats::parse_cpu_limit(cpu);
+        }
+        if let Some(mem) = c.resources.requests.get("memory") {
+            mem_request += crate::pod_stats::parse_mem_limit(mem);
+        }
+        if let Some(mem) = c.resources.limits.get("memory") {
+            mem_limit += crate::pod_stats::parse_mem_limit(mem);
+        }
+    }
+    Some(NodePodMeta {
+        namespace,
+        name,
+        uid,
+        cpu_request_cores: cpu_request,
+        cpu_limit_cores: cpu_limit,
+        mem_request_bytes: mem_request,
+        mem_limit_bytes: mem_limit,
+    })
+}
+
 async fn list_pods_on_node(k8s: &K8sHttp, ns: &str, node_name: &str) -> Result<Vec<PodRow>> {
     let selector = format!("spec.nodeName={node_name}");
     let path = format!(
@@ -272,6 +345,44 @@ async fn k8s_get_json(k8s: &K8sHttp, path: &str) -> Result<serde_json::Value> {
         .await
         .context("k8s json")?;
     Ok(resp)
+}
+
+#[derive(Debug, Deserialize)]
+struct PodListAll {
+    items: Vec<PodItemAll>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PodItemAll {
+    metadata: PodMetaAll,
+    spec: PodSpecAll,
+}
+
+#[derive(Debug, Deserialize)]
+struct PodMetaAll {
+    name: Option<String>,
+    uid: Option<String>,
+    namespace: Option<String>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PodSpecAll {
+    #[serde(default)]
+    containers: Vec<PodContainerAll>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PodContainerAll {
+    #[serde(default)]
+    resources: PodResourcesAll,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PodResourcesAll {
+    #[serde(default)]
+    requests: HashMap<String, String>,
+    #[serde(default)]
+    limits: HashMap<String, String>,
 }
 
 #[derive(Debug, Deserialize)]

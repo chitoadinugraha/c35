@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
@@ -48,7 +50,6 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
   String? _selectedId;
   String? _editingId;
   var _suppress = false;
-  Timer? _saveTimer;
   final _items = <SitePaymentAccountDraft>[];
 
   @override
@@ -62,7 +63,6 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
 
   @override
   void dispose() {
-    _saveTimer?.cancel();
     _searchCtrl.dispose();
     _bankCtrl.dispose();
     _nameCtrl.dispose();
@@ -167,9 +167,19 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
     _scheduleSave();
   }
 
+  void _previewDraftMeta() {
+    siteEditorPreviewPatch(context, (boot) {
+      final meta = boot['meta'] is Map<String, dynamic>
+          ? Map<String, dynamic>.from(boot['meta'] as Map)
+          : siteDraftJsonMap('');
+      meta['payment_accounts'] = _items.map((e) => e.toJson()).toList(growable: false);
+      siteEditorPreviewApplyMetaMap(boot, meta);
+    });
+  }
+
   void _scheduleSave() {
-    _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 500), () => unawaited(_save()));
+    _previewDraftMeta();
+    siteEditorScheduleSave(context, key: 'accounts', save: _save);
   }
 
   Future<void> _save() async {

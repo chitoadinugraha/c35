@@ -2,40 +2,46 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
-import 'package:alienai_c35/c/site/site_link_platform.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
-import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
-import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
-import 'package:alienai_c35/widgets/sites/io/in_site_link_platform_picker.dart';
-import 'package:alienai_c35/widgets/sites/ui_site_platform_icon.dart';
-import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_link_detail.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_links_section.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-const _border = Color(0xFF27272A);
 const _muted = Color(0xFF71717A);
-const _text = Color(0xFFF4F4F5);
 
 class UiSiteLinksEditor extends StatefulWidget {
-  const UiSiteLinksEditor({super.key, required this.api, required this.siteIid});
+  const UiSiteLinksEditor({
+    super.key,
+    required this.api,
+    required this.siteIid,
+    required this.masterDetail,
+    this.detailId,
+    this.onDetailIdChanged,
+  });
 
   final SiteApi api;
   final int siteIid;
+  final bool masterDetail;
+  final String? detailId;
+  final ValueChanged<String?>? onDetailIdChanged;
 
   @override
   State<UiSiteLinksEditor> createState() => _UiSiteLinksEditorState();
 }
 
-class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
+class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
   var _loading = true;
   var _busy = false;
   String? _error;
-  final _links = <SiteLink>[];
-  final _debounceTimers = <String, Timer>{};
-
+  String? _selectedId;
+  final _byId = <String, SiteLink>{};
   @override
   void initState() {
     super.initState();
@@ -44,9 +50,6 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
 
   @override
   void dispose() {
-    for (final t in _debounceTimers.values) {
-      t.cancel();
-    }
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -55,10 +58,12 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
   void didUpdateWidget(covariant UiSiteLinksEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.siteIid != widget.siteIid) unawaited(_load());
+    if (oldWidget.masterDetail != widget.masterDetail) _pickDefault();
+    if (_selectedId != null && _byId[_selectedId] == null) _pickDefault();
   }
 
   List<SiteLink> get _ordered {
-    final items = [..._links];
+    final items = _byId.values.toList();
     items.sort((a, b) {
       final so = a.sortOrder.compareTo(b.sortOrder);
       if (so != 0) return so;
@@ -67,15 +72,60 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
     return items;
   }
 
+  String? get _firstId => _ordered.isEmpty ? null : '${_ordered.first.linkId}';
+
+  String? get _activeId => widget.masterDetail ? (_selectedId ?? _firstId) : widget.detailId;
+
+  void _pickDefault() {
+    if (_byId.isEmpty) {
+      _selectedId = null;
+      if (!widget.masterDetail) widget.onDetailIdChanged?.call(null);
+      return;
+    }
+    if (widget.masterDetail) {
+      if (_selectedId == null || _byId[_selectedId] == null) _selectedId = _firstId;
+      return;
+    }
+    if (widget.detailId != null && _byId[widget.detailId] == null) {
+      widget.onDetailIdChanged?.call(null);
+    }
+  }
+
+  void _select(String id) {
+    if (widget.masterDetail) {
+      setState(() => _selectedId = id);
+    } else {
+      widget.onDetailIdChanged?.call(id);
+    }
+  }
+
+  @override
+  void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    _byId
+      ..clear()
+      ..addEntries(catalog.links.map((l) => MapEntry('${l.linkId}', l)));
+    _pickDefault();
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+      });
+    }
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      _links
+      if (await ensureEditorCatalog()) return;
+      final items = await widget.api.linkList(widget.siteIid);
+      editorCatalog?.setLinks(items);
+      _byId
         ..clear()
-        ..addAll(await widget.api.linkList(widget.siteIid));
+        ..addEntries(items.map((l) => MapEntry('${l.linkId}', l)));
+      _pickDefault();
     } catch (e) {
       _error = uiFriendlyError(e);
     } finally {
@@ -90,9 +140,12 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
       final sort = _ordered.isEmpty ? 0 : _ordered.last.sortOrder + 1;
       final link = widget.api.linkNew(widget.siteIid)..sortOrder = sort;
       final saved = await widget.api.linkPut(widget.siteIid, link);
-      _links.add(saved);
+      final id = '${saved.linkId}';
+      _byId[id] = saved;
+      editorCatalog?.upsertLink(saved);
       _searchCtrl.clear();
       setState(() => _search = '');
+      _select(id);
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));
     } finally {
@@ -101,8 +154,12 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
   }
 
   void _debouncedPut(String id, SiteLink draft) {
-    _debounceTimers[id]?.cancel();
-    _debounceTimers[id] = Timer(const Duration(milliseconds: 450), () => unawaited(_put(id, draft)));
+    siteEditorScheduleSave(
+      context,
+      key: 'link:$id',
+      debounce: const Duration(milliseconds: 450),
+      save: () => _put(id, draft),
+    );
   }
 
   Future<void> _put(String id, SiteLink draft) async {
@@ -111,9 +168,17 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
     try {
       final saved = await widget.api.linkPut(widget.siteIid, draft);
       if (!mounted) return;
-      final idx = _links.indexWhere((l) => '${l.linkId}' == id);
-      if (idx >= 0) _links[idx] = saved;
-      setState(() => _error = null);
+      final savedId = '${saved.linkId}';
+      setState(() {
+        _byId.remove(id);
+        _byId[savedId] = saved;
+        if (_selectedId == id) _selectedId = savedId;
+        _error = null;
+      });
+      editorCatalog?.upsertLink(saved);
+      if (!widget.masterDetail && widget.detailId == id && widget.detailId != savedId) {
+        widget.onDetailIdChanged?.call(savedId);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));
     } finally {
@@ -122,11 +187,12 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
   }
 
   void _patch(String id, void Function(SiteLink l) fn) {
-    final idx = _links.indexWhere((l) => '${l.linkId}' == id);
-    if (idx < 0) return;
-    final next = _links[idx].clone();
+    final base = _byId[id];
+    if (base == null) return;
+    final next = base.clone();
     fn(next);
-    setState(() => _links[idx] = next);
+    setState(() => _byId[id] = next);
+    siteEditorPreviewPatch(context, (boot) => siteEditorPreviewUpsertLink(boot, next));
     _debouncedPut(id, next);
   }
 
@@ -137,8 +203,15 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
     setState(() => _busy = true);
     try {
       await widget.api.linkDelete(widget.siteIid, linkId);
-      _links.removeWhere((l) => '${l.linkId}' == id);
-      if (mounted) setState(() => _error = null);
+      _byId.remove(id);
+      editorCatalog?.removeLink(linkId);
+      siteEditorPreviewPatch(context, (boot) => siteEditorPreviewRemoveLink(boot, linkId));
+      _pickDefault();
+      if (widget.masterDetail) {
+        if (mounted) setState(() => _error = null);
+      } else {
+        widget.onDetailIdChanged?.call(null);
+      }
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));
     } finally {
@@ -146,17 +219,62 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
     }
   }
 
-  List<SiteLink> get _filtered {
-    final q = _search.trim().toLowerCase();
-    if (q.isEmpty) return _ordered;
-    return _ordered
-        .where((l) {
-          final icon = siteLinkPlatformNormalize(l.icon);
-          return l.label.toLowerCase().contains(q) ||
-              l.url.toLowerCase().contains(q) ||
-              siteLinkPlatformLabel(icon).toLowerCase().contains(q);
-        })
-        .toList(growable: false);
+  Future<void> _reorder(int oldIndex, int newIndex) async {
+    if (_busy || _search.trim().isNotEmpty) return;
+    final items = [..._ordered];
+    if (oldIndex < 0 || oldIndex >= items.length || newIndex < 0 || newIndex > items.length) return;
+    final moved = items.removeAt(oldIndex);
+    items.insert(newIndex, moved);
+    setState(() => _busy = true);
+    try {
+      final saves = <Future<SiteLink>>[];
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].sortOrder == i) continue;
+        final next = items[i].clone()..sortOrder = i;
+        _byId['${next.linkId}'] = next;
+        saves.add(widget.api.linkPut(widget.siteIid, next));
+      }
+      if (saves.isNotEmpty) await Future.wait(saves);
+      if (mounted) {
+        editorCatalog?.setLinks(_ordered);
+        siteEditorPreviewPatch(context, (boot) => siteEditorPreviewSetLinks(boot, _ordered));
+        setState(() => _error = null);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = uiFriendlyError(e));
+      await _load();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _onListActiveChanged(String id, bool active) => _patch(id, (l) => l.active = active);
+
+  Widget _listPane({required String? selectedId}) => UiSiteLinksSection(
+        searchController: _searchCtrl,
+        search: _search,
+        onSearchChanged: (v) => setState(() => _search = v),
+        links: _ordered,
+        selectedId: selectedId,
+        onSelect: _select,
+        onAdd: () => unawaited(_add()),
+        addBusy: _busy,
+        onReorder: _reorder,
+        onActiveChanged: _onListActiveChanged,
+        showListActive: !widget.masterDetail,
+      );
+
+  Widget _detailPane(String id) {
+    final link = _byId[id];
+    if (link == null) {
+      return const Center(child: Text('Link not found', style: TextStyle(color: _muted)));
+    }
+    return UiSiteLinkDetail(
+      link: link,
+      busy: _busy,
+      onPatch: _patch,
+      onDelete: () => unawaited(_delete(id)),
+    );
   }
 
   @override
@@ -164,36 +282,34 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
     if (_loading) {
       return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
+    if (_error != null && _byId.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 13)),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
 
-    final filtered = _filtered;
-    final body = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        UiSiteCatalogToolbar(
-          searchController: _searchCtrl,
-          hintText: 'Search links',
-          onSearchChanged: (v) => setState(() => _search = v),
-          onAdd: _add,
-          addBusy: _busy,
-        ),
-        Expanded(
-          child: filtered.isEmpty
-              ? const UiEmptyState(icon: Icons.link, title: 'No links', subtitle: 'Add a hub link for your storefront')
-              : UiSiteEditorFormScroll(
-                  children: [
-                    for (final link in filtered)
-                      _UiSiteLinkCard(
-                        key: ValueKey('${link.linkId}'),
-                        link: link,
-                        busy: _busy,
-                        onPatch: _patch,
-                        onDelete: _delete,
-                      ),
-                  ],
-                ),
-        ),
-      ],
-    );
+    final detailId = _activeId;
+    final Widget body;
+    if (widget.masterDetail && _byId.isNotEmpty) {
+      final selected = detailId ?? _firstId!;
+      body = Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(width: siteCatalogMasterListW, child: _listPane(selectedId: selected)),
+          siteCatalogMasterDivider(context),
+          Expanded(child: _detailPane(selected)),
+        ],
+      );
+    } else {
+      body = widget.masterDetail || detailId == null ? _listPane(selectedId: detailId) : _detailPane(detailId);
+    }
 
     if (_error == null || _error!.isEmpty) return body;
     return Column(
@@ -208,192 +324,6 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> {
         ),
         Expanded(child: body),
       ],
-    );
-  }
-}
-
-class _UiSiteLinkCard extends StatefulWidget {
-  const _UiSiteLinkCard({super.key, required this.link, required this.busy, required this.onPatch, required this.onDelete});
-
-  final SiteLink link;
-  final bool busy;
-  final void Function(String id, void Function(SiteLink l) fn) onPatch;
-  final Future<void> Function(String id) onDelete;
-
-  @override
-  State<_UiSiteLinkCard> createState() => _UiSiteLinkCardState();
-}
-
-class _UiSiteLinkCardState extends State<_UiSiteLinkCard> {
-  late final _labelCtrl = TextEditingController();
-  late final _valueCtrl = TextEditingController();
-  late String _icon;
-
-  @override
-  void initState() {
-    super.initState();
-    _syncFromLink();
-  }
-
-  void _syncFromLink() {
-    _icon = siteLinkPlatformNormalize(widget.link.icon);
-    _labelCtrl.text = widget.link.label;
-    _valueCtrl.text = siteLinkValueDisplay(icon: _icon, stored: widget.link.url);
-  }
-
-  @override
-  void didUpdateWidget(covariant _UiSiteLinkCard oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if ('${oldWidget.link.linkId}' != '${widget.link.linkId}' ||
-        oldWidget.link.url != widget.link.url ||
-        oldWidget.link.icon != widget.link.icon ||
-        oldWidget.link.label != widget.link.label) {
-      _syncFromLink();
-    }
-  }
-
-  @override
-  void dispose() {
-    _labelCtrl.dispose();
-    _valueCtrl.dispose();
-    super.dispose();
-  }
-
-  String get _previewUrl => siteLinkUrlForSave(icon: _icon, raw: _valueCtrl.text);
-
-  bool get _hasPreviewUrl => siteLinkHasPreviewValue(icon: _icon, raw: _valueCtrl.text);
-
-  Future<void> _openPreview() async {
-    final url = _previewUrl;
-    if (siteLinkPreviewUrlEmpty(url)) return;
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  void _selectPlatform(String id) {
-    final prev = _icon;
-    final title = _labelCtrl.text.trim();
-    final nextTitle = title.isEmpty || title == siteLinkDefaultTitle(prev) ? siteLinkDefaultTitle(id) : title;
-    if (title.isEmpty || title == siteLinkDefaultTitle(prev)) _labelCtrl.text = nextTitle;
-    final raw = _valueCtrl.text;
-    final idNorm = siteLinkPlatformNormalize(id);
-    final savedUrl = siteLinkUrlForSave(icon: idNorm, raw: raw);
-    final idStr = '${widget.link.linkId}';
-    widget.onPatch(idStr, (l) {
-      l.icon = idNorm;
-      l.label = nextTitle;
-      l.url = savedUrl;
-    });
-    setState(() {
-      _icon = idNorm;
-      _valueCtrl.text = siteLinkValueDisplay(icon: idNorm, stored: savedUrl);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final id = '${widget.link.linkId}';
-    final link = widget.link;
-    final platformLabel = siteLinkPlatformLabel(_icon);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: _border),
-        borderRadius: BorderRadius.circular(8),
-        color: const Color(0xFF121216),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Opacity(opacity: link.active ? 1 : 0.5, child: UiSitePlatformIcon(id: _icon, size: 22)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  link.label.isEmpty ? platformLabel : link.label,
-                  style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ),
-              IconButton(
-                onPressed: widget.busy ? null : () => unawaited(widget.onDelete(id)),
-                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFF87171)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InSiteLinkPlatformButton(
-                value: _icon,
-                readOnly: widget.busy,
-                onChanged: _selectPlatform,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    UiSiteEditorLabeledField(
-                      label: 'Label',
-                      child: TextField(
-                        controller: _labelCtrl,
-                        onChanged: widget.busy ? null : (v) => widget.onPatch(id, (l) => l.label = v),
-                        style: const TextStyle(fontSize: 13, color: siteEditorFormText),
-                        decoration: siteEditorInputDecoration(hintText: siteLinkDefaultTitle(_icon)),
-                      ),
-                    ),
-                    UiSiteEditorLabeledField(
-                      label: siteLinkValueLabel(_icon),
-                      child: TextField(
-                        controller: _valueCtrl,
-                        keyboardType: siteLinkValueKeyboardType(_icon),
-                        onChanged: widget.busy
-                            ? null
-                            : (v) {
-                                widget.onPatch(id, (l) => l.url = siteLinkUrlForSave(icon: _icon, raw: v));
-                                setState(() {});
-                              },
-                        style: const TextStyle(fontSize: 13, color: siteEditorFormText),
-                        decoration: siteEditorInputDecoration(hintText: siteLinkValueHint(_icon)),
-                      ),
-                    ),
-                    if (_hasPreviewUrl)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 2, bottom: 8),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: InkWell(
-                            onTap: widget.busy ? null : () => unawaited(_openPreview()),
-                            borderRadius: BorderRadius.circular(4),
-                            child: Text(
-                              _previewUrl,
-                              style: const TextStyle(fontSize: 11, color: siteEditorFormMuted, height: 1.35),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          UiSiteEditorSwitchRow(
-            label: 'Pinned',
-            value: link.isPinned,
-            onChanged: widget.busy ? null : (v) => widget.onPatch(id, (l) => l.isPinned = v),
-          ),
-          UiSiteEditorSwitchRow(
-            label: 'Active',
-            value: link.active,
-            onChanged: widget.busy ? null : (v) => widget.onPatch(id, (l) => l.active = v),
-          ),
-        ],
-      ),
     );
   }
 }

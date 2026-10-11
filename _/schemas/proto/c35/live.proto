@@ -33,3 +33,9 @@ message ResLiveStart {
   string live_session_id = 2;
   string ws_path = 3;
 }
+
+// Live WebSocket downlink audio: magic 0xC3 0x35 + protobuf bytes (see mod_live::ws_audio).
+message LiveWsAudio {
+  uint32 sample_rate_hz = 1;
+  bytes pcm_s16le = 2;
+}

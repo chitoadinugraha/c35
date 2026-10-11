@@ -9,6 +9,7 @@ use tokio::sync::mpsc;
 
 use crate::doc::{site_doc_from_json, site_doc_to_json, site_doc_validate};
 use crate::grant::site_grant_check;
+use crate::site_publish::site_publish_pending_for_draft;
 use crate::sync_push::site_sync_push;
 use c35_proto::WsRes;
 
@@ -31,28 +32,33 @@ pub async fn site_draft_get(
     .bind(req.site_iid)
     .fetch_optional(pool)
     .await?;
-    let draft = if let Some(r) = draft_row {
+    let (draft_doc_json, draft) = if let Some(r) = draft_row {
         let doc_json: serde_json::Value = r.get("doc_json");
-        SiteDraft {
+        let draft = SiteDraft {
             site_iid: r.get("site_iid"),
             owner_iid: r.get("owner_iid"),
             doc: Some(site_doc_from_json(&doc_json)),
             created_ts_ms: ts_ms(Some(r.get("created_ts"))),
             updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
             deleted_ts_ms: ts_ms(r.get("deleted_ts")),
-        }
+        };
+        (doc_json, draft)
     } else {
-        SiteDraft {
+        let doc_json = serde_json::json!({
+            "pages": [],
+            "theme": {},
+            "meta": {}
+        });
+        let draft = SiteDraft {
             site_iid: req.site_iid,
             owner_iid,
-            doc: Some(site_doc_from_json(&serde_json::json!({
-                "pages": [],
-                "theme": {},
-                "meta": {}
-            }))),
+            doc: Some(site_doc_from_json(&doc_json)),
             ..Default::default()
-        }
+        };
+        (doc_json, draft)
     };
+    let (publish_pending, draft_render_hash, published_render_hash) =
+        site_publish_pending_for_draft(pool, req.site_iid, &draft_doc_json).await?;
     let config_row = sqlx::query(
         r#"
         SELECT site_iid, owner_iid, published_version_id, inventory_costing_method, tz,
@@ -93,6 +99,9 @@ pub async fn site_draft_get(
     Ok(ResSiteDraftGet {
         draft: Some(draft),
         config: Some(config),
+        publish_pending,
+        draft_render_hash,
+        published_render_hash,
     })
 }
 

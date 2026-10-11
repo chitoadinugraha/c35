@@ -179,11 +179,46 @@ pub async fn live_billing_gate(
     req_id: &str,
     offer: &LiveOfferRow,
 ) -> Result<BillingRow> {
-    let row = billing_account_ensure(pool, owner_iid).await?;
+    live_billing_gate_nats(pool, None, owner_iid, req_id, offer).await
+}
+
+pub async fn live_billing_gate_nats(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+    req_id: &str,
+    offer: &LiveOfferRow,
+) -> Result<BillingRow> {
+    let row = if let Some(cached) = c35_mod_billing::billing_cache_get(nats, owner_iid).await {
+        c35_mod_billing::cached_to_billing_row(&cached)
+    } else {
+        let r = billing_account_ensure(pool, owner_iid).await?;
+        let has_sufficient = c35_mod_billing::evaluate_allowance_sufficient(&r, false, 0.0);
+        c35_mod_billing::billing_cache_put(
+            nats,
+            &c35_mod_billing::BillingGateCached {
+
+                owner_iid,
+                billing_account_id: r.id,
+                plan_tier: r.plan_tier.clone(),
+                is_freemium: false,
+                has_sufficient_allowance: has_sufficient,
+                balance_usd: r.balance_usd,
+                alien_allow_5h_used: r.alien_allow_5h_used,
+                alien_allow_5h_limit: r.alien_allow_5h_limit,
+                alien_allow_weekly_used: r.alien_allow_weekly_used,
+                alien_allow_weekly_limit: r.alien_allow_weekly_limit,
+                cached_at_secs: chrono::Utc::now().timestamp(),
+            },
+        )
+        .await;
+        r
+    };
     let hold = live_hold_retail_usd(offer);
     c35_mod_billing::billing_gate_with_hold_model(pool, owner_iid, &row, req_id, hold, Some(&offer.provider_model)).await?;
     Ok(row)
 }
+
 
 pub async fn live_billing_abort(pool: &PgPool, req_id: &str) -> Result<()> {
     billing_reservation_refund(pool, req_id).await

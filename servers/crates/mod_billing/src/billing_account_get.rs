@@ -47,6 +47,7 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
     };
 
     let owner_iid: i64 = row.get("owner_iid");
+    crate::billing_play::billing_play_sync_owner(&ctx.pool, owner_iid).await;
     let _ = crate::billing_freemium::billing_plan_lapse_if_expired(&ctx.pool, owner_iid)
         .await
         .ok();
@@ -56,7 +57,7 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
     let _ = crate::billing_profile::billing_profile_repair_rings_v4(&ctx.pool, owner_iid).await;
     let profile_row = sqlx::query(
         r#"
-        SELECT trial_expires_ts, plan_expires_ts,
+        SELECT trial_expires_ts, plan_expires_ts, plan_auto_renew,
                COALESCE(alien_allow_5h_used::float8, 0.0) AS alien_allow_5h_used,
                COALESCE(alien_allow_5h_limit::float8, 0.0) AS alien_allow_5h_limit,
                COALESCE(alien_allow_weekly_used::float8, 0.0) AS alien_allow_weekly_used,
@@ -83,6 +84,10 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
             r.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>("plan_expires_ts").ok().flatten(),
         ))
         .unwrap_or((None, None));
+    let plan_auto_renew: bool = profile_row
+        .as_ref()
+        .and_then(|r| r.try_get("plan_auto_renew").ok())
+        .unwrap_or(false);
 
     let w5: chrono::DateTime<chrono::Utc> = profile_row
         .as_ref()
@@ -155,6 +160,7 @@ pub async fn billing_account_get(ctx: &Ctx, billing_iid: i64) -> WireResult<Bill
         freemium_tokens_limit: freemium.tokens_limit,
         plan_expires_ts_ms: profile_ts.1.map(|t| t.timestamp_millis()).unwrap_or(0),
         trial_expires_ts_ms: profile_ts.0.map(|t| t.timestamp_millis()).unwrap_or(0),
+        plan_auto_renew,
         ..Default::default()
     })
 }

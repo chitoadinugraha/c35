@@ -31,7 +31,7 @@ use super::messages::{AgentIpcMsg, ExtRequest, ExtResponse};
 use crate::extension_ipc::EXTENSION_IPC_NOT_READY_MSG;
 
 use crate::extension_agent::{
-    ensure_detached_extension_agent, embedded_agent_active, spawn_embedded_extension_agent,
+    ensure_extension_agent_running, embedded_agent_active, spawn_embedded_extension_agent,
     wait_for_extension_agent,
 };
 use crate::pair_loop::chrome_extension_device_name;
@@ -99,10 +99,8 @@ pub fn run_chrome_native_host() -> anyhow::Result<()> {
     // Must run before stdin loop: `agent.status` uses `embedded_agent_active()` for a fast UI snapshot.
     spawn_embedded_extension_agent();
     thread::spawn(|| {
-        wait_for_extension_agent(Duration::from_secs(15));
-        if !embedded_agent_active() && !crate::extension_ipc::extension_ipc_port_in_use() {
-            ensure_detached_extension_agent();
-        }
+        wait_for_extension_agent(Duration::from_secs(3));
+        ensure_extension_agent_running();
     });
 
     let pair_state = Arc::new(Mutex::new(PairHostState::default()));
@@ -501,6 +499,17 @@ fn handle_request(
         "tabs.activate" => Ok(ExtResponse::ok()),
 
         "agent.status" => {
+            let mut r = ExtResponse::ok();
+            r.data = agent_status_response(ipc_slot);
+            Ok(r)
+        }
+
+        "agent.ensure" => {
+            ensure_extension_agent_running();
+            wait_for_extension_agent(Duration::from_secs(8));
+            if let Ok(mut g) = ipc_slot.lock() {
+                *g = None;
+            }
             let mut r = ExtResponse::ok();
             r.data = agent_status_response(ipc_slot);
             Ok(r)

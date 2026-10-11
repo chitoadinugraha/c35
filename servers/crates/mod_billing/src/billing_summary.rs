@@ -110,6 +110,7 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
     let window_5h_start: chrono::DateTime<chrono::Utc> = row.get("window_5h_start");
     let window_weekly_start: chrono::DateTime<chrono::Utc> = row.get("window_weekly_start");
 
+    crate::billing_play::billing_play_sync_owner(pool, caller_iid).await;
     let _ = crate::billing_freemium::billing_plan_lapse_if_expired(pool, caller_iid).await.ok();
     let freemium = crate::billing_freemium::billing_freemium_snapshot(pool, caller_iid)
         .await
@@ -133,7 +134,8 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
         r#"
         SELECT COALESCE(NULLIF(TRIM(billing_period), ''), 'monthly') AS billing_period,
                NULLIF(TRIM(pending_plan_slug), '') AS pending_plan_slug,
-               NULLIF(TRIM(pending_billing_period), '') AS pending_billing_period
+               NULLIF(TRIM(pending_billing_period), '') AS pending_billing_period,
+               plan_auto_renew
         FROM ai.billing_profile
         WHERE owner_iid = $1 AND deleted_ts IS NULL
         LIMIT 1
@@ -191,6 +193,10 @@ pub async fn billing_summary(pool: &PgPool, caller_iid: i64, billing_account_id:
             .as_ref()
             .and_then(|r| r.get::<Option<String>, _>("pending_billing_period"))
             .unwrap_or_default(),
+        plan_auto_renew: profile_plan
+            .as_ref()
+            .and_then(|r| r.try_get("plan_auto_renew").ok())
+            .unwrap_or(false),
     }
 }
 
@@ -331,5 +337,6 @@ fn billing_summary_default(plans: Vec<BillingPlanDoc>, bot_plans: Vec<BillingPla
         billing_period: "monthly".into(),
         pending_plan_slug: String::new(),
         pending_billing_period: String::new(),
+        plan_auto_renew: false,
     }
 }

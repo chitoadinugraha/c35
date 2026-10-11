@@ -11,10 +11,12 @@ mod http;
 mod commerce_boot;
 pub mod guest_design;
 mod guest_product;
+mod guest_product_display;
 mod guest_reservation;
 mod product_design;
 mod product_icon;
 mod product_icon_svg;
+mod link_platform_icon;
 pub mod render;
 mod rows;
 mod site_config;
@@ -27,6 +29,7 @@ mod site_domain_buy;
 mod site_grant;
 mod site_hr;
 mod site_draft;
+mod site_editor_warm;
 mod site_boot;
 mod site_handle;
 mod platform_site;
@@ -68,6 +71,10 @@ pub use site_domain_buy::{
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
 pub use commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
 pub use site_boot::{site_boot_get, site_boot_json_assemble};
+pub use site_editor_warm::{
+    site_editor_warm, site_editor_warm_product_limit, SITE_EDITOR_WARM_PRODUCT_DEFAULT,
+    SITE_EDITOR_WARM_PRODUCT_MAX,
+};
 pub use site_draft::{site_draft_get, site_draft_put};
 pub use site_handle::{site_handle_normalize, site_handle_put};
 pub use platform_site::{
@@ -97,7 +104,8 @@ pub use query::{
     TX_EXPORT_CAP, TX_PREVIEW_ROWS,
 };
 pub use site_product::{
-    site_product_delete, site_product_list, site_product_put, site_product_reorder,
+    site_product_delete, site_product_list, site_product_mark_used, site_product_put,
+    site_product_reorder,
 };
 pub use product_icon::{
     product_icon_ensure, product_icon_id, product_icon_ids, product_icon_kind_from_rules,
@@ -109,18 +117,24 @@ pub use site_queue::{
     site_queue_advance_serving, site_queue_list, site_queue_put,
 };
 pub use site_publish::{
-    site_publish, site_publish_from_draft, site_published, SitePublishFromDraftResult,
+    active_publish_render_hash, render_bundle_hash, site_draft_render_hash, site_publish,
+    site_publish_from_draft, site_publish_pending_for_draft, site_published,
+    SitePublishFromDraftResult,
 };
 pub use guest_product::{
     guest_product_list, guest_product_list_to_proto, product_cursor_decode, product_cursor_encode,
     product_grid_page_size, product_row_json, product_rows_for_grid, GuestProductListResult,
     ProductRow,
 };
+pub use guest_product_display::{
+    format_idr, guest_product_can_add_to_cart, guest_product_price_label, pic_url, pic_url_display,
+    pic_url_thumb, product_grid_display, GUEST_PRODUCT_PRICE_CONTACT,
+};
 pub use guest_reservation::{
     availability_ok, guest_reservation_availability, reservation_windows_overlap, units_left,
     Availability, FreeObject,
 };
-pub use guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
+pub use guest_design::{featured_contacts_load, FeaturedContact, GuestDesign, ProfileDesign};
 pub use render::{
     block_html_render, guest_client_script_markup, guest_shell_html, product_card_html,
     ProductGridCtx,

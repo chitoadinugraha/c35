@@ -136,6 +136,7 @@ pub async fn channel_prompt_turn(
         compose_opts,
         owner_iid,
         locale,
+        None,
     )
     .await;
     let user_ctx = user_prompt_context_get(pool, owner_iid).await;
@@ -203,6 +204,7 @@ pub async fn channel_prompt_turn(
             billing: ContextBillingExtra::default(),
             prompt_tokens: token_estimate(&system) + token_estimate(&user),
             context_window: context_window_resolve(&model, 0),
+            compact_ms: 0,
         }
     });
     let history = prepared.messages;

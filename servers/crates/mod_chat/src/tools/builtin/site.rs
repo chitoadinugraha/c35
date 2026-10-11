@@ -883,6 +883,22 @@ pub async fn site_product_delete_exec(ctx: &ToolContext, args: &Value) -> Result
     let site_iid = site_iid_resolve(ctx, args)?;
     let _owner_iid = site_grant_owner(&ctx.pool, ctx.owner_iid, site_iid).await?;
     let product_id = site_product_id_resolve_on_site(&ctx.pool, site_iid, args).await?;
+    let is_used: bool = sqlx::query_scalar(
+        r#"
+        SELECT is_used FROM site.product
+        WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(site_iid)
+    .bind(product_id)
+    .fetch_optional(&ctx.pool)
+    .await?
+    .ok_or_else(|| anyhow!("product {product_id} not found or already deleted"))?;
+    if is_used {
+        return Err(anyhow!(
+            "product has been used in sales or orders; archive it instead of deleting"
+        ));
+    }
     let row = sqlx::query(
         r#"
         UPDATE site.product

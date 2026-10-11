@@ -5,6 +5,8 @@ import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/design/ui_site_design_section.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:flutter/material.dart';
 
@@ -37,8 +39,6 @@ class _UiSiteDesignEditorState extends State<UiSiteDesignEditor> {
   final _store = SiteDesignStore();
   var _loading = true;
   var _ready = false;
-  Timer? _saveTimer;
-
   @override
   void initState() {
     super.initState();
@@ -47,7 +47,6 @@ class _UiSiteDesignEditorState extends State<UiSiteDesignEditor> {
 
   @override
   void dispose() {
-    _saveTimer?.cancel();
     _store.removeListener(_scheduleSave);
     _store.dispose();
     super.dispose();
@@ -76,8 +75,13 @@ class _UiSiteDesignEditorState extends State<UiSiteDesignEditor> {
 
   void _scheduleSave() {
     if (!_ready) return;
-    _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 400), () => unawaited(_save()));
+    siteEditorPreviewPatch(context, (boot) => siteEditorPreviewPatchDesignStore(boot, _store));
+    siteEditorScheduleSave(
+      context,
+      key: 'design',
+      debounce: const Duration(milliseconds: 400),
+      save: _save,
+    );
   }
 
   Future<void> _save() async {

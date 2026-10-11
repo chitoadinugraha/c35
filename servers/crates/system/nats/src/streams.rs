@@ -20,7 +20,18 @@ pub async fn jetstream_streams_ensure(client: &Client) -> anyhow::Result<()> {
     crate::stats_kv::stats_kv_ensure(client)
         .await
         .context("c35_stats KV")?;
+    crate::billing_kv::billing_kv_ensure(client)
+        .await
+        .context("c35_billing_cache KV")?;
+    crate::bundle_kv::memory_bundle_kv_ensure(client)
+        .await
+        .context("c35_user_memory_cache KV")?;
+    crate::bundle_kv::scope_inst_kv_ensure(client)
+        .await
+        .context("c35_scope_inst_cache KV")?;
     let js = jetstream::new(client.clone());
+
+
     js.get_or_create_stream(jetstream::stream::Config {
         name: STREAM_CHAT_PROMPT.into(),
         subjects: vec![SUBJECT_CHAT_PROMPT.into()],

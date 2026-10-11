@@ -1,0 +1,68 @@
+{
+  "alien_id": "natepaperie",
+  "site_iid": 80157132410142720,
+  "source": "site.draft home page blocks (pic URLs redacted)",
+  "blocks": [
+    {
+      "id": "hub1",
+      "type": "hub_profile",
+      "props": {
+        "title": "Nate Paperie",
+        "subtitle": "Selamat datang di DESIGN COLLECTIONS",
+        "pic": "",
+        "location_label": "",
+        "location_href": "",
+        "show_hours": true
+      }
+    },
+    {
+      "id": "hours1",
+      "type": "hours",
+      "props": {
+        "title": "Open hours",
+        "schedule": [
+          {
+            "day": "Mon 09:00 – 17:00 (8 hours)",
+            "open": "09:00",
+            "close": "17:00"
+          }
+        ]
+      }
+    },
+    {
+      "id": "links1",
+      "type": "links",
+      "props": {
+        "title": "Link",
+        "links": [
+          {
+            "label": "Instagram",
+            "url": "https://instagram.com/nate_paperie",
+            "icon": "instagram"
+          },
+          {
+            "label": "Order",
+            "url": "https://linktr.ee/natepaperie",
+            "icon": "website"
+          }
+        ]
+      }
+    },
+    {
+      "id": "social1",
+      "type": "social_feed",
+      "props": {
+        "title": "Update",
+        "limit": 10
+      }
+    },
+    {
+      "id": "grid1",
+      "type": "product_grid",
+      "props": {
+        "filter": "all",
+        "page_size": 12
+      }
+    }
+  ]
+}

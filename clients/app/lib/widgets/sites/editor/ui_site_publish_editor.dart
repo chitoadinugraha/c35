@@ -12,11 +12,13 @@ class UiSitePublishEditor extends StatelessWidget {
     required this.row,
     this.onPublish,
     this.publishing = false,
+    this.publishPending = true,
   });
 
   final SiteRow row;
   final VoidCallback? onPublish;
   final bool publishing;
+  final bool publishPending;
 
   @override
   Widget build(BuildContext context) => UiSiteEditorFormScroll(
@@ -31,12 +33,12 @@ class UiSitePublishEditor extends StatelessWidget {
           _infoRow('Published version', row.publishedVersionId.isEmpty ? 'Draft only (not live)' : row.publishedVersionId),
           const SizedBox(height: 24),
           FilledButton.icon(
-            onPressed: publishing || onPublish == null ? null : onPublish,
+            onPressed: publishing || !publishPending || onPublish == null ? null : onPublish,
             style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
             icon: publishing
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                : const Icon(Icons.rocket_launch_outlined, size: 20),
-            label: Text(publishing ? 'Publishing…' : 'Publish site'),
+                : Icon(publishPending ? Icons.rocket_launch_outlined : Icons.check_circle_outline, size: 20),
+            label: Text(publishing ? 'Publishing…' : (publishPending ? 'Publish site' : 'Published')),
           ),
         ],
       );

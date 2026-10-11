@@ -274,6 +274,81 @@ pub async fn scope_instruction_load_for_prompt(
     Ok((user, site_rows))
 }
 
+pub async fn scope_instruction_load_for_prompt_nats(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+    site_iids: &[i64],
+    site_names: &[(i64, String)],
+) -> Result<(Option<ScopeInstructionRow>, Vec<(String, ScopeInstructionRow)>)> {
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::scope_inst_kv_ensure(client).await {
+            if let Some(bundle) = c35_nats::scope_inst_bundle_get(&store, owner_iid).await {
+                let user = bundle.items.iter().find(|i| i.scope_kind == KIND_USER && i.scope_iid == owner_iid).map(|i| ScopeInstructionRow {
+                    id: i.id,
+                    owner_iid: i.owner_iid,
+                    scope_kind: i.scope_kind.clone(),
+                    scope_iid: i.scope_iid,
+                    mode: i.mode.clone(),
+                    body: i.body.clone(),
+                });
+                let mut site_rows = Vec::new();
+                for i in &bundle.items {
+                    if i.scope_kind == KIND_SITE && site_iids.contains(&i.scope_iid) {
+                        let name = site_names.iter().find(|(id, _)| *id == i.scope_iid).map(|(_, n)| n.clone()).unwrap_or_default();
+                        site_rows.push((name, ScopeInstructionRow {
+                            id: i.id,
+                            owner_iid: i.owner_iid,
+                            scope_kind: i.scope_kind.clone(),
+                            scope_iid: i.scope_iid,
+                            mode: i.mode.clone(),
+                            body: i.body.clone(),
+                        }));
+                    }
+                }
+                return Ok((user, site_rows));
+            }
+        }
+    }
+    let res = scope_instruction_load_for_prompt(pool, owner_iid, site_iids, site_names).await?;
+    if let Some(client) = nats {
+        let (ref user_opt, ref site_vec) = res;
+        let mut items = Vec::new();
+        if let Some(u) = user_opt {
+            items.push(c35_proto::ScopeInstruction {
+                id: u.id,
+                owner_iid: u.owner_iid,
+                scope_kind: u.scope_kind.clone(),
+                scope_iid: u.scope_iid,
+                mode: u.mode.clone(),
+                body: u.body.clone(),
+                updated_ts_ms: chrono::Utc::now().timestamp_millis(),
+            });
+        }
+        for (_, s) in site_vec {
+            items.push(c35_proto::ScopeInstruction {
+                id: s.id,
+                owner_iid: s.owner_iid,
+                scope_kind: s.scope_kind.clone(),
+                scope_iid: s.scope_iid,
+                mode: s.mode.clone(),
+                body: s.body.clone(),
+                updated_ts_ms: chrono::Utc::now().timestamp_millis(),
+            });
+        }
+        let bundle = c35_proto::ScopeInstructionBundle {
+            owner_iid,
+            updated_ts_ms: chrono::Utc::now().timestamp_millis(),
+            items,
+        };
+        if let Ok(store) = c35_nats::scope_inst_kv_ensure(client).await {
+            let _ = c35_nats::scope_inst_bundle_put(&store, &bundle).await;
+        }
+    }
+    Ok(res)
+}
+
+
 pub fn mention_site_names(ctx: &MentionContext) -> Vec<(i64, String)> {
     ctx.sites
         .iter()

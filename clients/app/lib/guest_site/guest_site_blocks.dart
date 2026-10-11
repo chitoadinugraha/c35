@@ -15,13 +15,16 @@ import 'package:alienai_c35/c/site/design/site_design_models.dart'
         siteFeaturedStripItemModeNormalize;
 import 'package:alienai_c35/c/site/design/site_design_resolve.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
+import 'package:alienai_c35/c/site/guest_contact_api.dart';
 import 'package:alienai_c35/c/site/guest_order_api.dart';
+import 'package:alienai_c35/c/site/site_preview_external_url.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
-import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
+import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/guest_site/guest_site_product.dart';
 import 'package:alienai_c35/guest_site/guest_site_reservation_sheet.dart';
 import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
@@ -69,8 +72,10 @@ Widget guestSiteBlock({
   String siteAvatar = '',
   SiteDesignStore? design,
   List<Map<String, dynamic>> featuredContacts = const [],
+  Map<String, dynamic> catalogMeta = const {},
   Color? foreground,
   Color? muted,
+  List<Map<String, dynamic>> orderProgressSteps = const [],
 }) {
   final type = block['type']?.toString() ?? 'markdown';
   final props = block['props'] is Map<String, dynamic>
@@ -83,7 +88,7 @@ Widget guestSiteBlock({
 
   return switch (type) {
     'hero' => GuestSiteHeroBlock(props: props, accent: accent, fallbackTitle: siteName, siteAvatar: siteAvatar),
-    'contact_form' => GuestSiteContactFormBlock(props: props, accent: accent),
+    'contact_form' => GuestSiteContactFormBlock(props: props, accent: accent, siteIid: siteIid),
     'product_grid' => GuestSiteProductGridBlock(
         props: props,
         accent: accent,
@@ -92,6 +97,7 @@ Widget guestSiteBlock({
         products: productRows,
         commerceObjects: commerceObjects,
         initialNextCursor: productNextCursor,
+        catalogMeta: catalogMeta,
         resolved: resolved,
         foreground: fg,
         muted: sub,
@@ -136,7 +142,12 @@ Widget guestSiteBlock({
         foreground: fg,
         muted: sub,
       ),
-    'order_track' => GuestSiteOrderTrackBlock(props: props, accent: accent, siteIid: siteIid),
+    'order_track' => GuestSiteOrderTrackBlock(
+        props: props,
+        accent: accent,
+        siteIid: siteIid,
+        orderProgressSteps: orderProgressSteps,
+      ),
     'map' => GuestSiteMapBlock(props: props, accent: accent),
     'queue' => GuestSiteQueueBlock(props: props, accent: accent, siteIid: siteIid),
     'embed' => GuestSiteEmbedBlock(props: props, accent: accent),
@@ -184,7 +195,6 @@ class GuestSiteHeroBlock extends StatelessWidget {
         props['cta_label']?.toString() ?? props['cta']?.toString() ?? 'Hubungi Kami';
     final blockPic = props['pic']?.toString().trim() ?? '';
     final logo = blockPic.isNotEmpty ? blockPic : siteAvatar.trim();
-    final logoUrl = guestSitePicUrl(logo);
     final fg = foreground ?? _guestTextPrimary;
     final sub = muted ?? _guestTextSecondary;
     final showAvatar = profile?.showAvatar ?? true;
@@ -217,7 +227,7 @@ class GuestSiteHeroBlock extends StatelessWidget {
               child: _GuestProfileAvatar(
                 key: avatarKey,
                 accent: accent,
-                logoUrl: logoUrl,
+                logoPic: logo,
                 size: avatarSize,
                 outlineWidth: profile?.avatarOutlineWidth ?? 0,
                 outlineColor: profile?.avatarOutlineColor ?? '',
@@ -267,14 +277,14 @@ class _GuestProfileAvatar extends StatelessWidget {
   const _GuestProfileAvatar({
     super.key,
     required this.accent,
-    required this.logoUrl,
+    required this.logoPic,
     required this.size,
     required this.outlineWidth,
     required this.outlineColor,
   });
 
   final Color accent;
-  final String logoUrl;
+  final String logoPic;
   final double size;
   final double outlineWidth;
   final String outlineColor;
@@ -284,6 +294,7 @@ class _GuestProfileAvatar extends StatelessWidget {
     final outline = outlineWidth.clamp(0, size / 2).toDouble();
     final inner = (size - outline * 2).clamp(8, size).toDouble();
     final ring = outlineColor.trim().isEmpty ? accent : siteColorParse(outlineColor);
+    final placeholder = Icon(Icons.storefront_outlined, size: inner * 0.45, color: accent);
     return Container(
       width: size,
       height: size,
@@ -296,14 +307,13 @@ class _GuestProfileAvatar extends StatelessWidget {
         radius: inner / 2,
         backgroundColor: accent.withValues(alpha: 0.15),
         child: ClipOval(
-          child: logoUrl.isEmpty
-              ? Icon(Icons.storefront_outlined, size: inner * 0.45, color: accent)
-              : Image.network(
-                  logoUrl,
+          child: logoPic.trim().isEmpty
+              ? placeholder
+              : GuestSitePic(
+                  pic: logoPic,
                   width: inner,
                   height: inner,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Icon(Icons.storefront_outlined, size: inner * 0.45, color: accent),
+                  error: placeholder,
                 ),
         ),
       ),
@@ -339,16 +349,100 @@ class GuestSiteMarkdownBlock extends StatelessWidget {
   }
 }
 
-class GuestSiteContactFormBlock extends StatelessWidget {
-  const GuestSiteContactFormBlock({super.key, required this.props, required this.accent});
+class GuestSiteContactFormBlock extends StatefulWidget {
+  const GuestSiteContactFormBlock({
+    super.key,
+    required this.props,
+    required this.accent,
+    required this.siteIid,
+  });
 
   final Map<String, dynamic> props;
   final Color accent;
+  final int siteIid;
+
+  @override
+  State<GuestSiteContactFormBlock> createState() => _GuestSiteContactFormBlockState();
+}
+
+class _GuestSiteContactFormBlockState extends State<GuestSiteContactFormBlock> {
+  late final TextEditingController _nameCtrl = TextEditingController();
+  late final TextEditingController _contactCtrl = TextEditingController();
+  late final TextEditingController _messageCtrl = TextEditingController();
+  var _submitting = false;
+  String? _success;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _contactCtrl.dispose();
+    _messageCtrl.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _fieldDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: _guestTextSecondary, fontSize: 12),
+      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: _guestBorder)),
+      focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: widget.accent)),
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: 0.05),
+    );
+  }
+
+  Future<void> _submit() async {
+    if (widget.siteIid <= 0) {
+      setState(() {
+        _success = null;
+        _error = 'Site tidak dikenali';
+      });
+      return;
+    }
+    final name = _nameCtrl.text.trim();
+    final contactVal = _contactCtrl.text.trim();
+    final message = _messageCtrl.text.trim();
+    if (name.isEmpty || contactVal.isEmpty) {
+      setState(() {
+        _success = null;
+        _error = 'Lengkapi nama dan kontak';
+      });
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _success = null;
+      _error = null;
+    });
+    try {
+      await GuestContactApi.contactPut(
+        siteIid: widget.siteIid,
+        name: name,
+        contactVal: contactVal,
+        message: message,
+      );
+      _nameCtrl.clear();
+      _contactCtrl.clear();
+      _messageCtrl.clear();
+      setState(() {
+        _success = 'Pesan terkirim';
+        _error = null;
+      });
+    } catch (e) {
+      setState(() {
+        _success = null;
+        _error = e.toString().replaceFirst('StateError: ', '');
+      });
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final title = props['title']?.toString() ?? 'Hubungi Kami';
-    final submitLabel = props['submit_label']?.toString() ?? 'Kirim Pesan';
+    final title = widget.props['title']?.toString() ?? 'Hubungi Kami';
+    final submitLabel = widget.props['submit_label']?.toString() ?? 'Kirim Pesan';
 
     return KeyedSubtree(
       key: const Key('guest-form'),
@@ -358,46 +452,116 @@ class GuestSiteContactFormBlock extends StatelessWidget {
           border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
         ),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: _guestBorder),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
             ),
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: const Text(
-              'Nama Anda / Email...',
-              style: TextStyle(color: Color(0xFF52525B), fontSize: 11),
+            const SizedBox(height: 10),
+            TextField(
+              key: const Key('guest-form-name'),
+              controller: _nameCtrl,
+              decoration: _fieldDecoration('Nama Lengkap'),
+              style: const TextStyle(color: _guestTextPrimary, fontSize: 13),
+              textInputAction: TextInputAction.next,
             ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: accent.withValues(alpha: 0.4)),
+            const SizedBox(height: 8),
+            TextField(
+              key: const Key('guest-form-contact'),
+              controller: _contactCtrl,
+              decoration: _fieldDecoration('WhatsApp / No. HP'),
+              style: const TextStyle(color: _guestTextPrimary, fontSize: 13),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const Key('guest-form-message'),
+              controller: _messageCtrl,
+              decoration: _fieldDecoration('Pesan / Permintaan'),
+              style: const TextStyle(color: _guestTextPrimary, fontSize: 13),
+              minLines: 1,
+              maxLines: 3,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                key: const Key('guest-form-submit'),
+                onPressed: _submitting ? null : _submit,
+                style: TextButton.styleFrom(
+                  foregroundColor: widget.accent,
+                  backgroundColor: widget.accent.withValues(alpha: 0.2),
+                  side: BorderSide(color: widget.accent.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                ),
+                child: _submitting
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: widget.accent),
+                      )
+                    : Text(
+                        submitLabel,
+                        style: TextStyle(color: widget.accent, fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
               ),
-              child: Text(
-                submitLabel,
-                style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w600),
-              ),
             ),
-          ),
-        ],
+            if (_success != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _success!,
+                  style: TextStyle(color: widget.accent, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_error!, style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11)),
+              ),
+          ],
+        ),
       ),
-    ),
+    );
+  }
+}
+
+class _GuestProductInCartBadge extends StatelessWidget {
+  const _GuestProductInCartBadge({required this.productId, required this.accent});
+
+  final int productId;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    if (productId <= 0) return const SizedBox.shrink();
+    final cart = GuestSiteCartScope.maybeOf(context);
+    if (cart == null) return const SizedBox.shrink();
+    return ListenableBuilder(
+      listenable: cart,
+      builder: (context, _) {
+        final qty = cart.qtyForProduct(productId);
+        if (qty <= 0) return const SizedBox.shrink();
+        return Positioned(
+          top: 8,
+          right: 8,
+          child: Container(
+            key: ValueKey('guest-in-cart-$productId'),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$qty',
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -412,6 +576,7 @@ class GuestSiteProductGridBlock extends StatefulWidget {
     required this.products,
     this.commerceObjects = const [],
     this.initialNextCursor,
+    this.catalogMeta = const {},
     this.resolved,
     this.foreground,
     this.muted,
@@ -424,6 +589,7 @@ class GuestSiteProductGridBlock extends StatefulWidget {
   final List<Map<String, dynamic>> products;
   final List<Map<String, dynamic>> commerceObjects;
   final String? initialNextCursor;
+  final Map<String, dynamic> catalogMeta;
   final SiteResolvedDesign? resolved;
   final Color? foreground;
   final Color? muted;
@@ -488,6 +654,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     final rows = _rows.isNotEmpty
         ? _rows
         : List.generate(3, (i) => {'name': 'Item ${i + 1}', 'pic': '', 'price': 0});
+    final display = productGridDisplay(widget.props, meta: widget.catalogMeta);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -502,11 +669,25 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
             style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
-          for (final p in rows)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _productListRow(widget.accent, widget.productDesign, p),
-            ),
+          if (display == 'grid')
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.72,
+              ),
+              itemCount: rows.length,
+              itemBuilder: (_, i) => _productCard(widget.accent, widget.productDesign, rows[i]),
+            )
+          else
+            for (final p in rows)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _productListRow(widget.accent, widget.productDesign, p),
+              ),
           if (_nextCursor != null && widget.siteIid > 0) ...[
             const SizedBox(height: 12),
             Align(
@@ -524,7 +705,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
   Widget _productListRow(Color accent, SiteProductDesignDraft design, Map<String, dynamic> p) {
     final name = p['name']?.toString() ?? 'Product';
     final desc = p['desc']?.toString() ?? p['description']?.toString() ?? '';
-    final picUrl = guestSitePicUrl(p['pic']?.toString() ?? '');
+    final pic = p['pic']?.toString() ?? '';
     final price = p['price'] is num ? (p['price'] as num).toInt() : 0;
     final fg = widget.foreground ?? _guestTextPrimary;
     final sub = widget.muted ?? _guestTextSecondary;
@@ -563,24 +744,29 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         ));
         return;
       }
-      if (price <= 0) return;
-      cart.addProduct(productId: pid, name: name, price: price);
+      if (!guestProductCanAddToCart(price)) {
+        _openProductDetail(p);
+        return;
+      }
+      cart.addProductWithFeedback(context, productId: pid, name: name, price: price);
     }
 
     final stock = guestProductVisibleStock(p);
+    final priceLabel = guestProductPriceLabel(price);
 
     final row = Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: picUrl.isNotEmpty
-                    ? Image.network(
-                        picUrl,
+                child: pic.trim().isNotEmpty
+                    ? GuestSitePic(
+                        pic: pic,
                         height: 56,
                         width: 56,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _brokenPicPlaceholder(accent),
+                        error: _brokenPicPlaceholder(accent),
+                        onTap: () => unawaited(showGuestSitePicViewer(context, pic)),
                       )
                     : _productThumbPlaceholder(accent, p['icon']?.toString() ?? ''),
               ),
@@ -607,8 +793,9 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (price > 0) Text(moneyFmtIdr(price), style: priceStyle),
+                  if (priceLabel.isNotEmpty) Text(priceLabel, style: priceStyle),
                   IconButton(
+                    key: ValueKey('guest-product-info-${p['product_id']}'),
                     tooltip: 'Detail',
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
@@ -621,14 +808,133 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
             ],
           );
 
+    return _wrapProductTile(onProductTap, row);
+  }
+
+  Widget _productCard(Color accent, SiteProductDesignDraft design, Map<String, dynamic> p) {
+    final name = p['name']?.toString() ?? 'Product';
+    final desc = p['desc']?.toString() ?? p['description']?.toString() ?? '';
+    final pic = p['pic']?.toString() ?? '';
+    final price = p['price'] is num ? (p['price'] as num).toInt() : 0;
+    final fg = widget.foreground ?? _guestTextPrimary;
+    final sub = widget.muted ?? _guestTextSecondary;
+    final titleStyle = guestSiteProductTextStyle(
+      design,
+      'title',
+      fallbackColor: fg,
+      fallbackSize: 14,
+      fallbackWeight: FontWeight.w600,
+    );
+    final subtitleStyle = guestSiteProductTextStyle(
+      design,
+      'subtitle',
+      fallbackColor: sub,
+      fallbackSize: 11,
+    );
+    final priceStyle = guestSiteProductTextStyle(
+      design,
+      'price',
+      fallbackColor: widget.accent,
+      fallbackSize: 13,
+      fallbackWeight: FontWeight.w700,
+    );
+    final priceLabel = guestProductPriceLabel(price);
+    final stock = guestProductVisibleStock(p);
+
+    void onProductTap() {
+      final cart = GuestSiteCartScope.maybeOf(context);
+      final pid = (p['product_id'] as num?)?.toInt() ?? 0;
+      if (cart == null || pid <= 0) return;
+      if (p['can_reserve'] == true) {
+        unawaited(showGuestSiteReservationSheet(
+          context: context,
+          siteIid: widget.siteIid,
+          product: p,
+          objects: widget.commerceObjects,
+          accent: accent,
+        ));
+        return;
+      }
+      if (!guestProductCanAddToCart(price)) {
+        _openProductDetail(p);
+        return;
+      }
+      cart.addProductWithFeedback(context, productId: pid, name: name, price: price);
+    }
+
+    final card = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AspectRatio(
+          aspectRatio: 1,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (pic.trim().isNotEmpty)
+                  GuestSitePic(
+                    pic: pic,
+                    fit: BoxFit.cover,
+                    error: _brokenPicPlaceholder(accent),
+                    onTap: () => unawaited(showGuestSitePicViewer(context, pic)),
+                  )
+                else
+                  _productThumbPlaceholder(accent, p['icon']?.toString() ?? '', size: double.infinity),
+                _GuestProductInCartBadge(productId: (p['product_id'] as num?)?.toInt() ?? 0, accent: accent),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: titleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+              if (desc.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(desc, style: subtitleStyle, maxLines: 2, overflow: TextOverflow.ellipsis),
+                ),
+              if (stock != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('Stock: $stock', style: subtitleStyle),
+                ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  if (priceLabel.isNotEmpty) Expanded(child: Text(priceLabel, style: priceStyle)),
+                  IconButton(
+                    key: ValueKey('guest-product-info-${p['product_id']}'),
+                    tooltip: 'Detail',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                    onPressed: () => _openProductDetail(p),
+                    icon: Icon(Icons.info_outline, size: 16, color: sub),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return _wrapProductTile(onProductTap, card, rounded: true);
+  }
+
+  Widget _wrapProductTile(VoidCallback onTap, Widget child, {bool rounded = false}) {
     final resolved = widget.resolved;
     if (resolved != null && resolved.isBare('site_product')) {
-      return InkWell(onTap: onProductTap, child: row);
+      return InkWell(onTap: onTap, child: child);
     }
     if (resolved != null) {
       return siteCardWrap(
         card: resolved.cardFor('site_product'),
-        child: InkWell(onTap: onProductTap, child: row),
+        child: InkWell(onTap: onTap, child: child),
       );
     }
     return Material(
@@ -636,14 +942,14 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: onProductTap,
+        onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _guestBorder),
           ),
-          child: row,
+          clipBehavior: rounded ? Clip.antiAlias : Clip.none,
+          child: child,
         ),
       ),
     );
@@ -651,7 +957,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
 
   void _openProductDetail(Map<String, dynamic> product) {
     final cart = GuestSiteCartScope.maybeOf(context);
-    unawaited(showGuestSiteProductDetailSheet(
+    unawaited(guestSiteOpenProductDetail(
       context: context,
       siteIid: widget.siteIid,
       product: product,
@@ -661,11 +967,13 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     ));
   }
 
-  Widget _productThumbPlaceholder(Color accent, String icon) {
+  Widget _productThumbPlaceholder(Color accent, String icon, {double? size}) {
     final id = icon.trim().isEmpty ? 'mdi:shopping' : icon.trim();
+    final side = size ?? 56.0;
     return Container(
-      height: 56,
-      width: 56,
+      height: side == double.infinity ? null : side,
+      width: side == double.infinity ? null : side,
+      constraints: size == double.infinity ? const BoxConstraints.expand() : null,
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
@@ -1012,17 +1320,68 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
   }
 }
 
+class _GuestOrderProgressSteps extends StatelessWidget {
+  const _GuestOrderProgressSteps({
+    required this.steps,
+    required this.activeState,
+    required this.accent,
+  });
+
+  final List<Map<String, dynamic>> steps;
+  final String activeState;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final step in steps)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: step['state']?.toString() == activeState ? accent : _guestTextSecondary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    step['label']?.toString() ?? step['state']?.toString() ?? '',
+                    style: TextStyle(
+                      color: step['state']?.toString() == activeState ? accent : _guestTextSecondary,
+                      fontSize: 11,
+                      fontWeight: step['state']?.toString() == activeState ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class GuestSiteOrderTrackBlock extends StatefulWidget {
   const GuestSiteOrderTrackBlock({
     super.key,
     required this.props,
     required this.accent,
     required this.siteIid,
+    this.orderProgressSteps = const [],
   });
 
   final Map<String, dynamic> props;
   final Color accent;
   final int siteIid;
+  final List<Map<String, dynamic>> orderProgressSteps;
 
   @override
   State<GuestSiteOrderTrackBlock> createState() => _GuestSiteOrderTrackBlockState();
@@ -1031,6 +1390,7 @@ class GuestSiteOrderTrackBlock extends StatefulWidget {
 class _GuestSiteOrderTrackBlockState extends State<GuestSiteOrderTrackBlock> {
   late final TextEditingController _txCtrl = TextEditingController();
   String? _status;
+  String? _activeState;
   String? _error;
 
   @override
@@ -1049,15 +1409,25 @@ class _GuestSiteOrderTrackBlockState extends State<GuestSiteOrderTrackBlock> {
     setState(() {
       _error = null;
       _status = null;
+      _activeState = null;
     });
     try {
       final res = await GuestOrderApi.orderGet(siteIid: widget.siteIid, txId: txId);
       final tx = res['tx'];
       if (tx is! Map) throw StateError('Pesanan tidak ditemukan');
-      final label = tx['progress_label']?.toString() ?? tx['state']?.toString() ?? '—';
-      setState(() => _status = label);
+      final txMap = Map<String, dynamic>.from(tx);
+      final label = guestOrderTrackPollLabel(txMap);
+      final state = txMap['state']?.toString() ?? txMap['status']?.toString() ?? '';
+      setState(() {
+        _status = label;
+        _activeState = state;
+      });
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() {
+        _status = null;
+        _activeState = null;
+        _error = e.toString();
+      });
     }
   }
 
@@ -1098,7 +1468,18 @@ class _GuestSiteOrderTrackBlockState extends State<GuestSiteOrderTrackBlock> {
           if (_status != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(_status!, style: TextStyle(color: widget.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.orderProgressSteps.isNotEmpty && (_activeState ?? '').isNotEmpty)
+                    _GuestOrderProgressSteps(
+                      steps: widget.orderProgressSteps,
+                      activeState: _activeState!,
+                      accent: widget.accent,
+                    ),
+                  Text(_status!, style: TextStyle(color: widget.accent, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
             ),
           if (_error != null)
             Padding(
@@ -1123,7 +1504,7 @@ class GuestSitePostSummary extends StatelessWidget {
     final caption = post['caption']?.toString() ?? '';
     final thumbUrl = guestSitePicUrl(post['thumb']?.toString() ?? '');
     return InkWell(
-      onTap: () => showGuestSitePostDetailSheet(context: context, post: post),
+      onTap: () => unawaited(guestSiteOpenPostDetail(context: context, post: post, accent: accent)),
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(
@@ -1598,6 +1979,171 @@ class GuestSiteEmbedBlock extends StatelessWidget {
   }
 }
 
+/// Route args for `/products/{id}` in-app preview (public URL parity).
+class GuestSiteProductRouteArgs {
+  const GuestSiteProductRouteArgs({
+    required this.siteIid,
+    required this.product,
+    required this.objects,
+    required this.accent,
+    this.cart,
+  });
+
+  final int siteIid;
+  final Map<String, dynamic> product;
+  final List<Map<String, dynamic>> objects;
+  final Color accent;
+  final GuestSiteCartController? cart;
+}
+
+class GuestSitePostRouteArgs {
+  const GuestSitePostRouteArgs({required this.post, required this.accent});
+
+  final Map<String, dynamic> post;
+  final Color accent;
+}
+
+class GuestSiteProductDetailContent extends StatelessWidget {
+  const GuestSiteProductDetailContent({
+    super.key,
+    required this.siteIid,
+    required this.product,
+    required this.objects,
+    required this.accent,
+    this.cart,
+    this.onClose,
+  });
+
+  final int siteIid;
+  final Map<String, dynamic> product;
+  final List<Map<String, dynamic>> objects;
+  final Color accent;
+  final GuestSiteCartController? cart;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = product['name']?.toString() ?? 'Product';
+    final desc = product['desc']?.toString() ?? product['description']?.toString() ?? '';
+    final price = product['price'] is num ? (product['price'] as num).toInt() : 0;
+    final pid = (product['product_id'] as num?)?.toInt() ?? 0;
+    final canReserve = product['can_reserve'] == true;
+    final pic = product['pic']?.toString() ?? '';
+    final icon = product['icon']?.toString() ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (pic.trim().isNotEmpty)
+          GestureDetector(
+            onTap: () => unawaited(showGuestSitePicViewer(context, pic)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: GuestSitePic(
+                pic: pic,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                variant: GuestSitePicVariant.display,
+                error: _guestDetailIcon(accent, icon),
+              ),
+            ),
+          )
+        else
+          _guestDetailIcon(accent, icon),
+        const SizedBox(height: 12),
+        Text(
+          name,
+          style: const TextStyle(color: _guestTextPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        if (desc.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(desc, style: const TextStyle(color: _guestTextSecondary, fontSize: 13, height: 1.4)),
+        ],
+        if (guestProductPriceLabel(price).isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            guestProductPriceLabel(price),
+            style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+        ],
+        const SizedBox(height: 12),
+        if (canReserve && cart != null && pid > 0)
+          TextButton(
+            onPressed: () async {
+              onClose?.call();
+              await showGuestSiteReservationSheet(
+                context: context,
+                siteIid: siteIid,
+                product: product,
+                objects: objects,
+                accent: accent,
+              );
+            },
+            child: const Text('Reservasi'),
+          )
+        else if (!canReserve && cart != null && pid > 0 && guestProductCanAddToCart(price))
+          TextButton(
+            onPressed: () {
+              cart!.addProductWithFeedback(context, productId: pid, name: name, price: price);
+              onClose?.call();
+            },
+            child: const Text('+ Pesan'),
+          ),
+      ],
+    );
+  }
+}
+
+class GuestSitePostDetailContent extends StatelessWidget {
+  const GuestSitePostDetailContent({super.key, required this.post, required this.accent});
+
+  final Map<String, dynamic> post;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = post['title']?.toString() ?? 'Post';
+    final caption = post['caption']?.toString() ?? '';
+    final body = post['body']?.toString() ?? '';
+    final thumb = post['thumb']?.toString() ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (thumb.trim().isNotEmpty) ...[
+          GestureDetector(
+            onTap: () => unawaited(showGuestSitePicViewer(context, thumb)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: GuestSitePic(
+                pic: thumb,
+                height: 160,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                variant: GuestSitePicVariant.display,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Text(
+          title,
+          style: const TextStyle(color: _guestTextPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        if (caption.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(caption, style: const TextStyle(color: _guestTextSecondary, fontSize: 13)),
+        ],
+        if (body.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(body, style: const TextStyle(color: _guestTextPrimary, fontSize: 13, height: 1.45)),
+        ],
+      ],
+    );
+  }
+}
+
 class GuestSiteCustomHtmlBlock extends StatelessWidget {
   const GuestSiteCustomHtmlBlock({super.key});
 
@@ -1621,82 +2167,60 @@ Future<void> showGuestSiteProductDetailSheet({
   required Color accent,
   GuestSiteCartController? cart,
 }) {
-  final name = product['name']?.toString() ?? 'Product';
-  final desc = product['desc']?.toString() ?? product['description']?.toString() ?? '';
-  final price = product['price'] is num ? (product['price'] as num).toInt() : 0;
-  final pid = (product['product_id'] as num?)?.toInt() ?? 0;
-  final canReserve = product['can_reserve'] == true;
-  final picUrl = guestSitePicUrl(product['pic']?.toString() ?? '');
-  final icon = product['icon']?.toString() ?? '';
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: const Color(0xFF18181B),
     builder: (sheetContext) {
       return Padding(
+        key: const Key('guest-product-detail'),
         padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(sheetContext).bottom),
         child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (picUrl.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    picUrl,
-                    height: 96,
-                    width: 96,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _guestDetailIcon(accent, icon),
-                  ),
-                )
-              else
-                _guestDetailIcon(accent, icon),
-              const SizedBox(height: 12),
-              Text(
-                name,
-                style: const TextStyle(color: _guestTextPrimary, fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              if (desc.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(desc, style: const TextStyle(color: _guestTextSecondary, fontSize: 13, height: 1.4)),
-              ],
-              if (price > 0) ...[
-                const SizedBox(height: 8),
-                Text(
-                  moneyFmtIdr(price),
-                  style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ],
-              const SizedBox(height: 12),
-              if (canReserve && cart != null && pid > 0)
-                TextButton(
-                  onPressed: () async {
-                    Navigator.of(sheetContext).pop();
-                    await showGuestSiteReservationSheet(
-                      context: context,
-                      siteIid: siteIid,
-                      product: product,
-                      objects: objects,
-                      accent: accent,
-                    );
-                  },
-                  child: const Text('Reservasi'),
-                )
-              else if (!canReserve && cart != null && pid > 0 && price > 0)
-                TextButton(
-                  onPressed: () {
-                    cart.addProduct(productId: pid, name: name, price: price);
-                    Navigator.of(sheetContext).pop();
-                  },
-                  child: const Text('+ Pesan'),
-                ),
-            ],
+          child: GuestSiteProductDetailContent(
+            siteIid: siteIid,
+            product: product,
+            objects: objects,
+            accent: accent,
+            cart: cart,
+            onClose: () => Navigator.of(sheetContext).pop(),
           ),
         ),
       );
     },
+  );
+}
+
+Future<void> guestSiteOpenProductDetail({
+  required BuildContext context,
+  required int siteIid,
+  required Map<String, dynamic> product,
+  required List<Map<String, dynamic>> objects,
+  required Color accent,
+  GuestSiteCartController? cart,
+}) async {
+  final pid = (product['product_id'] as num?)?.toInt() ?? 0;
+  if (pid <= 0) return;
+  final shellNav = GuestSiteShellScope.maybeNavigatorKey(context)?.currentState;
+  if (shellNav != null) {
+    await shellNav.pushNamed<void>(
+      '/products/$pid',
+      arguments: GuestSiteProductRouteArgs(
+        siteIid: siteIid,
+        product: product,
+        objects: objects,
+        accent: accent,
+        cart: cart,
+      ),
+    );
+    return;
+  }
+  await showGuestSiteProductDetailSheet(
+    context: context,
+    siteIid: siteIid,
+    product: product,
+    objects: objects,
+    accent: accent,
+    cart: cart,
   );
 }
 
@@ -1716,38 +2240,37 @@ Widget _guestDetailIcon(Color accent, String icon) {
 Future<void> showGuestSitePostDetailSheet({
   required BuildContext context,
   required Map<String, dynamic> post,
+  Color accent = const Color(0xFFF97316),
 }) {
-  final title = post['title']?.toString() ?? 'Post';
-  final caption = post['caption']?.toString() ?? '';
-  final body = post['body']?.toString() ?? '';
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: const Color(0xFF18181B),
     builder: (sheetContext) {
       return Padding(
+        key: const Key('guest-post-detail'),
         padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.viewPaddingOf(sheetContext).bottom),
         child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(color: _guestTextPrimary, fontSize: 16, fontWeight: FontWeight.w700),
-              ),
-              if (caption.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(caption, style: const TextStyle(color: _guestTextSecondary, fontSize: 13)),
-              ],
-              if (body.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(body, style: const TextStyle(color: _guestTextPrimary, fontSize: 13, height: 1.45)),
-              ],
-            ],
-          ),
+          child: GuestSitePostDetailContent(post: post, accent: accent),
         ),
       );
     },
   );
+}
+
+Future<void> guestSiteOpenPostDetail({
+  required BuildContext context,
+  required Map<String, dynamic> post,
+  required Color accent,
+}) async {
+  final id = post['id']?.toString() ?? '';
+  final shellNav = GuestSiteShellScope.maybeNavigatorKey(context)?.currentState;
+  if (shellNav != null && id.isNotEmpty) {
+    await shellNav.pushNamed<void>(
+      '/posts/$id',
+      arguments: GuestSitePostRouteArgs(post: post, accent: accent),
+    );
+    return;
+  }
+  await showGuestSitePostDetailSheet(context: context, post: post, accent: accent);
 }

@@ -16,6 +16,10 @@ pub fn stats_kv_key_volume(node_name: &str, namespace: &str, pvc_name: &str) -> 
     format!("vol/{node_name}/{namespace}/{pvc_name}")
 }
 
+pub fn stats_kv_key_pod(node_name: &str, namespace: &str, pod_name: &str) -> String {
+    format!("pod/{node_name}/{namespace}/{pod_name}")
+}
+
 pub fn stats_kv_key_platform_user_count() -> &'static str {
     "platform/user_count"
 }

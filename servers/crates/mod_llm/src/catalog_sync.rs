@@ -490,9 +490,7 @@ async fn cf_models_fetch() -> Result<Vec<LlmModelRow>> {
             break;
         }
     }
-    if raw_rows.is_empty() {
-        tracing::warn!("cf_models_fetch: zero rows from Cloudflare models search (check token Workers AI Read + account id)");
-    } else {
+    if !raw_rows.is_empty() {
         tracing::info!(cf_raw_rows = raw_rows.len(), "cf_models_fetch pages merged");
     }
     let mut out = Vec::new();

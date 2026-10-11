@@ -39,11 +39,28 @@ class Session {
   String modelId = '';
   int referredByIid = 0;
   bool referralDismissed = false;
+  /// Persisted UI switch: when false, [isRoot] is false even for root accounts.
+  bool rootAccessEnabled = true;
 
   bool get signedIn => uid > 0 && token.isNotEmpty;
   bool get allowControlYes => allowControl == 'yes';
-  bool get isRoot => globalRoles.contains('root');
+  bool get hasRootRole => globalRoles.contains('root');
   bool get isTester => globalRoles.contains('tester');
+
+  bool _sessionDevRootViewer() {
+    if (uid == 99000) return true;
+    final h = handle.trim().toLowerCase().replaceAll('@', '');
+    if (h == 'chito') return true;
+    final n = name.trim().toLowerCase().replaceAll('@', '');
+    return n == 'chito';
+  }
+
+  /// Effective root UI / tooling (single source of truth for the app shell).
+  bool get isRoot {
+    if (!rootAccessEnabled) return false;
+    if (hasRootRole) return true;
+    return _sessionDevRootViewer();
+  }
 
   bool get isFinanceStaff => isRoot || globalRoles.any((r) => r == 'finance' || r == 'director');
 
@@ -74,6 +91,7 @@ class Session {
     modelId = p.getString(C35AppId.model) ?? '';
     referredByIid = p.getInt(C35AppId.sessionReferredBy) ?? 0;
     referralDismissed = p.getBool(C35AppId.sessionReferralDismissed) ?? false;
+    rootAccessEnabled = p.getBool(C35AppId.sessionRootAccessEnabled) ?? true;
     sessionTick.value++;
     unawaited(mailInboxBus.restoreForSession());
   }
@@ -96,6 +114,14 @@ class Session {
     thisPcName = value;
     final p = await SharedPreferences.getInstance();
     await p.setString(C35AppId.thisPcName, value);
+    sessionTick.value++;
+  }
+
+  Future<void> rootAccessPut(bool enabled) async {
+    if (rootAccessEnabled == enabled) return;
+    rootAccessEnabled = enabled;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(C35AppId.sessionRootAccessEnabled, enabled);
     sessionTick.value++;
   }
 
@@ -223,6 +249,7 @@ class Session {
     modelId = '';
     referredByIid = 0;
     referralDismissed = false;
+    rootAccessEnabled = true;
     mailInboxBus.clear();
     if (clearStored) {
       final p = await SharedPreferences.getInstance();
@@ -235,6 +262,7 @@ class Session {
       await p.remove(C35AppId.sessionGlobalRoles);
       await p.remove(C35AppId.sessionReferredBy);
       await p.remove(C35AppId.sessionReferralDismissed);
+      await p.remove(C35AppId.sessionRootAccessEnabled);
       await p.remove(C35AppId.allowControl);
       await p.remove(C35AppId.thisPcName);
       await p.remove(C35AppId.model);

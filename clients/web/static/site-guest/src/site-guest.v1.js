@@ -92,6 +92,8 @@
     reservationEndFromDuration,
   };
 
+  const GUEST_PRODUCT_PRICE_CONTACT = -1;
+
   function formatIdr(amount) {
     const s = Math.round(amount || 0).toString();
     let out = '';
@@ -100,6 +102,70 @@
       out += s[i];
     }
     return 'Rp ' + out;
+  }
+
+  /** Cart/checkout totals — matches Flutter `GuestSiteCartChrome` (`Rp ${n}`). */
+  function formatRpPlain(amount) {
+    return 'Rp ' + Math.round(amount || 0);
+  }
+
+  /** Order history lines — matches Flutter `GuestSiteOrdersChip` subtitle. */
+  function formatOrderTotal(amount) {
+    return 'IDR ' + Math.round(amount || 0);
+  }
+
+  function guestProductPriceLabel(price) {
+    const p = Math.round(price || 0);
+    if (p === GUEST_PRODUCT_PRICE_CONTACT) return 'Contact Us';
+    if (p <= 0) return '';
+    return formatIdr(p);
+  }
+
+  function guestProductCanAddToCart(price) {
+    return Math.round(price || 0) > 0;
+  }
+
+  function picHashOnly(pic) {
+    const raw = String(pic || '').trim();
+    if (!raw) return '';
+    if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+    let path = raw;
+    if (path.startsWith('/fs/')) path = path.slice(4);
+    else if (path.startsWith('fs/')) path = path.slice(3);
+    return path.split('?')[0];
+  }
+
+  function picUrlThumb(pic) {
+    const h = picHashOnly(pic);
+    if (!h) return '';
+    if (h.startsWith('http')) return h;
+    return '/fs/' + h + '?v=thumb';
+  }
+
+  function picUrlDisplay(pic) {
+    const h = picHashOnly(pic);
+    if (!h) return '';
+    if (h.startsWith('http')) return h;
+    return '/fs/' + h + '?v=small';
+  }
+
+  function productGridDisplayFromSection(section) {
+    if (!section) return 'grid';
+    const raw = (section.getAttribute('data-display') || '').trim().toLowerCase();
+    return raw === 'list' ? 'list' : 'grid';
+  }
+
+  function openPicLightbox(url) {
+    if (!url) return;
+    const scrim = document.createElement('div');
+    scrim.className = 'guest-pic-lightbox';
+    scrim.innerHTML = '<button type="button" class="guest-pic-lightbox-close" aria-label="Close">&times;</button>'
+      + '<img src="' + url.replace(/"/g, '&quot;') + '" alt=""/>';
+    function close() { scrim.remove(); }
+    scrim.addEventListener('click', function (e) {
+      if (e.target === scrim || e.target.closest('.guest-pic-lightbox-close')) close();
+    });
+    document.body.appendChild(scrim);
   }
 
   function escHtml(value) {
@@ -139,12 +205,21 @@
     return '<div class="product-ph" aria-hidden="true">' + safe + '</div>';
   }
 
+  function productPurchaseAction(item) {
+    const pid = item.product_id;
+    return '<button type="button" class="guest-product-info-btn" data-product-info="' + pid + '" aria-label="Detail">&#9432;</button>';
+  }
+
   window.c35GuestCatalog = window.c35GuestCatalog || {
     formatIdr,
+    guestProductPriceLabel,
     productCardHtml(item) {
       const pic = item.pic || '';
+      const thumb = picUrlThumb(pic) || pic;
+      const displayUrl = picUrlDisplay(pic);
       const img = pic
-        ? '<img src="' + pic.replace(/"/g, '&quot;') + '" alt="" loading="lazy"/>'
+        ? '<img class="guest-pic-thumb" src="' + thumb.replace(/"/g, '&quot;') + '" alt="" loading="lazy"'
+          + ' data-pic-display="' + displayUrl.replace(/"/g, '&quot;') + '" role="button" tabindex="0"/>'
         : productPlaceholderHtml(item);
       const name = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const desc = (item.desc || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -154,7 +229,6 @@
       const pid = item.product_id;
       const canReserve = item.can_reserve === true || item.can_reserve === 1 || item.can_reserve === '1';
       let reserveAttr = '';
-      let action;
       if (canReserve) {
         reserveAttr = ' data-can-reserve="1"'
           + ' data-name="' + name.replace(/"/g, '&quot;') + '"'
@@ -163,15 +237,48 @@
           + ' data-duration-value="' + (item.duration_value || 1) + '"'
           + ' data-duration-unit="' + escHtml(item.duration_unit || 'day') + '"'
           + ' data-unit-selection="' + escHtml(item.reservation_unit_selection || 'system') + '"';
-        action = '<button type="button" class="guest-reserve-btn" data-reserve-product="' + pid + '">Reservasi</button>';
-      } else {
-        action = '<button type="button" class="guest-add-btn" onclick="c35GuestCart.add(' + pid + ", '" + nameJs + "', " + price + ", '" + picJs + "')\">+ Pesan</button>";
       }
-      return '<article class="product-card" data-pid="' + pid + '"' + reserveAttr + '>' + img
+      const priceLabel = guestProductPriceLabel(price);
+      const priceHtml = priceLabel ? '<span class="price">' + escHtml(priceLabel) + '</span>' : '';
+      const action = productPurchaseAction(item);
+      return '<article class="product-card guest-product-tile" data-pid="' + pid + '"' + reserveAttr + '>' + img
         + '<div class="product-info"><h3>' + name + '</h3><p>' + desc + '</p>'
-        + '<div class="product-bottom"><span class="price">' + formatIdr(price) + '</span>'
+        + '<div class="product-bottom">' + priceHtml
         + action
         + '</div></div></article>';
+    },
+    productListRowHtml(item) {
+      const pic = item.pic || '';
+      const thumb = picUrlThumb(pic) || pic;
+      const displayUrl = picUrlDisplay(pic);
+      const img = pic
+        ? '<img class="guest-pic-thumb" src="' + thumb.replace(/"/g, '&quot;') + '" alt="" loading="lazy"'
+          + ' data-pic-display="' + displayUrl.replace(/"/g, '&quot;') + '" role="button" tabindex="0"/>'
+        : productPlaceholderHtml(item);
+      const name = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const desc = (item.desc || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const nameJs = (item.name || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const picJs = (pic || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const price = Math.round(item.price || 0);
+      const pid = item.product_id;
+      const canReserve = item.can_reserve === true || item.can_reserve === 1 || item.can_reserve === '1';
+      let reserveAttr = '';
+      if (canReserve) {
+        reserveAttr = ' data-can-reserve="1"'
+          + ' data-name="' + name.replace(/"/g, '&quot;') + '"'
+          + ' data-price="' + price + '"'
+          + ' data-pic="' + String(pic || '').replace(/"/g, '&quot;') + '"'
+          + ' data-duration-value="' + (item.duration_value || 1) + '"'
+          + ' data-duration-unit="' + escHtml(item.duration_unit || 'day') + '"'
+          + ' data-unit-selection="' + escHtml(item.reservation_unit_selection || 'system') + '"';
+      }
+      const priceLabel = guestProductPriceLabel(price);
+      const priceHtml = priceLabel ? '<span class="price">' + escHtml(priceLabel) + '</span>' : '';
+      const action = productPurchaseAction(item);
+      return '<article class="product-list-row guest-product-tile" data-pid="' + pid + '"' + reserveAttr + '>'
+        + '<div class="product-list-thumb">' + img + '</div>'
+        + '<div class="product-list-body"><h3>' + name + '</h3><p>' + desc + '</p></div>'
+        + '<div class="product-list-trail">' + priceHtml + action + '</div></article>';
     },
     async loadMore(btn) {
       const section = btn && btn.closest ? btn.closest('section.product-grid') : null;
@@ -196,11 +303,13 @@
         });
         if (!resp.ok) throw new Error((await resp.text()) || 'Gagal memuat produk');
         const data = await resp.json();
-        const grid = section.querySelector('.grid');
+        const layout = section.querySelector('.grid, .list');
+        const display = productGridDisplayFromSection(section);
         const items = (data && data.items) ? data.items : [];
         let html = '';
-        for (const item of items) html += this.productCardHtml(item);
-        if (grid) grid.insertAdjacentHTML('beforeend', html);
+        const rowFn = display === 'list' ? this.productListRowHtml : this.productCardHtml;
+        for (const item of items) html += rowFn(item);
+        if (layout) layout.insertAdjacentHTML('beforeend', html);
         const next = (data && data.next_cursor) ? data.next_cursor : '';
         section.setAttribute('data-next-cursor', next);
         if (!next) btn.style.display = 'none';
@@ -269,6 +378,33 @@
     statusEl.innerHTML = html;
   }
 
+  window.c35GuestLead = window.c35GuestLead || {
+    async submit(form) {
+      const siteIid = siteIidFrom(form);
+      if (!siteIid) {
+        alert('Site tidak dikenali');
+        return;
+      }
+      const fd = new FormData(form);
+      const name = String(fd.get('name') || '').trim();
+      const contactVal = String(fd.get('contact') || fd.get('contact_val') || fd.get('email') || '').trim();
+      const message = String(fd.get('message') || '').trim();
+      try {
+        const resp = await fetch(apiBase() + '/v1/site/guest-contact/put', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ site_iid: siteIid, name, contact_val: contactVal, message }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || data.ok === false) throw new Error(data.error || 'Gagal kirim');
+        form.reset();
+        alert('Pesan terkirim');
+      } catch (err) {
+        alert(err.message || String(err));
+      }
+    },
+  };
+
   window.c35GuestOrder = window.c35GuestOrder || {
     async poll(btn) {
       const section = btn && btn.closest ? btn.closest('section.order-track') : null;
@@ -291,15 +427,13 @@
         if (!resp.ok) throw new Error((await resp.text()) || 'Pesanan tidak ditemukan');
         const data = await resp.json();
         const tx = data.tx || {};
-        const state = tx.state != null ? tx.state : (tx.status || '');
+        const state = tx.state || tx.status || '';
         const steps = window.__SITE_GUEST__ && window.__SITE_GUEST__.order_progress_steps;
-        renderProgressSteps(statusEl, state, steps);
-        const label = tx.progress_label || progressLabel(state, steps);
-        if (statusEl) {
-          statusEl.insertAdjacentHTML(
-            'beforeend',
-            `<p class="order-track-label">${label}${tx.total ? ' · ' + formatIdr(tx.total) : ''}</p>`,
-          );
+        if (statusEl && steps && steps.length && state) {
+          renderProgressSteps(statusEl, state, steps);
+        } else if (statusEl) {
+          const label = tx.progress_label || state || '—';
+          statusEl.innerHTML = '<p class="order-track-label">' + String(label).replace(/</g, '&lt;') + '</p>';
         }
       } catch (err) {
         if (statusEl) statusEl.textContent = '';
@@ -438,6 +572,23 @@
       return n;
     }
 
+    function refreshTileBadges() {
+      document.querySelectorAll('.guest-product-tile').forEach(function (tile) {
+        const pid = parseInt(tile.getAttribute('data-pid') || '0', 10);
+        const badge = tile.querySelector('.guest-tile-cart-badge');
+        if (!badge) return;
+        const line = items[pid];
+        const qty = line && !line.slots ? (line.qty || 0) : 0;
+        if (qty > 0) {
+          badge.hidden = false;
+          badge.textContent = String(qty);
+        } else {
+          badge.hidden = true;
+          badge.textContent = '';
+        }
+      });
+    }
+
     function refreshBar() {
       const bar = document.getElementById('c35-guest-cart-bar');
       const countEl = document.getElementById('c35-cart-count');
@@ -445,7 +596,8 @@
       const n = count();
       if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
       if (countEl) countEl.textContent = String(n);
-      if (totalEl) totalEl.textContent = formatIdr(grandTotal());
+      if (totalEl) totalEl.textContent = formatRpPlain(grandTotal());
+      refreshTileBadges();
     }
 
     function toast(msg) {
@@ -475,13 +627,13 @@
           lines.push('<div class="guest-cart-item" data-key="' + escHtml(line.key) + '">'
             + '<div><div class="guest-item-title">' + escHtml(name) + '</div>'
             + '<div class="guest-item-price">' + summary + '</div>'
-            + '<div class="guest-item-price">' + formatIdr(price) + '</div></div>'
+            + '<div class="guest-item-price">' + formatRpPlain(price) + '</div></div>'
             + '<button type="button" class="guest-qty-btn" data-act="rm" data-key="' + escHtml(line.key) + '">\u00d7</button>'
             + '</div>');
         } else {
           lines.push('<div class="guest-cart-item" data-pid="' + escHtml(line.key) + '">'
             + '<div><div class="guest-item-title">' + escHtml(name) + '</div>'
-            + '<div class="guest-item-price">' + formatIdr(price) + '</div></div>'
+            + '<div class="guest-item-price">' + formatRpPlain(price) + '</div></div>'
             + '<div class="guest-qty-stepper">'
             + '<button type="button" class="guest-qty-btn" data-act="dec" data-pid="' + escHtml(line.key) + '">\u2212</button>'
             + '<span>' + line.qty + '</span>'
@@ -498,13 +650,13 @@
         .join('');
       sheet.innerHTML = `
         <div class="guest-sheet-head"><h3>Pesanan</h3><button type="button" class="guest-close-btn" id="c35-cart-close">×</button></div>
-        <div class="guest-cart-list">${lineHtml || '<p>Keranjang kosong</p>'}</div>
-        <div class="guest-checkout-total"><span>Total</span><strong>${formatIdr(grandTotal())}</strong></div>
+        <div class="guest-cart-list">${lineHtml || '<p class="guest-cart-empty">Keranjang kosong</p>'}</div>
         <label class="guest-field"><span>Nama</span><input id="c35-guest-name" value="${customerName.replace(/"/g, '&quot;')}" placeholder="Nama Anda"/></label>
         <label class="guest-field"><span>HP / WhatsApp</span><input id="c35-guest-phone" value="${customerPhone.replace(/"/g, '&quot;')}" placeholder="08..."/></label>
         <label class="guest-field"><span>Catatan</span><textarea id="c35-guest-note" rows="2">${note.replace(/</g, '&lt;')}</textarea></label>
         ${payOpts ? `<label class="guest-field"><span>Pembayaran</span><select id="c35-guest-pay">${payOpts}</select></label>` : ''}
-        <button type="button" class="guest-submit-btn" id="c35-guest-submit">${busy ? 'Mengirim…' : 'Kirim pesanan'}</button>
+        <div class="guest-checkout-total"><span>Total</span><strong>${formatRpPlain(grandTotal())}</strong></div>
+        <button type="button" class="guest-submit-btn" id="c35-guest-submit">${busy ? 'Mengirim...' : 'Kirim pesanan'}</button>
         <p id="c35-guest-err" class="guest-error"></p>`;
       sheet.querySelector('#c35-cart-close')?.addEventListener('click', () => api.closeModal());
       sheet.querySelectorAll('.guest-qty-btn').forEach((btn) => {
@@ -619,6 +771,10 @@
         busy = true;
         renderModal();
         try {
+          const payLabel = (paymentMethods.find(function (m) { return m.id === paymentId; }) || {}).title || paymentId;
+          const baseNote = (note || '').trim();
+          const payLine = payLabel ? ('Pembayaran: ' + payLabel) : '';
+          const fullNote = payLine ? (baseNote ? (baseNote + '\n' + payLine) : payLine) : baseNote;
           const resp = await fetch(apiBase() + '/v1/site/guest-order/put', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -626,11 +782,11 @@
               site_iid: siteIid,
               customer_name: name,
               customer_phone: (customerPhone || '').trim(),
-              note: (note || '').trim(),
+              note: fullNote,
               tx: {
                 subject_name: name,
                 subject_phone: (customerPhone || '').trim(),
-                desc: (note || '').trim(),
+                desc: fullNote,
                 items: txItems,
               },
             }),
@@ -661,6 +817,71 @@
     refreshBar();
     return api;
   })();
+
+  window.c35GuestCatalogUi = {
+    init() {
+      if (window.__c35CatalogUiBound) return;
+      window.__c35CatalogUiBound = true;
+      if (!document.getElementById('c35-guest-pic-lightbox-style')) {
+        const st = document.createElement('style');
+        st.id = 'c35-guest-pic-lightbox-style';
+        st.textContent = '.guest-pic-lightbox{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:24px}'
+          + '.guest-pic-lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}'
+          + '.guest-pic-lightbox-close{position:absolute;top:12px;right:16px;border:0;background:transparent;color:#fff;font-size:32px;cursor:pointer}';
+        document.head.appendChild(st);
+      }
+      document.addEventListener('click', function (e) {
+        const img = e.target && e.target.closest ? e.target.closest('img.guest-pic-thumb') : null;
+        if (img) {
+          const url = img.getAttribute('data-pic-display') || img.getAttribute('src') || '';
+          if (url) {
+            e.preventDefault();
+            openPicLightbox(url);
+          }
+          return;
+        }
+        const infoBtn = e.target && e.target.closest ? e.target.closest('.guest-product-info-btn') : null;
+        if (infoBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const pid = infoBtn.getAttribute('data-product-info');
+          if (pid) window.location.href = 'products/' + pid;
+          return;
+        }
+        const tile = e.target && e.target.closest ? e.target.closest('.guest-product-tile') : null;
+        if (!tile || !window.c35GuestCart) return;
+        const pid = parseInt(tile.getAttribute('data-pid') || '0', 10);
+        if (!pid) return;
+        const found = bootProducts().find(function (p) { return Number(p.product_id) === pid; });
+        const price = found ? Math.round(found.price || 0) : parseInt(attrOf(tile, 'data-price') || '0', 10) || 0;
+        const name = found ? (found.name || 'Produk') : (attrOf(tile, 'data-name') || 'Produk');
+        const pic = found ? (found.pic || '') : (attrOf(tile, 'data-pic') || '');
+        const canReserve = found
+          ? (found.can_reserve === true || found.can_reserve === 1)
+          : tile.getAttribute('data-can-reserve') === '1';
+        if (canReserve) {
+          e.preventDefault();
+          const product = found || {
+            product_id: pid,
+            name,
+            price,
+            pic,
+            can_reserve: true,
+            duration_value: parseInt(attrOf(tile, 'data-duration-value') || '1', 10) || 1,
+            duration_unit: attrOf(tile, 'data-duration-unit') || 'day',
+            reservation_unit_selection: attrOf(tile, 'data-unit-selection') || 'system',
+          };
+          if (window.c35GuestReserve) window.c35GuestReserve.open(product);
+          return;
+        }
+        if (!guestProductCanAddToCart(price)) return;
+        e.preventDefault();
+        const nameJs = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const picJs = String(pic || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        window.c35GuestCart.add(pid, nameJs, price, picJs);
+      });
+    },
+  };
 
   window.c35GuestReserve = {
     init() {
@@ -1006,6 +1227,35 @@
     for (const slot of slots) scheduleAvail(slot);
   }
 
+  window.c35GuestPost = window.c35GuestPost || {
+    init() {
+      document.querySelectorAll('.guest-post-carousel').forEach(function (root) {
+        if (root.getAttribute('data-carousel-bound') === '1') return;
+        root.setAttribute('data-carousel-bound', '1');
+        const slides = root.querySelectorAll('.guest-post-carousel-slide');
+        const dots = root.querySelectorAll('.guest-post-carousel-dot');
+        if (slides.length < 2) return;
+        let idx = 0;
+        function show(i) {
+          idx = i;
+          slides.forEach(function (el, n) {
+            el.style.display = n === idx ? 'block' : 'none';
+          });
+          dots.forEach(function (el, n) {
+            el.classList.toggle('is-active', n === idx);
+          });
+        }
+        dots.forEach(function (dot, n) {
+          dot.addEventListener('click', function (e) {
+            e.preventDefault();
+            show(n);
+          });
+        });
+        show(0);
+      });
+    },
+  };
+
   window.c35GuestOrders = window.c35GuestOrders || {
     refreshChip() {
       const g = window.__SITE_GUEST__ || {};
@@ -1025,7 +1275,7 @@
         return;
       }
       const lines = list
-        .map((o) => '#' + o.tx_id + (o.total ? ' · ' + formatIdr(o.total) : ''))
+        .map((o) => '#' + o.tx_id + (o.total ? ' · ' + formatOrderTotal(o.total) : ''))
         .join('\n');
       alert('Pesanan tersimpan:\n' + lines);
     },
@@ -1033,11 +1283,15 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
+      window.c35GuestCatalogUi.init();
       window.c35GuestReserve.init();
+      window.c35GuestPost.init();
       window.c35GuestOrders.refreshChip();
     });
   } else {
+    window.c35GuestCatalogUi.init();
     window.c35GuestReserve.init();
+    window.c35GuestPost.init();
     window.c35GuestOrders.refreshChip();
   }
 })();

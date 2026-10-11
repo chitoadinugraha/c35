@@ -1,6 +1,5 @@
 //! Compose inst match + vector/lexical tool filter per turn.
 
-mod mail_gate;
 mod mention_gate;
 mod staff_gate;
 mod tool_select;
@@ -28,7 +27,6 @@ use crate::mention_context::MentionContext;
 use crate::site_capability::SiteCapabilityView;
 use crate::tools::ToolDef;
 
-pub use mail_gate::tool_platform_mail_eligible;
 pub use mention_gate::{
     tool_mention_capability_eligible, tool_mention_eligible, tool_mention_kinds_eligible,
 };
@@ -38,6 +36,11 @@ pub use tool_select::{
     compose_inject_force_tools, tool_turn_eligible, tools_for_turn,
 };
 pub use topic::{tool_topic_eligible, topic_resolve};
+
+#[derive(Clone)]
+pub struct ComposePreload {
+    pub staff: StaffView,
+}
 
 #[derive(Clone, Copy)]
 pub struct ComposeTurnOpts<'a> {
@@ -419,7 +422,6 @@ fn compose_prepare_scoped(
     mention: &MentionContext,
     caps: &SiteCapabilityView,
     staff: &StaffView,
-    platform_mail: bool,
     opts: ComposeTurnOpts<'_>,
 ) -> Result<ComposePrep, ComposeOutput> {
     let mut topics: Vec<String> = if active_topics.is_empty() {
@@ -498,7 +500,6 @@ fn compose_prepare_scoped(
         .into_iter()
         .filter(|t| tool_mention_eligible(t, mention, caps))
         .filter(|t| tool_staff_eligible(t, staff))
-        .filter(|t| tool_platform_mail_eligible(t, platform_mail))
         .filter(|t| !ask_mode || t.readonly)
         .collect();
     if !crate::site_commerce_compose::site_commerce_suppress_general_web(text, &matched_ids) {
@@ -643,12 +644,14 @@ pub async fn compose_tools_and_inst_async(
     opts: ComposeTurnOpts<'_>,
     owner_iid: i64,
     locale: &str,
+    preload: Option<ComposePreload>,
 ) -> ComposeOutput {
     let started = Instant::now();
-    let staff = c35_mod_admin::staff_view_load(pool, owner_iid).await;
-    let platform_mail = c35_mod_mail::mail_access(pool, owner_iid)
-        .await
-        .unwrap_or(false);
+    let staff = if let Some(p) = preload {
+        p.staff
+    } else {
+        c35_mod_admin::staff_view_load(pool, owner_iid).await
+    };
     let prep = match compose_prepare_scoped(
         inst_rows,
         text,
@@ -662,7 +665,6 @@ pub async fn compose_tools_and_inst_async(
         mention,
         caps,
         &staff,
-        platform_mail,
         opts,
     ) {
         Ok(p) => p,
@@ -694,7 +696,6 @@ pub async fn compose_tools_and_inst_async(
     let matched = prep.matched.clone();
     let eligible = prep.eligible.clone();
     let rag_skipped = prep.rag_skipped;
-    let parallel_start = Instant::now();
 
     let ((enrich_res, enrich_ms), vector_find) = tokio::join!(
         async {
@@ -713,9 +714,8 @@ pub async fn compose_tools_and_inst_async(
 
     let mut prep = prep;
     prep.inst_block.push_str(&enrich_res.suffix);
-    let parallel_ms = parallel_start.elapsed().as_millis() as i64;
     let mut out = compose_finish(started, prep, text, vector_find.as_ref());
-    out.trace.duration_ms = parallel_ms;
+    out.trace.duration_ms = started.elapsed().as_millis() as i64;
     out.trace.inst_enrich_ms = enrich_ms;
     out.trace.inst_enrich_keys = enrich_res.keys;
     if let Some(vf) = vector_find.as_ref() {
@@ -759,7 +759,6 @@ pub fn compose_tools_and_inst(
         mention,
         caps,
         &staff,
-        false,
         opts,
     ) {
         Ok(p) => p,

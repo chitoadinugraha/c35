@@ -164,12 +164,11 @@ async fn site_grant_owner_row(pool: &PgPool, site_iid: i64, owner_iid: i64) -> R
     Ok(row.as_ref().map(grant_from_row))
 }
 
-pub async fn site_grant_list(
+pub(crate) async fn site_grants_load_for_site(
     pool: &PgPool,
-    caller_iid: i64,
-    req: ReqSiteGrantList,
-) -> Result<ResSiteGrantList> {
-    let owner_iid = site_grant_check(pool, caller_iid, req.site_iid, true).await?;
+    site_iid: i64,
+    owner_iid: i64,
+) -> Result<Vec<SiteGrant>> {
     let email_sql = SITE_GRANT_EMAIL_SQL;
     let sql = format!(
         r#"
@@ -193,22 +192,31 @@ pub async fn site_grant_list(
         "#
     );
     let rows = sqlx::query(&sql)
-        .bind(req.site_iid)
+        .bind(site_iid)
         .bind(owner_iid)
         .fetch_all(pool)
         .await?;
     let grants = rows.iter().map(grant_from_row).collect::<Vec<_>>();
-    let owner = site_grant_owner_row(pool, req.site_iid, owner_iid)
+    let owner = site_grant_owner_row(pool, site_iid, owner_iid)
         .await?
         .unwrap_or(SiteGrant {
-            site_iid: req.site_iid,
+            site_iid,
             grantee_iid: owner_iid,
             role: "owner".into(),
             is_owner: true,
             ..Default::default()
         });
+    Ok(site_grant_list_ensure_owner(grants, owner))
+}
+
+pub async fn site_grant_list(
+    pool: &PgPool,
+    caller_iid: i64,
+    req: ReqSiteGrantList,
+) -> Result<ResSiteGrantList> {
+    let owner_iid = site_grant_check(pool, caller_iid, req.site_iid, true).await?;
     Ok(ResSiteGrantList {
-        grants: site_grant_list_ensure_owner(grants, owner),
+        grants: site_grants_load_for_site(pool, req.site_iid, owner_iid).await?,
     })
 }
 

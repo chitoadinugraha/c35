@@ -215,6 +215,7 @@ CREATE TABLE IF NOT EXISTS site.product (
     search_text         TEXT NOT NULL DEFAULT '',
     sort_order          INT NOT NULL DEFAULT 0,
     is_archived         BOOLEAN NOT NULL DEFAULT FALSE,
+    is_used             BOOLEAN NOT NULL DEFAULT FALSE,
 
     ehash_search        VARCHAR(64) NOT NULL DEFAULT '',
     embed_model         VARCHAR(64) NOT NULL DEFAULT '',
@@ -225,6 +226,17 @@ CREATE TABLE IF NOT EXISTS site.product (
 
     PRIMARY KEY (site_iid, product_id)
 );
+
+ALTER TABLE site.product ADD COLUMN IF NOT EXISTS is_used BOOLEAN NOT NULL DEFAULT FALSE;
+
+UPDATE site.product p
+SET is_used = TRUE
+WHERE is_used = FALSE
+  AND EXISTS (
+    SELECT 1 FROM site.tx_item ti
+    WHERE ti.site_iid = p.site_iid AND ti.product_id = p.product_id AND ti.product_id > 0
+    LIMIT 1
+  );
 
 CREATE INDEX IF NOT EXISTS idx_site_product_site_sync
     ON site.product (site_iid, updated_ts);

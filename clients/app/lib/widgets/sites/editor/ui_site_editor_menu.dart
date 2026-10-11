@@ -24,7 +24,7 @@ const siteEditorMenuDefaultId = 'info';
 const siteEditorAttendanceEnabled = true;
 
 List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps, {bool platformSite = false}) {
-  const managed = 'Managed on the Alien AI home';
+  const managed = 'Managed';
   return [
       SiteEditorMenuGroup('Site', [
         const SiteEditorMenuItem('info', Icons.info_outline, 'Info'),

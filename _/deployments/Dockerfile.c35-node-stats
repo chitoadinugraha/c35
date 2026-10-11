@@ -3,52 +3,70 @@
 #   docker build --platform linux/arm64 -f _/deployments/Dockerfile.c35-node-stats -t c35-node-stats .
 
 ARG RUST_CHEF_IMAGE=hsg.ocir.io/axr8wqrrukgm/c35-rust-chef:1.89-bookworm
-FROM ${RUST_CHEF_IMAGE} AS chef
+FROM ${RUST_CHEF_IMAGE} AS rust-build
 WORKDIR /app
 
-FROM chef AS planner
 COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
+COPY servers/crates /app/servers/crates
 COPY servers/node_stats /app/servers/node_stats
-COPY servers/crates/proto /app/servers/crates/proto
+COPY servers/server_ai/Cargo.toml /app/servers/server_ai/
+COPY servers/fetcher/Cargo.toml /app/servers/fetcher/
+COPY servers/channel_whatsapp_device/Cargo.toml /app/servers/channel_whatsapp_device/
+COPY _/deployments/docker/workspace-stub.sh /usr/local/bin/workspace-stub.sh
 COPY _/schemas /app/_/schemas
-WORKDIR /app/servers
-RUN cargo chef prepare --recipe-path /tmp/recipe.json
 
-FROM chef AS rust-build
-WORKDIR /app
-
-COPY servers/Cargo.toml servers/Cargo.lock /app/servers/
-COPY servers/node_stats/Cargo.toml /app/servers/node_stats/
-COPY servers/crates/proto /app/servers/crates/proto
-COPY _/schemas /app/_/schemas
-COPY --from=planner /tmp/recipe.json /app/servers/recipe.json
+RUN sed -i 's/\r$//' /usr/local/bin/workspace-stub.sh \
+    && chmod +x /usr/local/bin/workspace-stub.sh \
+    && sh /usr/local/bin/workspace-stub.sh server_ai fetcher channel_whatsapp_device
 
 ENV CARGO_TARGET_DIR=/app/target
 ENV CARGO_BUILD_JOBS=4
-ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1
+ENV RUSTFLAGS="-C debuginfo=0"
+ENV CARGO_PROFILE_RELEASE_LTO=false
+ENV CARGO_PROFILE_RELEASE_CODEGEN_UNITS=4
+ENV CARGO_PROFILE_RELEASE_INCREMENTAL=false
 
 WORKDIR /app/servers
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-node-stats-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-node-stats-cargo-git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=c35-node-stats-rust-target,sharing=locked \
-    cargo chef cook --release --recipe-path recipe.json -p c_node_stats
-
-COPY servers/node_stats /app/servers/node_stats
+    --mount=type=cache,target=/app/target,id=c35-node-stats-rust-target-v4,sharing=locked \
+    cargo build --release -p c_node_stats --manifest-path Cargo.toml
 
 RUN --mount=type=cache,target=/usr/local/cargo/registry,id=c35-node-stats-cargo-registry,sharing=locked \
     --mount=type=cache,target=/usr/local/cargo/git,id=c35-node-stats-cargo-git,sharing=locked \
-    --mount=type=cache,target=/app/target,id=c35-node-stats-rust-target,sharing=locked \
-    cargo build --release -p c_node_stats --manifest-path Cargo.toml \
-    && cp /app/target/release/c_node_stats /app/c_node_stats \
-    && sha256sum /app/c_node_stats > /app/c_node_stats.sha
+    --mount=type=cache,target=/app/target,id=c35-node-stats-rust-target-v4,sharing=locked \
+    set -e; \
+    rm -f /app/target/release/c_node_stats; \
+    find /app/target/release/deps -maxdepth 1 -name 'c_node_stats-*' -delete 2>/dev/null || true; \
+    cargo build --release -p c_node_stats --manifest-path Cargo.toml; \
+    sz="$(stat -c%s /app/target/release/c_node_stats)"; \
+    echo "c_node_stats_bytes=$sz"; \
+    test "$sz" -gt 3000000; \
+    set +e; \
+    NODE_NAME=build-smoke timeout 3 /app/target/release/c_node_stats; \
+    ec=$?; \
+    set -e; \
+    echo "smoke_exit=$ec"; \
+    test "$ec" -ne 0; \
+    cp /app/target/release/c_node_stats /app/c_node_stats.bin; \
+    chmod 755 /app/c_node_stats.bin; \
+    cp /app/c_node_stats.bin /app/c_node_stats; \
+    sha256sum /app/c_node_stats.bin > /app/c_node_stats.sha
 
-FROM gcr.io/distroless/cc-debian12:nonroot AS runtime
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 ENV RUST_LOG=info,c_node_stats=debug
+ENV C35_NODE_STATS_BUILD=2026-10-11-no-chef
 
+COPY --from=rust-build /app/c_node_stats.bin /app/c_node_stats.bin
 COPY --from=rust-build /app/c_node_stats /app/c_node_stats
 COPY --from=rust-build /app/c_node_stats.sha /app/c_node_stats.sha
+RUN chmod 755 /app/c_node_stats /app/c_node_stats.bin
 
+USER 65532:65532
 ENTRYPOINT ["/app/c_node_stats"]

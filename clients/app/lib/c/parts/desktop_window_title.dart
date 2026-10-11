@@ -4,5 +4,5 @@ Future<String> desktopWindowTitle() async {
   if (!serverHostPickerVisible()) return 'Alien AI';
   final host = await serverHostActiveBase();
   if (serverHostNormalize(host) == serverHostNormalize(serverHostProductionUrl)) return 'Alien AI';
-  return '(dev: $host)';
+  return 'Alien AI - ${serverHostLabelFromUrl(host)}';
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:alienai_c35/c/billing/billing_platform.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_domain.dart';
@@ -190,6 +191,14 @@ class _SiteDomainBuyDialogState extends State<_SiteDomainBuyDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (billingUseNativeStoreCheckout())
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  'Domain registration is paid from your wallet balance. Add credit in Plans or Top up via ${billingNativeStoreLabel()} if needed.',
+                  style: const TextStyle(color: _muted, fontSize: 11, height: 1.35),
+                ),
+              ),
             TextField(
               controller: _query,
               autofocus: true,

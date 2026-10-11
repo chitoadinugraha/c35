@@ -485,6 +485,7 @@ const BillingAccount$json = {
       '5': 1,
       '10': 'frontierAllowWeeklyLimit'
     },
+    {'1': 'plan_auto_renew', '3': 34, '4': 1, '5': 8, '10': 'planAutoRenew'},
   ],
 };
 
@@ -516,7 +517,8 @@ final $typed_data.Uint8List billingAccountDescriptor = $convert.base64Decode(
     'VkGB4gASgBUhNmcm9udGllckFsbG93NWhVc2VkEjUKF2Zyb250aWVyX2FsbG93XzVoX2xpbWl0'
     'GB8gASgBUhRmcm9udGllckFsbG93NWhMaW1pdBI7Chpmcm9udGllcl9hbGxvd193ZWVrbHlfdX'
     'NlZBggIAEoAVIXZnJvbnRpZXJBbGxvd1dlZWtseVVzZWQSPQobZnJvbnRpZXJfYWxsb3dfd2Vl'
-    'a2x5X2xpbWl0GCEgASgBUhhmcm9udGllckFsbG93V2Vla2x5TGltaXQ=');
+    'a2x5X2xpbWl0GCEgASgBUhhmcm9udGllckFsbG93V2Vla2x5TGltaXQSJgoPcGxhbl9hdXRvX3'
+    'JlbmV3GCIgASgIUg1wbGFuQXV0b1JlbmV3');
 
 @$core.Deprecated('Use billingTopupRequestDescriptor instead')
 const BillingTopupRequest$json = {
@@ -739,6 +741,7 @@ const BillingPushQuota$json = {
       '5': 1,
       '10': 'frontierAllowWeeklyLimit'
     },
+    {'1': 'plan_auto_renew', '3': 23, '4': 1, '5': 8, '10': 'planAutoRenew'},
   ],
 };
 
@@ -764,7 +767,8 @@ final $typed_data.Uint8List billingPushQuotaDescriptor = $convert.base64Decode(
     '50aWVyQWxsb3c1aFVzZWQSNQoXZnJvbnRpZXJfYWxsb3dfNWhfbGltaXQYFCABKAFSFGZyb250'
     'aWVyQWxsb3c1aExpbWl0EjsKGmZyb250aWVyX2FsbG93X3dlZWtseV91c2VkGBUgASgBUhdmcm'
     '9udGllckFsbG93V2Vla2x5VXNlZBI9Chtmcm9udGllcl9hbGxvd193ZWVrbHlfbGltaXQYFiAB'
-    'KAFSGGZyb250aWVyQWxsb3dXZWVrbHlMaW1pdA==');
+    'KAFSGGZyb250aWVyQWxsb3dXZWVrbHlMaW1pdBImCg9wbGFuX2F1dG9fcmVuZXcYFyABKAhSDX'
+    'BsYW5BdXRvUmVuZXc=');
 
 @$core.Deprecated('Use billingPushCommissionDescriptor instead')
 const BillingPushCommission$json = {
@@ -2459,6 +2463,7 @@ const ResBillingSummary$json = {
       '5': 1,
       '10': 'frontierAllowWeeklyLimit'
     },
+    {'1': 'plan_auto_renew', '3': 37, '4': 1, '5': 8, '10': 'planAutoRenew'},
   ],
 };
 
@@ -2494,7 +2499,8 @@ final $typed_data.Uint8List resBillingSummaryDescriptor = $convert.base64Decode(
     'Zyb250aWVyQWxsb3c1aFVzZWQSNQoXZnJvbnRpZXJfYWxsb3dfNWhfbGltaXQYIiABKAFSFGZy'
     'b250aWVyQWxsb3c1aExpbWl0EjsKGmZyb250aWVyX2FsbG93X3dlZWtseV91c2VkGCMgASgBUh'
     'dmcm9udGllckFsbG93V2Vla2x5VXNlZBI9Chtmcm9udGllcl9hbGxvd193ZWVrbHlfbGltaXQY'
-    'JCABKAFSGGZyb250aWVyQWxsb3dXZWVrbHlMaW1pdA==');
+    'JCABKAFSGGZyb250aWVyQWxsb3dXZWVrbHlMaW1pdBImCg9wbGFuX2F1dG9fcmVuZXcYJSABKA'
+    'hSDXBsYW5BdXRvUmVuZXc=');
 
 @$core.Deprecated('Use billingEntitlementDocDescriptor instead')
 const BillingEntitlementDoc$json = {
@@ -2782,6 +2788,10 @@ const BillingPlayProductDoc$json = {
     {'1': 'credit_idr', '3': 5, '4': 1, '5': 1, '10': 'creditIdr'},
     {'1': 'web_price_idr', '3': 6, '4': 1, '5': 1, '10': 'webPriceIdr'},
     {'1': 'play_price_idr', '3': 7, '4': 1, '5': 1, '10': 'playPriceIdr'},
+    {'1': 'currency', '3': 8, '4': 1, '5': 9, '10': 'currency'},
+    {'1': 'web_price', '3': 9, '4': 1, '5': 1, '10': 'webPrice'},
+    {'1': 'store_price', '3': 10, '4': 1, '5': 1, '10': 'storePrice'},
+    {'1': 'credit_usd', '3': 11, '4': 1, '5': 1, '10': 'creditUsd'},
   ],
 };
 
@@ -2791,7 +2801,9 @@ final $typed_data.Uint8List billingPlayProductDocDescriptor = $convert.base64Dec
     'IKBGtpbmQYAiABKAlSBGtpbmQSGwoJcGxhbl9zbHVnGAMgASgJUghwbGFuU2x1ZxIlCg5iaWxs'
     'aW5nX3BlcmlvZBgEIAEoCVINYmlsbGluZ1BlcmlvZBIdCgpjcmVkaXRfaWRyGAUgASgBUgljcm'
     'VkaXRJZHISIgoNd2ViX3ByaWNlX2lkchgGIAEoAVILd2ViUHJpY2VJZHISJAoOcGxheV9wcmlj'
-    'ZV9pZHIYByABKAFSDHBsYXlQcmljZUlkcg==');
+    'ZV9pZHIYByABKAFSDHBsYXlQcmljZUlkchIaCghjdXJyZW5jeRgIIAEoCVIIY3VycmVuY3kSGw'
+    'oJd2ViX3ByaWNlGAkgASgBUgh3ZWJQcmljZRIfCgtzdG9yZV9wcmljZRgKIAEoAVIKc3RvcmVQ'
+    'cmljZRIdCgpjcmVkaXRfdXNkGAsgASgBUgljcmVkaXRVc2Q=');
 
 @$core.Deprecated('Use reqBillingPlayVerifyDescriptor instead')
 const ReqBillingPlayVerify$json = {
@@ -2800,6 +2812,7 @@ const ReqBillingPlayVerify$json = {
     {'1': 'product_id', '3': 1, '4': 1, '5': 9, '10': 'productId'},
     {'1': 'purchase_token', '3': 2, '4': 1, '5': 9, '10': 'purchaseToken'},
     {'1': 'package_name', '3': 3, '4': 1, '5': 9, '10': 'packageName'},
+    {'1': 'store_platform', '3': 4, '4': 1, '5': 9, '10': 'storePlatform'},
   ],
 };
 
@@ -2807,7 +2820,8 @@ const ReqBillingPlayVerify$json = {
 final $typed_data.Uint8List reqBillingPlayVerifyDescriptor = $convert.base64Decode(
     'ChRSZXFCaWxsaW5nUGxheVZlcmlmeRIdCgpwcm9kdWN0X2lkGAEgASgJUglwcm9kdWN0SWQSJQ'
     'oOcHVyY2hhc2VfdG9rZW4YAiABKAlSDXB1cmNoYXNlVG9rZW4SIQoMcGFja2FnZV9uYW1lGAMg'
-    'ASgJUgtwYWNrYWdlTmFtZQ==');
+    'ASgJUgtwYWNrYWdlTmFtZRIlCg5zdG9yZV9wbGF0Zm9ybRgEIAEoCVINc3RvcmVQbGF0Zm9ybQ'
+    '==');
 
 @$core.Deprecated('Use resBillingPlayVerifyDescriptor instead')
 const ResBillingPlayVerify$json = {
@@ -2847,11 +2861,16 @@ final $typed_data.Uint8List resBillingPlayVerifyDescriptor = $convert.base64Deco
 @$core.Deprecated('Use reqBillingPlayProductListDescriptor instead')
 const ReqBillingPlayProductList$json = {
   '1': 'ReqBillingPlayProductList',
+  '2': [
+    {'1': 'currency', '3': 1, '4': 1, '5': 9, '10': 'currency'},
+  ],
 };
 
 /// Descriptor for `ReqBillingPlayProductList`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List reqBillingPlayProductListDescriptor =
-    $convert.base64Decode('ChlSZXFCaWxsaW5nUGxheVByb2R1Y3RMaXN0');
+    $convert.base64Decode(
+        'ChlSZXFCaWxsaW5nUGxheVByb2R1Y3RMaXN0EhoKCGN1cnJlbmN5GAEgASgJUghjdXJyZW5jeQ'
+        '==');
 
 @$core.Deprecated('Use resBillingPlayProductListDescriptor instead')
 const ResBillingPlayProductList$json = {

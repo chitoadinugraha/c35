@@ -929,6 +929,72 @@ const ResMemoryDelete$json = {
 final $typed_data.Uint8List resMemoryDeleteDescriptor =
     $convert.base64Decode('Cg9SZXNNZW1vcnlEZWxldGUSDgoCb2sYASABKAhSAm9r');
 
+@$core.Deprecated('Use userMemoryBundleItemDescriptor instead')
+const UserMemoryBundleItem$json = {
+  '1': 'UserMemoryBundleItem',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 3, '10': 'id'},
+    {'1': 'key', '3': 2, '4': 1, '5': 9, '10': 'key'},
+    {'1': 'content', '3': 3, '4': 1, '5': 9, '10': 'content'},
+    {'1': 'is_pinned', '3': 4, '4': 1, '5': 8, '10': 'isPinned'},
+    {'1': 'tags', '3': 5, '4': 3, '5': 9, '10': 'tags'},
+    {'1': 'embedding', '3': 6, '4': 3, '5': 2, '10': 'embedding'},
+  ],
+};
+
+/// Descriptor for `UserMemoryBundleItem`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List userMemoryBundleItemDescriptor = $convert.base64Decode(
+    'ChRVc2VyTWVtb3J5QnVuZGxlSXRlbRIOCgJpZBgBIAEoA1ICaWQSEAoDa2V5GAIgASgJUgNrZX'
+    'kSGAoHY29udGVudBgDIAEoCVIHY29udGVudBIbCglpc19waW5uZWQYBCABKAhSCGlzUGlubmVk'
+    'EhIKBHRhZ3MYBSADKAlSBHRhZ3MSHAoJZW1iZWRkaW5nGAYgAygCUgllbWJlZGRpbmc=');
+
+@$core.Deprecated('Use userMemoryBundleDescriptor instead')
+const UserMemoryBundle$json = {
+  '1': 'UserMemoryBundle',
+  '2': [
+    {'1': 'owner_iid', '3': 1, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'bot_iid', '3': 2, '4': 1, '5': 3, '10': 'botIid'},
+    {'1': 'updated_ts_ms', '3': 3, '4': 1, '5': 3, '10': 'updatedTsMs'},
+    {
+      '1': 'items',
+      '3': 4,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.UserMemoryBundleItem',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `UserMemoryBundle`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List userMemoryBundleDescriptor = $convert.base64Decode(
+    'ChBVc2VyTWVtb3J5QnVuZGxlEhsKCW93bmVyX2lpZBgBIAEoA1IIb3duZXJJaWQSFwoHYm90X2'
+    'lpZBgCIAEoA1IGYm90SWlkEiIKDXVwZGF0ZWRfdHNfbXMYAyABKANSC3VwZGF0ZWRUc01zEi8K'
+    'BWl0ZW1zGAQgAygLMhkuYzM1LlVzZXJNZW1vcnlCdW5kbGVJdGVtUgVpdGVtcw==');
+
+@$core.Deprecated('Use scopeInstructionBundleDescriptor instead')
+const ScopeInstructionBundle$json = {
+  '1': 'ScopeInstructionBundle',
+  '2': [
+    {'1': 'owner_iid', '3': 1, '4': 1, '5': 3, '10': 'ownerIid'},
+    {'1': 'updated_ts_ms', '3': 2, '4': 1, '5': 3, '10': 'updatedTsMs'},
+    {
+      '1': 'items',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.ScopeInstruction',
+      '10': 'items'
+    },
+  ],
+};
+
+/// Descriptor for `ScopeInstructionBundle`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List scopeInstructionBundleDescriptor = $convert.base64Decode(
+    'ChZTY29wZUluc3RydWN0aW9uQnVuZGxlEhsKCW93bmVyX2lpZBgBIAEoA1IIb3duZXJJaWQSIg'
+    'oNdXBkYXRlZF90c19tcxgCIAEoA1ILdXBkYXRlZFRzTXMSKwoFaXRlbXMYAyADKAsyFS5jMzUu'
+    'U2NvcGVJbnN0cnVjdGlvblIFaXRlbXM=');
+
 @$core.Deprecated('Use scopeInstructionDescriptor instead')
 const ScopeInstruction$json = {
   '1': 'ScopeInstruction',

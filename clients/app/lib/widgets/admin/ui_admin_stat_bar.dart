@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 /// Shared column widths so CPU / Memory / Network bars line up vertically.
 const double kAdminStatLabelWidth = 58;
 const double kAdminStatDetailWidth = 76;
+const double kAdminStatPodDetailWidth = 108;
 const double kAdminStatPctWidth = 34;
 const double kAdminStatBarGap = 8;
 
@@ -74,6 +75,8 @@ class UiAdminStatBar extends StatelessWidget {
     this.warnPct = 80,
     this.critPct = 90,
     this.dense = false,
+    this.detailWidth,
+    this.requestMarkerFrac,
   });
 
   final String label;
@@ -82,8 +85,47 @@ class UiAdminStatBar extends StatelessWidget {
   final double warnPct;
   final double critPct;
   final bool dense;
+  final double? detailWidth;
+  /// Vertical tick on the bar at request ÷ limit (limit-scaled bar only).
+  final double? requestMarkerFrac;
 
   Color get _fill => adminBarFillForPct(pct);
+
+  Widget _denseBar() {
+    final value = (pct / 100).clamp(0, 1).toDouble();
+    final marker = requestMarkerFrac;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth;
+        return Stack(
+          alignment: Alignment.centerLeft,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: value,
+                minHeight: 7,
+                backgroundColor: adminBarBg,
+                color: _fill,
+              ),
+            ),
+            if (marker != null && w > 2)
+              Positioned(
+                left: (marker.clamp(0.0, 1.0) * w - 1).clamp(0.0, w - 2),
+                child: Container(
+                  width: 2,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: adminMuted.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +140,7 @@ class UiAdminStatBar extends StatelessWidget {
               child: Text(label, style: const TextStyle(color: adminText, fontSize: 12, fontWeight: FontWeight.w600)),
             ),
             SizedBox(
-              width: kAdminStatDetailWidth,
+              width: detailWidth ?? kAdminStatDetailWidth,
               child: Text(
                 detail,
                 style: const TextStyle(color: adminMuted, fontSize: 11),
@@ -106,17 +148,7 @@ class UiAdminStatBar extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: (pct / 100).clamp(0, 1),
-                  minHeight: 7,
-                  backgroundColor: adminBarBg,
-                  color: _fill,
-                ),
-              ),
-            ),
+            Expanded(child: _denseBar()),
             SizedBox(width: kAdminStatBarGap),
             SizedBox(
               width: kAdminStatPctWidth,

@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/task/task_trigger_cron.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/task/io_task_trigger.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -558,7 +559,7 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
 
   Widget _masterList() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(strokeWidth: 2, color: _accent));
+      return const UILoading();
     }
     if (_tasks.isEmpty) {
       return Center(

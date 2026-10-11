@@ -44,6 +44,7 @@ ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_day DATE;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_msgs_used INT NOT NULL DEFAULT 0;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_tokens_used INT NOT NULL DEFAULT 0;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS plan_expires_ts TIMESTAMPTZ;
+ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS plan_auto_renew BOOLEAN NOT NULL DEFAULT FALSE;
 UPDATE ai.billing_promotion SET code = 'SIGNUPTRIAL' WHERE id = 900000000000000001 AND code = 'signup_trial';
 ";
 

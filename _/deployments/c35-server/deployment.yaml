@@ -33,7 +33,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 10000
           envFrom:
             - secretRef:
                 name: c35-server-env
@@ -47,7 +47,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: LISTEN
-              value: "0.0.0.0:8080"
+              value: "0.0.0.0:10000"
             - name: C35_TLS_SYNC_ENABLED
               value: "1"
             - name: C35_TLS_CLUSTER_ISSUER

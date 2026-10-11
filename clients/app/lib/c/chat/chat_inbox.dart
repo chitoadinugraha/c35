@@ -130,14 +130,7 @@ String msgAssistantProvider({String? stored, required String fallback}) {
   return p.isEmpty ? fallback : p;
 }
 
-bool sessionViewerIsRoot() {
-  if (Session.instance.isRoot) return true;
-  if (Session.instance.uid == 99000) return true;
-  final h = Session.instance.handle.trim().toLowerCase().replaceAll('@', '');
-  if (h == 'chito') return true;
-  final n = Session.instance.name.trim().toLowerCase().replaceAll('@', '');
-  return n == 'chito';
-}
+bool sessionViewerIsRoot() => Session.instance.isRoot;
 
 String msgErrorNormalize(Object error) {
   final s = error.toString().replaceFirst(RegExp(r'^Exception: '), '');

@@ -255,7 +255,22 @@
         "welcomeLockedSnack": "Paket Shared tidak mengirim sambutan. Upgrade untuk kustom.",
         "welcomeSharedNone": "Tanpa pesan sambutan di Shared",
         "assetRemoveTitle": "Hapus aset?",
-        "assetRemoveMessage": "Hapus {name} dari bot ini? Anda bisa menambahkannya lagi nanti."
+        "assetRemoveMessage": "Hapus {name} dari bot ini? Anda bisa menambahkannya lagi nanti.",
+        "siteAssetTitle": "Site",
+        "siteAssetSubtitle": "Jawab pertanyaan produk dan terima pesanan",
+        "siteAssetNeedSite": "Tambahkan site terlebih dahulu",
+        "siteAssetOneOnly": "Bot ini sudah terhubung ke sebuah site",
+        "siteAssetLinked": "Site terhubung",
+        "siteNeedTitle": "Tambahkan site dulu",
+        "siteNeedMessage": "Untuk menghubungkan chatbot ke site, buat site di Alien AI terlebih dahulu.",
+        "siteNeedAdd": "Tambah site",
+        "siteConnectTitle": "Hubungkan site",
+        "sitePickLabel": "Pilih site",
+        "sitePickRequired": "Pilih sebuah site",
+        "siteCapabilitiesLabel": "Yang bisa dilakukan bot",
+        "siteCapAnswerProducts": "Menjawab pertanyaan tentang produk",
+        "siteCapTakeOrders": "Menerima pesanan baru",
+        "siteCapShareOrderStatus": "Mengecek dan memberi status pesanan"
     },
     "billing": {
         "purchaseNonRefundable": "Semua pembelian (paket, kredit dompet, dan add-on) bersifat final dan tidak dapat dikembalikan kecuali diwajibkan oleh hukum atau dinyatakan lain pada saat checkout.",
@@ -265,6 +280,7 @@
         "quotaCurrentPackage": "Paket saat ini",
         "freemiumPackageTooltip": "Batas pesan dan token harian paket Trial. Ketuk untuk upgrade.",
         "quotaUpgradeTap": "Upgrade",
+        "manageStoreSubscription": "Kelola langganan {store}",
         "quotaIncludedIdr": "Nominal kuota ditampilkan dalam IDR.",
         "quotaPeriodWeekly": "Mingguan",
         "quotaPeriod5h": "5 jam",
@@ -275,7 +291,29 @@
         "planDowngradeOn": "Turunkan pada {when}",
         "planCancelOn": "Batalkan pada {when}",
         "planDowngradeAtPeriodEnd": "Turunkan di akhir periode",
-        "planCancelAtPeriodEnd": "Batalkan di akhir periode"
+        "planCancelAtPeriodEnd": "Batalkan di akhir periode",
+        "planRenewInAt": "Perpanjang dalam {duration} pada {date}",
+        "planEndsInAt": "Berakhir dalam {duration} pada {date}",
+        "planRenewInCompact": "Perpanjang dalam {duration}",
+        "planExpiresInCompact": "Berakhir dalam {duration}"
+    },
+    "time": {
+        "unitMonth": "1 bulan",
+        "unitMonths": "{count} bulan",
+        "unitDay": "1 hari",
+        "unitDays": "{count} hari",
+        "unitHour": "1 jam",
+        "unitHours": "{count} jam",
+        "unitMinute": "1 menit",
+        "unitMinutes": "{count} menit",
+        "unitSecond": "1 detik",
+        "unitSeconds": "{count} detik"
+    },
+    "live": {
+        "call": {
+            "noneAvailable": "Tidak ada waktu tersedia",
+            "availableDuration": "{duration} tersedia"
+        }
     },
     "media": {
         "providerAuto": "Otomatis",

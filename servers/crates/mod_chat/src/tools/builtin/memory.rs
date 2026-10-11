@@ -38,6 +38,7 @@ pub async fn memory_save_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         &ctx.req_id,
     )
     .await?;
+    crate::memory::memory_cache_invalidate(ctx.nats.as_ref(), ctx.owner_iid, None).await;
     Ok(json!({
         "ok": true,
         "id": id.to_string(),
@@ -58,6 +59,9 @@ pub async fn memory_forget_exec(ctx: &ToolContext, args: &Value) -> Result<Value
     }
 
     let deleted = memory_delete(&ctx.pool, ctx.owner_iid, None, key).await?;
+    if deleted {
+        crate::memory::memory_cache_invalidate(ctx.nats.as_ref(), ctx.owner_iid, None).await;
+    }
     Ok(json!({
         "ok": true,
         "key": key,

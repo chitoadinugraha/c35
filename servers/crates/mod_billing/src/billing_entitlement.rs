@@ -15,6 +15,7 @@ pub struct EntitlementGrantSpec {
     pub plan_slug: String,
     pub duration_months: i32,
     pub credit_idr: f64,
+    pub credit_usd: f64,
     pub highlight: bool,
     pub expires_ts: Option<DateTime<Utc>>,
     pub alien_pool_override: Option<f64>,
@@ -78,6 +79,9 @@ pub async fn billing_entitlement_grant(pool: &PgPool, spec: EntitlementGrantSpec
     if spec.credit_idr > 0.0 {
         credit_wallet_idr(pool, spec.owner_iid, spec.credit_idr).await?;
     }
+    if spec.credit_usd > 0.0 {
+        credit_wallet_usd(pool, spec.owner_iid, spec.credit_usd).await?;
+    }
     billing_entitlement_recompute(pool, spec.owner_iid).await?;
     Ok(id)
 }
@@ -98,6 +102,38 @@ async fn plan_allowance_limits(pool: &PgPool, slug: &str) -> Result<(f64, f64)> 
         Some(r) => (r.get("alien_5h"), r.get("alien_week")),
         None => (0.0, 0.0),
     })
+}
+
+async fn credit_wallet_usd(pool: &PgPool, owner_iid: i64, amount_usd: f64) -> Result<()> {
+    let _ = crate::billing_account_ensure(pool, owner_iid).await?;
+    sqlx::query(
+        r#"
+        UPDATE ai.billing_account
+        SET balance_usd = balance_usd + $2, updated_ts = NOW()
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(amount_usd)
+    .execute(pool)
+    .await?;
+
+    let wallet_id = snowflake_id();
+    let _ = sqlx::query(
+        r#"
+        INSERT INTO ai.billing_wallet (id, owner_iid, currency, balance, is_default, name)
+        VALUES ($1, $2, 'USD', $3, FALSE, 'Personal USD')
+        ON CONFLICT (owner_iid, currency) WHERE deleted_ts IS NULL
+        DO UPDATE SET balance = ai.billing_wallet.balance + EXCLUDED.balance, updated_ts = NOW()
+        "#,
+    )
+    .bind(wallet_id)
+    .bind(owner_iid)
+    .bind(amount_usd)
+    .execute(pool)
+    .await;
+
+    Ok(())
 }
 
 async fn credit_wallet_idr(pool: &PgPool, owner_iid: i64, amount_idr: f64) -> Result<()> {

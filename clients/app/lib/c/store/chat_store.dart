@@ -1040,6 +1040,18 @@ class ChatStore extends ChangeNotifier {
     return MsgAttachment.encode(merged);
   }
 
+  String _mergeBlocksJson(MsgRow old, MsgRow row) {
+    final incoming = row.blocksJson.trim();
+    if (incoming.isEmpty) return old.blocksJson;
+    if (incoming == '[]') {
+      // During streaming, a sync row may arrive before blocks_json is persisted.
+      if (row.id > 0 && old.id > 0 && row.id == old.id) return incoming;
+      if (old.blocksJson.trim().isNotEmpty && old.blocksJson.trim() != '[]') return old.blocksJson;
+      return incoming;
+    }
+    return row.blocksJson;
+  }
+
   String _mergeContent(MsgRow old, MsgRow row) {
     if (row.id > 0 && row.content.trim().isNotEmpty) {
       if (old.role == 'user' &&
@@ -1062,7 +1074,7 @@ class ChatStore extends ChangeNotifier {
         content: _mergeContent(old, row),
         thought: msgMergeText(old.thought, row.thought),
         attachmentsJson: _mergeAttachmentsJson(old, row),
-        blocksJson: row.blocksJson.isNotEmpty ? row.blocksJson : old.blocksJson,
+        blocksJson: _mergeBlocksJson(old, row),
         traceJson: row.traceJson.isNotEmpty ? row.traceJson : old.traceJson,
         reqId: row.reqId.isNotEmpty ? row.reqId : old.reqId,
         tokensIn: row.tokensIn > old.tokensIn ? row.tokensIn : old.tokensIn,

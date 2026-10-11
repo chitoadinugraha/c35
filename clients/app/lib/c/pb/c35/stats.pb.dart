@@ -441,6 +441,7 @@ class NodeStat extends $pb.GeneratedMessage {
     $fixnum.Int64? swapUsedBytes,
     $fixnum.Int64? swapTotalBytes,
     $core.String? displayAddress,
+    $core.String? netIface,
   }) {
     final result = NodeStat._();
     if (nodeName != null) result.nodeName = nodeName;
@@ -456,6 +457,7 @@ class NodeStat extends $pb.GeneratedMessage {
     if (swapUsedBytes != null) result.swapUsedBytes = swapUsedBytes;
     if (swapTotalBytes != null) result.swapTotalBytes = swapTotalBytes;
     if (displayAddress != null) result.displayAddress = displayAddress;
+    if (netIface != null) result.netIface = netIface;
     return result;
   }
 
@@ -495,6 +497,7 @@ class NodeStat extends $pb.GeneratedMessage {
         12, _omitFieldNames ? '' : 'swapTotalBytes', $pb.PbFieldType.OU6,
         defaultOrMaker: $fixnum.Int64.ZERO)
     ..aOS(13, _omitFieldNames ? '' : 'displayAddress')
+    ..aOS(14, _omitFieldNames ? '' : 'netIface')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -622,18 +625,247 @@ class NodeStat extends $pb.GeneratedMessage {
   $core.bool hasDisplayAddress() => $_has(12);
   @$pb.TagNumber(13)
   void clearDisplayAddress() => $_clearField(13);
+
+  /// Primary host NIC label for the network row (e.g. eth0).
+  @$pb.TagNumber(14)
+  $core.String get netIface => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set netIface($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasNetIface() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearNetIface() => $_clearField(14);
 }
 
-enum StatsPush_Body { node, volume, notSet }
+class PodStat extends $pb.GeneratedMessage {
+  factory PodStat({
+    $core.String? nodeName,
+    $core.String? namespace,
+    $core.String? podName,
+    $core.double? cpuUsedCores,
+    $core.double? cpuLimitCores,
+    $core.double? cpuPct,
+    $fixnum.Int64? memUsedBytes,
+    $fixnum.Int64? memLimitBytes,
+    $core.double? memPct,
+    $core.double? netInBps,
+    $core.double? netOutBps,
+    $fixnum.Int64? tsMs,
+    $core.double? cpuRequestCores,
+    $fixnum.Int64? memRequestBytes,
+  }) {
+    final result = PodStat._();
+    if (nodeName != null) result.nodeName = nodeName;
+    if (namespace != null) result.namespace = namespace;
+    if (podName != null) result.podName = podName;
+    if (cpuUsedCores != null) result.cpuUsedCores = cpuUsedCores;
+    if (cpuLimitCores != null) result.cpuLimitCores = cpuLimitCores;
+    if (cpuPct != null) result.cpuPct = cpuPct;
+    if (memUsedBytes != null) result.memUsedBytes = memUsedBytes;
+    if (memLimitBytes != null) result.memLimitBytes = memLimitBytes;
+    if (memPct != null) result.memPct = memPct;
+    if (netInBps != null) result.netInBps = netInBps;
+    if (netOutBps != null) result.netOutBps = netOutBps;
+    if (tsMs != null) result.tsMs = tsMs;
+    if (cpuRequestCores != null) result.cpuRequestCores = cpuRequestCores;
+    if (memRequestBytes != null) result.memRequestBytes = memRequestBytes;
+    return result;
+  }
+
+  PodStat._();
+
+  factory PodStat.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PodStat()..mergeFromBuffer(data, registry);
+  factory PodStat.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      PodStat()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'PodStat',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: PodStat.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'nodeName')
+    ..aOS(2, _omitFieldNames ? '' : 'namespace')
+    ..aOS(3, _omitFieldNames ? '' : 'podName')
+    ..aD(4, _omitFieldNames ? '' : 'cpuUsedCores')
+    ..aD(5, _omitFieldNames ? '' : 'cpuLimitCores')
+    ..aD(6, _omitFieldNames ? '' : 'cpuPct')
+    ..a<$fixnum.Int64>(
+        7, _omitFieldNames ? '' : 'memUsedBytes', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$fixnum.Int64>(
+        8, _omitFieldNames ? '' : 'memLimitBytes', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aD(9, _omitFieldNames ? '' : 'memPct')
+    ..aD(10, _omitFieldNames ? '' : 'netInBps')
+    ..aD(11, _omitFieldNames ? '' : 'netOutBps')
+    ..aInt64(12, _omitFieldNames ? '' : 'tsMs')
+    ..aD(13, _omitFieldNames ? '' : 'cpuRequestCores')
+    ..a<$fixnum.Int64>(
+        14, _omitFieldNames ? '' : 'memRequestBytes', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PodStat clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  PodStat copyWith(void Function(PodStat) updates) =>
+      super.copyWith((message) => updates(message as PodStat)) as PodStat;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use PodStat() / PodStat.new instead')
+  static PodStat create() => PodStat._();
+  static $pb.GeneratedMessage $_createMessage() => PodStat._();
+  @$core.override
+  PodStat createEmptyInstance() => PodStat._();
+  @$core.pragma('dart2js:noInline')
+  static PodStat getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<PodStat>(PodStat.$_createMessage);
+  static PodStat? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get nodeName => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set nodeName($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasNodeName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearNodeName() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get namespace => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set namespace($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNamespace() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNamespace() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get podName => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set podName($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPodName() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPodName() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get cpuUsedCores => $_getN(3);
+  @$pb.TagNumber(4)
+  set cpuUsedCores($core.double value) => $_setDouble(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCpuUsedCores() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCpuUsedCores() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get cpuLimitCores => $_getN(4);
+  @$pb.TagNumber(5)
+  set cpuLimitCores($core.double value) => $_setDouble(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCpuLimitCores() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCpuLimitCores() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get cpuPct => $_getN(5);
+  @$pb.TagNumber(6)
+  set cpuPct($core.double value) => $_setDouble(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasCpuPct() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearCpuPct() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get memUsedBytes => $_getI64(6);
+  @$pb.TagNumber(7)
+  set memUsedBytes($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasMemUsedBytes() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearMemUsedBytes() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get memLimitBytes => $_getI64(7);
+  @$pb.TagNumber(8)
+  set memLimitBytes($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasMemLimitBytes() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearMemLimitBytes() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get memPct => $_getN(8);
+  @$pb.TagNumber(9)
+  set memPct($core.double value) => $_setDouble(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasMemPct() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearMemPct() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get netInBps => $_getN(9);
+  @$pb.TagNumber(10)
+  set netInBps($core.double value) => $_setDouble(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasNetInBps() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearNetInBps() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.double get netOutBps => $_getN(10);
+  @$pb.TagNumber(11)
+  set netOutBps($core.double value) => $_setDouble(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasNetOutBps() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearNetOutBps() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get tsMs => $_getI64(11);
+  @$pb.TagNumber(12)
+  set tsMs($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasTsMs() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearTsMs() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.double get cpuRequestCores => $_getN(12);
+  @$pb.TagNumber(13)
+  set cpuRequestCores($core.double value) => $_setDouble(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasCpuRequestCores() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearCpuRequestCores() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $fixnum.Int64 get memRequestBytes => $_getI64(13);
+  @$pb.TagNumber(14)
+  set memRequestBytes($fixnum.Int64 value) => $_setInt64(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasMemRequestBytes() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearMemRequestBytes() => $_clearField(14);
+}
+
+enum StatsPush_Body { node, volume, pod, notSet }
 
 class StatsPush extends $pb.GeneratedMessage {
   factory StatsPush({
     NodeStat? node,
     VolumeStat? volume,
+    PodStat? pod,
   }) {
     final result = StatsPush._();
     if (node != null) result.node = node;
     if (volume != null) result.volume = volume;
+    if (pod != null) result.pod = pod;
     return result;
   }
 
@@ -649,17 +881,20 @@ class StatsPush extends $pb.GeneratedMessage {
   static const $core.Map<$core.int, StatsPush_Body> _StatsPush_BodyByTag = {
     1: StatsPush_Body.node,
     2: StatsPush_Body.volume,
+    3: StatsPush_Body.pod,
     0: StatsPush_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'StatsPush',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: StatsPush.$_createMessage)
-    ..oo(0, [1, 2])
+    ..oo(0, [1, 2, 3])
     ..aOM<NodeStat>(1, _omitFieldNames ? '' : 'node',
         subBuilder: NodeStat.$_createMessage)
     ..aOM<VolumeStat>(2, _omitFieldNames ? '' : 'volume',
         subBuilder: VolumeStat.$_createMessage)
+    ..aOM<PodStat>(3, _omitFieldNames ? '' : 'pod',
+        subBuilder: PodStat.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -684,9 +919,11 @@ class StatsPush extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   @$pb.TagNumber(2)
+  @$pb.TagNumber(3)
   StatsPush_Body whichBody() => _StatsPush_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(1)
   @$pb.TagNumber(2)
+  @$pb.TagNumber(3)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -710,6 +947,17 @@ class StatsPush extends $pb.GeneratedMessage {
   void clearVolume() => $_clearField(2);
   @$pb.TagNumber(2)
   VolumeStat ensureVolume() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  PodStat get pod => $_getN(2);
+  @$pb.TagNumber(3)
+  set pod(PodStat value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPod() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPod() => $_clearField(3);
+  @$pb.TagNumber(3)
+  PodStat ensurePod() => $_ensure(2);
 }
 
 class ReqStatsSubscribe extends $pb.GeneratedMessage {

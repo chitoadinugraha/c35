@@ -1379,6 +1379,15 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("site_handle_put_failed", e.to_string())),
             }
         }
+        Some(ws_req::Body::SiteEditorWarm(r)) => {
+            match c35_mod_site::site_editor_warm(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteEditorWarm(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_editor_warm_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::SiteBootGet(r)) => {
             match c35_mod_site::site_boot_get(&state.pool, ctx.caller_iid, r).await {
                 Ok(body) => WsRes {

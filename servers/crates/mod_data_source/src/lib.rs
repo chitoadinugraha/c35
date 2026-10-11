@@ -1,4 +1,5 @@
 mod access;
+mod alien_site;
 mod bg;
 mod chunk;
 mod config;
@@ -17,10 +18,14 @@ pub use access::{
     ACCESS_MODE_READ_ONLY, ACCESS_MODE_READ_WRITE,
 };
 pub use chunk::{chunk_content_hash, snapshot_hash, sheet_csv_chunk_rows, ChunkSpec};
+pub use alien_site::{
+    config_capability, config_normalize_alien_site, config_site_iid, alien_site_sync_run,
+    CAP_ANSWER_PRODUCT_QUESTIONS, CAP_SHARE_ORDER_STATUS, CAP_TAKE_ORDERS,
+};
 pub use config::{
     data_source_bg_batch, data_source_bg_enabled, data_source_bg_max_concurrent, data_source_bg_tick_sec,
-    data_source_retrieve_limit, data_source_retrieve_timeout, data_source_sync_ttl_sec, SOURCE_KIND_GOOGLE_SHEET,
-    DATA_SOURCE_SMALL_ROW_LIMIT,
+    data_source_retrieve_limit, data_source_retrieve_timeout, data_source_sync_ttl_sec, SOURCE_KIND_ALIEN_SITE,
+    SOURCE_KIND_GOOGLE_SHEET, DATA_SOURCE_SMALL_ROW_LIMIT,
 };
 pub use csv::{parse_csv, parse_csv_line};
 pub use google_asset_check::{data_source_check_run, AssetCheckResult, SheetTabInfo};

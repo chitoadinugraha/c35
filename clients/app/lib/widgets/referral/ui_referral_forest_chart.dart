@@ -37,7 +37,10 @@ class UiReferralForestChart extends StatefulWidget {
     this.focusId,
     this.searchMatchIds,
     this.controller,
+    this.forestFullyLoaded = false,
+    this.collapsedBranches = const {},
     this.onExpand,
+    this.onToggleBranchCollapse,
     this.onPercentChange,
     this.onNodeTap,
   });
@@ -50,7 +53,10 @@ class UiReferralForestChart extends StatefulWidget {
   final int? focusId;
   final Set<int>? searchMatchIds;
   final UiReferralForestController? controller;
+  final bool forestFullyLoaded;
+  final Set<int> collapsedBranches;
   final ValueChanged<int>? onExpand;
+  final ValueChanged<int>? onToggleBranchCollapse;
   final Future<void> Function(int parentId, int childId, int value)? onPercentChange;
   final ValueChanged<ReferralTreeNode>? onNodeTap;
 
@@ -94,9 +100,10 @@ class _UiReferralForestChartState extends State<UiReferralForestChart> {
       return const Center(child: Text('No referral tree data yet', style: TextStyle(color: Color(0xFFA1A1AA))));
     }
 
-    bool canExpand(int id) => referralCanExpandChildren(widget.nodes, forest, id);
+    bool canExpand(int id) =>
+        !widget.forestFullyLoaded && referralCanExpandChildren(widget.nodes, forest, id);
 
-    final layout = referralForestLayout(forest, canExpand: canExpand);
+    final layout = referralForestLayout(forest, canExpand: canExpand, collapsedBranches: widget.collapsedBranches);
     widget.controller?._layout = layout;
 
     final targetId = (widget.focusId != null && widget.focusId != 0) ? widget.focusId! : widget.currentId;
@@ -117,7 +124,9 @@ class _UiReferralForestChartState extends State<UiReferralForestChart> {
         focusId: widget.focusId,
         searchMatchIds: widget.searchMatchIds,
         canExpand: canExpand,
+        collapsedBranches: widget.collapsedBranches,
         onExpand: widget.onExpand,
+        onToggleBranchCollapse: widget.onToggleBranchCollapse,
         onPercentChange: widget.onPercentChange,
         onNodeTap: widget.onNodeTap,
       ),
@@ -133,10 +142,12 @@ class _ReferralForestCanvas extends StatelessWidget {
     required this.viewerIsRoot,
     required this.percentages,
     required this.canExpand,
+    required this.collapsedBranches,
     this.expandingId,
     this.focusId,
     this.searchMatchIds,
     this.onExpand,
+    this.onToggleBranchCollapse,
     this.onPercentChange,
     this.onNodeTap,
   });
@@ -147,10 +158,12 @@ class _ReferralForestCanvas extends StatelessWidget {
   final bool viewerIsRoot;
   final Map<String, int> percentages;
   final bool Function(int id) canExpand;
+  final Set<int> collapsedBranches;
   final int? expandingId;
   final int? focusId;
   final Set<int>? searchMatchIds;
   final ValueChanged<int>? onExpand;
+  final ValueChanged<int>? onToggleBranchCollapse;
   final Future<void> Function(int parentId, int childId, int value)? onPercentChange;
   final ValueChanged<ReferralTreeNode>? onNodeTap;
 
@@ -266,8 +279,15 @@ class _ReferralForestCanvas extends StatelessWidget {
                           canExpand: canExpand(id),
                           expanding: expandingId == id,
                           remaining: referralRemainingChildCount(forest.accountMap.values.toList(), forest, id),
+                          branchCollapsed: collapsedBranches.contains(id),
+                          branchChildCount: referralBranchHasLoadedChildren(forest, id)
+                              ? referralDirectChildDisplayCount(forest, node)
+                              : 0,
                           onTap: onNodeTap == null ? null : () => onNodeTap!(node),
                           onExpand: onExpand == null ? null : () => onExpand!(id),
+                          onToggleBranch: !referralBranchHasLoadedChildren(forest, id) || onToggleBranchCollapse == null
+                              ? null
+                              : () => onToggleBranchCollapse!(id),
                         ),
                       ),
                     ),

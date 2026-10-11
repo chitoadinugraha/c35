@@ -4,6 +4,26 @@ Maps c35 **SiteDoc** block types ([site.md](site.md)) to CSA **guest_ui** compon
 
 **Scope:** v1 blocks validated in `mod_site::doc` plus catalog types declared in `site.proto`. Flutter guest widgets (track W1) consume **`site.boot_get`** JSON; web guest HTML uses prerender + `data-guest` attributes per CSA.
 
+**Canonical guest UI:** **App preview** (`GuestSiteView` in `clients/app/lib/guest_site/`) is the reference for layout and behavior. Published HTML/CSS/JS must match the same boot JSON. Agents: [`.cursor/rules/site-guest-dual-renderer-parity.mdc`](../.cursor/rules/site-guest-dual-renderer-parity.mdc). Plan: [`plans/2026-10-11-site-preview-web-renderer-parity-multitask.md`](plans/2026-10-11-site-preview-web-renderer-parity-multitask.md).
+
+## Comparing preview and browser
+
+Operators debug parity across **three surfaces**. Do not compare the wrong pair.
+
+| Surface | Data source | Typical URL / entry |
+|---------|-------------|---------------------|
+| **In-app preview (Flutter)** | `site.boot_get` with `mode: draft` or `published` | Site editor or `UiSitePreview` (`SitePreviewMode`) |
+| **Draft browser HTML** | Live `site.draft` via `page_html_render` (not `site.render`) | `https://alienai.id/{alien_id}?draft=1&ptoken=…` or dev `http://localhost:10000/{alien_id}?draft=1&ptoken=…` |
+| **Published browser HTML** | Rows in `site.render` (`render_key` `html:*`) from the last **Publish** | Bare slug: `http://localhost:10000/{alien_id}` (prod: `https://alienai.id/{alien_id}`) |
+
+**Draft preview vs published HTML:** In-app **Draft** matches unsaved editor work and the **Visit** link (draft + `ptoken`). The bare slug without query serves the **last publish** only. Edits that are not published will not appear on the bare URL.
+
+**Published mode in preview:** Use **Published** in the preview toggle only when checking public behavior. That mode loads `boot_get` published boot and the Visit overlay opens the bare slug. It should match the browser **after** **Publish** in the app.
+
+**Before comparing to the bare URL:** Run **Publish** so `site.publish` / `site.render` refresh. `site_publish_pending_for_draft` compares draft `render_hash` to the active publish; until they match, the public URL is stale.
+
+**Visit link:** Editor preview **Open in browser** uses `?draft=1&ptoken={token}` in **Draft** mode (`site_preview_token_issue` + `site_draft_html_render`). In **Published** mode it opens `/{alien_id}` with no query. Draft and published browser paths both use the same `page_html_render` pipeline; only the doc snapshot and caching differ.
+
 ## Web guest assets
 
 - Web guest UI is vanilla JS. No Alpine.js.
@@ -47,7 +67,16 @@ Web effects host is `site-guest.effects.v1.js` (WASM). Flutter effects use `Gues
 
 ## Boot JSON (`site.boot_get`)
 
-Flutter and preview use the same payload shape (v1 string `boot_json`):
+Flutter and preview use the same payload shape (v1 string `boot_json`).
+
+| Flutter (`GuestSiteBoot`) | Published `__SITE_GUEST__` | JS consumer |
+|---------------------------|----------------------------|-------------|
+| `siteIid` / `site_id` | `site_iid` | cart, forms, order poll |
+| `commerceBoot` | `commerce_boot` | products map, payment methods |
+| `design` / theme | `design` + `theme` | layout from HTML/CSS + tokens |
+| `orderProgressSteps` | `order_progress_steps` | optional; preview poll is label-only |
+
+Fields:
 
 | Field | Role |
 |-------|------|

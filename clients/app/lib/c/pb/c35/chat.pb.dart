@@ -3736,7 +3736,278 @@ class ResMemoryDelete extends $pb.GeneratedMessage {
   void clearOk() => $_clearField(1);
 }
 
-/// Owner / site assistant instructions (ai.scope_instruction)
+class UserMemoryBundleItem extends $pb.GeneratedMessage {
+  factory UserMemoryBundleItem({
+    $fixnum.Int64? id,
+    $core.String? key,
+    $core.String? content,
+    $core.bool? isPinned,
+    $core.Iterable<$core.String>? tags,
+    $core.Iterable<$core.double>? embedding,
+  }) {
+    final result = UserMemoryBundleItem._();
+    if (id != null) result.id = id;
+    if (key != null) result.key = key;
+    if (content != null) result.content = content;
+    if (isPinned != null) result.isPinned = isPinned;
+    if (tags != null) result.tags.addAll(tags);
+    if (embedding != null) result.embedding.addAll(embedding);
+    return result;
+  }
+
+  UserMemoryBundleItem._();
+
+  factory UserMemoryBundleItem.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      UserMemoryBundleItem()..mergeFromBuffer(data, registry);
+  factory UserMemoryBundleItem.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      UserMemoryBundleItem()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UserMemoryBundleItem',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: UserMemoryBundleItem.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'key')
+    ..aOS(3, _omitFieldNames ? '' : 'content')
+    ..aOB(4, _omitFieldNames ? '' : 'isPinned')
+    ..pPS(5, _omitFieldNames ? '' : 'tags')
+    ..p<$core.double>(6, _omitFieldNames ? '' : 'embedding', $pb.PbFieldType.KF)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UserMemoryBundleItem clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UserMemoryBundleItem copyWith(void Function(UserMemoryBundleItem) updates) =>
+      super.copyWith((message) => updates(message as UserMemoryBundleItem))
+          as UserMemoryBundleItem;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use UserMemoryBundleItem() / UserMemoryBundleItem.new instead')
+  static UserMemoryBundleItem create() => UserMemoryBundleItem._();
+  static $pb.GeneratedMessage $_createMessage() => UserMemoryBundleItem._();
+  @$core.override
+  UserMemoryBundleItem createEmptyInstance() => UserMemoryBundleItem._();
+  @$core.pragma('dart2js:noInline')
+  static UserMemoryBundleItem getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<UserMemoryBundleItem>(
+          UserMemoryBundleItem.$_createMessage);
+  static UserMemoryBundleItem? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get id => $_getI64(0);
+  @$pb.TagNumber(1)
+  set id($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get key => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set key($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKey() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKey() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get content => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set content($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasContent() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearContent() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get isPinned => $_getBF(3);
+  @$pb.TagNumber(4)
+  set isPinned($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasIsPinned() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearIsPinned() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $pb.PbList<$core.String> get tags => $_getList(4);
+
+  @$pb.TagNumber(6)
+  $pb.PbList<$core.double> get embedding => $_getList(5);
+}
+
+class UserMemoryBundle extends $pb.GeneratedMessage {
+  factory UserMemoryBundle({
+    $fixnum.Int64? ownerIid,
+    $fixnum.Int64? botIid,
+    $fixnum.Int64? updatedTsMs,
+    $core.Iterable<UserMemoryBundleItem>? items,
+  }) {
+    final result = UserMemoryBundle._();
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (botIid != null) result.botIid = botIid;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  UserMemoryBundle._();
+
+  factory UserMemoryBundle.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      UserMemoryBundle()..mergeFromBuffer(data, registry);
+  factory UserMemoryBundle.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      UserMemoryBundle()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'UserMemoryBundle',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: UserMemoryBundle.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'ownerIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'botIid')
+    ..aInt64(3, _omitFieldNames ? '' : 'updatedTsMs')
+    ..pPM<UserMemoryBundleItem>(4, _omitFieldNames ? '' : 'items',
+        subBuilder: UserMemoryBundleItem.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UserMemoryBundle clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  UserMemoryBundle copyWith(void Function(UserMemoryBundle) updates) =>
+      super.copyWith((message) => updates(message as UserMemoryBundle))
+          as UserMemoryBundle;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use UserMemoryBundle() / UserMemoryBundle.new instead')
+  static UserMemoryBundle create() => UserMemoryBundle._();
+  static $pb.GeneratedMessage $_createMessage() => UserMemoryBundle._();
+  @$core.override
+  UserMemoryBundle createEmptyInstance() => UserMemoryBundle._();
+  @$core.pragma('dart2js:noInline')
+  static UserMemoryBundle getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<UserMemoryBundle>(
+          UserMemoryBundle.$_createMessage);
+  static UserMemoryBundle? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get ownerIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOwnerIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOwnerIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get botIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set botIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasBotIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearBotIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get updatedTsMs => $_getI64(2);
+  @$pb.TagNumber(3)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasUpdatedTsMs() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearUpdatedTsMs() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $pb.PbList<UserMemoryBundleItem> get items => $_getList(3);
+}
+
+class ScopeInstructionBundle extends $pb.GeneratedMessage {
+  factory ScopeInstructionBundle({
+    $fixnum.Int64? ownerIid,
+    $fixnum.Int64? updatedTsMs,
+    $core.Iterable<ScopeInstruction>? items,
+  }) {
+    final result = ScopeInstructionBundle._();
+    if (ownerIid != null) result.ownerIid = ownerIid;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ScopeInstructionBundle._();
+
+  factory ScopeInstructionBundle.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ScopeInstructionBundle()..mergeFromBuffer(data, registry);
+  factory ScopeInstructionBundle.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ScopeInstructionBundle()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ScopeInstructionBundle',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ScopeInstructionBundle.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'ownerIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'updatedTsMs')
+    ..pPM<ScopeInstruction>(3, _omitFieldNames ? '' : 'items',
+        subBuilder: ScopeInstruction.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ScopeInstructionBundle clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ScopeInstructionBundle copyWith(
+          void Function(ScopeInstructionBundle) updates) =>
+      super.copyWith((message) => updates(message as ScopeInstructionBundle))
+          as ScopeInstructionBundle;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ScopeInstructionBundle() / ScopeInstructionBundle.new instead')
+  static ScopeInstructionBundle create() => ScopeInstructionBundle._();
+  static $pb.GeneratedMessage $_createMessage() => ScopeInstructionBundle._();
+  @$core.override
+  ScopeInstructionBundle createEmptyInstance() => ScopeInstructionBundle._();
+  @$core.pragma('dart2js:noInline')
+  static ScopeInstructionBundle getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ScopeInstructionBundle>(
+          ScopeInstructionBundle.$_createMessage);
+  static ScopeInstructionBundle? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get ownerIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set ownerIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOwnerIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOwnerIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get updatedTsMs => $_getI64(1);
+  @$pb.TagNumber(2)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUpdatedTsMs() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUpdatedTsMs() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<ScopeInstruction> get items => $_getList(2);
+}
+
 class ScopeInstruction extends $pb.GeneratedMessage {
   factory ScopeInstruction({
     $fixnum.Int64? id,

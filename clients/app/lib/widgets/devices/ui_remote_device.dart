@@ -19,6 +19,8 @@ import 'package:alienai_c35/c/remote/remote_trackpad_cursor_clip.dart';
 import 'package:alienai_c35/c/remote/remote_virtual_cursor.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/devices/in_device_prompt_composer.dart';
+import 'package:alienai_c35/widgets/devices/ui_device_session_connect_prompt.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_prompt_sheet.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
@@ -57,7 +59,12 @@ extension RemoteInteractModeUi on RemoteInteractMode {
       };
 }
 
-const _menuItemPadding = EdgeInsets.symmetric(horizontal: 14, vertical: 8);
+const _menuItemPadding = EdgeInsets.symmetric(horizontal: 14, vertical: 11);
+
+Widget _remoteControlMenuDivider() => const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: Divider(height: 1, thickness: 1, color: _border),
+    );
 
 Widget _modeSelectDot({required bool selected}) => SizedBox(
       width: 16,
@@ -130,13 +137,13 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
         backgroundColor: const WidgetStatePropertyAll(Color(0xFF18181B)),
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         padding:
-            const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+            const WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 8)),
         shape: WidgetStatePropertyAll(RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
             side: const BorderSide(color: _border))),
       ),
       menuChildren: [
-        for (final m in RemoteInteractMode.values)
+        for (final m in RemoteInteractMode.values) ...[
           MenuItemButton(
             style: MenuItemButton.styleFrom(
               padding: _menuItemPadding,
@@ -153,7 +160,8 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
                     fontSize: 13,
                     fontWeight: m == mode ? FontWeight.w600 : FontWeight.w400)),
           ),
-        const Divider(height: 1, color: _border),
+          if (m == RemoteInteractMode.trackpad) _remoteControlMenuDivider(),
+        ],
         MenuItemButton(
           style: MenuItemButton.styleFrom(
             padding: _menuItemPadding,
@@ -172,7 +180,7 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
           child: const Text('Shared clipboard',
               style: TextStyle(color: _zinc100, fontSize: 13)),
         ),
-        const Divider(height: 1, color: _border),
+        _remoteControlMenuDivider(),
         MenuItemButton(
           style: MenuItemButton.styleFrom(
             padding: _menuItemPadding,
@@ -186,7 +194,7 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
               style: TextStyle(color: _zinc100, fontSize: 13)),
         ),
         if (updateReady) ...[
-          const Divider(height: 1, color: _border),
+          _remoteControlMenuDivider(),
           MenuItemButton(
             style: MenuItemButton.styleFrom(
               padding: _menuItemPadding,
@@ -205,7 +213,7 @@ class UiRemoteBottomSessionControl extends StatelessWidget {
             ),
           ),
         ],
-        const Divider(height: 1, color: _border),
+        _remoteControlMenuDivider(),
         MenuItemButton(
           style: MenuItemButton.styleFrom(
             padding: _menuItemPadding,
@@ -408,21 +416,44 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   bool _showDeviceOffline(RemoteSession sess, bool linking) =>
       !widget.online || (!linking && _agentOfflineError(_error));
 
-  String _placeholderMessage(RemoteSession sess, bool linking) {
+  (String title, String description) _connectPromptCopy(RemoteSession sess, bool linking) {
     if (!sess.conn.connected) {
-      return 'Server offline. Reconnect when signed in.';
+      return ('Server offline', 'Reconnect when signed in.');
     }
     if (_showDeviceOffline(sess, linking)) {
-      return 'Device is offline';
+      return ('Device is offline', 'Refresh to recheck whether the device is back on Alien AI Cloud.');
     }
-    if (linking) return 'Connecting to ${widget.deviceName}…';
-    if (sess.stoppedByUser) return 'Remote session stopped.';
+    if (linking) return ('Connecting to ${widget.deviceName}…', '');
+    if (sess.stoppedByUser) {
+      return ('Remote session stopped', 'Press Connect to start a new session.');
+    }
     if (!sess.connected.value && widget.online && _error == null) {
-      return 'Press Connect to open Remote.';
+      return ('Connect for remote screen', kDeviceSessionWebrtcDesc);
     }
-    if (_error != null) return 'Device is offline';
-    if (widget.browserDevice && sess.connected.value) return 'Starting video stream…';
-    return 'Screen stream idle.';
+    if (_error != null) {
+      return ('Device is offline', 'Refresh to recheck whether the device is back on Alien AI Cloud.');
+    }
+    if (widget.browserDevice && sess.connected.value) {
+      return ('Starting video stream…', kDeviceSessionWebrtcDesc);
+    }
+    return ('Screen stream idle', '');
+  }
+
+  UiDeviceSessionConnectAction _connectPromptAction(
+    RemoteSession sess,
+    bool linking,
+    bool connected,
+    bool hasVideoTrack,
+    RemoteScreenFrame? frame,
+  ) {
+    if (!sess.conn.connected || _waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) {
+      return UiDeviceSessionConnectAction.none;
+    }
+    if (!widget.online || _agentOfflineError(_error)) {
+      return UiDeviceSessionConnectAction.refresh;
+    }
+    if (linking) return UiDeviceSessionConnectAction.connect;
+    return UiDeviceSessionConnectAction.connect;
   }
 
   bool _waitingBrowserVideo(RemoteSession sess, bool connected, bool hasVideoTrack, RemoteScreenFrame? frame) =>
@@ -899,25 +930,6 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
       if (mounted) setState(() => _presenceRefreshing = false);
     }
   }
-
-  Widget _presenceRefreshButton() => FilledButton.icon(
-        onPressed: _presenceRefreshing ? null : () => unawaited(_recheckPresence()),
-        style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFF27272A),
-          foregroundColor: _zinc100,
-          disabledBackgroundColor: const Color(0xFF27272A),
-          disabledForegroundColor: _zinc500,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        icon: _presenceRefreshing
-            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _zinc400))
-            : const Icon(Icons.refresh_rounded, size: 18),
-        label: Text(
-          _presenceRefreshing ? 'Checking…' : 'Refresh',
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-      );
 
   void _sendPointerNorm(String eventType, Offset norm,
       {int button = 0, int deltaY = 0}) {
@@ -1496,80 +1508,37 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                 if (widget.deferInlineLoading && shellBusy) {
                   return const SizedBox.shrink();
                 }
-                return Center(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.desktop_windows_outlined,
-                          size: 56,
-                          color: linking ? _amber : const Color(0xFF3F3F46),
+                final copy = _connectPromptCopy(sess, linking);
+                final promptAction = (widget.deferInlineLoading && waitingVideo)
+                    ? UiDeviceSessionConnectAction.none
+                    : _connectPromptAction(sess, linking, connected, hasVideoTrack, frame);
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints:
+                            BoxConstraints(minHeight: constraints.maxHeight),
+                        child: UiDeviceSessionConnectPrompt(
+                          icon: Icons.desktop_windows_outlined,
+                          title: copy.$1,
+                          description: copy.$2,
+                          action: promptAction,
+                          connecting: linking || _connecting,
+                          onConnect: () =>
+                              _connect(forceRestart: _error != null),
+                          presenceRefreshing: _presenceRefreshing,
+                          onPresenceRefresh: () =>
+                              unawaited(_recheckPresence()),
+                          extra: !widget.deferInlineLoading &&
+                                  _waitingBrowserVideo(sess, connected,
+                                      hasVideoTrack, frame)
+                              ? const UILoadingIndicator(
+                                  size: 22, strokeWidth: 2, color: _amber)
+                              : null,
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _placeholderMessage(sess, linking),
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: _zinc400,
-                          ),
-                        ),
-                        if (!widget.deferInlineLoading &&
-                            _waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
-                          const SizedBox(height: 12),
-                          const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: _amber),
-                          ),
-                        ],
-                        if (sess.conn.connected &&
-                            !(widget.deferInlineLoading && waitingVideo) &&
-                            !_waitingBrowserVideo(sess, connected, hasVideoTrack, frame)) ...[
-                          const SizedBox(height: 16),
-                          if (!widget.online || _agentOfflineError(_error))
-                            _presenceRefreshButton()
-                          else
-                          FilledButton.icon(
-                            onPressed: linking
-                                ? null
-                                : () => _connect(
-                                      forceRestart: _error != null,
-                                    ),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _amber,
-                              foregroundColor: const Color(0xFF09090B),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            icon: (linking && !widget.deferInlineLoading)
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Color(0xFF09090B),
-                                    ),
-                                  )
-                                : const Icon(Icons.play_arrow_rounded, size: 18),
-                            label: Text(
-                              linking ? 'Connecting…' : 'Connect',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
+                      ),
+                    );
+                  },
                 );
               }
 
@@ -1991,37 +1960,35 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
-                                    RepaintBoundary(
-                                      child: ClipRect(
-                                        child: Transform(
+                                    ClipRect(
+                                      child: Transform(
+                                        // ignore: deprecated_member_use
+                                        transform: Matrix4.identity()
                                           // ignore: deprecated_member_use
-                                          transform: Matrix4.identity()
-                                            // ignore: deprecated_member_use
-                                            ..translate(
-                                                _panOffset.dx, _panOffset.dy)
-                                            // ignore: deprecated_member_use
-                                            ..scale(_scale),
-                                          alignment: Alignment.topLeft,
-                                          child: hasVideoTrack
-                                              ? RTCVideoView(
-                                                  sess.videoRenderer,
-                                                  objectFit:
-                                                      RTCVideoViewObjectFit
-                                                          .RTCVideoViewObjectFitContain,
-                                                )
-                                              : (frame != null
-                                                  ? Image.memory(
-                                                      frame.jpegBytes,
-                                                      gaplessPlayback: true,
-                                                      fit: BoxFit.contain,
-                                                      width: renderSize.width,
-                                                      height: renderSize.height,
-                                                      filterQuality:
-                                                          FilterQuality.low,
-                                                      isAntiAlias: false,
-                                                    )
-                                                  : const SizedBox.shrink()),
-                                        ),
+                                          ..translate(
+                                              _panOffset.dx, _panOffset.dy)
+                                          // ignore: deprecated_member_use
+                                          ..scale(_scale),
+                                        alignment: Alignment.topLeft,
+                                        child: hasVideoTrack
+                                            ? RTCVideoView(
+                                                sess.videoRenderer,
+                                                objectFit:
+                                                    RTCVideoViewObjectFit
+                                                        .RTCVideoViewObjectFitContain,
+                                              )
+                                            : (frame != null
+                                                ? Image.memory(
+                                                    frame.jpegBytes,
+                                                    gaplessPlayback: true,
+                                                    fit: BoxFit.contain,
+                                                    width: renderSize.width,
+                                                    height: renderSize.height,
+                                                    filterQuality:
+                                                        FilterQuality.low,
+                                                    isAntiAlias: false,
+                                                  )
+                                                : const SizedBox.shrink()),
                                       ),
                                     ),
                                     if (widget.interactMode ==

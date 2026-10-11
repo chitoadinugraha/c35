@@ -1,0 +1,17 @@
+{
+  "block_type": "hub_profile",
+  "expected_data_guest": "profile",
+  "props": {
+    "title": "Rose Atelier",
+    "subtitle": "Florist",
+    "location_label": "Jakarta",
+    "show_hours": true
+  },
+  "assert_contains": [
+    "data-guest=\"profile\"",
+    "guest-hub-hero",
+    "guest-hub-cta",
+    "hub-location"
+  ],
+  "assert_not_contains": ["<img", "hub-chip", "<a class=\"hub-chip\""]
+}

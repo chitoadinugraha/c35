@@ -560,8 +560,14 @@ const actFill = (selector, text) => {
   const value = text == null ? "" : String(text);
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement) {
     el.focus();
-    el.value = value;
-    el.dispatchEvent(new Event("input", { bubbles: true }));
+    const proto =
+      el instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+    if (setter) setter.call(el, value);
+    else el.value = value;
+    el.dispatchEvent(new InputEvent("input", { bubbles: true, data: value, inputType: "insertText" }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return { ok: true };
   }
@@ -594,6 +600,87 @@ const extractInPage = (selector) => {
   return (el.textContent || "").trim();
 };
 
+const setInputValue = (el, value) => {
+  const v = value == null ? "" : String(value);
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  if (setter) setter.call(el, v);
+  else el.value = v;
+  el.dispatchEvent(new InputEvent("input", { bubbles: true, data: v, inputType: "insertText" }));
+  el.dispatchEvent(new Event("change", { bubbles: true }));
+};
+
+const clickExactText = (needle, root = document) => {
+  const n = needle.toLowerCase();
+  const nodes = Array.from(root.querySelectorAll("button, a, input[type=button], input[type=submit], span"));
+  const hit = nodes.find((el) => (el.textContent || "").trim().toLowerCase() === n);
+  if (!hit) throw new Error(`text not found: ${needle}`);
+  hit.click();
+  return hit;
+};
+
+/** Play Console base-plan / IAP regional price (bulk Set prices flow). */
+export const playSetCountryPrice = async (tabId, country, amount) => {
+  const c = String(country || "").trim();
+  const amt = String(amount || "").trim();
+  if (!c || !amt) throw new Error("country and amount required");
+  await execInTab(
+    tabId,
+    (name) => {
+      const search = document.querySelector('input[aria-label="Search country or region by name"]');
+      if (!search) throw new Error("country search input not found");
+      setInputValue(search, name);
+      return { ok: true };
+    },
+    [c]
+  );
+  await new Promise((r) => setTimeout(r, 700));
+  await execInTab(tabId, () => {
+    clickExactText("Set prices");
+    return { ok: true };
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  await execInTab(
+    tabId,
+    (name) => {
+      const row = Array.from(document.querySelectorAll("mat-row")).find((r) =>
+        (r.textContent || "").includes(name)
+      );
+      if (!row) throw new Error(`country row not found: ${name}`);
+      const cb = row.querySelector("mat-checkbox, input[type=checkbox]");
+      if (cb) cb.click();
+      else row.click();
+      return { ok: true };
+    },
+    [c]
+  );
+  await new Promise((r) => setTimeout(r, 400));
+  await execInTab(tabId, () => {
+    clickExactText("Set price");
+    return { ok: true };
+  });
+  await new Promise((r) => setTimeout(r, 700));
+  await execInTab(
+    tabId,
+    (price) => {
+      const priceIn =
+        document.querySelector('input[aria-label="New price in IDR"]') ||
+        document.querySelector('input[aria-label*="price" i]');
+      if (!priceIn) throw new Error("price input not found");
+      setInputValue(priceIn, price);
+      priceIn.blur();
+      return { ok: true };
+    },
+    [amt]
+  );
+  await new Promise((r) => setTimeout(r, 300));
+  await execInTab(tabId, () => {
+    const dialog = document.querySelector("[role=dialog]") || document.body;
+    clickExactText("Apply", dialog);
+    return { ok: true };
+  });
+  return { ok: true, country: c, amount: amt };
+};
+
 export const pageObserve = async (params = {}) => {
   const tabId = await resolveTabId(params);
   const tab = await chrome.tabs.get(tabId);
@@ -614,7 +701,16 @@ export const pageAct = async (params = {}) => {
   const action = params.action;
   if (!action) throw new Error("action required");
   const selector = params.selector;
-  const needsSelector = !["list_inputs", "click_text", "goto", "epus_pasien_search", "epus_pasien_fetch"].includes(action);
+  const needsSelector = ![
+    "list_inputs",
+    "click_text",
+    "click_text_contains",
+    "select_country",
+    "play_set_country_price",
+    "goto",
+    "epus_pasien_search",
+    "epus_pasien_fetch",
+  ].includes(action);
   if (needsSelector && !selector) throw new Error("selector required");
   const tabId = await resolveTabId(params);
   const tab = await chrome.tabs.get(tabId);
@@ -654,6 +750,47 @@ export const pageAct = async (params = {}) => {
         hit.click();
         return { ok: true };
       }, [label]);
+    }
+    case "click_text_contains": {
+      const label = String(params.text ?? params.label ?? "").trim();
+      if (!label) throw new Error("text required for click_text_contains");
+      return execInTab(tabId, (needle) => {
+        const n = needle.toLowerCase();
+        const nodes = Array.from(
+          document.querySelectorAll("button, a, input[type=button], input[type=submit], span, label")
+        );
+        const hit = nodes.find((el) => (el.textContent || "").trim().toLowerCase().includes(n));
+        if (!hit) throw new Error(`click_text_contains not found: ${needle}`);
+        hit.click();
+        return { ok: true };
+      }, [label]);
+    }
+    case "play_set_country_price":
+      return playSetCountryPrice(
+        tabId,
+        params.country ?? params.text,
+        params.amount ?? params.price
+      );
+    case "select_country": {
+      const country = String(params.text ?? params.country ?? "").trim();
+      if (!country) throw new Error("text required for select_country");
+      return execInTab(tabId, (name) => {
+        const rows = Array.from(
+          document.querySelectorAll("mat-row, tr[role=row], tr, [role=row]")
+        );
+        for (const row of rows) {
+          const t = (row.textContent || "").trim();
+          if (!t.includes(name)) continue;
+          const cb = row.querySelector('input[type="checkbox"]');
+          if (cb) {
+            cb.click();
+            return { ok: true, mode: "checkbox" };
+          }
+          row.click();
+          return { ok: true, mode: "row" };
+        }
+        throw new Error(`select_country not found: ${name}`);
+      }, [country]);
     }
     case "goto": {
       const url = String(params.url ?? params.text ?? "").trim();

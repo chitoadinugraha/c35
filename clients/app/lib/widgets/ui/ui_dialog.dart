@@ -1,3 +1,4 @@
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
@@ -219,6 +220,4 @@ class UiDialogAskShell extends StatelessWidget {
 Widget uiDialogAskEmptyText(String text) =>
     Center(child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: uiDialogMuted, fontSize: 13)));
 
-Widget uiDialogAskLoading() => const Center(
-      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: uiDialogMuted)),
-    );
+Widget uiDialogAskLoading() => const UILoading();

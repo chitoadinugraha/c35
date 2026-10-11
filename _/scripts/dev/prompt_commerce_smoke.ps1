@@ -3,7 +3,7 @@
 param(
     [int]$OwnerIid = 99000,
     [string]$SiteMention = 'iid:101836119014211584',
-    [string]$BaseUrl = $(if ($env:C35_SERVER_URL) { $env:C35_SERVER_URL } else { 'http://127.0.0.1:8080' })
+    [string]$BaseUrl = $(if ($env:C35_SERVER_URL) { $env:C35_SERVER_URL } else { 'http://127.0.0.1:10000' })
 )
 
 $ErrorActionPreference = 'Stop'

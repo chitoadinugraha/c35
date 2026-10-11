@@ -26,8 +26,8 @@ void main() {
     final groups = siteEditorMenuGroups(caps, platformSite: true);
     expect(_item(groups, 'design').enabled, isFalse);
     expect(_item(groups, 'effects').enabled, isFalse);
-    expect(_item(groups, 'design').subtitle, 'Managed on the Alien AI home');
-    expect(_item(groups, 'effects').subtitle, 'Managed on the Alien AI home');
+    expect(_item(groups, 'design').subtitle, 'Managed');
+    expect(_item(groups, 'effects').subtitle, 'Managed');
     expect(_item(groups, 'contacts').enabled, isTrue);
     expect(groups.expand((g) => g.items).map((i) => i.id), contains('posts'));
     final site = groups.firstWhere((g) => g.label == 'Site');

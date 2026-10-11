@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:alienai_c35/c/remote/device_prompt_context.dart';
 import 'package:alienai_c35/widgets/devices/in_device_prompt_composer.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -147,7 +148,7 @@ class _UiDevicePromptSheetState extends State<UiDevicePromptSheet> {
           const Divider(height: 1, color: _border),
           Expanded(
             child: store.messagesLoading && store.messages.isEmpty
-                ? const Center(child: CircularProgressIndicator(strokeWidth: 2, color: _amber))
+                ? const UILoading()
                 : ListView.builder(
                     controller: _scroll,
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

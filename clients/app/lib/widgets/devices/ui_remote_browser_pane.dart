@@ -3,9 +3,8 @@ import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/widgets/devices/ui_browser_tab_strip.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_teach_hud.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:flutter/material.dart';
-
-const _muted = Color(0xFF71717A);
 
 /// Browser Remote tab: tab strip + stream with one full-pane loading overlay.
 class UiRemoteBrowserPane extends StatefulWidget {
@@ -121,23 +120,8 @@ class _UiRemoteBrowserPaneState extends State<UiRemoteBrowserPane> {
             Positioned.fill(
               child: ColoredBox(
                 color: const Color(0xE609090B),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(strokeWidth: 2.5, color: _muted),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        _tabsLoading && !_remoteShellBusy ? 'Loading browser tabs...' : _remoteShellMessage,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: _muted, fontSize: 13),
-                      ),
-                    ],
-                  ),
+                child: UILoading(
+                  message: _tabsLoading && !_remoteShellBusy ? 'Loading browser tabs...' : _remoteShellMessage,
                 ),
               ),
             ),

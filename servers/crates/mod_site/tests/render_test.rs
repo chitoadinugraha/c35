@@ -1,11 +1,11 @@
 use c35_mod_site::doc::{render_key_for_page, site_doc_validate};
 use c35_mod_site::guest_design::GuestDesign;
 use c35_mod_site::render::{
-    block_html_render, guest_client_script_markup, product_card_html, product_detail_article_html,
-    render_etag, render_offline_html, ProductGridCtx, ProductRow,
+    block_html_render, guest_client_script_markup, post_detail_article_html, product_card_html,
+    product_detail_article_html, render_etag, render_offline_html, ProductGridCtx, ProductRow,
 };
 use c35_mod_site::site_preview_token_verify;
-use c35_proto::{SiteBlock, SiteDoc, SitePage};
+use c35_proto::{SiteBlock, SiteDoc, SitePage, SitePost};
 use serde_json::{json, Value};
 
 fn render_block(
@@ -16,7 +16,7 @@ fn render_block(
     grid_ctx: Option<&ProductGridCtx>,
 ) -> String {
     let design = GuestDesign::from_theme_json("");
-    block_html_render(block_type, props, products, caps, grid_ctx, 0, &[], &[], None, &design, &[])
+    block_html_render(block_type, props, products, caps, grid_ctx, 0, &[], &[], None, &design, &[], &json!({}))
 }
 
 fn render_block_site(
@@ -41,6 +41,7 @@ fn render_block_site(
         product_design,
         &design,
         &[],
+        &json!({}),
     )
 }
 
@@ -152,10 +153,13 @@ fn block_hero_renders_title_cta() {
         None,
     );
     assert!(html.contains("class=\"block hero\""));
-    assert!(html.contains("<h1>Welcome</h1>"));
+    assert!(html.contains("data-guest=\"hero\""));
+    assert!(html.contains("guest-hub-hero"));
+    assert!(html.contains("guest-hub-title"));
+    assert!(html.contains("Welcome"));
+    assert!(html.contains("guest-hub-bio"));
     assert!(html.contains("Tagline here"));
-    assert!(html.contains("class=\"hero-cta\""));
-    assert!(html.contains("href=\"/menu\""));
+    assert!(html.contains("guest-hub-cta"));
     assert!(html.contains("Order now"));
 }
 
@@ -173,8 +177,7 @@ fn block_hero_renders_cta_label_alias() {
         &json!({}),
         None,
     );
-    assert!(html.contains("class=\"hero-cta\""));
-    assert!(html.contains("href=\"#contact\""));
+    assert!(html.contains("guest-hub-cta"));
     assert!(html.contains("Kunjungi"));
 }
 
@@ -279,7 +282,10 @@ fn block_product_grid_renders_products() {
     assert!(html.contains("data-pid=\"102\""));
     assert!(html.contains("Teh"));
     assert!(html.contains("Rp 8.000"));
-    assert!(html.contains("guest-add-btn"));
+    assert!(html.contains("guest-product-info-btn"));
+    assert!(html.contains("guest-product-tile"));
+    assert!(html.contains("product-grid-title"));
+    assert!(html.contains("Katalog &amp; Layanan"));
     assert!(html.contains("data-site-iid=\"42\""));
     assert!(html.contains("data-block-id=\"g1\""));
     assert!(html.contains("data-next-cursor=\"0:102\""));
@@ -326,6 +332,32 @@ fn sellable_product_detail_keeps_pesan_button() {
 }
 
 #[test]
+fn product_detail_pic_supports_lightbox_thumb() {
+    let mut p = sample_product(false);
+    p.pic = "abc123".into();
+    let html = product_detail_article_html(&p);
+    assert!(html.contains("guest-pic-thumb"));
+    assert!(html.contains("data-pic-display=\"/fs/abc123?v=small\""));
+}
+
+#[test]
+fn post_detail_carousel_when_multiple_media() {
+    let post = SitePost {
+        post_id: 42,
+        title: "Update".into(),
+        caption: "Cap".into(),
+        body: "Body".into(),
+        media_json: r#"[{"src":"/fs/a"},{"src":"/fs/b"}]"#.into(),
+        thumb: "/fs/a".into(),
+        ..Default::default()
+    };
+    let html = post_detail_article_html(&post);
+    assert!(html.contains("guest-post-carousel"));
+    assert!(html.contains("guest-post-carousel-dot"));
+    assert!(html.contains("data-guest=\"social_post\""));
+}
+
+#[test]
 fn block_gallery_renders_pics() {
     let html = render_block(
         "gallery",
@@ -348,7 +380,8 @@ fn block_links_renders_items() {
         &json!({}),
         None,
     );
-    assert!(html.contains("class=\"links\""));
+    assert!(html.contains("guest-links-list"));
+    assert!(html.contains("guest-link-list"));
     assert!(html.contains("data-guest=\"link\""));
     assert!(html.contains("Home"));
     assert!(html.contains("https://example.com"));
@@ -393,6 +426,12 @@ fn page_without_effects_omits_effects_script() {
 }
 
 #[test]
+fn page_with_unknown_preset_omits_effects_script() {
+    let html = guest_client_script_markup("{}", &json!([{"presetId": "not-a-real-preset", "active": true}]));
+    assert!(!html.contains("site-guest.effects"));
+}
+
+#[test]
 fn page_with_active_preset_includes_effects_script() {
     let html = guest_client_script_markup(
         "{}",
@@ -430,24 +469,24 @@ fn product_card_stock_line_follows_show_flag() {
 }
 
 #[test]
-fn block_map_gated_by_booking() {
+fn block_map_renders_regardless_of_booking_capability() {
     let props = json!({"lat": 1.0, "lng": 2.0, "address": "Main St"});
     assert!(render_block("map", &props, &[], &json!({}), None).contains("class=\"map\""));
-    assert!(render_block("map", &props, &[], &json!({"booking": false}), None).is_empty());
+    assert!(render_block("map", &props, &[], &json!({"booking": false}), None).contains("class=\"map\""));
 }
 
 #[test]
-fn block_hours_gated_by_booking() {
+fn block_hours_renders_regardless_of_booking_capability() {
     let props = json!({"hours": [{"day": "Mon", "open": "09:00", "close": "17:00"}]});
     assert!(render_block("hours", &props, &[], &json!({}), None).contains("class=\"hours\""));
-    assert!(render_block("hours", &props, &[], &json!({"booking": false}), None).is_empty());
+    assert!(render_block("hours", &props, &[], &json!({"booking": false}), None).contains("class=\"hours\""));
 }
 
 #[test]
-fn block_queue_gated_by_queue_capability() {
+fn block_queue_renders_regardless_of_queue_capability() {
     let props = json!({"title": "Now serving", "mode": "walk-in"});
     assert!(render_block("queue", &props, &[], &json!({}), None).contains("class=\"queue\""));
-    assert!(render_block("queue", &props, &[], &json!({"queue": false}), None).is_empty());
+    assert!(render_block("queue", &props, &[], &json!({"queue": false}), None).contains("class=\"queue\""));
 }
 
 #[test]
@@ -512,6 +551,7 @@ fn social_feed_block_renders_hub_posts() {
         None,
         &GuestDesign::from_theme_json(""),
         &[],
+        &json!({}),
     );
     assert!(html.contains("posts/7"));
     assert!(html.contains("News"));

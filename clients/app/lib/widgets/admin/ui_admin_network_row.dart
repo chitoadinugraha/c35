@@ -9,12 +9,14 @@ class UiAdminNetworkRow extends StatelessWidget {
     required this.inBps,
     required this.outBps,
     required this.maxBps,
+    this.interfaceLabel = 'Network',
     this.compact = true,
   });
 
   final double inBps;
   final double outBps;
   final double maxBps;
+  final String interfaceLabel;
   final bool compact;
 
   double get _scale => maxBps < 1 ? 1 : maxBps;
@@ -41,9 +43,9 @@ class UiAdminNetworkRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const SizedBox(
+          SizedBox(
             width: kAdminStatLabelWidth,
-            child: Text('Network', style: TextStyle(color: adminText, fontSize: 12, fontWeight: FontWeight.w600)),
+            child: Text(interfaceLabel, style: const TextStyle(color: adminText, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
           SizedBox(
             width: kAdminStatDetailWidth,

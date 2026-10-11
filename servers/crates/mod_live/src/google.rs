@@ -494,11 +494,19 @@ pub async fn live_google_proxy_run(
                                 }
                             }
                         }
-                        if client.send(Message::Text(t.to_string().into())).await.is_err() {
+                        let relay_v = serde_json::from_str::<Value>(&t);
+                        if let Ok(ref v) = relay_v {
+                            if crate::ws_audio::live_client_send_gemini_value(&mut client, v)
+                                .await
+                                .is_err()
+                            {
+                                break;
+                            }
+                        } else if client.send(Message::Text(t.to_string().into())).await.is_err() {
                             break;
                         }
 
-                        if let Ok(v) = serde_json::from_str::<Value>(&t) {
+                        if let Ok(v) = relay_v {
                             if live_handle_tool_call(
                                 &v,
                                 &pool,
@@ -527,6 +535,7 @@ pub async fn live_google_proxy_run(
                                 &v,
                                 &pool,
                                 &nats,
+                                &http_client,
                                 &mut client,
                                 chat_id_opt,
                                 owner_iid,
@@ -563,16 +572,23 @@ pub async fn live_google_proxy_run(
                                 }
                             }
                         }
-                        let out = if let Ok(s) = String::from_utf8(b.to_vec()) {
-                            Message::Text(s.into())
-                        } else {
-                            Message::Binary(b.clone())
-                        };
-                        if client.send(out).await.is_err() {
+                        let relay_v = serde_json::from_slice::<Value>(&b);
+                        if let Ok(ref v) = relay_v {
+                            if crate::ws_audio::live_client_send_gemini_value(&mut client, v)
+                                .await
+                                .is_err()
+                            {
+                                break;
+                            }
+                        } else if client
+                            .send(Message::Binary(b.clone()))
+                            .await
+                            .is_err()
+                        {
                             break;
                         }
 
-                        if let Ok(v) = serde_json::from_slice::<Value>(&b) {
+                        if let Ok(v) = relay_v {
                             resume.note_server_msg(&v);
                             if crate::LiveResume::is_go_away(&v)
                                 && handover_task.is_none()
@@ -610,6 +626,7 @@ pub async fn live_google_proxy_run(
                                 &v,
                                 &pool,
                                 &nats,
+                                &http_client,
                                 &mut client,
                                 chat_id_opt,
                                 owner_iid,
@@ -1264,6 +1281,7 @@ async fn live_process_server_content(
     v: &Value,
     pool: &PgPool,
     nats: &Option<Client>,
+    http: &reqwest::Client,
     client: &mut WebSocket,
     chat_id_opt: Option<i64>,
     owner_iid: i64,
@@ -1295,6 +1313,14 @@ async fn live_process_server_content(
         let u_text = turn_user_text.trim().to_string();
         let a_text = turn_assistant_text.trim().to_string();
         let had_content = !u_text.is_empty() || !a_text.is_empty() || !turn_tool_blocks.is_empty();
+
+        if active_mention_ids.is_empty() && !u_text.is_empty() && swap_job.is_none() {
+            if let Some((ids, label)) =
+                c35_mod_chat::live_mention_ids_from_text(pool, http, owner_iid, &u_text).await
+            {
+                *swap_job = Some((ids, label));
+            }
+        }
 
         if let Some(cid) = chat_id_opt {
             if !u_text.is_empty() || !a_text.is_empty() {

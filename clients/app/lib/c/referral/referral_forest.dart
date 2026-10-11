@@ -65,6 +65,12 @@ const referralSiblingVPad = 16.0;
 const referralBranchXFraction = 0.28;
 const referralNodeExpandHeight = 36.0;
 
+/// Matches server `referral_tree_get` max depth (see `mod_referral`).
+const referralForestMaxLoadDepth = 8;
+
+/// Auto-collapse a root on first paint when direct referrals meet this count.
+const referralForestAutoCollapseMinChildren = 10;
+
 int referralRemainingChildCount(List<ReferralTreeNode> nodes, ReferralForestData forest, int parentId) {
   final node = forest.accountMap[parentId];
   if (node == null) return 0;
@@ -205,14 +211,31 @@ Set<int> referralForestDescendantIds(ReferralForestData forest, int rootId) {
 bool referralNodeShowsRoleBadges(ReferralTreeNode node) =>
     node.mailboxCount > 0 || referralNodeIsRoot(node) || node.globalRoles.isNotEmpty;
 
-double referralNodeLayoutHeight(ReferralTreeNode node, {bool canExpand = false}) {
+double referralNodeLayoutHeight(
+  ReferralTreeNode node, {
+  bool canExpand = false,
+  bool showBranchToggle = false,
+}) {
   var h = referralNodeMinHeight;
   if (referralNodeShowsRoleBadges(node)) h += referralNodeBadgeHeight - referralNodeMinHeight;
-  if (canExpand) h += referralNodeExpandHeight;
+  if (canExpand || showBranchToggle) h += referralNodeExpandHeight;
   return h;
 }
 
-ReferralForestLayout referralForestLayout(ReferralForestData forest, {bool Function(int nodeId)? canExpand}) {
+int referralDirectChildDisplayCount(ReferralForestData forest, ReferralTreeNode node) {
+  final loaded = forest.childrenMap[node.id]?.length ?? 0;
+  if (node.childCount > loaded) return node.childCount;
+  return loaded > 0 ? loaded : node.childCount;
+}
+
+bool referralBranchHasLoadedChildren(ReferralForestData forest, int parentId) =>
+    (forest.childrenMap[parentId]?.length ?? 0) > 0;
+
+ReferralForestLayout referralForestLayout(
+  ReferralForestData forest, {
+  bool Function(int nodeId)? canExpand,
+  Set<int> collapsedBranches = const {},
+}) {
   final positions = <int, ReferralNodePosition>{};
   final nodes = <ReferralTreeNode>[];
   var maxX = 0.0;
@@ -224,8 +247,8 @@ ReferralForestLayout referralForestLayout(ReferralForestData forest, {bool Funct
     maxY = maxY < y + h ? y + h : maxY;
   }
 
-  void placeNode(ReferralTreeNode node, double x, double y, {required bool expand}) {
-    final h = referralNodeLayoutHeight(node, canExpand: expand);
+  void placeNode(ReferralTreeNode node, double x, double y, {required bool expand, required bool branchToggle}) {
+    final h = referralNodeLayoutHeight(node, canExpand: expand, showBranchToggle: branchToggle);
     positions[node.id] = ReferralNodePosition(x: x, y: y, w: referralNodeWidth, h: h);
     nodes.add(node);
     trackBounds(x, y, referralNodeWidth, h);
@@ -234,15 +257,22 @@ ReferralForestLayout referralForestLayout(ReferralForestData forest, {bool Funct
   double layoutNode(ReferralTreeNode account, double x, double y, Set<int> visited) {
     final id = account.id;
     final expand = canExpand?.call(id) ?? false;
-    final nodeH = referralNodeLayoutHeight(account, canExpand: expand);
+    final hasKids = referralBranchHasLoadedChildren(forest, id);
+    final collapsed = collapsedBranches.contains(id) && hasKids;
+    final branchToggle = hasKids;
+    final nodeH = referralNodeLayoutHeight(account, canExpand: expand, showBranchToggle: branchToggle);
     if (visited.contains(id)) {
-      placeNode(account, x, y, expand: expand);
+      placeNode(account, x, y, expand: expand, branchToggle: branchToggle);
       return nodeH;
     }
     final kids = forest.childrenMap[id] ?? const <ReferralTreeNode>[];
     final nextVisited = {...visited, id};
     if (kids.isEmpty) {
-      placeNode(account, x, y, expand: expand);
+      placeNode(account, x, y, expand: expand, branchToggle: branchToggle);
+      return nodeH;
+    }
+    if (collapsed) {
+      placeNode(account, x, y, expand: expand, branchToggle: branchToggle);
       return nodeH;
     }
     final childX = x + referralNodeWidth + referralChildRowGap;
@@ -257,7 +287,13 @@ ReferralForestLayout referralForestLayout(ReferralForestData forest, {bool Funct
       childY += subH;
       childrenHeight += subH;
     }
-    placeNode(account, x, y + (childrenHeight > nodeH ? (childrenHeight - nodeH) / 2 : 0), expand: expand);
+    placeNode(
+      account,
+      x,
+      y + (childrenHeight > nodeH ? (childrenHeight - nodeH) / 2 : 0),
+      expand: expand,
+      branchToggle: branchToggle,
+    );
     return childrenHeight > nodeH ? childrenHeight : nodeH;
   }
 

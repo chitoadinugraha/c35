@@ -16,7 +16,8 @@ pub struct Config {
 impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
         Ok(Self {
-            listen: std::env::var("LISTEN").unwrap_or_else(|_| "0.0.0.0:8080".into()),
+            listen: std::env::var("LISTEN")
+                .unwrap_or_else(|_| c35_store::C35_SERVER_LISTEN_DEFAULT.into()),
             jwt_secret: std::env::var("C35_JWT_SECRET")
                 .or_else(|_| std::env::var("AGENT_SECRET_KEY"))
                 .unwrap_or_else(|_| "dev-change-me".into()),

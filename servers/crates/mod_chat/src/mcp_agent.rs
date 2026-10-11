@@ -263,6 +263,7 @@ async fn mcp_compose_for_mentions(
         },
         owner_iid,
         locale,
+        None,
     )
     .await;
     (composed, active_topics)

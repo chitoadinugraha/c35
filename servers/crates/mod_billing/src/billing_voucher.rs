@@ -832,6 +832,7 @@ pub async fn billing_voucher_redeem_credit(
             plan_slug: String::new(),
             duration_months: 0,
             credit_idr: credit,
+            credit_usd: 0.0,
             highlight: true,
             expires_ts: Some(expires_ts),
             alien_pool_override: None,

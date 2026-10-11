@@ -35,6 +35,7 @@ class AdminStatsStream extends ChangeNotifier {
   StreamSubscription<void>? _reconnectedSub;
   String? subscribeError;
   final _nodes = <String, NodeStat>{};
+  final _pods = <String, PodStat>{};
   final _volumes = <String, VolumeStat>{};
   final _netPeaks = <String, _NetPeak>{};
   String? _selectedNodeName;
@@ -67,6 +68,27 @@ class AdminStatsStream extends ChangeNotifier {
       volumes.where((v) => v.nodeName.isEmpty || v.nodeName == nodeName).toList();
 
   double networkMaxBps(String nodeName) => _netPeaks[nodeName]?.max ?? _NetPeak._defaultScaleBps;
+
+  List<PodStat> podsForNode(String nodeName) {
+    final list = _pods.values.where((p) => p.nodeName == nodeName).toList(growable: false);
+    list.sort((a, b) => '${a.namespace}/${a.podName}'.compareTo('${b.namespace}/${b.podName}'));
+    return list;
+  }
+
+  double networkMaxBpsForPod(PodStat pod) {
+    final key = _podNetKey(pod);
+    return _netPeaks[key]?.max ?? _NetPeak._defaultScaleBps;
+  }
+
+  String? nodeNetIface(String nodeName) {
+    final n = _nodes[nodeName];
+    if (n == null || n.netIface.isEmpty) return null;
+    return n.netIface;
+  }
+
+  static String _podKey(PodStat pod) => '${pod.nodeName}/${pod.namespace}/${pod.podName}';
+
+  static String _podNetKey(PodStat pod) => 'pod:${pod.nodeName}/${pod.namespace}/${pod.podName}';
 
   List<DiskDeviceStat> storagesFor(NodeStat node) {
     if (node.devices.isNotEmpty) return node.devices;
@@ -118,6 +140,13 @@ class AdminStatsStream extends ChangeNotifier {
       if (n.nodeName.isNotEmpty) {
         _nodes[n.nodeName] = n;
         _netPeaks.putIfAbsent(n.nodeName, () => _NetPeak()).update(n.netInBps, n.netOutBps);
+      }
+    } else if (push.hasPod()) {
+      final p = push.pod;
+      if (p.nodeName.isNotEmpty && p.podName.isNotEmpty) {
+        final key = _podKey(p);
+        _pods[key] = p;
+        _netPeaks.putIfAbsent(_podNetKey(p), () => _NetPeak()).update(p.netInBps, p.netOutBps);
       }
     } else if (push.hasVolume()) {
       final v = push.volume;

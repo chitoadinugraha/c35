@@ -15,6 +15,21 @@ namespace {
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
 #endif
+#ifndef DWMWA_BORDER_COLOR
+#define DWMWA_BORDER_COLOR 34
+#endif
+#ifndef DWMWA_CAPTION_COLOR
+#define DWMWA_CAPTION_COLOR 35
+#endif
+#ifndef DWMWA_TEXT_COLOR
+#define DWMWA_TEXT_COLOR 36
+#endif
+
+// Match Flutter scaffold background Color(0xFF08080A).
+constexpr COLORREF kFrameCaption = RGB(8, 8, 10);
+constexpr COLORREF kFrameBorder = RGB(8, 8, 10);
+// Match UiWindowBar title Color(0xFFA1A1AA).
+constexpr COLORREF kFrameCaptionText = RGB(161, 161, 170);
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 
 /// Registry key for app theme preference.
@@ -233,6 +248,7 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_ACTIVATE:
+      ApplyFrameTheme(hwnd);
       if (child_content_ != nullptr) {
         SetFocus(child_content_);
       }
@@ -312,16 +328,16 @@ void Win32Window::ApplyFrameTheme(HWND const window) {
   if (!window) {
     return;
   }
-  DWORD light_mode;
-  DWORD light_mode_size = sizeof(light_mode);
-  LSTATUS result = RegGetValue(HKEY_CURRENT_USER, kGetPreferredBrightnessRegKey,
-                               kGetPreferredBrightnessRegValue,
-                               RRF_RT_REG_DWORD, nullptr, &light_mode,
-                               &light_mode_size);
+  // Alien AI is always dark; do not follow Windows "light apps" for the caption.
+  BOOL enable_dark_mode = TRUE;
+  DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                        &enable_dark_mode, sizeof(enable_dark_mode));
 
-  if (result == ERROR_SUCCESS) {
-    BOOL enable_dark_mode = light_mode == 0;
-    DwmSetWindowAttribute(window, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                          &enable_dark_mode, sizeof(enable_dark_mode));
-  }
+  COLORREF caption = kFrameCaption;
+  DwmSetWindowAttribute(window, DWMWA_CAPTION_COLOR, &caption,
+                        sizeof(caption));
+  COLORREF border = kFrameBorder;
+  DwmSetWindowAttribute(window, DWMWA_BORDER_COLOR, &border, sizeof(border));
+  COLORREF text = kFrameCaptionText;
+  DwmSetWindowAttribute(window, DWMWA_TEXT_COLOR, &text, sizeof(text));
 }

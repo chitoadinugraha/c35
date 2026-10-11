@@ -11,14 +11,60 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tracing::warn;
 
-const MEMORY_CANDIDATE_LIMIT: i64 = 32;
 const MEMORY_PINNED_LIMIT: i64 = 4;
 const MEMORY_SIM_FLOOR: f32 = 0.50;
 const MEMORY_RETRIEVE_TIMEOUT: Duration = Duration::from_millis(3500);
 const MEMORY_EMBED_TIMEOUT: Duration = Duration::from_millis(2000);
-const EMBED_DIMS: i32 = 768;
+const EMBED_DIMS: i32 = 256;
+
+static QUERY_EMBED_CACHE: std::sync::LazyLock<dashmap::DashMap<String, Vec<f32>>> =
+    std::sync::LazyLock::new(dashmap::DashMap::new);
+
+#[inline]
+pub fn dot_product_256(a: &[f32], b: &[f32]) -> f32 {
+    let n = a.len().min(b.len());
+    let mut sum = 0.0f32;
+    for i in 0..n {
+        sum += a[i] * b[i];
+    }
+    sum
+}
+
+#[inline]
+pub fn l2_normalize_256(v: &mut [f32]) {
+    let mut sum = 0.0f32;
+    for x in v.iter() {
+        sum += x * x;
+    }
+    let norm = sum.sqrt();
+    if norm > 1e-12 {
+        for x in v.iter_mut() {
+            *x /= norm;
+        }
+    }
+}
+
+pub fn is_trivial_query(q: &str) -> bool {
+    let t = q.trim();
+    if t.is_empty() {
+        return true;
+    }
+    if t.len() <= 20 {
+        let lower = t.to_lowercase();
+        const TRIVIAL: &[&str] = &[
+            "ok", "oke", "okay", "yes", "ya", "iya", "siap", "lanjut", "terima kasih",
+            "makasih", "thanks", "thx", "halo", "hi", "hai", "p", "test", "halo!",
+            "sip", "mantap", "pagi", "siang", "malam", "sore",
+        ];
+        if TRIVIAL.iter().any(|&w| lower == w) {
+            return true;
+        }
+    }
+    false
+}
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
+
 pub struct MemoryRetrieveTrace {
     pub duration_ms: i64,
     pub memory_count: i32,
@@ -255,8 +301,25 @@ pub async fn memory_list_active(
     Ok(rows)
 }
 
+/// Site-scoped turns load data via site tools; skip embedding retrieval on the hot path.
+pub fn memory_skip_site_scoped(mention_ctx: &crate::mention_context::MentionContext) -> bool {
+    !mention_ctx.sites.is_empty()
+}
+
 pub async fn memory_retrieve(
     pool: &PgPool,
+    http: &Client,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+    query_text: &str,
+    limit: usize,
+) -> MemoryRetrieveResult {
+    memory_retrieve_with_nats(pool, None, http, owner_iid, bot_iid, query_text, limit).await
+}
+
+pub async fn memory_retrieve_with_nats(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
     http: &Client,
     owner_iid: i64,
     bot_iid: Option<i64>,
@@ -266,7 +329,7 @@ pub async fn memory_retrieve(
     let started = Instant::now();
     match tokio::time::timeout(
         MEMORY_RETRIEVE_TIMEOUT,
-        memory_retrieve_impl(pool, http, owner_iid, bot_iid, query_text, limit.max(1)),
+        memory_retrieve_impl(pool, nats, http, owner_iid, bot_iid, query_text, limit.max(1)),
     )
     .await
     {
@@ -285,8 +348,101 @@ pub async fn memory_retrieve(
     }
 }
 
+pub async fn memory_cache_invalidate(
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+) {
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::memory_bundle_kv_ensure(client).await {
+            let _ = c35_nats::memory_bundle_delete(&store, owner_iid, bot_iid).await;
+        }
+    }
+}
+
+async fn memory_bundle_fetch_or_build(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    http: &Client,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+) -> Option<c35_proto::UserMemoryBundle> {
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::memory_bundle_kv_ensure(client).await {
+            if let Some(bundle) = c35_nats::memory_bundle_get(&store, owner_iid, bot_iid).await {
+                return Some(bundle);
+            }
+        }
+    }
+
+    let pinned = memory_pinned(pool, owner_iid, bot_iid, MEMORY_PINNED_LIMIT).await.ok()?;
+    let active = memory_active_with_embed(pool, owner_iid, bot_iid, 64).await.ok()?;
+    let mut items = Vec::new();
+
+    for (k, c) in &pinned {
+        items.push(c35_proto::UserMemoryBundleItem {
+            id: 0,
+            key: k.clone(),
+            content: c.clone(),
+            is_pinned: true,
+            tags: vec![],
+            embedding: vec![],
+        });
+    }
+
+    for a in active {
+        let is_pinned = items.iter().any(|i| i.key == a.key);
+        let mut emb = a.embedding_json.and_then(|val| {
+            serde_json::from_value::<Vec<f32>>(val).ok().map(|mut v| {
+                if v.len() > EMBED_DIMS as usize {
+                    v.truncate(EMBED_DIMS as usize);
+                    l2_normalize_256(&mut v);
+                }
+                v
+            })
+        }).unwrap_or_default();
+
+        if emb.is_empty() {
+            if let Ok(res) = embed_cached(pool, http, &a.content, EMBED_TASK_DOCUMENT, EMBED_DIMS).await {
+                emb = res.embedding;
+            }
+        }
+
+        if is_pinned {
+            if let Some(existing) = items.iter_mut().find(|i| i.key == a.key) {
+                existing.embedding = emb;
+            }
+        } else {
+            items.push(c35_proto::UserMemoryBundleItem {
+                id: 0,
+                key: a.key,
+                content: a.content,
+                is_pinned: false,
+                tags: vec![],
+                embedding: emb,
+            });
+        }
+    }
+
+    let bundle = c35_proto::UserMemoryBundle {
+        owner_iid,
+        bot_iid: bot_iid.unwrap_or(0),
+        updated_ts_ms: chrono::Utc::now().timestamp_millis(),
+        items,
+    };
+
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::memory_bundle_kv_ensure(client).await {
+            let _ = c35_nats::memory_bundle_put(&store, &bundle).await;
+        }
+    }
+
+    Some(bundle)
+}
+
 async fn memory_retrieve_impl(
     pool: &PgPool,
+    nats: Option<&async_nats::Client>,
     http: &Client,
     owner_iid: i64,
     bot_iid: Option<i64>,
@@ -296,130 +452,100 @@ async fn memory_retrieve_impl(
     let mut trace = MemoryRetrieveTrace::default();
     let q = query_text.trim();
 
-    // 1. Core/pinned memories (identity, preference, and key user traits)
-    let pinned_rows = match memory_pinned(pool, owner_iid, bot_iid, MEMORY_PINNED_LIMIT).await {
-        Ok(rows) => {
-            trace.pinned_count = rows.len() as i32;
-            rows
-        }
-        Err(e) => {
-            warn!("[c35:memory] memory_pinned failed owner_iid={owner_iid}: {e:#}");
-            Vec::new()
-        }
-    };
+    let bundle = memory_bundle_fetch_or_build(pool, nats, http, owner_iid, bot_iid).await;
 
-    if q.is_empty() {
-        let mut combined = pinned_rows;
-        let recent = memory_list_active(pool, owner_iid, bot_iid, limit as i64)
-            .await
-            .unwrap_or_default();
-        for r in recent {
-            if !combined.iter().any(|(k, _)| k == &r.0) {
-                combined.push(r);
-            }
-        }
-        combined.truncate(limit);
-        trace.memory_count = combined.len() as i32;
-        return Ok((memory_prompt_block(&combined), trace));
-    }
+    if let Some(ref bundle) = bundle {
+        let pinned_items: Vec<(String, String)> = bundle
+            .items
+            .iter()
+            .filter(|i| i.is_pinned)
+            .map(|i| (i.key.clone(), i.content.clone()))
+            .collect();
+        trace.pinned_count = pinned_items.len() as i32;
+        trace.active_count = bundle.items.len() as i32;
 
-    // 2. Load active memories for the user
-    let all_active = match memory_active_with_embed(pool, owner_iid, bot_iid, 64).await {
-        Ok(rows) => {
-            trace.active_count = rows.len() as i32;
-            rows
-        }
-        Err(e) => {
-            warn!("[c35:memory] memory_active_with_embed failed owner_iid={owner_iid}: {e:#}");
-            Vec::new()
-        }
-    };
-
-    if all_active.is_empty() {
-        if !pinned_rows.is_empty() {
-            trace.memory_count = pinned_rows.len() as i32;
-            return Ok((memory_prompt_block(&pinned_rows), trace));
-        }
-        return Ok((String::new(), trace));
-    }
-
-    let embed_t0 = Instant::now();
-    let model = embed_model_tag(EMBED_MODEL, EMBED_DIMS);
-    trace.embed_model = model.clone();
-
-    let query_vec = match tokio::time::timeout(
-        MEMORY_EMBED_TIMEOUT,
-        embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS),
-    )
-    .await
-    {
-        Ok(Ok(r)) => {
-            trace.embed_cached = r.cached;
-            trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
-            trace.embed_token_in = r.token_in;
-            trace.embed_cost_usd = billing_embed_cost_usd(&model, r.token_in);
-            Some(r.embedding)
-        }
-        _ => {
+        if q.is_empty() || is_trivial_query(q) {
             trace.embed_skipped = true;
-            None
-        }
-    };
-
-    let mut scored: Vec<(String, String, f32)> = Vec::new();
-
-    // In-memory vector comparison against stored embedding_json
-    if let Some(ref q_vec) = query_vec {
-        for row in &all_active {
-            if let Some(ref emb_val) = row.embedding_json {
-                if let Ok(emb_vec) = serde_json::from_value::<Vec<f32>>(emb_val.clone()) {
-                    let sim = cosine_similarity(q_vec, &emb_vec);
-                    if sim >= MEMORY_SIM_FLOOR {
-                        scored.push((row.key.clone(), row.content.clone(), sim));
-                    }
+            let mut combined = pinned_items;
+            for item in &bundle.items {
+                if !combined.iter().any(|(k, _)| k == &item.key) {
+                    combined.push((item.key.clone(), item.content.clone()));
                 }
-            } else {
-                // If embedding not yet cached, still include as candidate
-                scored.push((row.key.clone(), row.content.clone(), 0.55));
+            }
+            combined.truncate(limit);
+            trace.memory_count = combined.len() as i32;
+            return Ok((memory_prompt_block(&combined), trace));
+        }
+
+        let embed_t0 = Instant::now();
+        let model = embed_model_tag(EMBED_MODEL, EMBED_DIMS);
+        trace.embed_model = model.clone();
+
+        let query_vec: Option<Vec<f32>> = if let Some(hit) = QUERY_EMBED_CACHE.get(q) {
+            trace.embed_cached = true;
+            trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
+            Some(hit.value().clone())
+        } else {
+            match tokio::time::timeout(
+                MEMORY_EMBED_TIMEOUT,
+                embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS),
+            )
+            .await
+            {
+                Ok(Ok(r)) => {
+                    trace.embed_cached = r.cached;
+                    trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
+                    trace.embed_token_in = r.token_in;
+                    trace.embed_cost_usd = billing_embed_cost_usd(&model, r.token_in);
+                    if QUERY_EMBED_CACHE.len() < 512 {
+                        QUERY_EMBED_CACHE.insert(q.to_string(), r.embedding.clone());
+                    }
+                    Some(r.embedding)
+                }
+                _ => {
+                    trace.embed_skipped = true;
+                    None
+                }
+            }
+        };
+
+        let mut scored: Vec<(String, String, f32)> = Vec::new();
+        if let Some(q_vec) = query_vec.as_deref() {
+            for item in &bundle.items {
+                if !item.embedding.is_empty() {
+                    let sim = dot_product_256(q_vec, &item.embedding);
+                    if sim >= MEMORY_SIM_FLOOR {
+                        scored.push((item.key.clone(), item.content.clone(), sim));
+                    }
+                } else {
+                    scored.push((item.key.clone(), item.content.clone(), 0.55));
+                }
+            }
+        } else {
+            for item in &bundle.items {
+                scored.push((item.key.clone(), item.content.clone(), 0.55));
             }
         }
-    } else {
-        // Embed skipped: include all active memories as candidates
-        for row in &all_active {
-            scored.push((row.key.clone(), row.content.clone(), 0.55));
+
+        scored.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+
+        let mut result_rows: Vec<(String, String)> = Vec::new();
+        for p in pinned_items {
+            result_rows.push(p);
         }
+        for (k, c, _) in scored {
+            if !result_rows.iter().any(|(rk, _)| rk == &k) {
+                result_rows.push((k, c));
+            }
+        }
+        result_rows.truncate(limit);
+        trace.memory_count = result_rows.len() as i32;
+        return Ok((memory_prompt_block(&result_rows), trace));
     }
 
-    // 3. FTS keyword fallback
-    let fts_cands = match memory_candidates(pool, owner_iid, bot_iid, q).await {
-        Ok(rows) => rows,
-        Err(e) => {
-            warn!("[c35:memory] memory_candidates failed owner_iid={owner_iid}: {e:#}");
-            Vec::new()
-        }
-    };
-    for f in fts_cands {
-        if !scored.iter().any(|(k, _, _)| k == &f.key) {
-            scored.push((f.key, f.content, 0.60));
-        }
-    }
-
-    scored.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
-
-    // 4. Merge: pinned first, then top scored
-    let mut result_rows: Vec<(String, String)> = Vec::new();
-    for p in pinned_rows {
-        result_rows.push(p);
-    }
-    for (k, c, _) in scored {
-        if !result_rows.iter().any(|(rk, _)| rk == &k) {
-            result_rows.push((k, c));
-        }
-    }
-    result_rows.truncate(limit);
-    trace.memory_count = result_rows.len() as i32;
-    Ok((memory_prompt_block(&result_rows), trace))
+    Ok((String::new(), trace))
 }
+
 
 struct ActiveMemoryRow {
     key: String,
@@ -503,69 +629,7 @@ async fn memory_active_with_embed(
         .collect())
 }
 
-struct MemoryCand {
-    key: String,
-    content: String,
-}
-
-async fn memory_candidates(
-    pool: &PgPool,
-    owner_iid: i64,
-    bot_iid: Option<i64>,
-    query_text: &str,
-) -> Result<Vec<MemoryCand>> {
-    let q = query_text.trim();
-    let rows = if q.is_empty() {
-        if let Some(bid) = bot_iid {
-            sqlx::query_as::<_, (String, String)>(
-                "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND (bot_iid IS NULL OR bot_iid = $2) \
-                 AND is_active = true AND deleted_ts IS NULL ORDER BY updated_ts DESC LIMIT $3",
-            )
-            .bind(owner_iid)
-            .bind(bid)
-            .bind(MEMORY_CANDIDATE_LIMIT)
-            .fetch_all(pool)
-            .await?
-        } else {
-            sqlx::query_as::<_, (String, String)>(
-                "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND bot_iid IS NULL \
-                 AND is_active = true AND deleted_ts IS NULL ORDER BY updated_ts DESC LIMIT $2",
-            )
-            .bind(owner_iid)
-            .bind(MEMORY_CANDIDATE_LIMIT)
-            .fetch_all(pool)
-            .await?
-        }
-    } else if let Some(bid) = bot_iid {
-        sqlx::query_as::<_, (String, String)>(
-            "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND (bot_iid IS NULL OR bot_iid = $2) \
-             AND is_active = true AND deleted_ts IS NULL \
-             AND tsv @@ plainto_tsquery('english', $3) ORDER BY ts_rank(tsv, plainto_tsquery('english', $3)) DESC LIMIT $4",
-        )
-        .bind(owner_iid)
-        .bind(bid)
-        .bind(q)
-        .bind(MEMORY_CANDIDATE_LIMIT)
-        .fetch_all(pool)
-        .await?
-    } else {
-        sqlx::query_as::<_, (String, String)>(
-            "SELECT key, content FROM ai.memory WHERE owner_iid = $1 AND bot_iid IS NULL \
-             AND is_active = true AND deleted_ts IS NULL \
-             AND tsv @@ plainto_tsquery('english', $2) ORDER BY ts_rank(tsv, plainto_tsquery('english', $2)) DESC LIMIT $3",
-        )
-        .bind(owner_iid)
-        .bind(q)
-        .bind(MEMORY_CANDIDATE_LIMIT)
-        .fetch_all(pool)
-        .await?
-    };
-    Ok(rows
-        .into_iter()
-        .map(|(key, content)| MemoryCand { key, content })
-        .collect())
-}
-
+#[cfg(test)]
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;

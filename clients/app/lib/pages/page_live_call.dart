@@ -18,7 +18,9 @@ import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/c/ui/ui_duration_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ai/ui_live_offer_icon.dart';
 import 'package:alienai_c35/widgets/ai/ui_mention_chip.dart';
@@ -413,6 +415,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
                                         letterSpacing: 0.3,
+                                        height: 1.35,
                                       ),
                                     ),
                                   ],
@@ -555,18 +558,9 @@ class _PageLiveCallState extends State<PageLiveCall> {
   }
 
   static String _formatAvailableTime(double totalMins) {
-    if (totalMins <= 0) return '0m available';
-    if (totalMins < 1.0) {
-      final secs = (totalMins * 60).round();
-      return '${secs}s available';
-    }
-    final totalRoundMins = totalMins.round();
-    final hours = totalRoundMins ~/ 60;
-    final mins = totalRoundMins % 60;
-    if (hours > 0) {
-      return mins > 0 ? '${hours}h ${mins}m available' : '${hours}h available';
-    }
-    return '${mins}m available';
+    if (totalMins <= 0) return 'live.call.noneAvailable'.tr();
+    final duration = uiFmtDurationTwoMajor(Duration(seconds: (totalMins * 60).round()));
+    return 'live.call.availableDuration'.tr(namedArgs: {'duration': duration});
   }
 
   Widget _stageVisual({required bool inCall, required bool ready}) {
@@ -929,63 +923,75 @@ class _PageLiveCallState extends State<PageLiveCall> {
         final camActive = _session.cameraActive.value;
         final hasAttachment = _session.activeAttachmentName.value != null;
 
+        final micBtn = _controlCircleButton(
+          icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+          label: muted ? 'Unmute' : 'Mute',
+          active: muted,
+          activeColor: const Color(0xFFEF4444),
+          onTap: _session.toggleMicMute,
+        );
+        final speakerBtn = _controlCircleButton(
+          icon: speakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
+          label: speakerOn ? 'Speaker' : 'Earpiece',
+          active: speakerOn,
+          activeColor: const Color(0xFF10B981),
+          onTap: _session.toggleSpeaker,
+        );
+        final attachBtn = _controlCircleButton(
+          icon: Icons.add_rounded,
+          label: _tr('live.attach.file_send', 'Send File'),
+          active: hasAttachment,
+          activeColor: const Color(0xFF38BDF8),
+          onTap: _pickAndAttachMedia,
+        );
+        final videoBtn = _controlCircleButton(
+          icon: camActive ? Icons.videocam_rounded : Icons.videocam_outlined,
+          label: camActive ? 'Video On' : 'Video',
+          active: camActive,
+          activeColor: const Color(0xFF3B82F6),
+          onTap: () async {
+            await _session.toggleCamera();
+            if (mounted) setState(() {});
+          },
+        );
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 2x2 grid of feature controls
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 240),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            SizedBox(
+              width: double.infinity,
+              child: LayoutBuilder(
+              builder: (context, constraints) {
+                final wide = constraints.maxWidth >= 480;
+                final controls = [micBtn, speakerBtn, attachBtn, videoBtn];
+                if (wide) {
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: math.min(560, constraints.maxWidth)),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: controls,
+                    ),
+                  );
+                }
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Mic mute toggle
-                      _controlCircleButton(
-                        icon: muted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                        label: muted ? 'Unmute' : 'Mute',
-                        active: muted,
-                        activeColor: const Color(0xFFEF4444),
-                        onTap: _session.toggleMicMute,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [micBtn, speakerBtn],
                       ),
-                      // Loudspeaker toggle
-                      _controlCircleButton(
-                        icon: speakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
-                        label: speakerOn ? 'Speaker' : 'Earpiece',
-                        active: speakerOn,
-                        activeColor: const Color(0xFF10B981),
-                        onTap: _session.toggleSpeaker,
+                      const SizedBox(height: 18),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [attachBtn, videoBtn],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Media attachment (Send File)
-                      _controlCircleButton(
-                        icon: Icons.add_rounded,
-                        label: _tr('live.attach.file_send', 'Send File'),
-                        active: hasAttachment,
-                        activeColor: const Color(0xFF38BDF8),
-                        onTap: _pickAndAttachMedia,
-                      ),
-                      // Camera video toggle
-                      _controlCircleButton(
-                        icon: camActive ? Icons.videocam_rounded : Icons.videocam_outlined,
-                        label: camActive ? 'Video On' : 'Video',
-                        active: camActive,
-                        activeColor: const Color(0xFF3B82F6),
-                        onTap: () async {
-                          await _session.toggleCamera();
-                          if (mounted) setState(() {});
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                );
+              },
+            ),
             ),
             const SizedBox(height: 28),
             // Centered End call button at the bottom

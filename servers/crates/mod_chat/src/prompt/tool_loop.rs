@@ -516,7 +516,7 @@ pub async fn prompt_cluster_turn(
                     .unwrap_or("");
                 let circuit_stop = if let Some(ctx) = turn_ctx.as_mut() {
                     if let Some(cp) = ctx.checkpoint.as_deref_mut() {
-                        checkpoint_record_tool(cp, &name, &result);
+                        checkpoint_record_tool(cp, &name, &result, Some(hop as u32));
                         if let Some((fc, reason)) = checkpoint_tool_should_stop(cp, ctx.run_kind) {
                             checkpoint_set_fatal(cp, fc, reason);
                             Some((fc, reason))

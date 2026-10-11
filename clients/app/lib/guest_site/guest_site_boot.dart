@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/site/design/site_color.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
+import 'package:alienai_c35/guest_site/guest_site_commerce_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:flutter/material.dart';
 
@@ -28,6 +29,8 @@ class GuestSiteBoot {
     this.featuredContacts = const [],
     this.effects = const [],
     this.commerceObjects = const [],
+    this.commerceBoot = const GuestCommerceBoot(enabled: false),
+    this.orderProgressSteps = const [],
   });
 
   final int siteIid;
@@ -56,6 +59,11 @@ class GuestSiteBoot {
 
   /// Boot `commerce_boot.objects`: reservable units `{id, name, code, pic, kind, product_id}`.
   final List<Map<String, dynamic>> commerceObjects;
+
+  final GuestCommerceBoot commerceBoot;
+
+  /// Localized order status steps (`order_progress_steps` from boot / published `__SITE_GUEST__`).
+  final List<Map<String, dynamic>> orderProgressSteps;
 
   /// Client-side boot from `site.preview` / tool `doc` (no product preload until `boot_get`).
   factory GuestSiteBoot.fromSiteDoc({
@@ -94,7 +102,14 @@ class GuestSiteBoot {
       featuredContacts: _mapList(doc['featured_contacts']),
       effects: _mapList(doc['effects']),
       commerceObjects: commerceObjectsFrom(doc),
+      commerceBoot: GuestCommerceBoot.fromJson(doc['commerce_boot']),
+      orderProgressSteps: _mapList(doc['order_progress_steps']),
     );
+  }
+
+  bool get commerceEnabled {
+    if (capabilities['commerce'] != true) return false;
+    return commerceBoot.enabled;
   }
 
   factory GuestSiteBoot.fromJson(Map<String, dynamic> json) {
@@ -157,6 +172,8 @@ class GuestSiteBoot {
       featuredContacts: _mapList(json['featured_contacts']),
       effects: _mapList(json['effects']),
       commerceObjects: commerceObjectsFrom(json),
+      commerceBoot: GuestCommerceBoot.fromJson(json['commerce_boot']),
+      orderProgressSteps: _mapList(json['order_progress_steps']),
     );
   }
 

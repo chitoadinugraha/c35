@@ -1,0 +1,62 @@
+---
+description: Site guest UI — app preview is canonical; keep Flutter and web renderers in sync
+globs: clients/app/lib/guest_site/**,clients/app/lib/c/site/design/**,servers/crates/mod_site/src/render.rs,servers/crates/mod_site/src/guest_design.rs,servers/crates/mod_site/src/site_boot.rs,servers/crates/mod_site/tests/**,clients/web/static/site-guest/**,clients/app/test/guest_site**
+alwaysApply: false
+---
+
+# Site guest dual renderer — app preview canonical
+
+Mirrored for Antigravity: [`.agents/rules/site-guest-dual-renderer-parity.md`](../../.agents/rules/site-guest-dual-renderer-parity.md)
+
+Plan: [`_/specs/plans/2026-10-11-site-preview-web-renderer-parity-multitask.md`](../../_/specs/plans/2026-10-11-site-preview-web-renderer-parity-multitask.md). Catalog: [`_/specs/site-guest-components.md`](../../_/specs/site-guest-components.md).
+
+## Hard rule
+
+c35 has **two** guest renderers: Flutter **`GuestSiteView`** (`clients/app/lib/guest_site/`) and published **HTML + `site-guest.v1.js/css`** (`mod_site::render`, static bundle). They must show the **same** blocks, chrome, and commerce UX from the **same boot JSON**.
+
+**Canonical reference is the app preview.** If Flutter and web disagree, **fix web** (Rust render + guest static assets) unless boot assembly is wrong for both.
+
+Do **not** “fix” preview with a WebView of the published page.
+
+## When you change the app guest renderer
+
+If you edit any of:
+
+- `clients/app/lib/guest_site/**`
+- Guest-related design resolution used only for preview (`c/site/design/**` when behavior affects `GuestSiteView`)
+
+then in the **same change** (same PR):
+
+1. Update the **web counterpart** (see table below).
+2. Extend or add a **parity test** (`servers/crates/mod_site/tests/guest_design_test.rs`, `guest_parity_test.rs`, or `clients/app/test/guest_site_*.dart`) using the same fixture JSON.
+3. Update **`_/specs/site-guest-components.md`** if block types, `data-guest`, or boot keys change.
+
+## Counterpart map
+
+| App (reference) | Web (must match) |
+|-----------------|------------------|
+| `guest_site_blocks.dart` | `render.rs` → `block_html_render` |
+| `guest_site_view.dart`, shell/backdrop | `guest_shell_html`, `guest_root_css`, `site-guest.v1.css` |
+| `guest_site_boot.dart` | `site_boot.rs`, inlined `__SITE_GUEST__` in `render.rs` |
+| `guest_site_cart.dart`, `guest_site_reservation_sheet.dart` | `site-guest.v1.js` |
+| `guest_site_effect_stack.dart` | `site-guest.effects.v1.js` |
+
+Shared parsing: `guest_design.rs` (Rust) ↔ `SiteDesignStore` / `siteDesignResolve` (Dart).
+
+## Verify before claiming done
+
+```powershell
+cd servers; cargo test -p mod_site guest_design
+cd ..\clients\app; flutter test test/guest_site_design_test.dart test/guest_site_view_test.dart
+```
+
+After **JS/CSS** changes: `clients/web/static/site-guest/build.ps1`, then commit built artifacts if the repo tracks them.
+
+After **Rust render** changes: site **publish** (and server deploy) required for live URL parity — preview may use draft boot earlier.
+
+## New block types
+
+1. Dart `guestSiteBlock` arm + widget.
+2. Rust `block_html_render` arm + `data-guest` per catalog.
+3. Row in `site-guest-components.md` and the parity matrix in the plan above.
+4. Fixture JSON + tests on both sides.

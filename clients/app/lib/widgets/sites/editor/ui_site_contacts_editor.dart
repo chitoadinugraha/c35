@@ -3,6 +3,10 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
@@ -35,7 +39,7 @@ class UiSiteContactsEditor extends StatefulWidget {
   State<UiSiteContactsEditor> createState() => _UiSiteContactsEditorState();
 }
 
-class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
+class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
   var _loading = true;
@@ -43,8 +47,6 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
   String? _error;
   String? _selectedId;
   final _byId = <String, SiteContact>{};
-  final _debounceTimers = <String, Timer>{};
-
   @override
   void initState() {
     super.initState();
@@ -53,9 +55,6 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
 
   @override
   void dispose() {
-    for (final t in _debounceTimers.values) {
-      t.cancel();
-    }
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -101,13 +100,31 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
     }
   }
 
+  @override
+  void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    _byId
+      ..clear()
+      ..addEntries(catalog.contacts.map((c) => MapEntry('${c.contactId}', c)));
+    _pickDefault();
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+      });
+    }
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
+      if (await ensureEditorCatalog()) return;
       final items = await widget.api.contactList(widget.siteIid);
+      for (final c in items) {
+        editorCatalog?.upsertContact(c);
+      }
       _byId
         ..clear()
         ..addEntries(items.map((c) => MapEntry('${c.contactId}', c)));
@@ -126,6 +143,7 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
       final c = await widget.api.contactPut(widget.siteIid, widget.api.contactNew(widget.siteIid));
       final id = '${c.contactId}';
       _byId[id] = c;
+      editorCatalog?.upsertContact(c);
       _searchCtrl.clear();
       setState(() => _search = '');
       _select(id);
@@ -137,8 +155,12 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
   }
 
   void _debouncedPut(String id, SiteContact draft) {
-    _debounceTimers[id]?.cancel();
-    _debounceTimers[id] = Timer(const Duration(milliseconds: 450), () => unawaited(_put(id, draft)));
+    siteEditorScheduleSave(
+      context,
+      key: 'contact:$id',
+      debounce: const Duration(milliseconds: 450),
+      save: () => _put(id, draft),
+    );
   }
 
   Future<void> _put(String id, SiteContact draft) async {
@@ -154,6 +176,7 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
         if (_selectedId == id) _selectedId = savedId;
         _error = null;
       });
+      editorCatalog?.upsertContact(saved);
       if (!widget.masterDetail && widget.detailId == id && widget.detailId != savedId) {
         widget.onDetailIdChanged?.call(savedId);
       }
@@ -164,12 +187,17 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> {
     }
   }
 
+  void _patchFeaturedPreview() {
+    siteEditorPreviewPatch(context, (boot) => siteEditorPreviewSetFeaturedContacts(boot, _ordered));
+  }
+
   void _patch(String id, void Function(SiteContact c) fn) {
     final base = _byId[id];
     if (base == null) return;
     final next = base.clone();
     fn(next);
     setState(() => _byId[id] = next);
+    _patchFeaturedPreview();
     _debouncedPut(id, next);
   }
 

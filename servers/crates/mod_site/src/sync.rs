@@ -171,7 +171,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
             r#"
             SELECT site_iid, product_id, type, name, "desc", unit, sku, rev,
                    can_sell, can_reserve, track_stock, stock_qty, price, pic, category,
-                   product_json, is_archived, sort_order, created_ts, updated_ts, deleted_ts
+                   product_json, is_archived, sort_order, is_used, created_ts, updated_ts, deleted_ts
             FROM site.product
             WHERE site_iid = ANY($1::bigint[])
               AND updated_ts > to_timestamp($2::double precision / 1000.0)
@@ -210,6 +210,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
                 product_json: r.get::<serde_json::Value, _>("product_json").to_string(),
                 is_archived: r.get("is_archived"),
                 sort_order: r.get("sort_order"),
+                is_used: r.try_get("is_used").unwrap_or(false),
                 created_ts_ms: ts_ms(r.get("created_ts")),
                 updated_ts_ms: updated,
                 deleted_ts_ms: ts_ms_opt(r.get("deleted_ts")),

@@ -9,6 +9,8 @@ import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/overlay_effect/ui_overlay_effect_config.dart';
 import 'package:alienai_c35/widgets/overlay_effect/ui_overlay_effect_icon.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
@@ -45,7 +47,6 @@ class _UiSiteEffectsEditorState extends State<UiSiteEffectsEditor> {
   final _store = SiteDesignStore();
   var _loading = true;
   var _ready = false;
-  Timer? _saveTimer;
 
   @override
   void initState() {
@@ -55,7 +56,6 @@ class _UiSiteEffectsEditorState extends State<UiSiteEffectsEditor> {
 
   @override
   void dispose() {
-    _saveTimer?.cancel();
     _store.removeListener(_scheduleSave);
     _store.dispose();
     super.dispose();
@@ -83,8 +83,13 @@ class _UiSiteEffectsEditorState extends State<UiSiteEffectsEditor> {
 
   void _scheduleSave() {
     if (!_ready) return;
-    _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 400), () => unawaited(_save()));
+    siteEditorPreviewPatch(context, (boot) => siteEditorPreviewPatchDesignStore(boot, _store));
+    siteEditorScheduleSave(
+      context,
+      key: 'effects',
+      debounce: const Duration(milliseconds: 400),
+      save: _save,
+    );
   }
 
   Future<void> _save() async {

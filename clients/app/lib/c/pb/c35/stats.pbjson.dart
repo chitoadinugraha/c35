@@ -112,6 +112,7 @@ const NodeStat$json = {
     {'1': 'swap_used_bytes', '3': 11, '4': 1, '5': 4, '10': 'swapUsedBytes'},
     {'1': 'swap_total_bytes', '3': 12, '4': 1, '5': 4, '10': 'swapTotalBytes'},
     {'1': 'display_address', '3': 13, '4': 1, '5': 9, '10': 'displayAddress'},
+    {'1': 'net_iface', '3': 14, '4': 1, '5': 9, '10': 'netIface'},
   ],
 };
 
@@ -125,7 +126,52 @@ final $typed_data.Uint8List nodeStatDescriptor = $convert.base64Decode(
     'ITCgV0c19tcxgJIAEoA1IEdHNNcxItCgdkZXZpY2VzGAogAygLMhMuYzM1LkRpc2tEZXZpY2VT'
     'dGF0UgdkZXZpY2VzEiYKD3N3YXBfdXNlZF9ieXRlcxgLIAEoBFINc3dhcFVzZWRCeXRlcxIoCh'
     'Bzd2FwX3RvdGFsX2J5dGVzGAwgASgEUg5zd2FwVG90YWxCeXRlcxInCg9kaXNwbGF5X2FkZHJl'
-    'c3MYDSABKAlSDmRpc3BsYXlBZGRyZXNz');
+    'c3MYDSABKAlSDmRpc3BsYXlBZGRyZXNzEhsKCW5ldF9pZmFjZRgOIAEoCVIIbmV0SWZhY2U=');
+
+@$core.Deprecated('Use podStatDescriptor instead')
+const PodStat$json = {
+  '1': 'PodStat',
+  '2': [
+    {'1': 'node_name', '3': 1, '4': 1, '5': 9, '10': 'nodeName'},
+    {'1': 'namespace', '3': 2, '4': 1, '5': 9, '10': 'namespace'},
+    {'1': 'pod_name', '3': 3, '4': 1, '5': 9, '10': 'podName'},
+    {'1': 'cpu_used_cores', '3': 4, '4': 1, '5': 1, '10': 'cpuUsedCores'},
+    {'1': 'cpu_limit_cores', '3': 5, '4': 1, '5': 1, '10': 'cpuLimitCores'},
+    {'1': 'cpu_pct', '3': 6, '4': 1, '5': 1, '10': 'cpuPct'},
+    {'1': 'mem_used_bytes', '3': 7, '4': 1, '5': 4, '10': 'memUsedBytes'},
+    {'1': 'mem_limit_bytes', '3': 8, '4': 1, '5': 4, '10': 'memLimitBytes'},
+    {'1': 'mem_pct', '3': 9, '4': 1, '5': 1, '10': 'memPct'},
+    {'1': 'net_in_bps', '3': 10, '4': 1, '5': 1, '10': 'netInBps'},
+    {'1': 'net_out_bps', '3': 11, '4': 1, '5': 1, '10': 'netOutBps'},
+    {'1': 'ts_ms', '3': 12, '4': 1, '5': 3, '10': 'tsMs'},
+    {
+      '1': 'cpu_request_cores',
+      '3': 13,
+      '4': 1,
+      '5': 1,
+      '10': 'cpuRequestCores'
+    },
+    {
+      '1': 'mem_request_bytes',
+      '3': 14,
+      '4': 1,
+      '5': 4,
+      '10': 'memRequestBytes'
+    },
+  ],
+};
+
+/// Descriptor for `PodStat`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List podStatDescriptor = $convert.base64Decode(
+    'CgdQb2RTdGF0EhsKCW5vZGVfbmFtZRgBIAEoCVIIbm9kZU5hbWUSHAoJbmFtZXNwYWNlGAIgAS'
+    'gJUgluYW1lc3BhY2USGQoIcG9kX25hbWUYAyABKAlSB3BvZE5hbWUSJAoOY3B1X3VzZWRfY29y'
+    'ZXMYBCABKAFSDGNwdVVzZWRDb3JlcxImCg9jcHVfbGltaXRfY29yZXMYBSABKAFSDWNwdUxpbW'
+    'l0Q29yZXMSFwoHY3B1X3BjdBgGIAEoAVIGY3B1UGN0EiQKDm1lbV91c2VkX2J5dGVzGAcgASgE'
+    'UgxtZW1Vc2VkQnl0ZXMSJgoPbWVtX2xpbWl0X2J5dGVzGAggASgEUg1tZW1MaW1pdEJ5dGVzEh'
+    'cKB21lbV9wY3QYCSABKAFSBm1lbVBjdBIcCgpuZXRfaW5fYnBzGAogASgBUghuZXRJbkJwcxIe'
+    'CgtuZXRfb3V0X2JwcxgLIAEoAVIJbmV0T3V0QnBzEhMKBXRzX21zGAwgASgDUgR0c01zEioKEW'
+    'NwdV9yZXF1ZXN0X2NvcmVzGA0gASgBUg9jcHVSZXF1ZXN0Q29yZXMSKgoRbWVtX3JlcXVlc3Rf'
+    'Ynl0ZXMYDiABKARSD21lbVJlcXVlc3RCeXRlcw==');
 
 @$core.Deprecated('Use statsPushDescriptor instead')
 const StatsPush$json = {
@@ -149,6 +195,15 @@ const StatsPush$json = {
       '9': 0,
       '10': 'volume'
     },
+    {
+      '1': 'pod',
+      '3': 3,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.PodStat',
+      '9': 0,
+      '10': 'pod'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -158,7 +213,8 @@ const StatsPush$json = {
 /// Descriptor for `StatsPush`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List statsPushDescriptor = $convert.base64Decode(
     'CglTdGF0c1B1c2gSIwoEbm9kZRgBIAEoCzINLmMzNS5Ob2RlU3RhdEgAUgRub2RlEikKBnZvbH'
-    'VtZRgCIAEoCzIPLmMzNS5Wb2x1bWVTdGF0SABSBnZvbHVtZUIGCgRib2R5');
+    'VtZRgCIAEoCzIPLmMzNS5Wb2x1bWVTdGF0SABSBnZvbHVtZRIgCgNwb2QYAyABKAsyDC5jMzUu'
+    'UG9kU3RhdEgAUgNwb2RCBgoEYm9keQ==');
 
 @$core.Deprecated('Use reqStatsSubscribeDescriptor instead')
 const ReqStatsSubscribe$json = {

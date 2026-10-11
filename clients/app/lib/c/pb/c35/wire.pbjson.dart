@@ -2750,6 +2750,15 @@ const WsReq$json = {
       '9': 0,
       '10': 'scopeInstructionPut'
     },
+    {
+      '1': 'site_editor_warm',
+      '3': 217,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteEditorWarm',
+      '9': 0,
+      '10': 'siteEditorWarm'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -2947,7 +2956,8 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'UgoVc2NvcGVfaW5zdHJ1Y3Rpb25fZ2V0GNcBIAEoCzIbLmMzNS5SZXFTY29wZUluc3RydWN0aW'
     '9uR2V0SABSE3Njb3BlSW5zdHJ1Y3Rpb25HZXQSUgoVc2NvcGVfaW5zdHJ1Y3Rpb25fcHV0GNgB'
     'IAEoCzIbLmMzNS5SZXFTY29wZUluc3RydWN0aW9uUHV0SABSE3Njb3BlSW5zdHJ1Y3Rpb25QdX'
-    'RCBgoEYm9keQ==');
+    'QSQwoQc2l0ZV9lZGl0b3Jfd2FybRjZASABKAsyFi5jMzUuUmVxU2l0ZUVkaXRvcldhcm1IAFIO'
+    'c2l0ZUVkaXRvcldhcm1CBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -4449,6 +4459,15 @@ const WsRes$json = {
       '9': 0,
       '10': 'scopeInstructionPut'
     },
+    {
+      '1': 'site_editor_warm',
+      '3': 217,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteEditorWarm',
+      '9': 0,
+      '10': 'siteEditorWarm'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4658,7 +4677,9 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'cHVzaBjWASABKAsyDy5jMzUuTm90aWZ5UHVzaEgAUgpub3RpZnlQdXNoElIKFXNjb3BlX2luc3'
     'RydWN0aW9uX2dldBjXASABKAsyGy5jMzUuUmVzU2NvcGVJbnN0cnVjdGlvbkdldEgAUhNzY29w'
     'ZUluc3RydWN0aW9uR2V0ElIKFXNjb3BlX2luc3RydWN0aW9uX3B1dBjYASABKAsyGy5jMzUuUm'
-    'VzU2NvcGVJbnN0cnVjdGlvblB1dEgAUhNzY29wZUluc3RydWN0aW9uUHV0QgYKBGJvZHk=');
+    'VzU2NvcGVJbnN0cnVjdGlvblB1dEgAUhNzY29wZUluc3RydWN0aW9uUHV0EkMKEHNpdGVfZWRp'
+    'dG9yX3dhcm0Y2QEgASgLMhYuYzM1LlJlc1NpdGVFZGl0b3JXYXJtSABSDnNpdGVFZGl0b3JXYX'
+    'JtQgYKBGJvZHk=');
 
 @$core.Deprecated('Use notifyItemDescriptor instead')
 const NotifyItem$json = {

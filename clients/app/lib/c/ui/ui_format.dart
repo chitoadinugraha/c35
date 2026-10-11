@@ -32,6 +32,52 @@ String uiFmtDurationMs(int ms) {
   return _uiFmtUnit(min / 60, 'h');
 }
 
+enum UiDurationUnit { month, day, hour, minute, second }
+
+/// Two largest time units (months+days, days+hours, hours+minutes, or minutes+seconds).
+class UiDurationTwoMajor {
+  const UiDurationTwoMajor(this.first, this.firstUnit, this.second, this.secondUnit);
+
+  final int first;
+  final UiDurationUnit firstUnit;
+  final int second;
+  final UiDurationUnit secondUnit;
+}
+
+const _secondsPerMinute = 60;
+const _secondsPerHour = 3600;
+const _secondsPerDay = 86400;
+const _secondsPerMonth = 30 * _secondsPerDay;
+const _secondsMonthsTier = 60 * _secondsPerDay;
+
+/// Non-negative span; zero seconds yields minutes=0, seconds=0.
+UiDurationTwoMajor uiDurationTwoMajorParts(Duration duration) {
+  var secs = duration.inSeconds;
+  if (secs < 0) secs = 0;
+
+  if (secs >= _secondsMonthsTier) {
+    final months = secs ~/ _secondsPerMonth;
+    final days = (secs % _secondsPerMonth) ~/ _secondsPerDay;
+    return UiDurationTwoMajor(months, UiDurationUnit.month, days, UiDurationUnit.day);
+  }
+  if (secs >= _secondsPerDay) {
+    final days = secs ~/ _secondsPerDay;
+    final hours = (secs % _secondsPerDay) ~/ _secondsPerHour;
+    return UiDurationTwoMajor(days, UiDurationUnit.day, hours, UiDurationUnit.hour);
+  }
+  if (secs >= _secondsPerHour) {
+    final hours = secs ~/ _secondsPerHour;
+    final minutes = (secs % _secondsPerHour) ~/ _secondsPerMinute;
+    return UiDurationTwoMajor(hours, UiDurationUnit.hour, minutes, UiDurationUnit.minute);
+  }
+  if (secs >= _secondsPerMinute) {
+    final minutes = secs ~/ _secondsPerMinute;
+    final seconds = secs % _secondsPerMinute;
+    return UiDurationTwoMajor(minutes, UiDurationUnit.minute, seconds, UiDurationUnit.second);
+  }
+  return UiDurationTwoMajor(0, UiDurationUnit.minute, secs, UiDurationUnit.second);
+}
+
 String _uiFmtUnit(double v, String unit) {
   final t = v.toStringAsFixed(1);
   return t.endsWith('.0') ? '${v.round()}$unit' : '$t$unit';

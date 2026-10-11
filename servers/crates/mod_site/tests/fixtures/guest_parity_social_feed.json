@@ -1,0 +1,18 @@
+{
+  "block_type": "social_feed",
+  "expected_data_guest": "social_feed",
+  "props": {
+    "title": "Updates",
+    "limit": 5
+  },
+  "hub_posts": [
+    {
+      "post_id": 3,
+      "title": "Hello",
+      "caption": "Intro",
+      "body": "Body text"
+    }
+  ],
+  "assert_contains": ["social-feed-list", "Hello"],
+  "assert_not_contains": []
+}

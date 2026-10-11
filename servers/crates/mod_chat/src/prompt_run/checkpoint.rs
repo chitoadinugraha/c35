@@ -11,6 +11,7 @@ pub use super::concurrency::{prompt_run_max_concurrent, prompt_run_max_concurren
 
 pub const CK_ERROR_FINGERPRINT: &str = "error_fingerprint";
 pub const CK_ERROR_COUNT: &str = "error_count";
+pub const CK_ERROR_HOP: &str = "error_hop";
 pub const CK_SCREENSHOT_HASHES: &str = "screenshot_hashes";
 pub const CK_DEVICE_INPUT_COUNT: &str = "device_input_count";
 pub const CK_SCREENSHOT_COUNT: &str = "screenshot_count";
@@ -35,7 +36,7 @@ pub fn checkpoint_error_fingerprint(error: &str) -> String {
     blake3::hash(error.trim().as_bytes()).to_hex().to_string()
 }
 
-pub fn checkpoint_record_error(checkpoint: &mut Value, error: &str) -> Value {
+pub fn checkpoint_record_error(checkpoint: &mut Value, error: &str, hop: Option<u32>) -> Value {
     let fp = checkpoint_error_fingerprint(error);
     let prev_fp = checkpoint
         .get(CK_ERROR_FINGERPRINT)
@@ -45,9 +46,24 @@ pub fn checkpoint_record_error(checkpoint: &mut Value, error: &str) -> Value {
         .get(CK_ERROR_COUNT)
         .and_then(|v| v.as_i64())
         .unwrap_or(0) as i32;
-    let new_count = if prev_fp == fp { count + 1 } else { 1 };
+    let prev_hop = checkpoint
+        .get(CK_ERROR_HOP)
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u32);
+    let new_count = if prev_fp == fp {
+        if hop.is_some() && hop == prev_hop {
+            count
+        } else {
+            count + 1
+        }
+    } else {
+        1
+    };
     checkpoint[CK_ERROR_FINGERPRINT] = json!(fp);
     checkpoint[CK_ERROR_COUNT] = json!(new_count);
+    if let Some(h) = hop {
+        checkpoint[CK_ERROR_HOP] = json!(h);
+    }
     checkpoint.clone()
 }
 
@@ -125,7 +141,12 @@ fn checkpoint_image_b64(result: &Value) -> Option<&str> {
         .filter(|s| !s.is_empty())
 }
 
-pub fn checkpoint_record_tool(checkpoint: &mut Value, tool_name: &str, result: &Value) {
+pub fn checkpoint_record_tool(
+    checkpoint: &mut Value,
+    tool_name: &str,
+    result: &Value,
+    hop: Option<u32>,
+) {
     let norm = tool_name.replace('_', ".");
     if norm == "device.input" {
         let n = checkpoint
@@ -152,7 +173,7 @@ pub fn checkpoint_record_tool(checkpoint: &mut Value, tool_name: &str, result: &
             .get("error")
             .and_then(|v| v.as_str())
             .unwrap_or("tool failed");
-        checkpoint_record_error(checkpoint, err);
+        checkpoint_record_error(checkpoint, err, hop);
     }
 }
 
@@ -253,14 +274,26 @@ mod tests {
     #[test]
     fn error_fingerprint_fatal_at_two() {
         let mut cp = json!({});
-        checkpoint_record_error(&mut cp, "agent offline");
+        checkpoint_record_error(&mut cp, "agent offline", Some(1));
         assert!(!checkpoint_error_is_fatal(&cp, FATAL_ERROR_THRESHOLD));
-        checkpoint_record_error(&mut cp, "agent offline");
+        checkpoint_record_error(&mut cp, "agent offline", Some(2));
         assert!(checkpoint_error_is_fatal(&cp, FATAL_ERROR_THRESHOLD));
         assert_eq!(
             checkpoint_tool_should_stop(&cp, "computer_use"),
             Some(("fatal_repeat", "same tool error repeated twice"))
         );
+    }
+
+    #[test]
+    fn error_same_hop_parallel_does_not_double_count() {
+        let mut cp = json!({});
+        checkpoint_record_error(&mut cp, "query_id is required", Some(1));
+        assert_eq!(cp[CK_ERROR_COUNT], 1);
+        checkpoint_record_error(&mut cp, "query_id is required", Some(1));
+        assert_eq!(cp[CK_ERROR_COUNT], 1);
+        assert!(!checkpoint_error_is_fatal(&cp, FATAL_ERROR_THRESHOLD));
+        checkpoint_record_error(&mut cp, "query_id is required", Some(2));
+        assert!(checkpoint_error_is_fatal(&cp, FATAL_ERROR_THRESHOLD));
     }
 
     #[test]

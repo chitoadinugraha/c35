@@ -99,6 +99,9 @@ class ChatConn {
   void _statusSet(ChatConnStatus next) {
     if (status.value == next) return;
     status.value = next;
+    if (next == ChatConnStatus.reconnecting || next == ChatConnStatus.disconnected) {
+      if (_promptPending.isNotEmpty) _failAll(uiConnectionFailed);
+    }
   }
 
   final _reconnectedCtrl = StreamController<void>.broadcast();
@@ -335,7 +338,7 @@ class ChatConn {
       if (_manualDisconnect) return;
       try {
         _statusSet(ChatConnStatus.connecting);
-        await _tearDownSocket(failPending: false);
+        await _tearDownSocket(failPending: true);
         await _attachSocket(
           locale: _locale,
           tz: _tz,
@@ -448,12 +451,17 @@ class ChatConn {
       PromptRunStore.instance.put(push);
       if (!_promptRunPushCtrl.isClosed) _promptRunPushCtrl.add(push);
       final pushReqId = push.reqId.trim();
-      if (pushReqId.isNotEmpty && (push.status == 'failed' || push.status == 'cancelled')) {
+      if (pushReqId.isNotEmpty &&
+          (push.status == 'failed' || push.status == 'cancelled' || push.status == 'done')) {
         final prompt = _promptPending[pushReqId];
         if (prompt != null && !prompt.isClosed) {
-          final reason = push.failReason.trim().isNotEmpty ? push.failReason.trim() : 'Prompt run ${push.status}';
-          prompt.add(PromptStreamEvent.fail(reason));
-          unawaited(prompt.close());
+          if (push.status == 'done') {
+            unawaited(prompt.close());
+          } else {
+            final reason = push.failReason.trim().isNotEmpty ? push.failReason.trim() : 'Prompt run ${push.status}';
+            prompt.add(PromptStreamEvent.fail(reason));
+            unawaited(prompt.close());
+          }
           _promptPending.remove(pushReqId);
         }
       }
@@ -1071,8 +1079,29 @@ class ChatConn {
         (res) => res.siteBootGet,
       );
 
-  Future<ResSiteProductList> siteProductList(int siteIid) => _rpc<ResSiteProductList>(
-        WsReq(siteProductList: ReqSiteProductList(siteIid: Int64(siteIid))),
+  Future<ResSiteEditorWarm> siteEditorWarm(int siteIid, {int productLimit = 0}) => _rpc<ResSiteEditorWarm>(
+        WsReq(
+          siteEditorWarm: ReqSiteEditorWarm(
+            siteIid: Int64(siteIid),
+            productLimit: productLimit,
+          ),
+        ),
+        (res) => res.siteEditorWarm,
+      );
+
+  Future<ResSiteProductList> siteProductList(
+    int siteIid, {
+    int limit = 0,
+    String cursor = '',
+  }) =>
+      _rpc<ResSiteProductList>(
+        WsReq(
+          siteProductList: ReqSiteProductList(
+            siteIid: Int64(siteIid),
+            limit: limit,
+            cursor: cursor,
+          ),
+        ),
         (res) => res.siteProductList,
       );
 

@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/billing/billing_format.dart';
+import 'package:alienai_c35/c/billing/billing_summary_api.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,6 +91,27 @@ void main() {
     expect(billingPushBalanceShouldApply(base, push), isFalse);
     final stamped = BillingPushBalance(balanceIdr: 0, updatedTsMs: Int64(6000));
     expect(billingPushBalanceShouldApply(base, stamped), isTrue);
+  });
+
+  test('billingAccountFromSummary keeps plan expiry from session cache when summary omits it', () {
+    final expMs = DateTime.now().add(const Duration(days: 4)).millisecondsSinceEpoch;
+    final cached = BillingAccount(
+      planTier: 'ultra',
+      planExpiresTsMs: Int64(expMs),
+      planAutoRenew: true,
+      alienAllow5hLimit: 4,
+      alienAllowWeeklyLimit: 80,
+    );
+    final summary = ResBillingSummary(
+      planTier: 'ultra',
+      alienAllow5hLimit: 4,
+      alienAllowWeeklyLimit: 80,
+      planExpiresTsMs: Int64.ZERO,
+      planAutoRenew: false,
+    );
+    final merged = billingAccountFromSummary(summary, base: cached);
+    expect(merged.planExpiresTsMs.toInt(), expMs);
+    expect(merged.planAutoRenew, isFalse);
   });
 
   test('billingAccountMerge derives frontier limits when missing', () {

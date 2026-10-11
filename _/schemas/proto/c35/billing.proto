@@ -140,6 +140,9 @@ message BillingAccount {
   double frontier_allow_5h_limit = 31;
   double frontier_allow_weekly_used = 32;
   double frontier_allow_weekly_limit = 33;
+
+  // true = Google Play auto-renewing subscription (show "Renew at"); false = prepaid period ("Expired at")
+  bool plan_auto_renew = 34;
 }
 
 message BillingTopupRequest {
@@ -199,6 +202,8 @@ message BillingPushQuota {
   double frontier_allow_5h_limit = 20;
   double frontier_allow_weekly_used = 21;
   double frontier_allow_weekly_limit = 22;
+
+  bool plan_auto_renew = 23;
 }
 
 message BillingPushCommission {
@@ -733,6 +738,8 @@ message ResBillingSummary {
   double frontier_allow_5h_limit = 34;
   double frontier_allow_weekly_used = 35;
   double frontier_allow_weekly_limit = 36;
+
+  bool plan_auto_renew = 37;
 }
 
 // Active plan / voucher grants (stacking). Sorted by expires_ts asc in list API.
@@ -841,12 +848,17 @@ message BillingPlayProductDoc {
   double credit_idr = 5;
   double web_price_idr = 6;
   double play_price_idr = 7;    // web × PLAY_MARKUP (display only)
+  string currency = 8;          // IDR | USD
+  double web_price = 9;         // catalog amount in [currency]
+  double store_price = 10;      // web × PLAY_MARKUP in [currency]
+  double credit_usd = 11;       // credit pack face value when currency=USD
 }
 
 message ReqBillingPlayVerify {
   string product_id = 1;
   string purchase_token = 2;
   string package_name = 3;      // empty → server default (PLAY_STORE_PACKAGE_NAME)
+  string store_platform = 4;    // android | ios (empty → android)
 }
 
 message ResBillingPlayVerify {
@@ -862,7 +874,9 @@ message ResBillingPlayVerify {
   int64 expires_ts_ms = 10;
 }
 
-message ReqBillingPlayProductList {}
+message ReqBillingPlayProductList {
+  string currency = 1;          // IDR | USD (empty → IDR)
+}
 
 message ResBillingPlayProductList {
   repeated BillingPlayProductDoc products = 1;

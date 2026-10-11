@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const serverUrl = () => (process.env.C35_SERVER_URL ?? "http://127.0.0.1:8080").replace(/\/$/, "");
+const serverUrl = () => (process.env.C35_SERVER_URL ?? "http://127.0.0.1:10000").replace(/\/$/, "");
 
 const mcpAgentKey = () => {
   const key = process.env.C35_MCP_AGENT_KEY?.trim();

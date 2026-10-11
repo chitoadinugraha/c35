@@ -126,12 +126,12 @@ Idempotent: if identity already soft-deleted, server still sends NATS push (agen
 **Local dev:**
 
 ```powershell
-.\dev_server.ps1          # server on :8080
+.\dev_server.ps1          # server on :10000
 .\dev_agent.ps1           # Win32 pair window (default)
 .\dev_agent.ps1 -Cli      # pairing code in console (--cli)
 ```
 
-`dev_agent.ps1` kills any running `c_remote_windows` before start. Env: `C35_SERVER_URL` (default `http://127.0.0.1:8080`).
+`dev_agent.ps1` kills any running `c_remote_windows` before start. Env: `C35_SERVER_URL` (default `http://127.0.0.1:10000`).
 
 Pair window countdown label: **Code Refresh in** (new pairing code when TTL hits zero).
 

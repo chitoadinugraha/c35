@@ -19,6 +19,8 @@ class C35AppId {
   static const model = 'c35_agent_model';
   static const sessionReferredBy = 'c35_session_referred_by';
   static const sessionReferralDismissed = 'c35_session_referral_dismissed';
+  /// When false, UI hides root-only affordances while signed in as a root account.
+  static const sessionRootAccessEnabled = 'c35_session_root_access_enabled';
 }
 
 Future<String> deviceInstallId() async {

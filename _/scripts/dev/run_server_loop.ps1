@@ -1,7 +1,7 @@
 # Run server_ai.exe in a loop. cargo-watch kills this script on file changes.
 param(
     [string]$Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path,
-    [string]$Port = '8080'
+    [string]$Port = '10000'
 )
 
 $ErrorActionPreference = 'Continue'

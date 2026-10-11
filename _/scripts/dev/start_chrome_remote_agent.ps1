@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'c35_server_port.ps1')
 
 if (-not $AgentExe) {
     $AgentExe = Join-Path $env:LOCALAPPDATA 'AlienAI\chrome_extension\install\alienai_remote_browser.exe'
@@ -70,7 +71,7 @@ Start-Sleep -Milliseconds 400
 $env:C35_BROWSER_ENGINE = 'extension'
 $env:C35_SKIP_OTA = '1'
 if (-not $env:C35_SERVER_URL) {
-    $ports = @(8080, 8000)
+    $ports = @($C35ServerHttpPort, 8000)
     if ($env:LISTEN -match ':(\d+)\s*$') {
         $ports = @([int]$Matches[1]) + $ports | Select-Object -Unique
     }

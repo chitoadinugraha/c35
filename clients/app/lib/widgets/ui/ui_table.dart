@@ -2,6 +2,7 @@ import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/widgets/ui/ui_col_cell.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:flutter/material.dart';
 
 const _border = Color(0xFF27272A);
@@ -142,7 +143,7 @@ class _UiTableState extends State<UiTable> {
   @override
   Widget build(BuildContext context) {
     if (widget.loading) {
-      return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
+      return const UILoading();
     }
     final cols = widget.def.columns.where((c) => c.key.isNotEmpty).toList(growable: false);
     if (cols.isEmpty) return UiEmptyState.noMatches('columns');

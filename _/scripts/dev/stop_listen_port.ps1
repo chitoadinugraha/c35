@@ -1,8 +1,14 @@
-# Free a TCP listen port (default 8080). Used by dev_server.ps1 before each run.
+# Free a TCP listen port (default server_ai). Used by dev_server.ps1 before each run.
 param(
-    [int]$Port = 8080,
+    [int]$Port = 0,
     [switch]$Quiet
 )
+
+if ($Port -le 0) {
+    $portScript = Join-Path $PSScriptRoot 'c35_server_port.ps1'
+    if (Test-Path $portScript) { . $portScript }
+    $Port = if ($script:C35ServerHttpPort) { $script:C35ServerHttpPort } else { 10000 }
+}
 
 $ErrorActionPreference = 'SilentlyContinue'
 

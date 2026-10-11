@@ -1,17 +1,31 @@
 mod connect;
+mod billing_kv;
+mod bundle_kv;
 mod hydrate;
 mod stats_kv;
 mod streams;
 mod user_app;
 
 pub use async_nats::Event;
+pub use billing_kv::{
+    billing_kv_delete, billing_kv_ensure, billing_kv_get, billing_kv_key_owner, billing_kv_put,
+    BillingGateCached, BILLING_CACHE_TTL_SECS, BILLING_KV_BUCKET,
+};
+pub use bundle_kv::{
+    memory_bundle_delete, memory_bundle_get, memory_bundle_kv_ensure, memory_bundle_kv_key,
+    memory_bundle_put, scope_inst_bundle_delete, scope_inst_bundle_get, scope_inst_kv_ensure,
+    scope_inst_bundle_put, scope_inst_kv_key, BUNDLE_CACHE_TTL_SECS, MEMORY_BUNDLE_KV_BUCKET,
+    SCOPE_INST_KV_BUCKET,
+};
+
 pub use connect::{connect, connect_supervised, configured, Client};
+
 pub use hydrate::{
     advisory_unlock, format_schedule_pattern, hydrate_task_schedules, task_schedule_arm, task_schedule_disarm,
     try_advisory_lock, HydrateAdvisoryLock, HydrateCounts, HYDRATE_LOCK_K1, HYDRATE_LOCK_K2,
 };
 pub use stats_kv::{
-    stats_kv_ensure, stats_kv_get, stats_kv_get_bytes, stats_kv_key_node,
+    stats_kv_ensure, stats_kv_get, stats_kv_get_bytes, stats_kv_key_node, stats_kv_key_pod,
     stats_kv_key_platform_user_count, stats_kv_key_volume, stats_kv_list_pushes, stats_kv_put,
     stats_kv_put_bytes, KV_BUCKET,
 };
@@ -23,3 +37,4 @@ pub use user_app::{
     user_app_subscribe_subject,
     user_app_tail, APP_SEGMENT,
 };
+

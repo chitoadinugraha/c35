@@ -35,6 +35,7 @@ pub fn product_from_row(r: &sqlx::postgres::PgRow) -> SiteProduct {
         product_json: r.get::<serde_json::Value, _>("product_json").to_string(),
         is_archived: r.get("is_archived"),
         sort_order: r.get("sort_order"),
+        is_used: r.try_get("is_used").unwrap_or(false),
         created_ts_ms: ts_ms(Some(r.get("created_ts"))),
         updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),

@@ -842,7 +842,7 @@ fn oauth_done_url(
 ) -> String {
     let origin = public_origin.trim_end_matches('/');
     let origin = if origin.is_empty() {
-        "http://localhost:8080"
+        c35_store::C35_SERVER_LOCAL_BASE_URL
     } else {
         origin
     };

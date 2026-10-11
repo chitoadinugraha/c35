@@ -181,6 +181,26 @@ class SiteApi {
     return res.config;
   }
 
+  static const siteEditorProductPageSize = 30;
+
+  Future<({List<SiteProduct> products, String nextCursor, bool hasMore})> productListPage(
+    int siteIid, {
+    int limit = siteEditorProductPageSize,
+    String cursor = '',
+  }) async {
+    final res = await conn.siteProductList(siteIid, limit: limit, cursor: cursor);
+    return (
+      products: List<SiteProduct>.from(res.products),
+      nextCursor: res.nextCursor,
+      hasMore: res.hasMore,
+    );
+  }
+
+  Future<ResSiteEditorWarm> editorWarm(int siteIid) => conn.siteEditorWarm(
+        siteIid,
+        productLimit: siteEditorProductPageSize,
+      );
+
   Future<List<SiteProduct>> productList(int siteIid) async {
     final uid = Session.instance.uid;
     try {
@@ -202,6 +222,14 @@ class SiteApi {
     final res = await conn.siteDraftGet(siteIid);
     if (!res.hasDraft()) throw 'site draft not found';
     return res.draft;
+  }
+
+  /// Draft row plus publish status (render_hash parity with server publish).
+  Future<ResSiteDraftGet> draftGetWithPublishStatus(int siteIid) => conn.siteDraftGet(siteIid);
+
+  Future<bool> draftPublishPending(int siteIid) async {
+    final res = await conn.siteDraftGet(siteIid);
+    return res.publishPending;
   }
 
   Future<SiteDraft> draftPut(SiteDraft draft, {bool skipPublish = false}) async {
@@ -258,13 +286,19 @@ class SiteApi {
     int siteIid, {
     List<SiteTaxDraft>? taxes,
     SiteProductDesignDraft? productDesign,
+    String? catalogDisplay,
   }) async {
     final res = await conn.siteDraftGet(siteIid);
     if (!res.hasDraft()) throw 'site draft not found';
     final draft = res.draft.clone();
     draft.doc = siteDocWithMetaJson(
       draft.doc,
-      siteDraftMetaMerge(draft.doc.metaJson, taxes: taxes, productDesign: productDesign),
+      siteDraftMetaMerge(
+        draft.doc.metaJson,
+        taxes: taxes,
+        productDesign: productDesign,
+        catalogDisplay: catalogDisplay,
+      ),
     );
     await conn.siteDraftPut(draft);
   }

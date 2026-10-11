@@ -49,7 +49,7 @@ pub struct ToolDefinition {
     /// Staff global_roles required (OR); empty = no gate. Root (`is_root`) passes all gates.
     #[serde(default)]
     pub requires_global_roles: Vec<String>,
-    /// Caller must have platform mail (`mail_access`: partner/root or `mail.mailbox_member`).
+    /// Mail tools: catalog metadata only; `mail_access` is enforced at tool execution.
     #[serde(default)]
     pub requires_platform_mail: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]

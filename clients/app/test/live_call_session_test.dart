@@ -97,6 +97,25 @@ void main() {
       expect(sentData[1], silenceChunk);
     });
 
+    test('suppresses uplink echo while assistant playback is active', () {
+      final session = LiveCallSession();
+      final sentData = <dynamic>[];
+      session.onWebSocketSendForTesting = (data) => sentData.add(data);
+
+      session.setPlayBusyForTesting(true);
+      // Echo-like level: above VAD threshold but below barge-in floor
+      final echoChunk = _makePcm16(sampleCount: 1600, sampleValue: 180);
+      session.processMicChunkWithVad(echoChunk);
+      expect(sentData, isEmpty);
+      expect(session.preSpeechBufferBytes, greaterThan(0));
+
+      // True barge-in: loud local speech
+      final bargeChunk = _makePcm16(sampleCount: 1600, sampleValue: 1200);
+      session.processMicChunkWithVad(bargeChunk);
+      expect(sentData.length, greaterThan(0));
+      expect(session.isTransmittingSpeech, isTrue);
+    });
+
     test('speech onset transmits mic chunk and interruption clears playback', () {
       final session = LiveCallSession();
       final sentData = <dynamic>[];

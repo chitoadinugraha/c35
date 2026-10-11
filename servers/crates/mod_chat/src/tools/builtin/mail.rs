@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use crate::tool;
 use crate::tools::ToolContext;
 
-const NO_PLATFORM_MAIL_JSON: &str = r#"{"error":"no_platform_mail","message":"You have no mail. Please contact our representative on how to get an email address."}"#;
+const NO_PLATFORM_MAIL_JSON: &str = r#"{"error":"no_platform_mail","message":"You have no mailbox. Please contact our representative."}"#;
 
 fn cas_secret_from_env() -> String {
     std::env::var("CAS_HMAC_SECRET").unwrap_or_else(|_| "dev".into())

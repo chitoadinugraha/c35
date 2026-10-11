@@ -34,6 +34,7 @@ mod translation_admin;
 mod inst_cache;
 mod inst_enrich;
 mod site_resolve;
+mod user_asset_rag;
 mod site_validate;
 pub mod inst_macro;
 mod mention;
@@ -53,9 +54,9 @@ mod site_commerce_compose;
 mod tx_browse_render;
 mod site_query_export;
 mod site_query_present;
-mod memory;
+pub mod memory;
 mod memory_rpc;
-mod scope_instruction;
+pub mod scope_instruction;
 mod scope_instruction_rpc;
 mod context_billing;
 pub mod context_compact;
@@ -92,6 +93,10 @@ pub use mention_registry::{
 };
 pub use mention_tool_registry::mention_force_tools;
 pub use site_capability::{site_capability_view_for_mention, SiteCapabilityView};
+pub use user_asset_rag::{
+    live_mention_ids_from_text, user_asset_retrieve, UserAssetRetrieveResult, UserAssetRetrieveTrace,
+    UserAssetTraceEntry,
+};
 pub use tools::ToolDef;
 pub use tools::builtin::presentation_export_exec;
 
@@ -150,7 +155,10 @@ pub use generation::{
 pub use media_regenerate::media_regenerate;
 pub use context_idle::{context_idle_compact_enabled, ContextIdleFetchTask};
 pub use context_pack::{context_window_options, context_window_resolve, model_context_limit, token_estimate};
-pub use memory::{memory_delete, memory_list_active, memory_prompt_merge, memory_put, memory_retrieve, MemoryRetrieveResult};
+pub use memory::{
+    memory_delete, memory_list_active, memory_prompt_merge, memory_put, memory_retrieve,
+    memory_skip_site_scoped, MemoryRetrieveResult,
+};
 pub use memory_rpc::{memory_delete_rpc, memory_list_rpc};
 pub use scope_instruction::{
     instruction_auto_match, scope_instruction_build_trace, scope_instruction_prompt_block,

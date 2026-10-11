@@ -14,9 +14,12 @@ import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
-import 'package:alienai_c35/widgets/ai/ui_alien_icon.dart';
 import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
+import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_product_actions.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/io/in_media_list.dart';
 import 'package:alienai_c35/widgets/io/in_money_idr.dart';
@@ -28,6 +31,10 @@ import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
+
+enum _ProductPicChoice { upload, generate }
+
+const _sheetBg = Color(0xFF18181B);
 
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
@@ -79,7 +86,6 @@ class UiSiteProductDetail extends StatefulWidget {
 }
 
 class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
-  final _debounceTimers = <String, Timer>{};
   var _linkedObjects = <SiteObject>[];
   var _textSaveActive = false;
   SiteProduct? _pendingTextDraft;
@@ -132,9 +138,6 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
 
   @override
   void dispose() {
-    for (final t in _debounceTimers.values) {
-      t.cancel();
-    }
     _nameCtrl.dispose();
     _descCtrl.dispose();
     _skuCtrl.dispose();
@@ -160,8 +163,18 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   }
 
   void _debouncedSave(String key, Future<void> Function() action) {
-    _debounceTimers[key]?.cancel();
-    _debounceTimers[key] = Timer(const Duration(milliseconds: 450), () => unawaited(action()));
+    siteEditorScheduleSave(
+      context,
+      key: 'product:${widget.product.productId}:$key',
+      debounce: const Duration(milliseconds: 450),
+      save: action,
+    );
+  }
+
+  void _previewDraft(SiteProduct draft) {
+    final scope = SiteEditorSaveScope.maybeOf(context);
+    if (scope == null) return;
+    scope.preview.patch((boot) => siteEditorPreviewUpsertProduct(boot, draft));
   }
 
   bool _parseBool(String value) =>
@@ -215,7 +228,10 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   void _debouncedDraft(String key, SiteProduct draft) => _debouncedSave(key, () => _saveProduct(draft));
 
   /// Reads controllers when the timer fires so the payload matches what is on screen.
-  void _scheduleTextSave() => _debouncedSave('text', () => _saveProduct(widget.product));
+  void _scheduleTextSave() {
+    _previewDraft(_withLiveText(widget.product));
+    _debouncedSave('text', () => _saveProduct(widget.product));
+  }
 
   Future<void> _putProduct(SiteProduct draft) async {
     if (widget.busy) return;
@@ -306,10 +322,7 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     _debouncedCommit('${product.productId}:${col.key}', () => _commitField(product, col, value, siteProductCells(product)));
   }
 
-  void _debouncedCommit(String key, Future<void> Function() action) {
-    _debounceTimers[key]?.cancel();
-    _debounceTimers[key] = Timer(const Duration(milliseconds: 450), () => action());
-  }
+  void _debouncedCommit(String key, Future<void> Function() action) => _debouncedSave(key, action);
 
   Future<void> _openBatchDialog(SiteProduct product, {bool ignoreBusy = false}) async {
     if (widget.busy && !ignoreBusy) return;
@@ -406,6 +419,41 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     }
   }
 
+  Future<void> _chooseProductPic(SiteProduct product) async {
+    if (widget.busy || _picUploading) return;
+    final choice = await showModalBottomSheet<_ProductPicChoice>(
+      context: context,
+      backgroundColor: _sheetBg,
+      showDragHandle: true,
+      useSafeArea: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.upload_outlined, color: _text),
+              title: const Text('Upload', style: TextStyle(color: _text)),
+              onTap: () => Navigator.pop(ctx, _ProductPicChoice.upload),
+            ),
+            ListTile(
+              leading: const Icon(Icons.auto_awesome_outlined, color: _text),
+              title: const Text('Generate', style: TextStyle(color: _text)),
+              onTap: () => Navigator.pop(ctx, _ProductPicChoice.generate),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+    switch (choice) {
+      case _ProductPicChoice.upload:
+        await _pickPic(product);
+      case _ProductPicChoice.generate:
+        await _generatePic(product);
+    }
+  }
+
   Future<void> _pickPic(SiteProduct product) async {
     if (widget.busy || _picUploading) return;
     final staged = await askMedia(context: context, types: const [MediaType.image], allowMultiple: false, maxCount: 1);
@@ -431,33 +479,30 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     }
   }
 
-  Future<void> _delete() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
-        title: const Text('Delete product?', style: TextStyle(color: _text)),
-        content: Text('Remove "${widget.product.name}" from the catalog.', style: const TextStyle(color: _muted, fontSize: 13)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFF87171)),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    widget.onBusy(true);
-    try {
-      await widget.api.productDelete(widget.siteIid, widget.product.productId);
-      widget.onDeleted();
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
-    } finally {
-      widget.onBusy(false);
+  Future<void> _removeOrArchive() async {
+    final product = widget.product;
+    if (product.isUsed) {
+      final archive = !product.isArchived;
+      if (!await confirmSiteProductArchive(context, product, archive: archive)) return;
+      widget.onBusy(true);
+      try {
+        final updated = await siteProductToggleArchive(widget.api, widget.siteIid, product);
+        if (updated != null) widget.onProductUpdated(updated);
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e))));
+      } finally {
+        widget.onBusy(false);
+      }
+      return;
     }
+    await runSiteProductDelete(
+      context: context,
+      api: widget.api,
+      siteIid: widget.siteIid,
+      product: product,
+      onBusy: widget.onBusy,
+      onDeleted: widget.onDeleted,
+    );
   }
 
   Future<void> _editLinkedObject(SiteObject object) async {
@@ -647,8 +692,7 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
             uploading: _picUploading,
             icon: product.icon,
             busy: widget.busy,
-            onTap: () => _pickPic(product),
-            onGenerate: () => unawaited(_generatePic(product)),
+            onTap: () => unawaited(_chooseProductPic(product)),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -703,9 +747,16 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
           children: [
             Expanded(child: Text('ID $productId', style: const TextStyle(color: _muted, fontSize: 11))),
             TextButton.icon(
-              onPressed: widget.busy ? null : _delete,
-              icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFF87171)),
-              label: const Text('Delete', style: TextStyle(color: Color(0xFFF87171))),
+              onPressed: widget.busy ? null : _removeOrArchive,
+              icon: Icon(
+                product.isUsed ? Icons.inventory_2_outlined : Icons.delete_outline,
+                size: 18,
+                color: const Color(0xFFF87171),
+              ),
+              label: Text(
+                product.isUsed ? (product.isArchived ? 'Unarchive' : 'Archive') : 'Delete',
+                style: const TextStyle(color: Color(0xFFF87171)),
+              ),
             ),
           ],
         ),
@@ -855,7 +906,6 @@ class _ProductPicTile extends StatelessWidget {
     required this.icon,
     required this.busy,
     required this.onTap,
-    required this.onGenerate,
   });
 
   static const _side = 88.0;
@@ -866,7 +916,6 @@ class _ProductPicTile extends StatelessWidget {
   final String icon;
   final bool busy;
   final VoidCallback onTap;
-  final VoidCallback onGenerate;
 
   bool get _locked => busy || uploading;
 
@@ -919,27 +968,7 @@ class _ProductPicTile extends StatelessWidget {
               child: SizedBox(
                 width: _side,
                 height: _side,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    _imageContent(),
-                    Positioned(
-                      right: 4,
-                      bottom: 4,
-                      child: InkWell(
-                        onTap: _locked ? null : onGenerate,
-                        borderRadius: BorderRadius.circular(6),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.55), borderRadius: BorderRadius.circular(6)),
-                          child: const Padding(
-                            padding: EdgeInsets.all(4),
-                            child: UiAlienIcon(size: 14, color: Colors.white),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                child: _imageContent(),
               ),
             ),
           ),

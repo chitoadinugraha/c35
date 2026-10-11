@@ -11,7 +11,9 @@ pub async fn billing_notify_owner(
     owner_iid: i64,
     out_tx: Option<&tokio::sync::mpsc::UnboundedSender<WsRes>>,
 ) {
+    crate::billing_cache::billing_cache_invalidate(nats, owner_iid).await;
     let _ = crate::billing_profile::billing_profile_repair_rings_v4(pool, owner_iid).await;
+
     let row = sqlx::query(
         r#"
         SELECT id, balance_usd::float8 AS balance_usd, balance_idr::float8 AS balance_idr,
@@ -37,7 +39,7 @@ pub async fn billing_notify_owner(
     let freemium = crate::billing_freemium::billing_freemium_wire(pool, owner_iid).await;
     let profile_row = sqlx::query(
         r#"
-        SELECT trial_expires_ts, plan_expires_ts,
+        SELECT trial_expires_ts, plan_expires_ts, plan_auto_renew,
                COALESCE(alien_allow_5h_used::float8, 0.0) AS alien_allow_5h_used,
                COALESCE(alien_allow_5h_limit::float8, 0.0) AS alien_allow_5h_limit,
                COALESCE(alien_allow_weekly_used::float8, 0.0) AS alien_allow_weekly_used,
@@ -106,6 +108,10 @@ pub async fn billing_notify_owner(
         frontier_allow_5h_limit: profile_row.as_ref().map(|r| r.get("frontier_allow_5h_limit")).unwrap_or(0.0),
         frontier_allow_weekly_used: profile_row.as_ref().map(|r| r.get("frontier_allow_weekly_used")).unwrap_or(0.0),
         frontier_allow_weekly_limit: profile_row.as_ref().map(|r| r.get("frontier_allow_weekly_limit")).unwrap_or(0.0),
+        plan_auto_renew: profile_row
+            .as_ref()
+            .and_then(|r| r.try_get("plan_auto_renew").ok())
+            .unwrap_or(false),
     };
     let commission = BillingPushCommission {
         commission_available_usd: row.get("commission_available_usd"),

@@ -199,12 +199,32 @@ const renderStatus = (res) => {
   }
 };
 
+const ensureAgentRunning = async () => {
+  try {
+    const viaSw = await chrome.runtime.sendMessage({ type: "agent.ensure" });
+    if (viaSw?.ok) return viaSw.agent || {};
+  } catch {
+    /* service worker may be asleep */
+  }
+  try {
+    const raw = await nmRequest({ type: "agent.ensure" }, 22000);
+    return raw?.data && typeof raw.data === "object" ? { ...raw.data, ...raw } : raw || {};
+  } catch {
+    return {};
+  }
+};
+
 const fetchDiagnosticsPayload = async () => {
   let nativePing = false;
   let nativePingError = "";
   let agent = {};
   let extLogs = [];
   let captureActive = false;
+
+  const ensured = await ensureAgentRunning();
+  if (ensured?.agent_reachable) {
+    agent = { ...agent, ...ensured };
+  }
 
   try {
     const pingRes = await nmRequest({ type: "ping" }, 8000);

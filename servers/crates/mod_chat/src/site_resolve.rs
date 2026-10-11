@@ -19,6 +19,28 @@ fn alien_id_normalize(raw: &str) -> String {
     raw.trim().trim_start_matches('@').to_lowercase()
 }
 
+pub fn normalize_compact(s: &str) -> String {
+    s.to_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect()
+}
+
+/// Trailing phrase after Indonesian/English locative prepositions (voice-friendly).
+pub fn utterance_site_phrase(text: &str) -> String {
+    let lower = text.to_lowercase();
+    for marker in [" di ", " ke ", " dari ", " at ", " on ", " from "] {
+        if let Some(idx) = lower.rfind(marker) {
+            let tail = text[idx + marker.len()..].trim();
+            let tail = tail.trim_matches(|c: char| !c.is_alphanumeric() && !c.is_whitespace());
+            if tail.len() >= 3 {
+                return tail.to_string();
+            }
+        }
+    }
+    text.trim().to_string()
+}
+
 pub fn site_at_tokens(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for word in text.split_whitespace() {
@@ -136,6 +158,10 @@ async fn site_list_granted(pool: &PgPool, caller_iid: i64) -> Result<Vec<SiteCon
 
 fn site_match_by_name(text: &str, sites: &[SiteContext]) -> Option<SiteContext> {
     let lower = text.to_lowercase();
+    let compact = normalize_compact(text);
+    let phrase = utterance_site_phrase(text);
+    let phrase_compact = normalize_compact(&phrase);
+
     let mut hits: Vec<&SiteContext> = sites
         .iter()
         .filter(|s| !s.name.is_empty() && lower.contains(&s.name.to_lowercase()))
@@ -149,6 +175,28 @@ fn site_match_by_name(text: &str, sites: &[SiteContext]) -> Option<SiteContext> 
         .collect();
     if hits.len() == 1 {
         return Some(hits.remove(0).clone());
+    }
+
+    if compact.len() >= 3 || phrase_compact.len() >= 3 {
+        let mut fuzzy: Vec<&SiteContext> = sites
+            .iter()
+            .filter(|s| {
+                let name_c = normalize_compact(&s.name);
+                let alien_c = normalize_compact(&s.alien_id);
+                (!name_c.is_empty()
+                    && (compact.contains(&name_c)
+                        || name_c.contains(&compact)
+                        || phrase_compact.contains(&name_c)
+                        || name_c.contains(&phrase_compact)))
+                    || (!alien_c.is_empty()
+                        && (compact.contains(&alien_c)
+                            || alien_c.contains(&compact)
+                            || phrase_compact.contains(&alien_c)))
+            })
+            .collect();
+        if fuzzy.len() == 1 {
+            return Some(fuzzy.remove(0).clone());
+        }
     }
     None
 }

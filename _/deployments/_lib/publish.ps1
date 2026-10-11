@@ -361,7 +361,10 @@ function Publish-C35NodeStatsImage {
     $buildSw = [System.Diagnostics.Stopwatch]::StartNew()
     $tarPaths = @(
         'servers/Cargo.toml', 'servers/Cargo.lock',
-        'servers/node_stats', 'servers/crates/proto', '_/schemas',
+        'servers/crates', 'servers/node_stats',
+        'servers/server_ai/Cargo.toml', 'servers/fetcher/Cargo.toml',
+        'servers/channel_whatsapp_device/Cargo.toml',
+        '_/schemas',
         '_/deployments/Dockerfile.c35-node-stats', '_/deployments/docker'
     )
     Invoke-ClusterBuildkitBuild -RepoRoot $dir -ImageRef $imageRef -Platform $Platform -TarPaths $tarPaths -DockerfileRel '_/deployments/Dockerfile.c35-node-stats'

@@ -259,6 +259,7 @@ const SiteProduct$json = {
     {'1': 'product_json', '3': 16, '4': 1, '5': 9, '10': 'productJson'},
     {'1': 'is_archived', '3': 17, '4': 1, '5': 8, '10': 'isArchived'},
     {'1': 'sort_order', '3': 19, '4': 1, '5': 5, '10': 'sortOrder'},
+    {'1': 'is_used', '3': 24, '4': 1, '5': 8, '10': 'isUsed'},
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -276,9 +277,10 @@ final $typed_data.Uint8List siteProductDescriptor = $convert.base64Decode(
     '9jaxIbCglzdG9ja19xdHkYDCABKAVSCHN0b2NrUXR5EhQKBXByaWNlGA0gASgDUgVwcmljZRIQ'
     'CgNwaWMYDiABKAlSA3BpYxIaCghjYXRlZ29yeRgPIAEoCVIIY2F0ZWdvcnkSIQoMcHJvZHVjdF'
     '9qc29uGBAgASgJUgtwcm9kdWN0SnNvbhIfCgtpc19hcmNoaXZlZBgRIAEoCFIKaXNBcmNoaXZl'
-    'ZBIdCgpzb3J0X29yZGVyGBMgASgFUglzb3J0T3JkZXISIgoNY3JlYXRlZF90c19tcxgUIAEoA1'
-    'ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1ILdXBkYXRlZFRzTXMSIgoNZGVs'
-    'ZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXMSEgoEaWNvbhgXIAEoCVIEaWNvbg==');
+    'ZBIdCgpzb3J0X29yZGVyGBMgASgFUglzb3J0T3JkZXISFwoHaXNfdXNlZBgYIAEoCFIGaXNVc2'
+    'VkEiIKDWNyZWF0ZWRfdHNfbXMYFCABKANSC2NyZWF0ZWRUc01zEiIKDXVwZGF0ZWRfdHNfbXMY'
+    'FSABKANSC3VwZGF0ZWRUc01zEiIKDWRlbGV0ZWRfdHNfbXMYFiABKANSC2RlbGV0ZWRUc01zEh'
+    'IKBGljb24YFyABKAlSBGljb24=');
 
 @$core.Deprecated('Use siteProductEmbedDescriptor instead')
 const SiteProductEmbed$json = {
@@ -513,13 +515,25 @@ const ResSiteDraftGet$json = {
       '6': '.c35.SiteConfig',
       '10': 'config'
     },
+    {'1': 'publish_pending', '3': 3, '4': 1, '5': 8, '10': 'publishPending'},
+    {'1': 'draft_render_hash', '3': 4, '4': 1, '5': 9, '10': 'draftRenderHash'},
+    {
+      '1': 'published_render_hash',
+      '3': 5,
+      '4': 1,
+      '5': 9,
+      '10': 'publishedRenderHash'
+    },
   ],
 };
 
 /// Descriptor for `ResSiteDraftGet`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resSiteDraftGetDescriptor = $convert.base64Decode(
     'Cg9SZXNTaXRlRHJhZnRHZXQSJAoFZHJhZnQYASABKAsyDi5jMzUuU2l0ZURyYWZ0UgVkcmFmdB'
-    'InCgZjb25maWcYAiABKAsyDy5jMzUuU2l0ZUNvbmZpZ1IGY29uZmln');
+    'InCgZjb25maWcYAiABKAsyDy5jMzUuU2l0ZUNvbmZpZ1IGY29uZmlnEicKD3B1Ymxpc2hfcGVu'
+    'ZGluZxgDIAEoCFIOcHVibGlzaFBlbmRpbmcSKgoRZHJhZnRfcmVuZGVyX2hhc2gYBCABKAlSD2'
+    'RyYWZ0UmVuZGVySGFzaBIyChVwdWJsaXNoZWRfcmVuZGVyX2hhc2gYBSABKAlSE3B1Ymxpc2hl'
+    'ZFJlbmRlckhhc2g=');
 
 @$core.Deprecated('Use reqSiteDraftPutDescriptor instead')
 const ReqSiteDraftPut$json = {
@@ -631,13 +645,15 @@ const ReqSiteProductList$json = {
   '1': 'ReqSiteProductList',
   '2': [
     {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'limit', '3': 2, '4': 1, '5': 5, '10': 'limit'},
+    {'1': 'cursor', '3': 3, '4': 1, '5': 9, '10': 'cursor'},
   ],
 };
 
 /// Descriptor for `ReqSiteProductList`. Decode as a `google.protobuf.DescriptorProto`.
-final $typed_data.Uint8List reqSiteProductListDescriptor =
-    $convert.base64Decode(
-        'ChJSZXFTaXRlUHJvZHVjdExpc3QSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQ=');
+final $typed_data.Uint8List reqSiteProductListDescriptor = $convert.base64Decode(
+    'ChJSZXFTaXRlUHJvZHVjdExpc3QSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQSFAoFbGltaX'
+    'QYAiABKAVSBWxpbWl0EhYKBmN1cnNvchgDIAEoCVIGY3Vyc29y');
 
 @$core.Deprecated('Use resSiteProductListDescriptor instead')
 const ResSiteProductList$json = {
@@ -651,13 +667,121 @@ const ResSiteProductList$json = {
       '6': '.c35.SiteProduct',
       '10': 'products'
     },
+    {'1': 'next_cursor', '3': 2, '4': 1, '5': 9, '10': 'nextCursor'},
+    {'1': 'has_more', '3': 3, '4': 1, '5': 8, '10': 'hasMore'},
   ],
 };
 
 /// Descriptor for `ResSiteProductList`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resSiteProductListDescriptor = $convert.base64Decode(
     'ChJSZXNTaXRlUHJvZHVjdExpc3QSLAoIcHJvZHVjdHMYASADKAsyEC5jMzUuU2l0ZVByb2R1Y3'
-    'RSCHByb2R1Y3Rz');
+    'RSCHByb2R1Y3RzEh8KC25leHRfY3Vyc29yGAIgASgJUgpuZXh0Q3Vyc29yEhkKCGhhc19tb3Jl'
+    'GAMgASgIUgdoYXNNb3Jl');
+
+@$core.Deprecated('Use reqSiteEditorWarmDescriptor instead')
+const ReqSiteEditorWarm$json = {
+  '1': 'ReqSiteEditorWarm',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'product_limit', '3': 2, '4': 1, '5': 5, '10': 'productLimit'},
+  ],
+};
+
+/// Descriptor for `ReqSiteEditorWarm`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteEditorWarmDescriptor = $convert.base64Decode(
+    'ChFSZXFTaXRlRWRpdG9yV2FybRIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIjCg1wcm9kdW'
+    'N0X2xpbWl0GAIgASgFUgxwcm9kdWN0TGltaXQ=');
+
+@$core.Deprecated('Use resSiteEditorWarmDescriptor instead')
+const ResSiteEditorWarm$json = {
+  '1': 'ResSiteEditorWarm',
+  '2': [
+    {
+      '1': 'links',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteLink',
+      '10': 'links'
+    },
+    {
+      '1': 'contacts',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteContact',
+      '10': 'contacts'
+    },
+    {
+      '1': 'posts',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SitePost',
+      '10': 'posts'
+    },
+    {
+      '1': 'products',
+      '3': 4,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteProduct',
+      '10': 'products'
+    },
+    {
+      '1': 'product_next_cursor',
+      '3': 5,
+      '4': 1,
+      '5': 9,
+      '10': 'productNextCursor'
+    },
+    {'1': 'product_has_more', '3': 6, '4': 1, '5': 8, '10': 'productHasMore'},
+    {
+      '1': 'objs',
+      '3': 7,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteObject',
+      '10': 'objs'
+    },
+    {
+      '1': 'grants',
+      '3': 8,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteGrant',
+      '10': 'grants'
+    },
+    {
+      '1': 'queues',
+      '3': 9,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteQueue',
+      '10': 'queues'
+    },
+    {
+      '1': 'work_shifts',
+      '3': 10,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteWorkShift',
+      '10': 'workShifts'
+    },
+  ],
+};
+
+/// Descriptor for `ResSiteEditorWarm`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteEditorWarmDescriptor = $convert.base64Decode(
+    'ChFSZXNTaXRlRWRpdG9yV2FybRIjCgVsaW5rcxgBIAMoCzINLmMzNS5TaXRlTGlua1IFbGlua3'
+    'MSLAoIY29udGFjdHMYAiADKAsyEC5jMzUuU2l0ZUNvbnRhY3RSCGNvbnRhY3RzEiMKBXBvc3Rz'
+    'GAMgAygLMg0uYzM1LlNpdGVQb3N0UgVwb3N0cxIsCghwcm9kdWN0cxgEIAMoCzIQLmMzNS5TaX'
+    'RlUHJvZHVjdFIIcHJvZHVjdHMSLgoTcHJvZHVjdF9uZXh0X2N1cnNvchgFIAEoCVIRcHJvZHVj'
+    'dE5leHRDdXJzb3ISKAoQcHJvZHVjdF9oYXNfbW9yZRgGIAEoCFIOcHJvZHVjdEhhc01vcmUSIw'
+    'oEb2JqcxgHIAMoCzIPLmMzNS5TaXRlT2JqZWN0UgRvYmpzEiYKBmdyYW50cxgIIAMoCzIOLmMz'
+    'NS5TaXRlR3JhbnRSBmdyYW50cxImCgZxdWV1ZXMYCSADKAsyDi5jMzUuU2l0ZVF1ZXVlUgZxdW'
+    'V1ZXMSMwoLd29ya19zaGlmdHMYCiADKAsyEi5jMzUuU2l0ZVdvcmtTaGlmdFIKd29ya1NoaWZ0'
+    'cw==');
 
 @$core.Deprecated('Use reqSiteProductPutDescriptor instead')
 const ReqSiteProductPut$json = {

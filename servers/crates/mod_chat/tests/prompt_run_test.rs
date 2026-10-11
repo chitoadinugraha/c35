@@ -74,8 +74,8 @@ fn checkpoint_error_fingerprint_stable() {
 #[test]
 fn checkpoint_error_repeat_marks_fatal() {
     let mut ck = json!({});
-    checkpoint_record_error(&mut ck, "agent offline");
-    checkpoint_record_error(&mut ck, "agent offline");
+    checkpoint_record_error(&mut ck, "agent offline", Some(1));
+    checkpoint_record_error(&mut ck, "agent offline", Some(2));
     assert_eq!(ck["error_count"], 2);
     let row = PromptRunRow {
         req_id: "r".into(),

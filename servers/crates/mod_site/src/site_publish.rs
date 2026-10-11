@@ -8,6 +8,69 @@ use tokio::sync::mpsc;
 use crate::doc::site_doc_from_json;
 use crate::grant::site_grant_check;
 use crate::render::{publish_doc_render, render_etag};
+
+pub fn render_bundle_hash(pages: &[(String, String)]) -> String {
+    let mut hasher = blake3::Hasher::new();
+    for (key, html) in pages {
+        hasher.update(key.as_bytes());
+        hasher.update(html.as_bytes());
+    }
+    hasher.finalize().to_hex().to_string()
+}
+
+async fn site_name_for_render(pool: &PgPool, site_iid: i64) -> String {
+    let name_row = sqlx::query(
+        r#"SELECT name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+    name_row
+        .map(|r| r.get::<String, _>("name"))
+        .unwrap_or_else(|| "Site".into())
+}
+
+/// Blake3 bundle hash for a draft doc (matches site.publish.render_hash on publish).
+pub async fn site_draft_render_hash(
+    pool: &PgPool,
+    site_iid: i64,
+    doc_json: &serde_json::Value,
+) -> Result<String> {
+    let site_name = site_name_for_render(pool, site_iid).await;
+    let pages = publish_doc_render(pool, site_iid, doc_json, &site_name).await?;
+    Ok(render_bundle_hash(&pages))
+}
+
+pub async fn active_publish_render_hash(pool: &PgPool, site_iid: i64) -> Result<String> {
+    let row = sqlx::query(
+        r#"
+        SELECT render_hash FROM site.publish
+        WHERE site_iid = $1 AND is_active = TRUE AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row
+        .map(|r| r.get::<String, _>("render_hash"))
+        .unwrap_or_default())
+}
+
+/// Read-only publish status: same render_hash comparison as [site_publish_from_draft].
+pub async fn site_publish_pending_for_draft(
+    pool: &PgPool,
+    site_iid: i64,
+    doc_json: &serde_json::Value,
+) -> Result<(bool, String, String)> {
+    let draft_render_hash = site_draft_render_hash(pool, site_iid, doc_json).await?;
+    let published_render_hash = active_publish_render_hash(pool, site_iid).await?;
+    let publish_pending = published_render_hash.is_empty()
+        || draft_render_hash != published_render_hash;
+    Ok((publish_pending, draft_render_hash, published_render_hash))
+}
 use crate::sync_push::site_sync_push;
 use c35_proto::WsRes;
 use c35_store::snowflake_id;
@@ -36,25 +99,10 @@ pub async fn site_publish_from_draft(
     .await?
     .ok_or_else(|| anyhow!("draft not found"))?;
     let doc_json: serde_json::Value = draft_row.get("doc_json");
-    let name_row = sqlx::query(
-        r#"SELECT name FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#,
-    )
-    .bind(site_iid)
-    .fetch_optional(pool)
-    .await?;
-    let site_name = name_row
-        .map(|r| r.get::<String, _>("name"))
-        .unwrap_or_else(|| "Site".into());
+    let site_name = site_name_for_render(pool, site_iid).await;
     let version_id = format!("v{}", snowflake_id());
     let pages = publish_doc_render(pool, site_iid, &doc_json, &site_name).await?;
-    let bundle_hash = {
-        let mut hasher = blake3::Hasher::new();
-        for (key, html) in &pages {
-            hasher.update(key.as_bytes());
-            hasher.update(html.as_bytes());
-        }
-        hasher.finalize().to_hex().to_string()
-    };
+    let bundle_hash = render_bundle_hash(&pages);
     let published_ts = Utc::now();
     let mut tx = pool.begin().await?;
     sqlx::query(

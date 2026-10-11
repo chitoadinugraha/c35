@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_product_actions.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_product_thumb.dart';
@@ -31,6 +32,11 @@ class UiSiteProductsSection extends StatelessWidget {
     required this.onOpenDesign,
     required this.designPaneActive,
     required this.taxes,
+    this.onProductArchiveToggle,
+    this.onProductDelete,
+    this.onProductDuplicate,
+    this.onListNearEnd,
+    this.loadingMore = false,
   });
 
   final TextEditingController searchController;
@@ -48,6 +54,11 @@ class UiSiteProductsSection extends StatelessWidget {
   final VoidCallback onOpenDesign;
   final bool designPaneActive;
   final List<SiteTaxDraft> taxes;
+  final void Function(SiteProduct product)? onProductArchiveToggle;
+  final void Function(SiteProduct product)? onProductDelete;
+  final void Function(SiteProduct product)? onProductDuplicate;
+  final VoidCallback? onListNearEnd;
+  final bool loadingMore;
 
   List<SiteProduct> get _filtered {
     final q = search.trim().toLowerCase();
@@ -84,15 +95,28 @@ class UiSiteProductsSection extends StatelessWidget {
         Expanded(
           child: filtered.isEmpty
               ? const UiEmptyState(icon: Icons.inventory_2_outlined, title: 'No products', subtitle: 'Add a product to get started')
-              : ReorderableListView.builder(
+              : NotificationListener<ScrollNotification>(
+                  onNotification: (n) {
+                    if (onListNearEnd == null) return false;
+                    if (n.metrics.pixels >= n.metrics.maxScrollExtent - 120) onListNearEnd!();
+                    return false;
+                  },
+                  child: ReorderableListView.builder(
                   buildDefaultDragHandles: false,
                   padding: const EdgeInsets.only(bottom: 4),
-                  itemCount: filtered.length,
+                  itemCount: filtered.length + (loadingMore ? 1 : 0),
                   onReorder: (old, newIdx) {
                     final adj = newIdx > old ? newIdx - 1 : newIdx;
                     onReorder(old, adj);
                   },
                   itemBuilder: (ctx, i) {
+                    if (loadingMore && i == filtered.length) {
+                      return const Padding(
+                        key: ValueKey('products-loading-more'),
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))),
+                      );
+                    }
                     final p = filtered[i];
                     final id = '${p.productId}';
                     final active = selectedId == id;
@@ -103,6 +127,17 @@ class UiSiteProductsSection extends StatelessWidget {
                       color: active ? const Color(0xFF1A1F2E) : Colors.transparent,
                       child: InkWell(
                         onTap: () => onSelect(id),
+                        onLongPress: onProductArchiveToggle == null
+                            ? null
+                            : () => showSiteProductActionMenu(
+                                  context: ctx,
+                                  product: p,
+                                  onArchiveToggle: () => onProductArchiveToggle!(p),
+                                  onDelete: onProductDelete == null ? null : () => onProductDelete!(p),
+                                  onDuplicate: () {
+                                    onProductDuplicate?.call(p);
+                                  },
+                                ),
                         child: Container(
                           padding: const EdgeInsets.fromLTRB(4, 8, 10, 8),
                           decoration: BoxDecoration(
@@ -157,6 +192,7 @@ class UiSiteProductsSection extends StatelessWidget {
                       ),
                     );
                   },
+                ),
                 ),
         ),
         Padding(

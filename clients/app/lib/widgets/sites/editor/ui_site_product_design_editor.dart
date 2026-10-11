@@ -12,11 +12,15 @@ class UiSiteProductDesignEditor extends StatelessWidget {
     required this.design,
     required this.busy,
     required this.onChanged,
+    this.catalogDisplay = 'grid',
+    this.onCatalogDisplayChanged,
   });
 
   final SiteProductDesignDraft design;
   final bool busy;
   final ValueChanged<SiteProductDesignDraft> onChanged;
+  final String catalogDisplay;
+  final ValueChanged<String>? onCatalogDisplayChanged;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -29,6 +33,26 @@ class UiSiteProductDesignEditor extends StatelessWidget {
             style: TextStyle(color: _muted, fontSize: 12),
           ),
           const SizedBox(height: 20),
+          if (onCatalogDisplayChanged != null) ...[
+            const Text('Catalog layout', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            DropdownButtonFormField<String>(
+              value: siteCatalogDisplayNormalize(catalogDisplay),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderSide: BorderSide(color: _border)),
+              ),
+              dropdownColor: const Color(0xFF18181B),
+              style: const TextStyle(color: _text, fontSize: 13),
+              items: const [
+                DropdownMenuItem(value: 'grid', child: Text('Grid (cards)')),
+                DropdownMenuItem(value: 'list', child: Text('List (rows)')),
+              ],
+              onChanged: busy ? null : (v) => onCatalogDisplayChanged!(siteCatalogDisplayNormalize(v)),
+            ),
+            const SizedBox(height: 20),
+          ],
           _section('Title', design.titleFontSize, design.titleItalic, design.titleUnderline, (size, italic, underline) => onChanged(
                 design.copyWith(titleFontSize: size, titleItalic: italic, titleUnderline: underline),
               )),

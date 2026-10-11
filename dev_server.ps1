@@ -6,9 +6,10 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+. (Join-Path $root '_\scripts\dev\c35_server_port.ps1')
 $serverDir = Join-Path $root 'servers'
 $schemasDir = Join-Path $root '_\schemas'
-$port = if ($env:LISTEN) { [int](($env:LISTEN -split ':')[-1]) } else { 8080 }
+$port = if ($env:LISTEN) { [int](($env:LISTEN -split ':')[-1]) } else { $C35ServerHttpPort }
 $loopCmd = Join-Path $root '_\scripts\dev\run_server_loop.cmd'
 $stopScript = Join-Path $root '_\scripts\dev\stop_listen_port.ps1'
 $envFile = Join-Path $root 'servers\server_ai\.env.local'

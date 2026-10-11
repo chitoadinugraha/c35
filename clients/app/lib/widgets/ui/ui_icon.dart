@@ -1,6 +1,6 @@
+import 'package:alienai_c35/c/media/media_disk_cache.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:http/http.dart' as http;
 
 const kIconifyPicScheme = 'iconify://';
 
@@ -23,9 +23,9 @@ Future<String?> iconSvgStringLoad(String iconId) {
   final url = 'https://api.iconify.design/$id.svg';
   return _iconSvgCache.putIfAbsent(url, () async {
     try {
-      final res = await http.get(Uri.parse(url));
-      if (res.statusCode < 200 || res.statusCode >= 300) return null;
-      return iconSvgSanitize(res.body);
+      final file = await mediaDiskCacheFetch(url);
+      if (file != null) return iconSvgSanitize(await file.readAsString());
+      return null;
     } catch (_) {
       return null;
     }
@@ -41,12 +41,13 @@ String iconSvgSanitize(String svg) {
 }
 
 class UiIcon extends StatelessWidget {
-  const UiIcon(this.iconId, {super.key, this.size, this.color, this.recolor = true});
+  const UiIcon(this.iconId, {super.key, this.size, this.color, this.recolor = true, this.fallback});
 
   final String iconId;
   final double? size;
   final Color? color;
   final bool recolor;
+  final IconData? fallback;
 
   @override
   Widget build(BuildContext context) {
@@ -62,15 +63,16 @@ class UiIcon extends StatelessWidget {
     }
     final resolvedColor = color ?? iconTheme.color ?? DefaultTextStyle.of(context).style.color;
     final colorFilter = recolor && resolvedColor != null ? ColorFilter.mode(resolvedColor, BlendMode.srcIn) : null;
+    final placeholder = Icon(fallback ?? Icons.image_outlined, size: resolvedSize * 0.85, color: resolvedColor?.withValues(alpha: 0.35));
     return SizedBox(
       width: resolvedSize,
       height: resolvedSize,
       child: FutureBuilder<String?>(
         future: iconSvgStringLoad(id),
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const SizedBox();
+          if (snapshot.connectionState == ConnectionState.waiting) return placeholder;
           final value = snapshot.data;
-          if (value == null) return Icon(Icons.image_not_supported_outlined, size: resolvedSize);
+          if (value == null) return Icon(fallback ?? Icons.image_not_supported_outlined, size: resolvedSize, color: resolvedColor);
           return SvgPicture.string(value, width: resolvedSize, height: resolvedSize, fit: BoxFit.contain, colorFilter: colorFilter);
         },
       ),

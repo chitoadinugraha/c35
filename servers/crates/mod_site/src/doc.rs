@@ -182,7 +182,7 @@ fn block_props_validate(block_type: &str, props: &Value) -> Result<()> {
         }
         "product_grid" => {
             for k in obj.keys() {
-                if !matches!(k.as_str(), "filter" | "category" | "limit" | "page_size" | "columns") {
+                if !matches!(k.as_str(), "filter" | "category" | "limit" | "page_size" | "columns" | "display") {
                     return Err(anyhow!("product_grid: unknown prop {k}"));
                 }
             }

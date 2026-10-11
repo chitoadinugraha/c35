@@ -972,6 +972,7 @@ class SiteProduct extends $pb.GeneratedMessage {
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
     $core.String? icon,
+    $core.bool? isUsed,
   }) {
     final result = SiteProduct._();
     if (siteIid != null) result.siteIid = siteIid;
@@ -996,6 +997,7 @@ class SiteProduct extends $pb.GeneratedMessage {
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
     if (icon != null) result.icon = icon;
+    if (isUsed != null) result.isUsed = isUsed;
     return result;
   }
 
@@ -1034,6 +1036,7 @@ class SiteProduct extends $pb.GeneratedMessage {
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
     ..aOS(23, _omitFieldNames ? '' : 'icon')
+    ..aOB(24, _omitFieldNames ? '' : 'isUsed')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1255,6 +1258,16 @@ class SiteProduct extends $pb.GeneratedMessage {
   $core.bool hasIcon() => $_has(21);
   @$pb.TagNumber(23)
   void clearIcon() => $_clearField(23);
+
+  /// True after product_id appears on any site.tx_item (sales, guest orders, etc.).
+  @$pb.TagNumber(24)
+  $core.bool get isUsed => $_getBF(22);
+  @$pb.TagNumber(24)
+  set isUsed($core.bool value) => $_setBool(22, value);
+  @$pb.TagNumber(24)
+  $core.bool hasIsUsed() => $_has(22);
+  @$pb.TagNumber(24)
+  void clearIsUsed() => $_clearField(24);
 }
 
 class SiteProductEmbed extends $pb.GeneratedMessage {
@@ -2518,10 +2531,17 @@ class ResSiteDraftGet extends $pb.GeneratedMessage {
   factory ResSiteDraftGet({
     SiteDraft? draft,
     SiteConfig? config,
+    $core.bool? publishPending,
+    $core.String? draftRenderHash,
+    $core.String? publishedRenderHash,
   }) {
     final result = ResSiteDraftGet._();
     if (draft != null) result.draft = draft;
     if (config != null) result.config = config;
+    if (publishPending != null) result.publishPending = publishPending;
+    if (draftRenderHash != null) result.draftRenderHash = draftRenderHash;
+    if (publishedRenderHash != null)
+      result.publishedRenderHash = publishedRenderHash;
     return result;
   }
 
@@ -2542,6 +2562,9 @@ class ResSiteDraftGet extends $pb.GeneratedMessage {
         subBuilder: SiteDraft.$_createMessage)
     ..aOM<SiteConfig>(2, _omitFieldNames ? '' : 'config',
         subBuilder: SiteConfig.$_createMessage)
+    ..aOB(3, _omitFieldNames ? '' : 'publishPending')
+    ..aOS(4, _omitFieldNames ? '' : 'draftRenderHash')
+    ..aOS(5, _omitFieldNames ? '' : 'publishedRenderHash')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2587,6 +2610,36 @@ class ResSiteDraftGet extends $pb.GeneratedMessage {
   void clearConfig() => $_clearField(2);
   @$pb.TagNumber(2)
   SiteConfig ensureConfig() => $_ensure(1);
+
+  /// / True when draft render bundle differs from the active site.publish snapshot (or nothing is published yet).
+  @$pb.TagNumber(3)
+  $core.bool get publishPending => $_getBF(2);
+  @$pb.TagNumber(3)
+  set publishPending($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPublishPending() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPublishPending() => $_clearField(3);
+
+  /// / Blake3 bundle hash for the current draft (same algorithm as site.publish.render_hash).
+  @$pb.TagNumber(4)
+  $core.String get draftRenderHash => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set draftRenderHash($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasDraftRenderHash() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearDraftRenderHash() => $_clearField(4);
+
+  /// / Active publish render_hash; empty when the site has never been published.
+  @$pb.TagNumber(5)
+  $core.String get publishedRenderHash => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set publishedRenderHash($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasPublishedRenderHash() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearPublishedRenderHash() => $_clearField(5);
 }
 
 class ReqSiteDraftPut extends $pb.GeneratedMessage {
@@ -2967,9 +3020,13 @@ class ResSitePublish extends $pb.GeneratedMessage {
 class ReqSiteProductList extends $pb.GeneratedMessage {
   factory ReqSiteProductList({
     $fixnum.Int64? siteIid,
+    $core.int? limit,
+    $core.String? cursor,
   }) {
     final result = ReqSiteProductList._();
     if (siteIid != null) result.siteIid = siteIid;
+    if (limit != null) result.limit = limit;
+    if (cursor != null) result.cursor = cursor;
     return result;
   }
 
@@ -2987,6 +3044,8 @@ class ReqSiteProductList extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: ReqSiteProductList.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aI(2, _omitFieldNames ? '' : 'limit')
+    ..aOS(3, _omitFieldNames ? '' : 'cursor')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3019,14 +3078,38 @@ class ReqSiteProductList extends $pb.GeneratedMessage {
   $core.bool hasSiteIid() => $_has(0);
   @$pb.TagNumber(1)
   void clearSiteIid() => $_clearField(1);
+
+  /// / Editor paging: 0 = all rows (legacy). Otherwise first page size (max 48).
+  @$pb.TagNumber(2)
+  $core.int get limit => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set limit($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLimit() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLimit() => $_clearField(2);
+
+  /// / Keyset cursor `sort_order:product_id` from prior page.
+  @$pb.TagNumber(3)
+  $core.String get cursor => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set cursor($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCursor() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCursor() => $_clearField(3);
 }
 
 class ResSiteProductList extends $pb.GeneratedMessage {
   factory ResSiteProductList({
     $core.Iterable<SiteProduct>? products,
+    $core.String? nextCursor,
+    $core.bool? hasMore,
   }) {
     final result = ResSiteProductList._();
     if (products != null) result.products.addAll(products);
+    if (nextCursor != null) result.nextCursor = nextCursor;
+    if (hasMore != null) result.hasMore = hasMore;
     return result;
   }
 
@@ -3045,6 +3128,8 @@ class ResSiteProductList extends $pb.GeneratedMessage {
       createEmptyInstance: ResSiteProductList.$_createMessage)
     ..pPM<SiteProduct>(1, _omitFieldNames ? '' : 'products',
         subBuilder: SiteProduct.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'nextCursor')
+    ..aOB(3, _omitFieldNames ? '' : 'hasMore')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -3071,6 +3156,221 @@ class ResSiteProductList extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<SiteProduct> get products => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.String get nextCursor => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set nextCursor($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasNextCursor() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearNextCursor() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get hasMore => $_getBF(2);
+  @$pb.TagNumber(3)
+  set hasMore($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasHasMore() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearHasMore() => $_clearField(3);
+}
+
+/// / Editor open: parallel catalog slices (links, contacts, posts, objects, first product page).
+class ReqSiteEditorWarm extends $pb.GeneratedMessage {
+  factory ReqSiteEditorWarm({
+    $fixnum.Int64? siteIid,
+    $core.int? productLimit,
+  }) {
+    final result = ReqSiteEditorWarm._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (productLimit != null) result.productLimit = productLimit;
+    return result;
+  }
+
+  ReqSiteEditorWarm._();
+
+  factory ReqSiteEditorWarm.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteEditorWarm()..mergeFromBuffer(data, registry);
+  factory ReqSiteEditorWarm.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteEditorWarm()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteEditorWarm',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteEditorWarm.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aI(2, _omitFieldNames ? '' : 'productLimit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteEditorWarm clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteEditorWarm copyWith(void Function(ReqSiteEditorWarm) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteEditorWarm))
+          as ReqSiteEditorWarm;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSiteEditorWarm() / ReqSiteEditorWarm.new instead')
+  static ReqSiteEditorWarm create() => ReqSiteEditorWarm._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteEditorWarm._();
+  @$core.override
+  ReqSiteEditorWarm createEmptyInstance() => ReqSiteEditorWarm._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteEditorWarm getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqSiteEditorWarm>(
+          ReqSiteEditorWarm.$_createMessage);
+  static ReqSiteEditorWarm? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  /// / First product page size (default 30, max 48). 0 uses server default.
+  @$pb.TagNumber(2)
+  $core.int get productLimit => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set productLimit($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasProductLimit() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearProductLimit() => $_clearField(2);
+}
+
+class ResSiteEditorWarm extends $pb.GeneratedMessage {
+  factory ResSiteEditorWarm({
+    $core.Iterable<SiteLink>? links,
+    $core.Iterable<SiteContact>? contacts,
+    $core.Iterable<SitePost>? posts,
+    $core.Iterable<SiteProduct>? products,
+    $core.String? productNextCursor,
+    $core.bool? productHasMore,
+    $core.Iterable<SiteObject>? objs,
+    $core.Iterable<SiteGrant>? grants,
+    $core.Iterable<SiteQueue>? queues,
+    $core.Iterable<SiteWorkShift>? workShifts,
+  }) {
+    final result = ResSiteEditorWarm._();
+    if (links != null) result.links.addAll(links);
+    if (contacts != null) result.contacts.addAll(contacts);
+    if (posts != null) result.posts.addAll(posts);
+    if (products != null) result.products.addAll(products);
+    if (productNextCursor != null) result.productNextCursor = productNextCursor;
+    if (productHasMore != null) result.productHasMore = productHasMore;
+    if (objs != null) result.objs.addAll(objs);
+    if (grants != null) result.grants.addAll(grants);
+    if (queues != null) result.queues.addAll(queues);
+    if (workShifts != null) result.workShifts.addAll(workShifts);
+    return result;
+  }
+
+  ResSiteEditorWarm._();
+
+  factory ResSiteEditorWarm.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteEditorWarm()..mergeFromBuffer(data, registry);
+  factory ResSiteEditorWarm.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteEditorWarm()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteEditorWarm',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteEditorWarm.$_createMessage)
+    ..pPM<SiteLink>(1, _omitFieldNames ? '' : 'links',
+        subBuilder: SiteLink.$_createMessage)
+    ..pPM<SiteContact>(2, _omitFieldNames ? '' : 'contacts',
+        subBuilder: SiteContact.$_createMessage)
+    ..pPM<SitePost>(3, _omitFieldNames ? '' : 'posts',
+        subBuilder: SitePost.$_createMessage)
+    ..pPM<SiteProduct>(4, _omitFieldNames ? '' : 'products',
+        subBuilder: SiteProduct.$_createMessage)
+    ..aOS(5, _omitFieldNames ? '' : 'productNextCursor')
+    ..aOB(6, _omitFieldNames ? '' : 'productHasMore')
+    ..pPM<SiteObject>(7, _omitFieldNames ? '' : 'objs',
+        subBuilder: SiteObject.$_createMessage)
+    ..pPM<SiteGrant>(8, _omitFieldNames ? '' : 'grants',
+        subBuilder: SiteGrant.$_createMessage)
+    ..pPM<SiteQueue>(9, _omitFieldNames ? '' : 'queues',
+        subBuilder: SiteQueue.$_createMessage)
+    ..pPM<SiteWorkShift>(10, _omitFieldNames ? '' : 'workShifts',
+        subBuilder: SiteWorkShift.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteEditorWarm clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteEditorWarm copyWith(void Function(ResSiteEditorWarm) updates) =>
+      super.copyWith((message) => updates(message as ResSiteEditorWarm))
+          as ResSiteEditorWarm;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSiteEditorWarm() / ResSiteEditorWarm.new instead')
+  static ResSiteEditorWarm create() => ResSiteEditorWarm._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteEditorWarm._();
+  @$core.override
+  ResSiteEditorWarm createEmptyInstance() => ResSiteEditorWarm._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteEditorWarm getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResSiteEditorWarm>(
+          ResSiteEditorWarm.$_createMessage);
+  static ResSiteEditorWarm? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SiteLink> get links => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<SiteContact> get contacts => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<SitePost> get posts => $_getList(2);
+
+  @$pb.TagNumber(4)
+  $pb.PbList<SiteProduct> get products => $_getList(3);
+
+  @$pb.TagNumber(5)
+  $core.String get productNextCursor => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set productNextCursor($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasProductNextCursor() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearProductNextCursor() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.bool get productHasMore => $_getBF(5);
+  @$pb.TagNumber(6)
+  set productHasMore($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasProductHasMore() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearProductHasMore() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $pb.PbList<SiteObject> get objs => $_getList(6);
+
+  /// / Populated when caller has manage+ on the site.
+  @$pb.TagNumber(8)
+  $pb.PbList<SiteGrant> get grants => $_getList(7);
+
+  @$pb.TagNumber(9)
+  $pb.PbList<SiteQueue> get queues => $_getList(8);
+
+  @$pb.TagNumber(10)
+  $pb.PbList<SiteWorkShift> get workShifts => $_getList(9);
 }
 
 class ReqSiteProductPut extends $pb.GeneratedMessage {

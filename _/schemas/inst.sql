@@ -1146,7 +1146,7 @@ INSERT INTO ai.inst (
     'task',
     '',
     ARRAY['web.builder', 'site.commerce', 'general'],
-    '[SITE.REPORT] User wants sales, profit, or transaction count reports. Call site.query.run only. Profit / untung / laba => query_id tx.profit_summary. Revenue / penjualan / omzet / pendapatan / berapa transaksi / total transaksi => query_id tx.sales_summary (tx_count = number of sales). Set params.range (or date_* / time_* ms) per [DATE RANGE]. If no period, use range "today". Omit site_iids to use all granted sites. Readonly. Do not call web.search or transaction write tools.',
+    '[SITE.REPORT] User wants sales, profit, or transaction count reports. Call site.query.run only. Profit / untung / laba => query_id tx.profit_summary. Revenue / penjualan / omzet / pendapatan / berapa transaksi / total transaksi => query_id tx.sales_summary (tx_count = number of sales). Set params.range (or date_* / time_* ms) per [DATE RANGE]. If no period, use range "today". Omit site_iids to use all granted sites. Reply in the user language with one short sentence (amounts + tx_count); no UI block — the chat shows prose only. For a transaction table use inst.site.tx_browse. Readonly. Do not call web.search or transaction write tools.',
     ARRAY['laporan', 'report', 'sales today', 'untung', 'laba', 'berapa untung', 'untung hari ini', 'keuntungan', 'profit today', 'omzet', 'penjualan', 'pendapatan', 'minggu ini', 'bulan ini', 'berapa transaksi', 'total transaksi', 'berapa total transaksi', 'jumlah transaksi', 'omzet kemarin'],
     ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
     ARRAY['site.query.run'],

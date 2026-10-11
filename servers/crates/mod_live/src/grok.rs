@@ -363,25 +363,8 @@ pub async fn handle_grok_turn(
                             let sentence = std::mem::take(&mut sentence_buffer);
                             if let Ok(pcm_24k) = synthesize_to_pcm24k(http_client, &sentence).await {
                                 if !pcm_24k.is_empty() {
-                                    let _ = client.send(Message::Binary(pcm_24k.clone().into())).await;
-                                    let _ = client
-                                        .send(Message::Text(
-                                            json!({
-                                                "serverContent": {
-                                                    "modelTurn": {
-                                                        "parts": [{
-                                                            "inlineData": {
-                                                                "mimeType": "audio/pcm;rate=24000",
-                                                                "data": B64.encode(&pcm_24k)
-                                                            }
-                                                        }]
-                                                    }
-                                                }
-                                            })
-                                            .to_string()
-                                            .into(),
-                                        ))
-                                        .await;
+                                    let frame = crate::ws_audio::encode_audio_frame(24_000, &pcm_24k);
+                                    let _ = client.send(Message::Binary(frame.into())).await;
                                 }
                             }
                         }
@@ -395,25 +378,8 @@ pub async fn handle_grok_turn(
         let sentence = std::mem::take(&mut sentence_buffer);
         if let Ok(pcm_24k) = synthesize_to_pcm24k(http_client, &sentence).await {
             if !pcm_24k.is_empty() {
-                let _ = client.send(Message::Binary(pcm_24k.clone().into())).await;
-                let _ = client
-                    .send(Message::Text(
-                        json!({
-                            "serverContent": {
-                                "modelTurn": {
-                                    "parts": [{
-                                        "inlineData": {
-                                            "mimeType": "audio/pcm;rate=24000",
-                                            "data": B64.encode(&pcm_24k)
-                                        }
-                                    }]
-                                }
-                            }
-                        })
-                        .to_string()
-                        .into(),
-                    ))
-                    .await;
+                let frame = crate::ws_audio::encode_audio_frame(24_000, &pcm_24k);
+                let _ = client.send(Message::Binary(frame.into())).await;
             }
         }
     }

@@ -13,7 +13,7 @@ Debug toolkit for c35: `ai.inst` CRUD, log/msg trace queries, and server_ai agen
 | `NATS_USER` / `NATS_PASS` | no | — | NATS credentials |
 | `C35_DEBUG_OWNER_IID` | no | `99000` | Default owner for log/msg inspection |
 | `C35_TEST_OWNER_IID` | no | `33000` | Owner for agent HTTP (server-enforced) |
-| `C35_SERVER_URL` | no | `http://127.0.0.1:8080` | server_ai base URL |
+| `C35_SERVER_URL` | no | `http://127.0.0.1:10000` | server_ai base URL |
 | `C35_MCP_AGENT_KEY` | **yes** | — | Agent HTTP auth header; must match server |
 
 ## Setup

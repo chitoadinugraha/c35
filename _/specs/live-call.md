@@ -141,6 +141,7 @@ sequenceDiagram
   - As a deterministic safety net, if 5 consecutive conversation turns complete without any mention tools called, the server automatically demotes the session to general topic and broadcasts `{"live":"mention","mention_ids":[],"label":"","switching":false}` to clear the client chip.
 - **Video Perception & Frame Streaming**: Incoming client frames matching `{"type":"video","data":"<base64>","mime_type":"image/jpeg"}` (or `"video_frame"`) are relayed straight into Gemini Live's `realtimeInput.video` endpoint alongside tool-based `device_screenshot` frames.
 - Talk uses the same center chip and the normal prompt pipeline. It does not reconnect.
+- **Site name on `turnComplete`**: When a user turn finishes (`serverContent.turnComplete` or `generationComplete`), the server resolves a site from the accumulated **input transcription** using the same fuzzy/normalized name rules as Home ([site-ai.md](site-ai.md)). If there is no active site mention and resolution is confident (single site above the scope threshold), enqueue a **mention handover** on the Make-Before-Break path: `mention_ids` with the site ref (`iid:<site_iid>`) and the display label, then rebundle tools/topics. Do not hand over on ambiguous or sub-threshold matches.
 
 ### 2. Paired Devices Context & Auto-Resolution
 - When the live session starts, the server discovers the caller's paired remote devices (`ai.identity` with `kind = 'remote'`).
@@ -199,6 +200,13 @@ Composer family drives **primary label**; **`live_offer`** drives menu rows (see
 - **`C35_LIVE_ENABLED=1`** required on **release** builds; debug `server_ai` enables live by default. Set `C35_LIVE_ENABLED=0` to disable locally. Without live enabled: `"Live call is not available yet"`.
 - Track C (not shipped): `/v1/live/ws` Gemini Live proxy.
 - Track C: `/v1/live/ws` proxies Gemini Live (`C35_LIVE_ENABLED=1`).
+
+### App WebSocket audio (server → client)
+
+- **Mic uplink:** raw **16 kHz PCM** binary frames (unchanged).
+- **Assistant downlink:** `0xC3 0x35` magic + protobuf `LiveWsAudio` (`sample_rate_hz`, `pcm_s16le`). Control events (ready, hangup, transcripts, `turnComplete`, tool rows) stay **JSON text** without base64 audio blobs.
+- **Gemini ↔ server** remains Google’s JSON + base64; stripping happens only on the cluster→app hop.
+- Legacy clients may still see raw PCM binary (no magic) from older servers; new clients accept magic+proto or raw PCM.
 
 ## Realtime smoke (dev)
 

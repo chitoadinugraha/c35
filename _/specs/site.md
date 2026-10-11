@@ -374,6 +374,10 @@ site.draft.doc_json
 
 Port compile/serve from `csa_site_published` `mod_site` (`publish_render`, `site_render_router`).
 
+### Guest renderer parity (dual renderer)
+
+Sites **Preview** uses Flutter `GuestSiteView` + `site.boot_get`. Public URLs use Rust `page_html_render` + `site-guest.v1.js/css` with the same boot shape (`__SITE_GUEST__`). **App preview is canonical:** when the two differ, fix web render/static assets (not a WebView shortcut). Block catalog: [`site-guest-components.md`](site-guest-components.md). Implementation plan: [`plans/2026-10-11-site-preview-web-renderer-parity-multitask.md`](plans/2026-10-11-site-preview-web-renderer-parity-multitask.md). Cursor rule: [`.cursor/rules/site-guest-dual-renderer-parity.mdc`](../.cursor/rules/site-guest-dual-renderer-parity.mdc).
+
 ### Guest Interactive Client Runtime
 
 The rendered HTML compiled by `render.rs` includes a lightweight, zero-build client-side runtime for visitor commerce and lead capture:

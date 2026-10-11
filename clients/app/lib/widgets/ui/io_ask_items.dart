@@ -22,6 +22,7 @@ class IoAskItem {
     this.trailingLabel,
     this.trailingIcon,
     this.trailing,
+    this.enabled = true,
   });
 
   final String id;
@@ -34,6 +35,7 @@ class IoAskItem {
   final String? trailingLabel;
   final IconData? trailingIcon;
   final Widget? trailing;
+  final bool enabled;
 }
 
 Future<IoAskItem?> ioAskItemsShow(
@@ -184,7 +186,9 @@ Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}
     child: InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: item.actions.isNotEmpty ? null : onTap,
-      child: Padding(
+      child: Opacity(
+        opacity: item.enabled ? 1 : 0.55,
+        child: Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
         child: Row(
           crossAxisAlignment: trailingBadge || hasTrailingMenu ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -215,6 +219,7 @@ Widget ioAskItemTile(BuildContext context, IoAskItem item, {VoidCallback? onTap}
             if (hasTrailingMenu) item.trailing!,
           ],
         ),
+      ),
       ),
     ),
   );

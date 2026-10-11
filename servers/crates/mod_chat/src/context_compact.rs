@@ -57,6 +57,8 @@ pub struct PreparedPromptHistory {
     pub billing: ContextBillingExtra,
     pub prompt_tokens: i32,
     pub context_window: i32,
+    /// Time spent in inline context compaction (0 when no compaction ran).
+    pub compact_ms: i64,
 }
 
 pub fn should_compact(
@@ -380,8 +382,9 @@ pub async fn prepare_prompt_history(
     let user_tokens = token_estimate(user);
     let mut ctx = chat_context_load(pool, chat_id).await?;
     let window = context_window_resolve(model, ctx.context_window);
-    let rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
+    let mut rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
     let full_history_tokens = history_rows_tokens(&rows);
+    let mut compact_ms = 0i64;
     if should_compact(
         window,
         system_tokens,
@@ -389,6 +392,7 @@ pub async fn prepare_prompt_history(
         full_history_tokens,
         user_tokens,
     ) {
+        let compact_t0 = std::time::Instant::now();
         match context_compact(
             pool,
             http,
@@ -408,18 +412,20 @@ pub async fn prepare_prompt_history(
                 billing.compaction_tokens_out = compact.tokens_out;
                 billing.memory_extract_writes = compact.memory_writes;
                 ctx = chat_context_load(pool, chat_id).await?;
+                rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
             }
             Ok(None) => {}
             Err(e) => warn!("[c35:context_compact] fail open chat_id={chat_id}: {e:#}"),
         }
+        compact_ms = compact_t0.elapsed().as_millis() as i64;
     }
-    let rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
     let packed = context_pack_history(&ctx.summary, &rows, window, system_tokens, user_tokens);
     Ok(PreparedPromptHistory {
         messages: history_with_summary(&ctx.summary, &packed.messages),
         billing,
         prompt_tokens: prompt_tokens_estimate(system_tokens, packed.tokens_est, user_tokens),
         context_window: window,
+        compact_ms,
     })
 }
 

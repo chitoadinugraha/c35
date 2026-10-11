@@ -5,12 +5,18 @@ import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/collection_def.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
+import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
+import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_product_detail.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_product_design_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_product_import_image.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_product_paste_dialog.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_product_actions.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_products_section.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_tax_list.dart';
 import 'package:fixnum/fixnum.dart';
@@ -51,7 +57,7 @@ class UiSiteProductsEditor extends StatefulWidget {
   State<UiSiteProductsEditor> createState() => _UiSiteProductsEditorState();
 }
 
-class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
+class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
   var _loading = true;
@@ -63,7 +69,12 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
   var _embeds = <SiteProductEmbed>[];
   var _taxes = <SiteTaxDraft>[];
   var _design = const SiteProductDesignDraft();
-  Timer? _metaSaveTimer;
+  var _catalogDisplay = 'grid';
+  var _nextCursor = '';
+  var _hasMore = false;
+  var _loadingMore = false;
+  var _loadingAllForSearch = false;
+  var _extrasLoaded = false;
 
   @override
   void initState() {
@@ -74,9 +85,23 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
 
   @override
   void dispose() {
-    _metaSaveTimer?.cancel();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _previewUpsert(SiteProduct p) {
+    final cache = SiteEditorSaveScope.maybeOf(context)?.preview;
+    cache?.patch((boot) => siteEditorPreviewUpsertProduct(boot, p));
+  }
+
+  void _previewMeta() {
+    final cache = SiteEditorSaveScope.maybeOf(context)?.preview;
+    cache?.patch((boot) => siteEditorPreviewPatchDraftMeta(
+          boot,
+          taxes: _taxes,
+          productDesign: _design,
+          catalogDisplay: _catalogDisplay,
+        ));
   }
 
   @override
@@ -126,20 +151,57 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
 
   void _setPane(SiteProductsPane pane) => widget.onPaneChanged?.call(pane);
 
+  @override
+  void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    _syncProducts(catalog.products);
+    _nextCursor = catalog.productNextCursor;
+    _hasMore = catalog.productHasMore;
+    _loadingMore = catalog.productLoadingMore;
+    _pickDefault();
+    if (mounted) {
+      setState(() {
+        if (_extrasLoaded) _loading = false;
+        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+      });
+    }
+  }
+
+  Future<void> _loadExtras() async {
+    if (_extrasLoaded) return;
+    final results = await Future.wait([
+      widget.api.collectionDefs(siteIid: widget.siteIid),
+      widget.api.productEmbedList(widget.siteIid),
+      widget.api.draftGetMeta(widget.siteIid),
+    ]);
+    final defs = results[0] as List<TableDef>;
+    _def = widget.api.tableDefFor(defs, 'site.product') ?? collectionDefForFallback('site.product');
+    _embeds = results[1] as List<SiteProductEmbed>;
+    final meta = results[2] as SiteDraftMeta;
+    _taxes = meta.taxes;
+    _design = meta.productDesign;
+    _catalogDisplay = meta.catalogDisplay;
+    _extrasLoaded = true;
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final defs = await widget.api.collectionDefs(siteIid: widget.siteIid);
-      _def = widget.api.tableDefFor(defs, 'site.product') ?? collectionDefForFallback('site.product');
-      final items = await widget.api.productList(widget.siteIid);
-      _embeds = await widget.api.productEmbedList(widget.siteIid);
-      final meta = await widget.api.draftGetMeta(widget.siteIid);
-      _taxes = meta.taxes;
-      _design = meta.productDesign;
-      _syncProducts(items);
+      final fromCatalog = await ensureEditorCatalog();
+      if (!fromCatalog) {
+        final page = await widget.api.productListPage(widget.siteIid);
+        editorCatalog?.applyProductPage(
+          page.products,
+          nextCursor: page.nextCursor,
+          hasMore: page.hasMore,
+        );
+        _syncProducts(page.products);
+        _nextCursor = page.nextCursor;
+        _hasMore = page.hasMore;
+      }
+      await _loadExtras();
       _pickDefault();
     } catch (e) {
       _error = uiFriendlyError(e);
@@ -148,10 +210,55 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
     }
   }
 
-  void _syncProducts(List<SiteProduct> items) {
-    _productsById
-      ..clear()
-      ..addEntries(items.map((p) => MapEntry('${p.productId}', p)));
+  void _syncProducts(List<SiteProduct> items, {bool append = false}) {
+    if (!append) _productsById.clear();
+    for (final p in items) {
+      _productsById['${p.productId}'] = p;
+      editorCatalog?.upsertProduct(p);
+    }
+  }
+
+  Future<void> _loadMore() async {
+    if (_loadingMore || !_hasMore || _search.trim().isNotEmpty) return;
+    final cat = editorCatalog;
+    if (cat != null) {
+      await cat.loadMoreProducts();
+      onEditorCatalogUpdated(cat);
+      return;
+    }
+    setState(() => _loadingMore = true);
+    try {
+      final page = await widget.api.productListPage(widget.siteIid, cursor: _nextCursor);
+      _nextCursor = page.nextCursor;
+      _hasMore = page.hasMore;
+      _syncProducts(page.products, append: true);
+      _pickDefault();
+    } catch (e) {
+      if (mounted) setState(() => _error = uiFriendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
+  Future<void> _ensureAllProductsForSearch() async {
+    if (!_hasMore || _loadingAllForSearch) return;
+    _loadingAllForSearch = true;
+    try {
+      final cat = editorCatalog;
+      if (cat != null) {
+        await cat.ensureAllProducts();
+        onEditorCatalogUpdated(cat);
+      } else {
+        final items = await widget.api.productList(widget.siteIid);
+        _hasMore = false;
+        _nextCursor = '';
+        _syncProducts(items);
+      }
+    } catch (_) {
+    } finally {
+      _loadingAllForSearch = false;
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _addProduct() async {
@@ -212,6 +319,60 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
     }
   }
 
+  Future<void> _toggleArchive(SiteProduct product) async {
+    if (_busy) return;
+    final archive = !product.isArchived;
+    if (!await confirmSiteProductArchive(context, product, archive: archive)) return;
+    setState(() => _busy = true);
+    try {
+      final updated = await siteProductToggleArchive(widget.api, widget.siteIid, product);
+      if (updated != null) _productsById['${updated.productId}'] = updated;
+    } catch (e) {
+      if (mounted) setState(() => _error = uiFriendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteProduct(SiteProduct product) async {
+    await runSiteProductDelete(
+      context: context,
+      api: widget.api,
+      siteIid: widget.siteIid,
+      product: product,
+      onBusy: (v) => setState(() => _busy = v),
+      onDeleted: () {
+        _productsById.remove('${product.productId}');
+        _pickDefault();
+        setState(() {});
+      },
+    );
+  }
+
+  Future<void> _duplicateProduct(SiteProduct product) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final sort = _orderedProducts.isEmpty ? 0 : _orderedProducts.last.sortOrder + 1;
+      final embeds = _embeds.where((e) => e.productId == product.productId).toList(growable: false);
+      final copy = await siteProductDuplicate(
+        api: widget.api,
+        siteIid: widget.siteIid,
+        source: product,
+        sortOrder: sort,
+        embedsForProduct: embeds,
+      );
+      if (copy == null) return;
+      _syncProducts([..._productsById.values, copy]);
+      _embeds = await widget.api.productEmbedList(widget.siteIid);
+      _select('${copy.productId}');
+    } catch (e) {
+      if (mounted) setState(() => _error = uiFriendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _reorder(int oldIndex, int newIndex) async {
     if (_busy || _search.trim().isNotEmpty) return;
     final items = [..._orderedProducts];
@@ -236,15 +397,20 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
   }
 
   void _scheduleMetaSave() {
-    _metaSaveTimer?.cancel();
-    _metaSaveTimer = Timer(const Duration(milliseconds: 500), () => unawaited(_saveMeta()));
+    _previewMeta();
+    siteEditorScheduleSave(context, key: 'products:meta', save: _saveMeta);
   }
 
   Future<void> _saveMeta() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await widget.api.draftPutMeta(widget.siteIid, taxes: _taxes, productDesign: _design);
+      await widget.api.draftPutMeta(
+        widget.siteIid,
+        taxes: _taxes,
+        productDesign: _design,
+        catalogDisplay: _catalogDisplay,
+      );
       if (mounted) setState(() => _error = null);
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));
@@ -258,9 +424,19 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
     _scheduleMetaSave();
   }
 
+  void _onCatalogDisplayChanged(String display) {
+    setState(() => _catalogDisplay = siteCatalogDisplayNormalize(display));
+    _scheduleMetaSave();
+  }
+
   void _onDesignChanged(SiteProductDesignDraft design) {
     setState(() => _design = design);
     _scheduleMetaSave();
+  }
+
+  void _onSearchChanged(String v) {
+    setState(() => _search = v);
+    if (v.trim().isNotEmpty && _hasMore) unawaited(_ensureAllProductsForSearch());
   }
 
   void _addTax() {
@@ -276,14 +452,22 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
 
   Widget _designPane() => UiSiteEditorFormScroll(
         children: [
-          UiSiteProductDesignEditor(design: _design, busy: _busy, onChanged: _onDesignChanged),
+          UiSiteProductDesignEditor(
+            design: _design,
+            busy: _busy,
+            onChanged: _onDesignChanged,
+            catalogDisplay: _catalogDisplay,
+            onCatalogDisplayChanged: _onCatalogDisplayChanged,
+          ),
         ],
       );
 
   Widget _listPane({required String? selectedId}) => UiSiteProductsSection(
         searchController: _searchCtrl,
         search: _search,
-        onSearchChanged: (v) => setState(() => _search = v),
+        onSearchChanged: _onSearchChanged,
+        onListNearEnd: _loadMore,
+        loadingMore: _loadingMore,
         products: _orderedProducts,
         selectedId: selectedId,
         onSelect: _select,
@@ -296,6 +480,9 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
         onOpenDesign: () => _setPane(SiteProductsPane.design),
         designPaneActive: widget.pane == SiteProductsPane.design,
         taxes: _taxes,
+        onProductArchiveToggle: _toggleArchive,
+        onProductDelete: _deleteProduct,
+        onProductDuplicate: _duplicateProduct,
       );
 
   Widget _detailPane(String productId) {
@@ -314,7 +501,10 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> {
       embeds: _embeds,
       busy: _busy,
       onBusy: (v) => setState(() => _busy = v),
-      onProductUpdated: (p) => setState(() => _productsById['${p.productId}'] = p),
+      onProductUpdated: (p) {
+        setState(() => _productsById['${p.productId}'] = p);
+        _previewUpsert(p);
+      },
       onDeleted: () {
         _productsById.remove(productId);
         _pickDefault();

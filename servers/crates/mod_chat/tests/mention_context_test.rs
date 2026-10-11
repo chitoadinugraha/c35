@@ -1,6 +1,6 @@
 use c35_mod_chat::{
-    mention_bot_iids, mention_context_build, mention_context_sites_block, site_iid_resolve, MentionContext,
-    MentionResolved, SiteContext,
+    memory_skip_site_scoped, mention_bot_iids, mention_context_build, mention_context_sites_block,
+    site_iid_resolve, MentionContext, MentionResolved, SiteContext,
 };
 use c35_proto::MentionItem;
 fn site_mention(iid: i64, alien_id: &str, name: &str) -> MentionResolved {
@@ -173,4 +173,11 @@ fn site_iid_resolve_zero_sites_requires_fallback_or_arg() {
     assert!(site_iid_resolve(&ctx, None, None).is_err());
     assert_eq!(site_iid_resolve(&ctx, Some(333), None).unwrap(), 333);
     assert_eq!(site_iid_resolve(&ctx, None, Some(444)).unwrap(), 444);
+}
+
+#[test]
+fn memory_skip_when_site_mentioned() {
+    let ctx = mention_context_build(&[site_mention(101, "gucicha", "Gucicha")]);
+    assert!(memory_skip_site_scoped(&ctx));
+    assert!(!memory_skip_site_scoped(&MentionContext::empty()));
 }

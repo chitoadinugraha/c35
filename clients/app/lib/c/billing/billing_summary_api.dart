@@ -16,6 +16,19 @@ Future<ResBillingSummary> billingSummaryGet(ReferralConn conn, {Int64 billingAcc
   return res.billingSummary;
 }
 
+Int64 _billingPlanExpiresFromSummary(ResBillingSummary summary, BillingAccount? base) {
+  final summaryMs = summary.hasPlanExpiresTsMs() ? summary.planExpiresTsMs.toInt() : 0;
+  if (summaryMs > 0) return summary.planExpiresTsMs;
+  final baseMs = base?.hasPlanExpiresTsMs() == true ? base!.planExpiresTsMs.toInt() : 0;
+  if (baseMs > 0) return base!.planExpiresTsMs;
+  return summary.planExpiresTsMs;
+}
+
+bool _billingPlanAutoRenewFromSummary(ResBillingSummary summary, BillingAccount? base) {
+  if (summary.hasPlanAutoRenew()) return summary.planAutoRenew;
+  return base?.planAutoRenew ?? false;
+}
+
 BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAccount? base}) {
   final currency = billingCurrencyResolve(
     fromAccount: base?.billingCurrency,
@@ -47,7 +60,8 @@ BillingAccount billingAccountFromSummary(ResBillingSummary summary, {BillingAcco
     freemiumMsgsLimit: summary.freemiumMsgsLimit,
     freemiumTokensUsed: summary.freemiumTokensUsed,
     freemiumTokensLimit: summary.freemiumTokensLimit,
-    planExpiresTsMs: summary.planExpiresTsMs,
+    planExpiresTsMs: _billingPlanExpiresFromSummary(summary, base),
+    planAutoRenew: _billingPlanAutoRenewFromSummary(summary, base),
     trialExpiresTsMs: summary.trialExpiresTsMs,
     billingCurrency: currency,
     fxMicroPerUsd: fx,

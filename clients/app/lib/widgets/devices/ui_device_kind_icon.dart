@@ -1,4 +1,3 @@
-import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -31,20 +30,12 @@ class UiDeviceKindIcon extends StatelessWidget {
   Widget _inner() {
     final t = type.toLowerCase();
     if (t == 'browser' && browserEngine.toLowerCase() == 'extension') {
-      final favicon = (size * 1.2).clamp(14.0, 24.0);
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: Image.network(
-          'https://www.google.com/s2/favicons?domain=chrome.google.com&sz=64',
-          width: favicon,
-          height: favicon,
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => Icon(Icons.public, size: size, color: iconColor),
-        ),
-      );
+      final svg = (size * 1.15).clamp(14.0, 24.0);
+      return SvgPicture.asset('assets/icons/google.svg', width: svg, height: svg, fit: BoxFit.contain);
     }
     if (t == 'android') {
-      return UiIcon('logos:android-icon', size: size, recolor: false);
+      final svg = (size * 1.15).clamp(14.0, 24.0);
+      return SvgPicture.asset('assets/icons/android.svg', width: svg, height: svg, fit: BoxFit.contain);
     }
     if (t == 'windows') {
       final svg = (size * 1.25).clamp(16.0, 28.0);

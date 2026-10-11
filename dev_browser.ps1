@@ -16,7 +16,8 @@ $root = $PSScriptRoot
 $remotesDir = Join-Path $root 'remotes'
 $engineDir = Join-Path $remotesDir 'browser_engine'
 $workerJs = Join-Path $engineDir 'dist\worker.js'
-$port = if ($env:LISTEN) { [int](($env:LISTEN -split ':')[-1]) } else { 8080 }
+. (Join-Path $PSScriptRoot '_\scripts\dev\c35_server_port.ps1')
+$port = if ($env:LISTEN) { [int](($env:LISTEN -split ':')[-1]) } else { $C35ServerHttpPort }
 
 if (-not $ServerUrl) {
     $ServerUrl = if ($env:C35_SERVER_URL) { $env:C35_SERVER_URL } else { "http://127.0.0.1:$port" }

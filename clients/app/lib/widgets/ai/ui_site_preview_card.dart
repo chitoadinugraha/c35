@@ -4,7 +4,7 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
-import 'package:alienai_c35/guest_site/guest_site_view.dart';
+import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/widgets/sites/io_site_handle_claim_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:flutter/material.dart';
@@ -731,7 +731,7 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
                             ),
                           )
                         else
-                          GuestSiteView(
+                          GuestSiteShell(
                             boot: boot,
                             blockKeyAt: (i) => i < _blockKeys.length ? _blockKeys[i] : null,
                           ),

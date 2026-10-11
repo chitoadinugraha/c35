@@ -1,0 +1,14 @@
+{
+  "block_type": "product_grid",
+  "expected_data_guest": "site_product",
+  "props": {
+    "filter": "all",
+    "page_size": 12
+  },
+  "assert_contains": [
+    "data-guest=\"site_product\"",
+    "product-grid-title",
+    "Katalog &amp; Layanan"
+  ],
+  "assert_not_contains": []
+}

@@ -1,0 +1,10 @@
+{
+  "block_type": "hours",
+  "expected_data_guest": "hours",
+  "props": {
+    "title": "Open hours",
+    "schedule": [{ "day": "Mon", "open": "09:00", "close": "17:00" }]
+  },
+  "assert_contains": ["class=\"hours\"", "Mon"],
+  "assert_not_contains": []
+}

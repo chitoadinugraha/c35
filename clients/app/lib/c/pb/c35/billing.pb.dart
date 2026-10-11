@@ -1024,6 +1024,7 @@ class BillingAccount extends $pb.GeneratedMessage {
     $core.double? frontierAllow5hLimit,
     $core.double? frontierAllowWeeklyUsed,
     $core.double? frontierAllowWeeklyLimit,
+    $core.bool? planAutoRenew,
   }) {
     final result = BillingAccount._();
     if (id != null) result.id = id;
@@ -1072,6 +1073,7 @@ class BillingAccount extends $pb.GeneratedMessage {
       result.frontierAllowWeeklyUsed = frontierAllowWeeklyUsed;
     if (frontierAllowWeeklyLimit != null)
       result.frontierAllowWeeklyLimit = frontierAllowWeeklyLimit;
+    if (planAutoRenew != null) result.planAutoRenew = planAutoRenew;
     return result;
   }
 
@@ -1126,6 +1128,7 @@ class BillingAccount extends $pb.GeneratedMessage {
         protoName: 'frontier_allow_5h_limit')
     ..aD(32, _omitFieldNames ? '' : 'frontierAllowWeeklyUsed')
     ..aD(33, _omitFieldNames ? '' : 'frontierAllowWeeklyLimit')
+    ..aOB(34, _omitFieldNames ? '' : 'planAutoRenew')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1447,6 +1450,16 @@ class BillingAccount extends $pb.GeneratedMessage {
   $core.bool hasFrontierAllowWeeklyLimit() => $_has(32);
   @$pb.TagNumber(33)
   void clearFrontierAllowWeeklyLimit() => $_clearField(33);
+
+  /// true = Google Play auto-renewing subscription (show "Renew at"); false = prepaid period ("Expired at")
+  @$pb.TagNumber(34)
+  $core.bool get planAutoRenew => $_getBF(33);
+  @$pb.TagNumber(34)
+  set planAutoRenew($core.bool value) => $_setBool(33, value);
+  @$pb.TagNumber(34)
+  $core.bool hasPlanAutoRenew() => $_has(33);
+  @$pb.TagNumber(34)
+  void clearPlanAutoRenew() => $_clearField(34);
 }
 
 class BillingTopupRequest extends $pb.GeneratedMessage {
@@ -1830,6 +1843,7 @@ class BillingPushQuota extends $pb.GeneratedMessage {
     $core.double? frontierAllow5hLimit,
     $core.double? frontierAllowWeeklyUsed,
     $core.double? frontierAllowWeeklyLimit,
+    $core.bool? planAutoRenew,
   }) {
     final result = BillingPushQuota._();
     if (alienAllow5hUsed != null) result.alienAllow5hUsed = alienAllow5hUsed;
@@ -1865,6 +1879,7 @@ class BillingPushQuota extends $pb.GeneratedMessage {
       result.frontierAllowWeeklyUsed = frontierAllowWeeklyUsed;
     if (frontierAllowWeeklyLimit != null)
       result.frontierAllowWeeklyLimit = frontierAllowWeeklyLimit;
+    if (planAutoRenew != null) result.planAutoRenew = planAutoRenew;
     return result;
   }
 
@@ -1908,6 +1923,7 @@ class BillingPushQuota extends $pb.GeneratedMessage {
         protoName: 'frontier_allow_5h_limit')
     ..aD(21, _omitFieldNames ? '' : 'frontierAllowWeeklyUsed')
     ..aD(22, _omitFieldNames ? '' : 'frontierAllowWeeklyLimit')
+    ..aOB(23, _omitFieldNames ? '' : 'planAutoRenew')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2130,6 +2146,15 @@ class BillingPushQuota extends $pb.GeneratedMessage {
   $core.bool hasFrontierAllowWeeklyLimit() => $_has(21);
   @$pb.TagNumber(22)
   void clearFrontierAllowWeeklyLimit() => $_clearField(22);
+
+  @$pb.TagNumber(23)
+  $core.bool get planAutoRenew => $_getBF(22);
+  @$pb.TagNumber(23)
+  set planAutoRenew($core.bool value) => $_setBool(22, value);
+  @$pb.TagNumber(23)
+  $core.bool hasPlanAutoRenew() => $_has(22);
+  @$pb.TagNumber(23)
+  void clearPlanAutoRenew() => $_clearField(23);
 }
 
 class BillingPushCommission extends $pb.GeneratedMessage {
@@ -8672,6 +8697,7 @@ class ResBillingSummary extends $pb.GeneratedMessage {
     $core.double? frontierAllow5hLimit,
     $core.double? frontierAllowWeeklyUsed,
     $core.double? frontierAllowWeeklyLimit,
+    $core.bool? planAutoRenew,
   }) {
     final result = ResBillingSummary._();
     if (balanceUsd != null) result.balanceUsd = balanceUsd;
@@ -8723,6 +8749,7 @@ class ResBillingSummary extends $pb.GeneratedMessage {
       result.frontierAllowWeeklyUsed = frontierAllowWeeklyUsed;
     if (frontierAllowWeeklyLimit != null)
       result.frontierAllowWeeklyLimit = frontierAllowWeeklyLimit;
+    if (planAutoRenew != null) result.planAutoRenew = planAutoRenew;
     return result;
   }
 
@@ -8782,6 +8809,7 @@ class ResBillingSummary extends $pb.GeneratedMessage {
         protoName: 'frontier_allow_5h_limit')
     ..aD(35, _omitFieldNames ? '' : 'frontierAllowWeeklyUsed')
     ..aD(36, _omitFieldNames ? '' : 'frontierAllowWeeklyLimit')
+    ..aOB(37, _omitFieldNames ? '' : 'planAutoRenew')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -9117,6 +9145,15 @@ class ResBillingSummary extends $pb.GeneratedMessage {
   $core.bool hasFrontierAllowWeeklyLimit() => $_has(35);
   @$pb.TagNumber(36)
   void clearFrontierAllowWeeklyLimit() => $_clearField(36);
+
+  @$pb.TagNumber(37)
+  $core.bool get planAutoRenew => $_getBF(36);
+  @$pb.TagNumber(37)
+  set planAutoRenew($core.bool value) => $_setBool(36, value);
+  @$pb.TagNumber(37)
+  $core.bool hasPlanAutoRenew() => $_has(36);
+  @$pb.TagNumber(37)
+  void clearPlanAutoRenew() => $_clearField(37);
 }
 
 /// Active plan / voucher grants (stacking). Sorted by expires_ts asc in list API.
@@ -10434,6 +10471,10 @@ class BillingPlayProductDoc extends $pb.GeneratedMessage {
     $core.double? creditIdr,
     $core.double? webPriceIdr,
     $core.double? playPriceIdr,
+    $core.String? currency,
+    $core.double? webPrice,
+    $core.double? storePrice,
+    $core.double? creditUsd,
   }) {
     final result = BillingPlayProductDoc._();
     if (productId != null) result.productId = productId;
@@ -10443,6 +10484,10 @@ class BillingPlayProductDoc extends $pb.GeneratedMessage {
     if (creditIdr != null) result.creditIdr = creditIdr;
     if (webPriceIdr != null) result.webPriceIdr = webPriceIdr;
     if (playPriceIdr != null) result.playPriceIdr = playPriceIdr;
+    if (currency != null) result.currency = currency;
+    if (webPrice != null) result.webPrice = webPrice;
+    if (storePrice != null) result.storePrice = storePrice;
+    if (creditUsd != null) result.creditUsd = creditUsd;
     return result;
   }
 
@@ -10466,6 +10511,10 @@ class BillingPlayProductDoc extends $pb.GeneratedMessage {
     ..aD(5, _omitFieldNames ? '' : 'creditIdr')
     ..aD(6, _omitFieldNames ? '' : 'webPriceIdr')
     ..aD(7, _omitFieldNames ? '' : 'playPriceIdr')
+    ..aOS(8, _omitFieldNames ? '' : 'currency')
+    ..aD(9, _omitFieldNames ? '' : 'webPrice')
+    ..aD(10, _omitFieldNames ? '' : 'storePrice')
+    ..aD(11, _omitFieldNames ? '' : 'creditUsd')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -10554,6 +10603,42 @@ class BillingPlayProductDoc extends $pb.GeneratedMessage {
   $core.bool hasPlayPriceIdr() => $_has(6);
   @$pb.TagNumber(7)
   void clearPlayPriceIdr() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get currency => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set currency($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasCurrency() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearCurrency() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get webPrice => $_getN(8);
+  @$pb.TagNumber(9)
+  set webPrice($core.double value) => $_setDouble(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasWebPrice() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearWebPrice() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get storePrice => $_getN(9);
+  @$pb.TagNumber(10)
+  set storePrice($core.double value) => $_setDouble(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasStorePrice() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearStorePrice() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.double get creditUsd => $_getN(10);
+  @$pb.TagNumber(11)
+  set creditUsd($core.double value) => $_setDouble(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasCreditUsd() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearCreditUsd() => $_clearField(11);
 }
 
 class ReqBillingPlayVerify extends $pb.GeneratedMessage {
@@ -10561,11 +10646,13 @@ class ReqBillingPlayVerify extends $pb.GeneratedMessage {
     $core.String? productId,
     $core.String? purchaseToken,
     $core.String? packageName,
+    $core.String? storePlatform,
   }) {
     final result = ReqBillingPlayVerify._();
     if (productId != null) result.productId = productId;
     if (purchaseToken != null) result.purchaseToken = purchaseToken;
     if (packageName != null) result.packageName = packageName;
+    if (storePlatform != null) result.storePlatform = storePlatform;
     return result;
   }
 
@@ -10585,6 +10672,7 @@ class ReqBillingPlayVerify extends $pb.GeneratedMessage {
     ..aOS(1, _omitFieldNames ? '' : 'productId')
     ..aOS(2, _omitFieldNames ? '' : 'purchaseToken')
     ..aOS(3, _omitFieldNames ? '' : 'packageName')
+    ..aOS(4, _omitFieldNames ? '' : 'storePlatform')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -10636,6 +10724,15 @@ class ReqBillingPlayVerify extends $pb.GeneratedMessage {
   $core.bool hasPackageName() => $_has(2);
   @$pb.TagNumber(3)
   void clearPackageName() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get storePlatform => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set storePlatform($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStorePlatform() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStorePlatform() => $_clearField(4);
 }
 
 class ResBillingPlayVerify extends $pb.GeneratedMessage {
@@ -10800,7 +10897,13 @@ class ResBillingPlayVerify extends $pb.GeneratedMessage {
 }
 
 class ReqBillingPlayProductList extends $pb.GeneratedMessage {
-  factory ReqBillingPlayProductList() => ReqBillingPlayProductList._();
+  factory ReqBillingPlayProductList({
+    $core.String? currency,
+  }) {
+    final result = ReqBillingPlayProductList._();
+    if (currency != null) result.currency = currency;
+    return result;
+  }
 
   ReqBillingPlayProductList._();
 
@@ -10815,6 +10918,7 @@ class ReqBillingPlayProductList extends $pb.GeneratedMessage {
       _omitMessageNames ? '' : 'ReqBillingPlayProductList',
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: ReqBillingPlayProductList.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'currency')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -10842,6 +10946,15 @@ class ReqBillingPlayProductList extends $pb.GeneratedMessage {
       $pb.GeneratedMessage.$_defaultFor<ReqBillingPlayProductList>(
           ReqBillingPlayProductList.$_createMessage);
   static ReqBillingPlayProductList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get currency => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set currency($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCurrency() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCurrency() => $_clearField(1);
 }
 
 class ResBillingPlayProductList extends $pb.GeneratedMessage {

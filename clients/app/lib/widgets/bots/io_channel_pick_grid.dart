@@ -2,6 +2,8 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/pb/c35/channel.pb.dart';
 import 'package:alienai_c35/widgets/bots/channel_util.dart';
 import 'package:alienai_c35/widgets/bots/ui_channel_platform_icon.dart';
+import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/widgets/bots/io_bot_site_asset_connect.dart';
 import 'package:alienai_c35/widgets/bots/io_google_asset_connect.dart';
 import 'package:alienai_c35/widgets/io/ask_confirm.dart';
 import 'package:alienai_c35/widgets/ui/io_ask_items.dart';
@@ -193,11 +195,25 @@ class IoChannelRow extends StatelessWidget {
   }
 }
 
-const _assetPickItems = [
-  IoAskItem(id: 'google_sheets', title: 'Google Sheets', subtitle: 'Read and write spreadsheet data', icon: Icons.table_chart_outlined, accent: Color(0xFF34A853)),
-  IoAskItem(id: 'google_docs', title: 'Google Docs', subtitle: 'Read document content', icon: Icons.description_outlined, accent: Color(0xFF4285F4)),
-  IoAskItem(id: 'google_slides', title: 'Google Slides', subtitle: 'Read slide deck content', icon: Icons.slideshow_outlined, accent: Color(0xFFFBBC04)),
-];
+const _assetPickSiteId = 'alien_site';
+
+IoAskItem _assetPickSiteItem({required bool hasSites, required bool siteSlotTaken}) {
+  final disabled = !hasSites || siteSlotTaken;
+  var subtitle = 'botCreate.siteAssetSubtitle'.tr();
+  if (siteSlotTaken) {
+    subtitle = 'botCreate.siteAssetOneOnly'.tr();
+  } else if (!hasSites) {
+    subtitle = 'botCreate.siteAssetNeedSite'.tr();
+  }
+  return IoAskItem(
+    id: _assetPickSiteId,
+    title: 'botCreate.siteAssetTitle'.tr(),
+    subtitle: subtitle,
+    icon: Icons.storefront_outlined,
+    accent: const Color(0xFFA78BFA),
+    enabled: !disabled,
+  );
+}
 
 @Deprecated('Use BotAssetDraft')
 typedef BotSheetDraft = BotAssetDraft;
@@ -220,10 +236,38 @@ class IoAssetListPanel extends StatelessWidget {
   final void Function(int index, BotAssetDraft draft)? onUpdate;
   final bool busy;
 
+  bool _hasSiteAsset() => assets.any(botAssetDraftIsSite);
+
   Future<void> _addAsset(BuildContext context) async {
-    final picked = await ioAskItemsShow(context, title: 'Add asset', items: _assetPickItems, searchHint: 'Search assets…');
+    var hasSites = false;
+    try {
+      final sites = await siteListFetch(conn);
+      hasSites = sites.any((s) => !s.isArchived);
+    } catch (_) {}
     if (!context.mounted) return;
-    final kind = picked == null ? null : googleAssetConnectKindFromPickId(picked.id);
+    final siteSlotTaken = _hasSiteAsset();
+    final items = [
+      const IoAskItem(id: 'google_sheets', title: 'Google Sheets', subtitle: 'Read and write spreadsheet data', icon: Icons.table_chart_outlined, accent: Color(0xFF34A853)),
+      const IoAskItem(id: 'google_docs', title: 'Google Docs', subtitle: 'Read document content', icon: Icons.description_outlined, accent: Color(0xFF4285F4)),
+      const IoAskItem(id: 'google_slides', title: 'Google Slides', subtitle: 'Read slide deck content', icon: Icons.slideshow_outlined, accent: Color(0xFFFBBC04)),
+      _assetPickSiteItem(hasSites: hasSites, siteSlotTaken: siteSlotTaken),
+    ];
+    final picked = await ioAskItemsShow(context, title: 'Add asset', items: items, searchHint: 'Search assets…');
+    if (!context.mounted || picked == null) return;
+    if (picked.id == _assetPickSiteId) {
+      if (!hasSites) {
+        await ioBotSiteNeedSiteShow(context, conn: conn);
+        return;
+      }
+      if (siteSlotTaken) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('botCreate.siteAssetOneOnly'.tr())));
+        return;
+      }
+      final draft = await ioBotSiteAssetConnectShow(context, conn: conn);
+      if (draft != null) onAdd(draft);
+      return;
+    }
+    final kind = googleAssetConnectKindFromPickId(picked.id);
     if (kind == null) return;
     final draft = await ioGoogleAssetConnectShow(context, conn: conn, kind: kind);
     if (draft != null) onAdd(draft);
@@ -281,10 +325,18 @@ class _IoAssetRowState extends State<IoAssetRow> {
   BotAssetDraft get asset => widget.asset;
 
   ({IconData icon, Color accent}) _assetStyle(String sourceKind) => switch (sourceKind) {
+        botSiteAssetSourceKind => (icon: Icons.storefront_outlined, accent: const Color(0xFFA78BFA)),
         'google_doc' => (icon: Icons.description_outlined, accent: const Color(0xFF4285F4)),
         'google_slide' => (icon: Icons.slideshow_outlined, accent: const Color(0xFFFBBC04)),
         _ => (icon: Icons.table_chart_outlined, accent: const Color(0xFF34A853)),
       };
+
+  Future<void> _editSiteAsset() async {
+    final onUpdated = widget.onUpdated;
+    if (onUpdated == null || !botAssetDraftIsSite(asset)) return;
+    final next = await ioBotSiteAssetConnectShow(context, conn: widget.conn, initial: asset);
+    if (next != null && mounted) onUpdated(next);
+  }
 
   Future<void> _confirmRemove(BuildContext context) async {
     final remove = widget.onRemove;
@@ -320,7 +372,14 @@ class _IoAssetRowState extends State<IoAssetRow> {
     final sheetNames = asset.includedSheetNames;
     const sheetAccent = Color(0xFF34A853);
     const metaStyle = TextStyle(color: _muted, fontSize: 11, height: 1.35);
-    return Container(
+    final siteCaps = botSiteAssetCapabilityLabels(asset);
+    final isSite = botAssetDraftIsSite(asset);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: isSite && widget.onUpdated != null ? _editSiteAsset : null,
+        child: Container(
       padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
       decoration: BoxDecoration(color: const Color(0xFF18181B), borderRadius: BorderRadius.circular(10), border: Border.all(color: _border)),
       child: Row(
@@ -339,8 +398,25 @@ class _IoAssetRowState extends State<IoAssetRow> {
               children: [
                 Text(asset.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _title, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
-                Text(asset.accessLabel, style: metaStyle),
-                if (sheetNames.isNotEmpty) ...[
+                if (isSite)
+                  Text('botCreate.siteAssetLinked'.tr(), style: metaStyle)
+                else
+                  Text(asset.accessLabel, style: metaStyle),
+                if (siteCaps.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  ...siteCaps.map(
+                    (cap) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle_outline, size: 14, color: style.accent),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(cap, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _title, fontSize: 12, fontWeight: FontWeight.w500))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ] else if (sheetNames.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   ...sheetNames.map(
                     (name) => Padding(
@@ -362,7 +438,7 @@ class _IoAssetRowState extends State<IoAssetRow> {
               ],
             ),
           ),
-          if (widget.onUpdated != null && asset.viewUrl.isNotEmpty)
+          if (widget.onUpdated != null && !isSite && asset.viewUrl.isNotEmpty)
             uiIconButton(
               tooltip: 'Refresh',
               visualDensity: VisualDensity.compact,
@@ -379,6 +455,8 @@ class _IoAssetRowState extends State<IoAssetRow> {
               icon: const Icon(Icons.close, color: _muted, size: 20),
             ),
         ],
+      ),
+    ),
       ),
     );
   }

@@ -20,7 +20,8 @@ Wallet + quota + commission for platform AI usage. Adapted from `D:\cs_agent`, e
 
 `ResSessionInit` returns billing snapshot in one round trip. Realtime pushes: `c35.user.{iid}.app.balance`, `.app.quota`, `.app.commission` over NATS (app lane — [sync.md](sync.md)).
 
-Implementation plan: [billing-implementation.md](billing-implementation.md).
+Implementation plan: [billing-implementation.md](billing-implementation.md).  
+Mobile store policy (Play / App Store): [billing-store-compliance.md](billing-store-compliance.md).
 
 ---
 
@@ -393,3 +394,14 @@ The issuer QR encodes `https://alienai.id/voucher/<code>` (prepaid rows in `ai.r
 **Redeem** on a computer opens `https://alienai.id/app/voucher/<code>`. The web app reads that path and opens the signed-in Redeem dialog with the code filled in. On Android the button is an intent link: `id.alienai://voucher/<code>` when the app is installed, otherwise the same web app URL. On iPhone, Redeem opens the web app, and **Open in the app** uses `id.alienai://voucher/<code>`.
 
 The Redeem dialog has a scan control on phone and web. It reads a voucher URL or a bare code into the field. Redeem itself stays the signed-in `billing_package_redeem` call.
+
+---
+
+## NATS JetStream KV Gate Cache
+
+To eliminate the ~1,300 ms WAN database roundtrip on prompt turns and live calls:
+1. Active user eligibility, plan tier, and allowance runway are cached in the distributed NATS JetStream KV store (`c35_billing_cache`) with a 30s TTL.
+2. All cluster pods/nodes read this shared state in ~1–2 ms across the cluster local network without holding heap memory on the pods.
+3. Invalidation occurs immediately upon top-up, plan purchase, or admin change.
+4. Final cost settlement and token deduct (`billing_usage_report`, `live_billing_settle`) continue to write authoritatively to Postgres.
+

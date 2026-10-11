@@ -11,6 +11,8 @@ import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/devices/device_files_explorer_drop.dart';
+import 'package:alienai_c35/widgets/devices/ui_device_session_connect_prompt.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -419,68 +421,18 @@ class _UiDeviceFilesState extends State<UiDeviceFiles> with WidgetsBindingObserv
     );
   }
 
-  Widget _connectPrompt() => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF18181B),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: _border),
-                  ),
-                  child: const Icon(Icons.folder_open_outlined, size: 28, color: _muted),
-                ),
-                const SizedBox(height: 16),
-                Text(widget.online ? 'Connect to browse files' : 'Device is offline', textAlign: TextAlign.center, style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 8),
-                Text(
-                  widget.online
-                      ? 'Files stream directly to your device over WebRTC — nothing passes through the server.'
-                      : 'Refresh to recheck whether the device is back on Alien AI Cloud.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 13, height: 1.45),
-                ),
-                const SizedBox(height: 20),
-                if (widget.online)
-                  FilledButton.icon(
-                    onPressed: _connecting ? null : _connect,
-                    icon: _connecting
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _text))
-                        : const Icon(Icons.link, size: 18),
-                    label: Text(_connecting ? 'Connecting…' : 'Connect'),
-                  )
-                else
-                  FilledButton.icon(
-                    onPressed: _presenceRefreshing ? null : () => unawaited(_recheckPresence()),
-                    style: FilledButton.styleFrom(backgroundColor: const Color(0xFF27272A), foregroundColor: _text),
-                    icon: _presenceRefreshing
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: _muted))
-                        : const Icon(Icons.refresh_rounded, size: 18),
-                    label: Text(_presenceRefreshing ? 'Checking…' : 'Refresh'),
-                  ),
-              ],
-            ),
-          ),
-        ),
+  Widget _connectPrompt() => UiDeviceSessionConnectPrompt(
+        icon: Icons.folder_open_outlined,
+        title: widget.online ? 'Connect to browse files' : 'Device is offline',
+        description: widget.online ? kDeviceSessionWebrtcDesc : 'Refresh to recheck whether the device is back on Alien AI Cloud.',
+        action: widget.online ? UiDeviceSessionConnectAction.connect : UiDeviceSessionConnectAction.refresh,
+        connecting: _connecting,
+        onConnect: _connect,
+        presenceRefreshing: _presenceRefreshing,
+        onPresenceRefresh: () => unawaited(_recheckPresence()),
       );
 
-  Widget _loadingPane(String message) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)),
-            const SizedBox(height: 12),
-            Text(message, style: const TextStyle(color: _muted, fontSize: 13)),
-          ],
-        ),
-      );
+  Widget _loadingPane(String message) => UILoading(message: message);
 
   Widget _filesLayout(BuildContext context) {
     final showPreviewPane = MediaQuery.sizeOf(context).width >= _previewBreakpoint;

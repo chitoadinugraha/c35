@@ -6,7 +6,7 @@ void main() {
   test('serverHostIsLocalDev recognizes loopback hosts', () {
     expect(serverHostIsLocalDev(serverHostLocalUrl), isTrue);
     expect(serverHostIsLocalDev(serverHostAndroidEmulatorLocalUrl), isTrue);
-    expect(serverHostIsLocalDev('http://localhost:8080'), isTrue);
+    expect(serverHostIsLocalDev('http://localhost:10000'), isTrue);
     expect(serverHostIsLocalDev(serverHostProductionUrl), isFalse);
     expect(serverHostIsLocalDev(serverHostTailscaleUrl), isFalse);
   });

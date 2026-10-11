@@ -71,9 +71,10 @@ pub fn disk_io_by_mount(host_prefix: &str, mounts: &[String]) -> HashMap<String,
 
 #[cfg(target_os = "linux")]
 fn disk_io_linux(host_prefix: &str, mounts: &[String]) -> HashMap<String, IoSample> {
-    let mountinfo = format!("{host_prefix}/proc/self/mountinfo");
     let diskstats = format!("{host_prefix}/proc/diskstats");
-    let dev_by_mount = parse_mount_devices(&mountinfo).unwrap_or_default();
+    let dev_by_mount = read_host_mountinfo(host_prefix)
+        .map(|text| parse_mount_devices_text(&text))
+        .unwrap_or_default();
     let io_by_dev = parse_diskstats(&diskstats).unwrap_or_default();
     mounts
         .iter()
@@ -287,6 +288,68 @@ fn parse_kib(raw: &str) -> Result<u64> {
     Ok(kb * 1024)
 }
 
+pub fn primary_net_iface(host_prefix: &str) -> String {
+    #[cfg(target_os = "linux")]
+    {
+        primary_net_iface_linux(host_prefix).unwrap_or_else(|_| "net".into())
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = host_prefix;
+        "net".into()
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn primary_net_iface_linux(host_prefix: &str) -> Result<String> {
+    let path = format!("{host_prefix}/proc/net/dev");
+    let text = fs::read_to_string(&path).with_context(|| format!("read {path}"))?;
+    let mut best: Option<(u64, String)> = None;
+    for line in text.lines().skip(2) {
+        let mut parts = line.split_whitespace();
+        let Some(name) = parts.next() else {
+            continue;
+        };
+        let name = name.trim_end_matches(':');
+        if !is_candidate_iface(name) {
+            continue;
+        }
+        let recv: u64 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let _ = parts.next();
+        let _ = parts.next();
+        let _ = parts.next();
+        let _ = parts.next();
+        let _ = parts.next();
+        let _ = parts.next();
+        let _ = parts.next();
+        let sent: u64 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let total = recv.saturating_add(sent);
+        if best.as_ref().map(|b| total > b.0).unwrap_or(true) {
+            best = Some((total, name.to_string()));
+        }
+    }
+    Ok(best.map(|(_, n)| n).unwrap_or_else(|| "net".into()))
+}
+
+fn is_candidate_iface(name: &str) -> bool {
+    if name == "lo" {
+        return false;
+    }
+    let n = name.to_lowercase();
+    if n.starts_with("veth")
+        || n.starts_with("cali")
+        || n.starts_with("flannel")
+        || n.starts_with("cilium")
+        || n.starts_with("kube")
+        || n.starts_with("docker")
+        || n.starts_with("tun")
+        || n.starts_with("tailscale")
+    {
+        return false;
+    }
+    true
+}
+
 pub fn net_totals(host_prefix: &str) -> NetSample {
     #[cfg(target_os = "linux")]
     {
@@ -358,6 +421,23 @@ pub fn host_path(host_prefix: &str, mount: &str) -> String {
     } else {
         format!("{host_prefix}{mount}")
     }
+}
+
+/// Host root mount table (not the stats container's namespace).
+#[cfg(target_os = "linux")]
+pub fn read_host_mountinfo(host_prefix: &str) -> Result<String> {
+    let pid1 = format!("{host_prefix}/proc/1/mountinfo");
+    if Path::new(&pid1).exists() {
+        return fs::read_to_string(&pid1).with_context(|| format!("read {pid1}"));
+    }
+    let self_mi = format!("{host_prefix}/proc/self/mountinfo");
+    fs::read_to_string(&self_mi).with_context(|| format!("read {self_mi}"))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn read_host_mountinfo(host_prefix: &str) -> Result<String> {
+    let _ = host_prefix;
+    Ok(String::new())
 }
 
 pub fn exists(path: &str) -> bool {

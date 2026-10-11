@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
 import 'package:alienai_c35/c/site/site_color.dart';
 import 'package:alienai_c35/c/site/site_member.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
@@ -122,7 +124,7 @@ class UiSiteTeamEditor extends StatefulWidget {
   State<UiSiteTeamEditor> createState() => _UiSiteTeamEditorState();
 }
 
-class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> {
+class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
   var _loading = true;
@@ -181,12 +183,26 @@ class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> {
     }
   }
 
+  @override
+  void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    _grants = catalog.grants;
+    _shifts = catalog.workShifts;
+    _pickDefault();
+    if (mounted) {
+      setState(() {
+        _loading = false;
+        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+      });
+    }
+  }
+
   Future<void> _reload() async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
+      if (await ensureEditorCatalog()) return;
       final grants = await widget.api.grantList(widget.siteIid);
       List<SiteWorkShift> shifts = const [];
       try {
@@ -194,6 +210,8 @@ class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> {
       } catch (_) {
         shifts = const [];
       }
+      editorCatalog?.setGrants(grants);
+      editorCatalog?.setWorkShifts(shifts);
       if (!mounted) return;
       setState(() {
         _grants = grants;
@@ -613,17 +631,25 @@ class _MemberDetail extends StatelessWidget {
         ],
         if (!isOwner) ...[
           const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: busy ? null : onTransfer,
-            icon: Icon(Icons.swap_horiz, size: 18, color: Colors.amber.shade700),
-            label: Text('Transfer ownership', style: TextStyle(color: Colors.amber.shade700)),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: busy ? null : onRemove,
-            icon: const Icon(Icons.person_remove_outlined, size: 18),
-            label: const Text('Remove member'),
-            style: OutlinedButton.styleFrom(foregroundColor: cs.error),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: busy ? null : onTransfer,
+                  icon: Icon(Icons.swap_horiz, size: 18, color: Colors.amber.shade700),
+                  label: Text('Transfer', style: TextStyle(color: Colors.amber.shade700)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: busy ? null : onRemove,
+                  icon: const Icon(Icons.person_remove_outlined, size: 18),
+                  label: const Text('Remove'),
+                  style: OutlinedButton.styleFrom(foregroundColor: cs.error),
+                ),
+              ),
+            ],
           ),
         ],
         if (busy) ...[

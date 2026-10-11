@@ -93,6 +93,7 @@ class _C35AppState extends State<C35App> {
   void initState() {
     super.initState();
     _auth.addListener(_onAuth);
+    sessionTick.addListener(_onSessionTick);
     unawaited(voucherLinkBind());
     unawaited(posLinkBind());
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
@@ -136,7 +137,12 @@ class _C35AppState extends State<C35App> {
       AppUpdateService.instance.dispose();
     }
     _auth.removeListener(_onAuth);
+    sessionTick.removeListener(_onSessionTick);
     super.dispose();
+  }
+
+  void _onSessionTick() {
+    if (mounted) setState(() {});
   }
 
   void _autoUpdatePrompt(AppRelease release) {

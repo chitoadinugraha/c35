@@ -245,6 +245,18 @@ pub async fn billing_gate_with_hold_model(
     hold_usd: f64,
     model: Option<&str>,
 ) -> Result<()> {
+    billing_gate_with_hold_model_opt(pool, owner_iid, row, req_id, hold_usd, model, None).await
+}
+
+pub async fn billing_gate_with_hold_model_opt(
+    pool: &PgPool,
+    owner_iid: i64,
+    row: &BillingRow,
+    req_id: &str,
+    hold_usd: f64,
+    model: Option<&str>,
+    known_freemium: Option<bool>,
+) -> Result<()> {
     let req_id = req_id.trim();
     if req_id.is_empty() {
         anyhow::bail!("req_id required");
@@ -253,11 +265,16 @@ pub async fn billing_gate_with_hold_model(
         None => true,
         Some(m) => crate::billing_profile::model_uses_alien_pool(m),
     };
-    if freemium_eligible && crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await? {
+    let is_free = match known_freemium {
+        Some(f) => f,
+        None => crate::billing_freemium::billing_freemium_applies(pool, owner_iid).await?,
+    };
+    if freemium_eligible && is_free {
         crate::billing_freemium::billing_freemium_reserve_turn(pool, owner_iid).await?;
         return Ok(());
     }
     let profile_fut = async {
+
         match crate::billing_profile::billing_profile_fetch(pool, owner_iid).await? {
             Some(profile) if crate::billing_profile::profile_has_rings(&profile) => {
                 let profile = crate::billing_profile::billing_profile_windows_roll(pool, profile).await?;

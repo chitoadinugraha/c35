@@ -93,6 +93,48 @@ Layout tools (`site.draft_put`, `site.publish`, `site.domain_*`) stay mention-ga
 
 ---
 
+## Voice & unmentioned site names
+
+**Talk** ([chat.md](chat.md#talk-surface), `ReqPrompt.talk`) and **Live Call** ([live-call.md](live-call.md)) often omit `@site` mentions. Write rules in the tables above are unchanged. Prepare adds a **threshold RAG** hint for owned sites and bots instead of dumping the full granted catalog every turn.
+
+### User-asset RAG (`[USER SITES]` / `[USER BOTS]`)
+
+On Home `prompt_turn` **prepare**, the server embeds the user text (for voice, the utterance or a trailing site phrase extracted from the transcription) and ranks the caller's granted **sites** and **bots** by cosine similarity against stored asset labels.
+
+| Rule | Detail |
+|------|--------|
+| **Inject floor** | A row may appear in the prompt block only when `sim >= floor` (default **0.50**). |
+| **Top-k** | Rank at most **top-k** candidates per kind (default **5**); inject at most **3** lines per section into the system prompt. |
+| **Empty sections** | If no site (or bot) qualifies, omit that section header — do not emit `[USER SITES]` or `[USER BOTS]` with zero lines. |
+| **No full catalog** | Never inject every granted site or bot on each turn. Unmentioned multi-site reads still use scope rules above; RAG is a similarity hint, not a roster. |
+
+Example block (only injected rows):
+
+```text
+[USER SITES]
+- Warung A (site_iid=111, alien_id=warung-a)
+[USER BOTS]
+- Rasa (bot_iid=222, alien_id=rasa)
+```
+
+When exactly one site clears a higher **scope** bar (`sim >= 0.55` with **gap** **0.05** between first and second ranked site), prepare may widen **read/tool scope** via `MentionContext` (same effect as resolving one site by name). That does **not** set `mention_ids[]` or sticky mentions on the stored user message.
+
+### Fuzzy / normalized name resolution
+
+`site_context_resolve` complements `@` tokens and composer `mention_ids[]`:
+
+- Match display **name** or **alien_id** in the message, then **compact normalized** overlap (case-fold, strip punctuation/spacing; voice-oriented trailing phrase after *di* / *ke* / *at* / *on* / *from*).
+- Exactly one granted site matches → scope for the turn.
+- Zero or ambiguous matches → no automatic site; writes follow the write table (disambiguation, ask which site).
+
+RAG scope and fuzzy resolve **do not** count as the user naming a site for **writes**. Do not invent `mention_ids` or sticky mentions for `site.product.patch`, `site.product_put`, or layout tools when the user only implied a store via similarity. Writes still need `@site`, an explicit site name in the turn, or the single-granted-site row.
+
+### Trace
+
+Prepare emits mechanical **`trace_user_assets`** on **`ai.log` only** (root trace — MCP `trace_get`, not NATS or subagent branches). Meta shape: [inst.md](inst.md) prepare trace.
+
+---
+
 ## Topics
 
 | Topic | When active | Write tools | Read tools |

@@ -17,7 +17,8 @@ One pod per Kubernetes node publishes host CPU/RAM/network, OS disk mounts, and 
 | `NATS_URL` | daemonset env | `tls://nats-client.nats.svc.cluster.local:4222` |
 | `NATS_USER` / `NATS_PASS` | `c35-server-env` secret | NATS credentials |
 | `NATS_CA` | daemonset env + `nats-ca` secret mount | TLS CA |
-| `C35_NODE_MOUNTS` | ConfigMap | Comma-separated host mounts (`/`, `/var/log`) |
+| `C35_NODE_MOUNTS` | ConfigMap | Comma-separated host mounts (`/`, `/var/log`, `/mnt/disk0`) |
+| `C35_NODE_DISK_LABELS` | ConfigMap | `mount_path=Label` pairs (longest prefix wins), e.g. `/mnt/disk0=YB data` |
 | `C35_VOLUME_PATHS` | ConfigMap | `namespace:pvc:path[:storage_class][:label]` per entry |
 
 Default `C35_VOLUME_PATHS` is empty — PVC-backed volumes are not on stable host paths:
@@ -33,7 +34,7 @@ Only the DaemonSet pod on a node with the path present will publish non-zero sta
 
 ## Host access
 
-The container mounts the node root filesystem read-only at `/host`. `sysinfo` reads `/host/proc` and `/host/sys` for CPU, memory, network, and block I/O.
+The container mounts the node root filesystem read-only at `/host`. Stats read `/host/proc/1/mountinfo` (host init mount namespace) so block devices pick up paths like `/mnt/disk0` and `statvfs` used bytes are correct. Block **labels** are derived from mount paths (`Boot`, `YB data`, `Buildkit cache`) plus optional `C35_NODE_DISK_LABELS` — not from `sda`/`sdb` order (stable when nodes differ).
 
 ## Deploy
 

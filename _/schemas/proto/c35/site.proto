@@ -106,6 +106,8 @@ message SiteProduct {
   string product_json = 16;
   bool is_archived = 17;
   int32 sort_order = 19;
+  // True after product_id appears on any site.tx_item (sales, guest orders, etc.).
+  bool is_used = 24;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
@@ -222,6 +224,12 @@ message ReqSiteDraftGet {
 message ResSiteDraftGet {
   SiteDraft draft = 1;
   SiteConfig config = 2;
+  /// True when draft render bundle differs from the active site.publish snapshot (or nothing is published yet).
+  bool publish_pending = 3;
+  /// Blake3 bundle hash for the current draft (same algorithm as site.publish.render_hash).
+  string draft_render_hash = 4;
+  /// Active publish render_hash; empty when the site has never been published.
+  string published_render_hash = 5;
 }
 
 message ReqSiteDraftPut {
@@ -252,10 +260,37 @@ message ResSitePublish {
 
 message ReqSiteProductList {
   int64 site_iid = 1;
+  /// Editor paging: 0 = all rows (legacy). Otherwise first page size (max 48).
+  int32 limit = 2;
+  /// Keyset cursor `sort_order:product_id` from prior page.
+  string cursor = 3;
 }
 
 message ResSiteProductList {
   repeated SiteProduct products = 1;
+  string next_cursor = 2;
+  bool has_more = 3;
+}
+
+/// Editor open: parallel catalog slices (links, contacts, posts, objects, first product page).
+message ReqSiteEditorWarm {
+  int64 site_iid = 1;
+  /// First product page size (default 30, max 48). 0 uses server default.
+  int32 product_limit = 2;
+}
+
+message ResSiteEditorWarm {
+  repeated SiteLink links = 1;
+  repeated SiteContact contacts = 2;
+  repeated SitePost posts = 3;
+  repeated SiteProduct products = 4;
+  string product_next_cursor = 5;
+  bool product_has_more = 6;
+  repeated SiteObject objs = 7;
+  /// Populated when caller has manage+ on the site.
+  repeated SiteGrant grants = 8;
+  repeated SiteQueue queues = 9;
+  repeated SiteWorkShift work_shifts = 10;
 }
 
 message ReqSiteProductPut {

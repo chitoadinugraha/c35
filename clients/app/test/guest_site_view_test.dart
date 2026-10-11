@@ -1,5 +1,6 @@
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/guest_site/guest_site_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -287,6 +288,79 @@ void main() {
     expect(find.textContaining('alert'), findsNothing);
     expect(find.textContaining('secret'), findsNothing);
     expect(find.byKey(const Key('guest-form')), findsOneWidget);
+    expect(find.text('Nama Lengkap'), findsOneWidget);
+    expect(find.text('WhatsApp / No. HP'), findsOneWidget);
+    expect(find.text('Pesan / Permintaan'), findsOneWidget);
+  });
+
+  testWidgets('contact form shows site error when site id missing', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteView.bootJson(
+            bootJson: {
+              'site_id': 0,
+              'name': 'Draft',
+              'alien_id': 'draft',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {},
+              'meta': {},
+              'pages': [
+                {
+                  'blocks': [
+                    {
+                      'id': 'c1',
+                      'type': 'contact_form',
+                      'props': {'title': 'Hubungi', 'submit_label': 'Kirim'},
+                    },
+                  ],
+                },
+              ],
+              'capabilities': {},
+              'product_preload': {},
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('guest-form-submit')));
+    await tester.pump();
+    expect(find.text('Site tidak dikenali'), findsOneWidget);
+  });
+
+  testWidgets('contact form requires name and contact before submit', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteView.bootJson(
+            bootJson: {
+              'site_id': 9,
+              'name': 'Shop',
+              'alien_id': 'shop',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {},
+              'meta': {},
+              'pages': [
+                {
+                  'blocks': [
+                    {'id': 'c1', 'type': 'contact_form', 'props': {}},
+                  ],
+                },
+              ],
+              'capabilities': {},
+              'product_preload': {},
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('guest-form-submit')));
+    await tester.pump();
+    expect(find.text('Lengkapi nama dan kontak'), findsOneWidget);
   });
 
   testWidgets('GuestSiteView product row shows stock only when enabled', (tester) async {
@@ -342,5 +416,93 @@ void main() {
     expect(find.text('Stock: 3'), findsNothing);
     expect(find.text('Kopi'), findsOneWidget);
     expect(find.text('Teh'), findsOneWidget);
+  });
+
+  testWidgets('product info opens detail sheet in preview shell', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteShell.bootJson(
+            bootJson: {
+              'site_iid': 5,
+              'name': 'Shop',
+              'alien_id': 'shop',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {'accent': '#2563eb'},
+              'meta': {},
+              'pages': [
+                {
+                  'blocks': [
+                    {
+                      'id': 'p1',
+                      'type': 'product_grid',
+                      'props': {'title': 'Menu', 'display': 'list'},
+                    },
+                  ],
+                },
+              ],
+              'capabilities': {'commerce': true},
+              'product_preload': {
+                'p1': [
+                  {'product_id': 42, 'name': 'Americano', 'price': 20000, 'desc': 'Hot'},
+                ],
+              },
+              'commerce_boot': {'products': [], 'payment_methods': []},
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('guest-product-info-42')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-product-detail')), findsOneWidget);
+    expect(find.text('Americano'), findsWidgets);
+  });
+
+  testWidgets('social feed opens post detail in preview shell', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteShell.bootJson(
+            bootJson: {
+              'site_iid': 1,
+              'name': 'Blog',
+              'alien_id': 'blog',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {},
+              'meta': {},
+              'pages': [
+                {
+                  'blocks': [
+                    {
+                      'id': 'f1',
+                      'type': 'social_feed',
+                      'props': {'title': 'News'},
+                    },
+                  ],
+                },
+              ],
+              'capabilities': {},
+              'product_preload': {},
+              'posts_preload': [
+                {'id': '99', 'title': 'Hello world', 'caption': 'Intro', 'body': 'Full text'},
+              ],
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Hello world'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-post-detail')), findsOneWidget);
+    expect(find.text('Full text'), findsOneWidget);
   });
 }

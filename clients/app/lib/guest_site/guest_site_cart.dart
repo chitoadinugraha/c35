@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/site/guest_order_api.dart';
+import 'package:alienai_c35/guest_site/guest_site_commerce_boot.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -144,14 +145,45 @@ class GuestSiteCartController extends ChangeNotifier {
 
   final int siteIid;
   final Map<int, GuestSiteCartLine> _lines = {};
+  final Map<int, Map<String, dynamic>> _catalog = {};
+  List<Map<String, dynamic>> _taxes = const [];
+  List<Map<String, dynamic>> _paymentMethods = const [];
+  var _paymentId = 'cash';
   var _sheetOpen = false;
   var _busy = false;
 
   bool get sheetOpen => _sheetOpen;
   bool get busy => _busy;
   int get count => _lines.values.fold(0, (a, l) => a + l.qty);
-  int get total => _lines.values.fold(0, (a, l) => a + l.lineTotal);
+  int get subtotal => _lines.values.fold(0, (a, l) => a + l.lineTotal);
+  int get taxTotal => guestCommerceTaxTotal(subtotal, _taxes);
+  int get total => subtotal + taxTotal;
+  List<Map<String, dynamic>> get paymentMethods => _paymentMethods;
+  String get paymentId => _paymentId;
   List<GuestSiteCartLine> get lines => _lines.values.toList(growable: false);
+
+  void applyCommerceBoot(GuestCommerceBoot boot) {
+    _catalog
+      ..clear()
+      ..addAll(boot.productCatalog());
+    _taxes = boot.taxes;
+    _paymentMethods = boot.paymentMethods;
+    if (_paymentMethods.isEmpty) {
+      _paymentId = 'cash';
+    } else if (!_paymentMethods.any((m) => m['id']?.toString() == _paymentId)) {
+      _paymentId = _paymentMethods.first['id']?.toString() ?? 'cash';
+    }
+  }
+
+  void setPaymentId(String id) {
+    if (id == _paymentId) return;
+    _paymentId = id;
+    notifyListeners();
+  }
+
+  Map<String, dynamic>? productRow(int productId) => _catalog[productId];
+
+  int qtyForProduct(int productId) => _lines[productId]?.qty ?? 0;
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
@@ -186,6 +218,11 @@ class GuestSiteCartController extends ChangeNotifier {
     );
     unawaited(_persist());
     notifyListeners();
+  }
+
+  void addProductWithFeedback(BuildContext context, {required int productId, required String name, required int price}) {
+    addProduct(productId: productId, name: name, price: price);
+    ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('Ditambahkan'), duration: Duration(seconds: 2)));
   }
 
   void replaceReservation({
@@ -231,11 +268,16 @@ class GuestSiteCartController extends ChangeNotifier {
     notifyListeners();
     try {
       final lines = _lines.values.toList(growable: false);
+      final orderNote = guestOrderNoteWithPayment(
+        note: note,
+        paymentId: _paymentId,
+        paymentMethods: _paymentMethods,
+      );
       final res = await GuestOrderApi.orderPut(
         siteIid: siteIid,
         customerName: customerName.trim(),
         customerPhone: phone.trim(),
-        note: note.trim(),
+        note: orderNote,
         items: [for (final l in lines) l.orderItemJson()],
         reservations: [for (final l in lines) ...l.reservationJson()],
       );
@@ -349,6 +391,7 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
   late final TextEditingController _name = TextEditingController();
   late final TextEditingController _phone = TextEditingController();
   late final TextEditingController _note = TextEditingController();
+  String? _paymentId;
 
   @override
   void dispose() {
@@ -356,6 +399,12 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
     _phone.dispose();
     _note.dispose();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _paymentId = widget.controller.paymentId;
   }
 
   @override
@@ -416,6 +465,38 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
                         ),
                       TextField(controller: _name, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Nama')),
                       TextField(controller: _phone, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'HP / WhatsApp')),
+                      TextField(controller: _note, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Catatan'), maxLines: 2),
+                      if (widget.controller.paymentMethods.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<String>(
+                          initialValue: _paymentId ?? widget.controller.paymentId,
+                          dropdownColor: const Color(0xFF27272A),
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(labelText: 'Pembayaran'),
+                          items: [
+                            for (final m in widget.controller.paymentMethods)
+                              DropdownMenuItem(
+                                value: m['id']?.toString() ?? '',
+                                child: Text(m['title']?.toString() ?? m['id']?.toString() ?? ''),
+                              ),
+                          ],
+                          onChanged: (v) {
+                            if (v == null) return;
+                            setState(() => _paymentId = v);
+                            widget.controller.setPaymentId(v);
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Expanded(child: Text('Total', style: TextStyle(color: Colors.white70))),
+                          Text(
+                            'Rp ${widget.controller.total}',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
