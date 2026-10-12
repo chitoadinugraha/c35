@@ -17,6 +17,7 @@ use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn, Instrument};
 
+use crate::owner_session::owner_session_prepare_prompt_turn;
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 
 use super::checkpoint::{prompt_run_max_concurrent, prompt_run_should_stop};
@@ -369,6 +370,8 @@ async fn process_prompt_job(
             }
         });
         let req = row.to_req_prompt();
+        let owner_session =
+            owner_session_prepare_prompt_turn(&pool, Some(&nats), owner_iid, chat_id).await;
 
         let pool_hop = pool.clone();
         let req_id_hop = req_id.clone();
@@ -415,6 +418,7 @@ async fn process_prompt_job(
                     .await;
                 });
             })),
+            owner_session: Some(owner_session),
         };
 
         let _ = prompt_run_fanout_start(

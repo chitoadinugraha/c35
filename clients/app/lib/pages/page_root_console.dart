@@ -19,6 +19,7 @@ import 'package:alienai_c35/widgets/admin/ui_admin_host_metrics.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_pod_list.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_node_card.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_platform_user_metrics.dart';
+import 'package:alienai_c35/widgets/admin/ui_admin_disk_clean_dialog.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_storage_row.dart';
 import 'package:alienai_c35/widgets/admin/ui_admin_theme.dart';
 import 'package:alienai_c35/widgets/ui/ui_page.dart';
@@ -169,13 +170,16 @@ class _PageRootConsoleState extends State<PageRootConsole> {
           final selected = _stats.selectedNode;
           final multiNode = nodes.length > 1;
 
-          return Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: adminDashboardMaxWidth),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: adminDashboardMaxWidth),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                   if (nodes.isNotEmpty && _scope == UiAdminConsoleScope.pods)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -205,6 +209,7 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                             expanded: selected?.nodeName == node.nodeName,
                             onTap: () => _stats.selectNode(node.nodeName),
                             expandedBody: _NodeStatsBody(
+                              api: _api,
                               stats: _stats,
                               node: node,
                               embedded: true,
@@ -226,6 +231,7 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                           const Divider(height: 1, color: adminBorder),
                           const SizedBox(height: 10),
                           _NodeStatsBody(
+                            api: _api,
                             stats: _stats,
                             node: selected,
                             scope: _scope,
@@ -334,9 +340,11 @@ class _PageRootConsoleState extends State<PageRootConsole> {
                       ),
                     ],
                   ),
-                ],
+                    ],
+                  ),
+                ),
               ),
-            ),
+            ],
           );
             },
           ),
@@ -378,6 +386,7 @@ class _NodeHeader extends StatelessWidget {
 
 class _NodeStatsBody extends StatelessWidget {
   const _NodeStatsBody({
+    required this.api,
     required this.stats,
     required this.node,
     this.embedded = false,
@@ -386,6 +395,7 @@ class _NodeStatsBody extends StatelessWidget {
     required this.podSearchController,
   });
 
+  final AdminApi api;
   final AdminStatsStream stats;
   final NodeStat node;
   final bool embedded;
@@ -420,6 +430,19 @@ class _NodeStatsBody extends StatelessWidget {
               readBps: d.readBps,
               writeBps: d.writeBps,
               isBoot: d.isBoot,
+              onCleanTap: () {
+                final kind = adminDiskCleanKindForRow(label: d.label, isBoot: d.isBoot);
+                if (kind == null) return;
+                final role = d.label.isNotEmpty ? d.label : (d.isBoot ? 'Boot' : d.device);
+                final title = d.device.isNotEmpty ? '${d.device} ($role)' : role;
+                unawaited(showAdminDiskCleanFlow(
+                  context: context,
+                  api: api,
+                  nodeName: node.nodeName,
+                  kind: kind,
+                  diskTitle: title,
+                ));
+              },
             ),
       ],
     );

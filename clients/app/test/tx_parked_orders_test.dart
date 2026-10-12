@@ -1,5 +1,5 @@
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
-import 'package:alienai_c35/widgets/sites/tx/dialog/transaksi_parked_dialog.dart';
+import 'package:alienai_c35/widgets/sites/tx/pos_queue/tx_queue_helpers.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_parked_orders.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter_test/flutter_test.dart';

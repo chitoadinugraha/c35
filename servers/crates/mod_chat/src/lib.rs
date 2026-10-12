@@ -13,6 +13,7 @@ mod chat_history;
 mod chat_history_clear;
 mod chat_patch;
 mod chat_sync;
+mod bot_session;
 mod channel_prompt_turn;
 mod data_source_rpc;
 mod device_context;
@@ -62,6 +63,7 @@ mod scope_instruction_rpc;
 mod context_billing;
 pub mod context_compact;
 mod context_idle;
+pub mod owner_session;
 pub mod context_pack;
 mod memory_extract;
 pub mod prompt;
@@ -124,6 +126,7 @@ pub use device_context::{
     chat_mention_context_commit, BROWSER_DEVICE_TOOL_EXCLUDE, DEVICE_SIGNAL_ANDROID,
     DEVICE_SIGNAL_WINDOWS,
 };
+pub use bot_session::{bot_session_billing_snapshot, bot_session_on_turn, bot_prompt_runtime};
 pub use channel_prompt_turn::channel_prompt_turn;
 pub use inbox::{chat_msg_list, inbox_list};
 pub use log_list::log_list;
@@ -193,6 +196,15 @@ pub use prompt_run::{
 };
 pub use prompt_prepare_cache::{
     prompt_prepare_cache_on_connect, prompt_prepare_cache_on_disconnect,
+};
+pub use owner_session::{
+    chat_cache_append_turn, chat_cache_wait_ready, chat_cache_warm, chat_cache_warm_state,
+    owner_session_apply_billing_cached, owner_session_attach_for_prompt, owner_session_bind_ws,
+    owner_session_bundle_ready, owner_session_ensure_owner_warm, owner_session_get,
+    owner_session_prepare_prompt_turn,
+    owner_session_register_warmup_for_session, owner_session_supersede, owner_session_teardown,
+    owner_session_warm_owner_bundle, session_billing_snapshot, session_focus_chat,
+    OwnerPromptSession, OwnerSessionConnection, TurnContinuity, WarmState,
 };
 pub use prompt_turn::{
     chat_ensure, chat_title_from_prompt, chat_title_from_text, prompt_turn, PromptHopCheckpoint, PromptTurn,

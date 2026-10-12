@@ -7,8 +7,8 @@ use axum::{
 };
 use c35_ctx::AppState;
 use c35_mod_admin::{
-    admin_log_list, admin_log_report, admin_ops_peaks, admin_platform_pnl,
-    admin_platform_user_metrics, admin_user_put, admin_user_search,
+    admin_disk_clean, admin_log_list, admin_log_report, admin_ops_peaks, admin_platform_pnl,
+    admin_platform_user_metrics, admin_user_put, admin_user_registrations_list, admin_user_search,
 };
 use c35_mod_billing::{
     billing_admin_adjust, billing_admin_adjust_list, billing_admin_plan_change, billing_history,
@@ -489,6 +489,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }
         }
+        Some(invoke_req::Body::AdminUserRegistrationsList(r)) => {
+            match admin_user_registrations_list(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminUserRegistrationsList(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
         Some(invoke_req::Body::AdminUserPut(r)) => {
             match admin_user_put(pool, state.nats.as_ref(), iid, r).await {
                 Ok(res) => InvokeRes {
@@ -540,6 +551,17 @@ pub async fn dispatch_invoke(state: &AppState, req: InvokeReq) -> InvokeRes {
                     status_code: 200,
                     error_message: String::new(),
                     body: Some(invoke_res::Body::AdminOpsPeaks(res)),
+                },
+                Err(e) => invoke_error(&req_id, e.status_code, e.message),
+            }
+        }
+        Some(invoke_req::Body::AdminDiskClean(r)) => {
+            match admin_disk_clean(pool, iid, r).await {
+                Ok(res) => InvokeRes {
+                    req_id,
+                    status_code: 200,
+                    error_message: String::new(),
+                    body: Some(invoke_res::Body::AdminDiskClean(res)),
                 },
                 Err(e) => invoke_error(&req_id, e.status_code, e.message),
             }

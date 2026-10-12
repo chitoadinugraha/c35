@@ -182,6 +182,17 @@ The POS is fully resilient to offline network conditions:
   - The POS register remains open and immediately ready for the next customer without navigating away.
 * **Parked Orders (Hold / Recall)**: In-progress carts can be parked (`TxParkedOrders.instance.add`) with a note/table label and recalled anytime. Recalling replaces or swaps the current cart with confirmation.
 
+### POS open queues
+
+Staff can open two bottom sheets from the POS register (wired separately from the cart editor):
+
+| Sheet | `PosQueueMode` | Rows | Actions |
+|-------|----------------|------|---------|
+| **Payment verification** | `paymentVerification` | Guest / online sales in `waiting_payment` | Confirm (`pending`, `is_paid`) or decline (`cancelled` + optional reason); show proof image from `tx_data.proofs` |
+| **Kitchen orders** | `orders` | Sales in `pending` (open, not `ok` / `cancelled`) | **Take** sets `is_task_assigned`; **Mark done** sets state `ok` and line `fulfillment_state` done |
+
+Both sheets use `showPosQueueSheet` (`DraggableScrollableSheet`) with `UiPosQueuePanel`. **Maximize** pushes `PagePosQueueDesk` (full-screen scaffold) for a dedicated payment or kitchen display. Count badges use `PosQueueStore.refreshCounts()` over `TxApi.listSales(openOnly: true)` filtered client-side (`tx_queue_helpers`).
+
 ### 4. Timestamp Semantics (`time_ts_ms` & `ts_ms`)
 To maintain strict audit accuracy:
 * **Transaction Date (`time_ts_ms`)**:

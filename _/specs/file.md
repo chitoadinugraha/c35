@@ -87,9 +87,26 @@ Headers: ETag = hash, `Cache-Control: public, max-age=31536000, immutable`, `If-
 | `E:\Project Archive\csa_os` | variants JSON design |
 | `D:\cs_agent` | turbojpeg for JPEG `small` variant |
 
-## References (no central refcount)
+## Blob attribution (`ai.blob_ref`)
 
-`ai.file_blob_meta` does not track who owns a blob. Hashes are cited in:
+Each kept CAS hash can be indexed per **scope** for rollups and GC:
+
+| Column | Meaning |
+|--------|---------|
+| `billable_owner_iid` | User billed for the bytes (rollup key) |
+| `scope_kind` | `user` \| `site` \| `bot` \| `mailbox` |
+| `scope_iid` | Identity id (user/site/bot) or `mail.mailbox.id` |
+| `source` / `source_key` | Writer idempotency (`chat_msg:…`, `drive:{id}`, `variant:thumb:…`) |
+
+**Tool:** `storage.usage` (account / site / bot / mailbox; staff may set `subject_*` for director/root).
+
+**Query:** `storage_usage_account` / `storage_usage_scope` in `c35_mod_file` join `ai.file_blob_meta` for sizes. `total_bytes` uses **distinct** hashes per owner; per-scope rows sum attributed bytes (may double-count shared hashes).
+
+**Backfill:** `.\_\scripts\dev\backfill_blob_ref.ps1` after deploy. New uploads also write refs from chat, drive, tool artifacts, and variant propagation.
+
+## References (legacy surfaces)
+
+Hashes are still cited directly in:
 
 | Surface | Field / pattern |
 |---------|-----------------|

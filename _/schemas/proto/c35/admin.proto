@@ -21,6 +21,42 @@ message ResAdminUserSearch {
   repeated AdminUserHit users = 1;
 }
 
+message AdminUserReferrerBrief {
+  int64 identity_id = 1;
+  string name = 2;
+  string alien_id = 3;
+}
+
+message AdminUserRegistrationRow {
+  int64 identity_id = 1;
+  string name = 2;
+  string handle = 3;
+  string email = 4;
+  int64 registered_ts_ms = 5;
+  AdminUserReferrerBrief referred_by = 6;
+}
+
+message ReqAdminUserRegistrationsList {
+  string preset = 1;
+  string since = 2;
+  string until = 3;
+  bool count_only = 4;
+  int32 limit = 5;
+  int64 after_registered_ts_ms = 6;
+  int64 after_identity_id = 7;
+  int64 referred_by_uid = 8;
+  string timezone = 9;
+}
+
+message ResAdminUserRegistrationsList {
+  int64 count = 1;
+  repeated AdminUserRegistrationRow users = 2;
+  string timezone_used = 3;
+  int64 window_start_ms = 4;
+  int64 window_end_ms = 5;
+  bool has_more = 6;
+}
+
 message AdminGlobalRolesPatch {
   repeated string roles = 1;
 }

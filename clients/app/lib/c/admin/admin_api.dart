@@ -203,4 +203,22 @@ class AdminApi {
     if (!res.hasAdminPlatformUserMetrics()) throw 'Failed to load user metrics';
     return res.adminPlatformUserMetrics;
   }
+
+  Future<ResAdminDiskClean> adminDiskClean({
+    required String nodeName,
+    required AdminDiskCleanKind kind,
+    bool full = false,
+    bool force = false,
+  }) async {
+    final req = ReqAdminDiskClean(
+      nodeName: nodeName,
+      kind: kind,
+      full: full,
+      force: force,
+    );
+    final res = await _invoke(InvokeReq(reqId: const Uuid().v4(), adminDiskClean: req));
+    invokeResThrow(res, fallback: 'Disk cleanup failed');
+    if (!res.hasAdminDiskClean()) throw 'Disk cleanup failed';
+    return res.adminDiskClean;
+  }
 }

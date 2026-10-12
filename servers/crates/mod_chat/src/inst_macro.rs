@@ -243,6 +243,11 @@ fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
                 return false;
             }
             let lower = ctx.text.trim().to_lowercase();
+            if row.id == "inst.consumption_coach"
+                && (lower.contains("storage") || lower.contains("penyimpanan") || lower.contains("blob"))
+            {
+                return false;
+            }
             let phrase_hit = row.phrases.is_empty()
                 || row
                     .phrases
@@ -467,6 +472,40 @@ mod tests {
         };
         assert!(inst_pick(&rows, &ctx_user).is_empty());
         assert_eq!(inst_pick(&rows, &ctx_root).len(), 1);
+    }
+
+    #[test]
+    fn inst_pick_staff_registrations_partner() {
+        let rows = vec![InstRow {
+            id: "inst.staff.registrations".into(),
+            scope: SCOPE_GLOBAL.into(),
+            kind: "task".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "staff registrations".into(),
+            phrases: vec!["berapa user yang mendaftar".into()],
+            triggers: vec![],
+            include_tools: vec!["admin.user.registrations.list".into()],
+            exclude_tools: vec![],
+            requires_global_roles: vec!["partner".into(), "director".into()],
+            priority: 139,
+        }];
+        let empty: [String; 0] = [];
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let staff_partner = StaffView {
+            is_root: false,
+            global_roles: HashSet::from(["partner".into()]),
+        };
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            active_topics: &[],
+            text: "berapa user yang mendaftar hari ini",
+            mention_ids: &empty,
+            signals: &empty,
+            staff: Some(&staff_partner),
+        };
+        assert_eq!(inst_pick(&rows, &ctx).len(), 1);
     }
 
     #[test]

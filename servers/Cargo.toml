@@ -77,6 +77,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dashmap = "6"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }
 urlencoding = "2"
+kube = { version = "0.99", default-features = false, features = ["client", "rustls-tls", "ws"] }
+k8s-openapi = { version = "0.24", features = ["latest"] }
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 base64 = "0.22"
 

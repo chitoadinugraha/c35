@@ -20,6 +20,7 @@ class GuestOrderDraft {
     required this.price,
     required this.pic,
     required this.qty,
+    this.desc = '',
     this.note = '',
     this.stockMax,
   });
@@ -28,6 +29,7 @@ class GuestOrderDraft {
   final String name;
   final int price;
   final String pic;
+  final String desc;
   int qty;
   String note;
   final int? stockMax;
@@ -318,6 +320,7 @@ class GuestSiteCartController extends ChangeNotifier {
     required String name,
     required int price,
     String pic = '',
+    String desc = '',
     int? stockMax,
   }) {
     final prev = _lines[productId];
@@ -329,6 +332,7 @@ class GuestSiteCartController extends ChangeNotifier {
       price: price,
       pic: pic,
       qty: startQty,
+      desc: desc,
       note: prev?.note ?? '',
       stockMax: stockMax,
     );
@@ -715,9 +719,20 @@ class GuestSiteOrderSheet extends StatelessWidget {
                               Expanded(child: Text(draft.name, style: TextStyle(fontWeight: FontWeight.w700, color: fg))),
                               Text('Rp ${draft.price}', style: TextStyle(fontWeight: FontWeight.w800, color: accent)),
                             ]),
+                            if (draft.desc.trim().isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  draft.desc.trim(),
+                                  style: TextStyle(fontSize: 12, height: 1.35, color: muted),
+                                ),
+                              ),
                             const SizedBox(height: 8),
                             TextField(
                               style: TextStyle(color: fg),
+                              minLines: 2,
+                              maxLines: 4,
+                              keyboardType: TextInputType.multiline,
                               decoration: InputDecoration(isDense: true, hintText: 'Catatan (opsional)...', hintStyle: TextStyle(color: muted), filled: true, fillColor: fg.withValues(alpha: 0.06), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
                               onChanged: controller.orderSetNote,
                             ),

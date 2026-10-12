@@ -1,7 +1,13 @@
+use std::time::Instant;
+
 use crate::mention_context::{device_iid_resolve, json_device_iid_field};
 use crate::prompt_run::{prompt_run_get, prompt_run_is_terminal};
 use crate::tool;
+use crate::tools::builtin::captcha_billing::{
+    captcha_billing_abort, captcha_billing_gate, captcha_billing_req_id, captcha_billing_settle,
+};
 use crate::tools::context::ToolContext;
+use c35_mod_billing::BillingRow;
 use c35_mod_captcha::{build_twocaptcha_proxy_param, CaptchaKind, SolveRequest, TwoCaptchaClient};
 use c35_mod_device::{captcha_egress_hosts, device_egress_lease_mint};
 use c35_proto::ReqDeviceEgressLease;
@@ -104,6 +110,18 @@ tool! {
             }
         };
 
+        let billing_req_id = captcha_billing_req_id(&ctx.req_id, &ctx.tool_call_id);
+        let billing_row: Option<BillingRow> = if ctx.owner_iid > 0 {
+            match captcha_billing_gate(&ctx.pool, ctx.owner_iid, &billing_req_id, kind).await {
+                Ok(row) => Some(row),
+                Err(e) => {
+                    return Ok(captcha_fail(e.to_string(), "billing_insufficient"));
+                }
+            }
+        } else {
+            None
+        };
+
         let page_url = arg_str(&args, "page_url");
         let allow_hosts = captcha_egress_hosts(&page_url);
         let lease_req = ReqDeviceEgressLease {
@@ -144,17 +162,56 @@ tool! {
             proxy_type: Some(proxy_type),
         };
 
+        let started = Instant::now();
         match client.solve(solve_req).await {
-            Ok(res) => Ok(json!({
-                "ok": true,
-                "device_iid": device_iid,
-                "kind": res.kind,
-                "token": res.token,
-                "task_id": res.task_id,
-                "wholesale_usd": res.wholesale_usd,
-                "lease_expires_ts_ms": lease.expires_ts_ms,
-            })),
-            Err(e) => Ok(captcha_fail(e.message(), e.code())),
+            Ok(res) => {
+                let duration_ms = started.elapsed().as_millis().min(i32::MAX as u128) as i32;
+                let mut charged_usd = 0.0f64;
+                let mut billing_settled = false;
+                if let Some(row) = billing_row.as_ref() {
+                    match captcha_billing_settle(
+                        &ctx.pool,
+                        ctx.nats.as_ref(),
+                        ctx.owner_iid,
+                        row,
+                        &billing_req_id,
+                        &ctx.req_id,
+                        kind,
+                        duration_ms,
+                        device_iid,
+                        &res.task_id,
+                    )
+                    .await
+                    {
+                        Ok(c) => {
+                            charged_usd = c;
+                            billing_settled = c > 0.0;
+                        }
+                        Err(e) => {
+                            let _ = captcha_billing_abort(&ctx.pool, &billing_req_id).await;
+                            return Ok(captcha_fail(e.to_string(), "billing_failed"));
+                        }
+                    }
+                }
+                Ok(json!({
+                    "ok": true,
+                    "device_iid": device_iid,
+                    "kind": res.kind,
+                    "token": res.token,
+                    "task_id": res.task_id,
+                    "wholesale_usd": res.wholesale_usd,
+                    "billing_settled": billing_settled,
+                    "charged_usd": charged_usd,
+                    "billing_req_id": billing_req_id,
+                    "lease_expires_ts_ms": lease.expires_ts_ms,
+                }))
+            }
+            Err(e) => {
+                if ctx.owner_iid > 0 {
+                    let _ = captcha_billing_abort(&ctx.pool, &billing_req_id).await;
+                }
+                Ok(captcha_fail(e.message(), e.code()))
+            }
         }
     }
 }

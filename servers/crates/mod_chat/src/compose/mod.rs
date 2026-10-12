@@ -117,6 +117,16 @@ pub fn compose_force_consumption_coach_tool_call(
         && tools.iter().any(|t| t.name == "consumption.today")
 }
 
+/// First LLM hop must call storage.usage when storage inst matched.
+pub fn compose_force_storage_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| {
+        id == "inst.account.storage"
+            || id == "inst.site.storage"
+            || id == "inst.bot.storage"
+            || id == "inst.staff.storage"
+    }) && tools.iter().any(|t| t.name == "storage.usage")
+}
+
 fn tools_has(tools: &[ToolDef], name: &str) -> bool {
     tools.iter().any(|t| t.name == name)
 }
@@ -221,6 +231,7 @@ pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> boo
     compose_force_web_tool_call(matched_ids, tools, "", &[])
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
+        || compose_force_storage_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)
         || compose_force_catalog_menu_tool_call(matched_ids, tools)
         || compose_force_site_query_tool_call(matched_ids, tools)
@@ -234,6 +245,7 @@ pub fn compose_force_tool_call_with_text(
     compose_force_web_tool_call(matched_ids, tools, user_text, &[])
         || compose_force_presentation_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
+        || compose_force_storage_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)
         || compose_force_catalog_menu_tool_call(matched_ids, tools)
         || compose_force_site_query_tool_call(matched_ids, tools)

@@ -1,15 +1,20 @@
-import 'package:alienai_c35/widgets/ai/ui_msg_copy_prefix.dart';
+import 'package:alienai_c35/c/parts/csai__version.dart';
+import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
+String rootErrorCopyHeader({int msgId = 0, String reqId = ''}) {
+  final build = csaiVersionBuild();
+  if (msgId > 0) return '[Version: $build, Message ID: $msgId]';
+  final rid = reqId.trim();
+  if (rid.isNotEmpty) return '[Version: $build, Request ID: $rid]';
+  return appVersionErrorCopyPrefix();
+}
 
 String rootErrorCopyText({required String detail, int msgId = 0, String reqId = ''}) {
   final text = detail.trim();
   if (text.isEmpty) return '';
-  final idLine = msgId > 0
-      ? msgCopyClipboardId('Message ID', '$msgId')
-      : (reqId.trim().isNotEmpty ? msgCopyClipboardId('Request ID', reqId.trim()) : '');
-  if (idLine.isEmpty) return text;
-  return '$idLine\n$text';
+  return '${rootErrorCopyHeader(msgId: msgId, reqId: reqId)}\n$text';
 }
 
 class UiRootErrorDetail extends StatelessWidget {

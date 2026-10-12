@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/locale/app_locale.dart';
 import 'package:alienai_c35/c/nav.dart';
+import 'package:alienai_c35/c/parts/desktop_window_title.dart';
 import 'package:alienai_c35/c/parts/windows_taskbar.dart';
 import 'package:alienai_c35/c/settings/settings_bootstrap.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
@@ -46,6 +47,10 @@ Future<void> main() async {
     EasyLocalization.logger.enableBuildModes = [];
     await EasyLocalization.ensureInitialized();
     if (_desktop) await windowManager.ensureInitialized();
+    if (_desktop) {
+      await serverHostInit();
+      await Session.instance.restore();
+    }
     runApp(
       EasyLocalization(
         supportedLocales: appLocaleSupported,
@@ -58,12 +63,12 @@ Future<void> main() async {
       ),
     );
     if (_desktop) {
-      const title = 'Alien AI';
+      final title = await desktopWindowTitle();
       // Native title bar on Windows: hidden + window_manager NC hacks flash during screen capture.
       final titleBarStyle = defaultTargetPlatform == TargetPlatform.windows ? TitleBarStyle.normal : TitleBarStyle.hidden;
       final opts = WindowOptions(title: title, titleBarStyle: titleBarStyle, backgroundColor: _bg);
       await windowManager.waitUntilReadyToShow(opts, () async {
-        await windowManager.setTitle(title);
+        await windowManager.setTitle(await desktopWindowTitle());
         if (defaultTargetPlatform == TargetPlatform.windows) {
           await windowsTaskbarApplyAppIcon();
         }
@@ -107,6 +112,11 @@ class _C35AppState extends State<C35App> {
     _bootReady.value = true;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && error.isEmpty) {
       AppUpdateService.instance.start();
+    }
+    if (_desktop) {
+      unawaited(
+        desktopWindowTitle().then((t) => windowManager.setTitle(t)).catchError((_) {}),
+      );
     }
   }
 

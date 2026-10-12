@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
@@ -12,6 +13,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: UiErrorFallback()));
     expect(find.text('Something went wrong'), findsOneWidget);
     expect(find.text('Please try again. If this keeps happening, restart the app.'), findsOneWidget);
+    expect(find.text(appVersionErrorPageLabel()), findsOneWidget);
     expect(find.text('Retry'), findsNothing);
     expect(find.textContaining('Null check'), findsNothing);
     expect(find.textContaining('https://docs.flutter.dev'), findsNothing);
@@ -73,9 +75,10 @@ void main() {
     expect(find.textContaining('boom'), findsOneWidget);
   });
 
-  test('rootErrorCopyText prefixes message id when set', () {
-    expect(rootErrorCopyText(detail: 'boom', msgId: 42), '[Message ID: 42]\nboom');
-    expect(rootErrorCopyText(detail: 'boom'), 'boom');
+  test('rootErrorCopyText prefixes version and message id when set', () {
+    final ver = appVersionErrorCopyPrefix();
+    expect(rootErrorCopyText(detail: 'boom', msgId: 42), '${rootErrorCopyHeader(msgId: 42)}\nboom');
+    expect(rootErrorCopyText(detail: 'boom'), '$ver\nboom');
   });
 
   testWidgets('root detail copy puts full error on clipboard', (tester) async {
@@ -84,7 +87,7 @@ void main() {
     final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
       if (call.method == 'Clipboard.setData') {
-        expect(call.arguments['text'], 'Bad state: root-copy-me');
+        expect(call.arguments['text'], '${appVersionErrorCopyPrefix()}\nBad state: root-copy-me');
         return null;
       }
       return null;

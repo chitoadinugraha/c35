@@ -185,6 +185,7 @@ class UiContextMeter extends StatefulWidget {
 class _UiContextMeterState extends State<UiContextMeter> {
   OverlayEntry? _hover;
   OverlayEntry? _menu;
+  var _windowPickerOpen = false;
 
   int get _used => widget.promptTokens < 0 ? 0 : widget.promptTokens;
   bool get _visible => _used > 0 || widget.tokensIn > 0 || widget.tokensOut > 0;
@@ -212,6 +213,7 @@ class _UiContextMeterState extends State<UiContextMeter> {
   void _hideMenu() {
     _menu?.remove();
     _menu = null;
+    _windowPickerOpen = false;
   }
 
   Rect? _targetRect() {
@@ -409,7 +411,8 @@ class _UiContextMeterState extends State<UiContextMeter> {
                     ),
                     if (widget.windowOptions.isNotEmpty) ...[
                       const Divider(height: 8, color: _border),
-                      for (final w in widget.windowOptions) _windowRow(w),
+                      _windowLimitDropdown(),
+                      if (_windowPickerOpen) for (final w in widget.windowOptions) _windowOptionRow(w),
                     ],
                     const Divider(height: 8, color: _border),
                     InkWell(
@@ -420,7 +423,7 @@ class _UiContextMeterState extends State<UiContextMeter> {
                           children: [
                             Expanded(
                               child: Text(
-                                'Summarize earlier messages',
+                                'Run Compaction',
                                 style: TextStyle(color: widget.summarizeBusy ? _muted : _text, fontSize: 13, fontWeight: FontWeight.w500),
                               ),
                             ),
@@ -440,12 +443,37 @@ class _UiContextMeterState extends State<UiContextMeter> {
     );
   }
 
-  Widget _windowRow(int window) {
+  void _toggleWindowPicker() {
+    _windowPickerOpen = !_windowPickerOpen;
+    _menu?.markNeedsBuild();
+  }
+
+  Widget _windowLimitDropdown() => InkWell(
+        onTap: _toggleWindowPicker,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text('Context limit', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w500)),
+              ),
+              Text(
+                contextWindowChoiceLabel(widget.contextLimit),
+                style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
+              ),
+              const SizedBox(width: 4),
+              Icon(_windowPickerOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 18, color: _muted),
+            ],
+          ),
+        ),
+      );
+
+  Widget _windowOptionRow(int window) {
     final active = window == widget.contextLimit;
     return InkWell(
       onTap: () => unawaited(_pickWindow(window)),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(20, 6, 12, 6),
         child: Row(
           children: [
             Expanded(

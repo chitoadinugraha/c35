@@ -1,8 +1,9 @@
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use c35_mod_billing::{billing_resolve, BillingContext, TurnBillingCtx};
+use c35_mod_file::blob_ref_chat_msg;
 use c35_proto::ReqPrompt;
 
 use c35_store::snowflake_id;
@@ -56,6 +57,12 @@ use crate::prompt::ChatReq;
 use crate::prompt_run::prompt_run_get;
 use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
+use crate::owner_session::{
+    chat_cache_append_turn, chat_cache_prefetch, chat_cache_wait_ready,
+    owner_session_apply_billing_cached, owner_session_ensure_owner_warm,
+    owner_session_wait_owner_bundle_traced, session_billing_snapshot, session_owner_bundle_wait_ms,
+    session_warm_wait_ms, WarmState,
+};
 use crate::user_asset_rag::{
     user_asset_retrieve, user_asset_turn_skip, UserAssetRetrieveResult,
 };
@@ -112,10 +119,11 @@ pub struct PromptTurn {
 
 pub use crate::prompt::hooks::PromptHopCheckpoint;
 
-#[derive(Default, Clone)]
+#[derive(Clone, Default)]
 pub struct PromptTurnHooks {
     pub skip_billing_gate: bool,
     pub on_hop: Option<Arc<dyn Fn(PromptHopCheckpoint) + Send + Sync>>,
+    pub owner_session: Option<Arc<crate::owner_session::OwnerPromptSession>>,
 }
 
 pub fn chat_title_from_text(text: &str) -> String {
@@ -281,10 +289,32 @@ where
     F: FnMut(bool, String) + Send,
     G: FnMut(String) + Send,
 {
+    if let Some(ref session) = hooks.owner_session {
+        owner_session_ensure_owner_warm(pool, nats, session.clone());
+        let _ = owner_session_wait_owner_bundle_traced(
+            pool,
+            nats,
+            session.clone(),
+            owner_iid,
+            req_id,
+            Duration::from_millis(session_owner_bundle_wait_ms()),
+        )
+        .await;
+    }
+
     let turn_started = Instant::now();
     let mut clock = StageClock::new(turn_started);
     let st = Instant::now();
-    let cached_billing = c35_mod_billing::billing_cache_get(nats, owner_iid).await;
+    let cached_billing = if let Some(ref session) = hooks.owner_session {
+        session_billing_snapshot(session)
+    } else {
+        None
+    };
+    let cached_billing = if cached_billing.is_some() {
+        cached_billing
+    } else {
+        c35_mod_billing::billing_cache_get(nats, owner_iid).await
+    };
     let (bctx, freemium, brow) = if let Some(ref cached) = cached_billing {
         let brow = c35_mod_billing::cached_to_billing_row(cached);
         let bctx = BillingContext {
@@ -376,24 +406,26 @@ where
         };
         let has_sufficient =
             c35_mod_billing::evaluate_allowance_sufficient(&brow, freemium, profile_remaining);
-        c35_mod_billing::billing_cache_put(
-            nats,
-            &c35_mod_billing::BillingGateCached {
-                owner_iid,
-
-                billing_account_id: brow.id,
-                plan_tier: brow.plan_tier.clone(),
-                is_freemium: freemium,
-                has_sufficient_allowance: has_sufficient,
-                balance_usd: brow.balance_usd,
-                alien_allow_5h_used: brow.alien_allow_5h_used,
-                alien_allow_5h_limit: brow.alien_allow_5h_limit,
-                alien_allow_weekly_used: brow.alien_allow_weekly_used,
-                alien_allow_weekly_limit: brow.alien_allow_weekly_limit,
-                cached_at_secs: chrono::Utc::now().timestamp(),
-            },
-        )
-        .await;
+        let cache_entry = c35_mod_billing::BillingGateCached {
+            owner_iid,
+            billing_account_id: brow.id,
+            plan_tier: brow.plan_tier.clone(),
+            is_freemium: freemium,
+            has_sufficient_allowance: has_sufficient,
+            balance_usd: brow.balance_usd,
+            alien_allow_5h_used: brow.alien_allow_5h_used,
+            alien_allow_5h_limit: brow.alien_allow_5h_limit,
+            alien_allow_weekly_used: brow.alien_allow_weekly_used,
+            alien_allow_weekly_limit: brow.alien_allow_weekly_limit,
+            cached_at_secs: chrono::Utc::now().timestamp(),
+        };
+        if let Some(ref session) = hooks.owner_session {
+            owner_session_apply_billing_cached(session, cache_entry.clone());
+        }
+        let nats_put = nats.cloned();
+        tokio::spawn(async move {
+            c35_mod_billing::billing_cache_put(nats_put.as_ref(), &cache_entry).await;
+        });
     }
     clock.seq("billing_gate", "Quota & hold gate", st);
 
@@ -407,6 +439,14 @@ where
     };
     bound_device_prompt_prepare(pool, owner_iid, chat_id, &mut req).await?;
     chat_mention_context_commit(pool, chat_id, owner_iid, &req.mention_ids).await?;
+    if let Some(ref session) = hooks.owner_session {
+        let mut st_cont = session.write_state();
+        st_cont
+            .continuity
+            .entry(chat_id)
+            .or_default()
+            .on_user_message();
+    }
     clock.seq("chat_setup", "Chat & device setup", st);
 
     if req.chat_id > 0 {
@@ -518,6 +558,19 @@ where
         .bind(chat_attachments_json(&attachments_json_persist))
         .execute(&pool_persist)
         .await?;
+        if let Err(e) = blob_ref_chat_msg(
+            &pool_persist,
+            chat_id,
+            user_msg_id,
+            owner_iid,
+            &attachments_json_persist,
+            &user_content_persist,
+            "[]",
+        )
+        .await
+        {
+            tracing::warn!("blob_ref chat user msg_id={user_msg_id}: {e}");
+        }
         let _ = crate::chat_sync::chat_touch(
             &pool_persist,
             nats_persist.as_ref(),
@@ -529,6 +582,8 @@ where
         .await;
         Ok::<(), sqlx::Error>(())
     });
+
+    let session_hist = hooks.owner_session.clone();
 
     // Stage 1: independent reads (tool RAG embed runs in compose, not here — avoids duplicate API calls).
     let (
@@ -566,7 +621,22 @@ where
         }),
         timed(chat_bound_device_iid_for_owner(pool, owner_iid, chat_id)),
         timed(chat_last_assistant_snapshot(pool, chat_id)),
-        timed(async { history_prefetch(pool, chat_id, user_msg_id).await }),
+        timed(async {
+            if let Some(ref sess) = session_hist {
+                let warm = chat_cache_wait_ready(
+                    sess,
+                    chat_id,
+                    Duration::from_millis(session_warm_wait_ms()),
+                )
+                .await;
+                if warm == WarmState::Ready {
+                    if let Some(pf) = chat_cache_prefetch(sess, chat_id) {
+                        return Ok(pf);
+                    }
+                }
+            }
+            history_prefetch(pool, chat_id, user_msg_id).await
+        }),
         timed(c35_mod_admin::staff_view_load(pool, owner_iid)),
     );
     clock.par("doc_outlines", "Attachment outlines", doc_st, doc_ms);
@@ -620,6 +690,14 @@ where
             mention_ctx = MentionContext::from_site(site);
         }
     }
+    let preloaded_memory = hooks
+        .owner_session
+        .as_ref()
+        .and_then(|s| s.read_state().memory.clone());
+    let preloaded_scope = hooks
+        .owner_session
+        .as_ref()
+        .and_then(|s| s.read_state().scope.clone());
     let skip_memory = is_simple_time || memory_skip_site_scoped(&mention_ctx);
     let want_retrieval_embed = (!skip_user_assets
         || (!skip_memory && !crate::memory::is_trivial_query(&req.text) && !req.text.trim().is_empty()))
@@ -656,6 +734,7 @@ where
                     &req.text,
                     8,
                     embed_for_memory,
+                    preloaded_memory,
                 )
                 .await
             }
@@ -670,6 +749,13 @@ where
         timed(async {
             if is_simple_time {
                 (None, vec![])
+            } else if let Some(bundle) = preloaded_scope {
+                crate::scope_instruction::scope_instruction_rows_from_bundle(
+                    &bundle,
+                    owner_iid,
+                    &site_iids,
+                    &site_names,
+                )
             } else {
                 crate::scope_instruction::scope_instruction_load_for_prompt_nats(
                     pool,
@@ -759,10 +845,19 @@ where
         .as_ref()
         .map(|b| b.inst_suffix.as_str())
         .unwrap_or("");
-    let extra_inst_suffix = format!("{catalog_inst_suffix}{commerce_inst_suffix}");
+    let mut extra_inst_suffix = format!("{catalog_inst_suffix}{commerce_inst_suffix}");
     let mut catalog_force_tools = catalog_force_tools;
     if let Some(c) = &commerce_followup {
         catalog_force_tools.extend(c.force_tools.clone());
+    }
+    if let Some(ref session) = hooks.owner_session {
+        let cont = session.continuity_for_chat(chat_id);
+        if cont.active() {
+            catalog_force_tools.extend(cont.force_tools.clone());
+            if !cont.inst_suffix.is_empty() {
+                extra_inst_suffix.push_str(&cont.inst_suffix);
+            }
+        }
     }
     let mut device_tool_exclude = device_tool_exclude;
     if let Some(c) = &commerce_followup {
@@ -1159,6 +1254,7 @@ where
     let memory_embed_cost_bg = memory.trace.embed_cost_usd;
     let tokens_in_bg = res.tokens_in;
     let tokens_out_bg = res.tokens_out;
+    let session_bg = hooks.owner_session.clone();
     tokio::spawn(async move {
         let http_bg = http_client(std::time::Duration::from_secs(30));
         match memory_extract_turn_gate(
@@ -1207,6 +1303,13 @@ where
         {
             tracing::warn!("[c35:billing] background usage report error req_id={req_id_bg}: {e:#}");
         }
+        if let Some(ref session) = session_bg {
+            if let Some(entry) =
+                c35_mod_billing::billing_cache_get(nats_bg.as_ref(), owner_iid).await
+            {
+                owner_session_apply_billing_cached(session, entry);
+            }
+        }
     });
 
     let st = Instant::now();
@@ -1239,12 +1342,65 @@ where
 
     let (save_res, sync_res) = tokio::join!(save_fut, sync_fut);
     save_res?;
+    if let Err(e) = blob_ref_chat_msg(
+        pool,
+        chat_id,
+        assistant_msg_id,
+        owner_iid,
+        "[]",
+        &res.text,
+        blocks_json,
+    )
+    .await
+    {
+        tracing::warn!("blob_ref chat assistant msg_id={assistant_msg_id}: {e}");
+    }
     let _ = sync_res;
     settle.seq("save_and_sync", "Save reply & chat sync", st);
 
     let settle_ms = settle_started.elapsed().as_millis() as i64;
     tracer.trace_settle(&settle, settle_ms).await;
     tracer.flush().await;
+
+    if let Some(ref session) = hooks.owner_session {
+        use crate::context_pack::HistoryRow;
+        chat_cache_append_turn(
+            session,
+            chat_id,
+            HistoryRow {
+                id: user_msg_id,
+                role: "user".into(),
+                content: user_content.clone(),
+                blocks_json: "[]".into(),
+            },
+            HistoryRow {
+                id: assistant_msg_id,
+                role: "assistant".into(),
+                content: res.text.clone(),
+                blocks_json: blocks_json.to_string(),
+            },
+        );
+        let mut hint_tools = catalog_followup
+            .as_ref()
+            .map(|b| b.force_tools.clone())
+            .unwrap_or_default();
+        let mut hint_suffix = catalog_followup
+            .as_ref()
+            .map(|b| b.inst_suffix.clone())
+            .unwrap_or_default();
+        if let Some(c) = &commerce_followup {
+            hint_tools.extend(c.force_tools.clone());
+            hint_suffix.push_str(&c.inst_suffix);
+        }
+        if !hint_tools.is_empty() || !hint_suffix.is_empty() {
+            session
+                .write_state()
+                .continuity
+                .entry(chat_id)
+                .or_default()
+                .apply_hints(hint_tools, hint_suffix);
+        }
+    }
 
     Ok(PromptTurn {
         chat_id,

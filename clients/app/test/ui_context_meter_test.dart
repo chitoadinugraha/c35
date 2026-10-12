@@ -81,7 +81,7 @@ void main() {
                 promptTokens: 24500,
                 tokensIn: 20000,
                 tokensOut: 4500,
-                contextLimit: 128000,
+                contextLimit: 131072,
                 costUsd: 0.0034,
                 windowOptions: [131072],
               ),
@@ -95,10 +95,43 @@ void main() {
 
       expect(find.text('Context usage'), findsOneWidget);
       expect(find.text('19% full'), findsOneWidget);
-      expect(find.text('24.5K / 128.0K'), findsOneWidget);
+      expect(find.text('24.5K / 131.1K'), findsOneWidget);
       expect(find.text('Conversation'), findsOneWidget);
+      expect(find.text('Run Compaction'), findsOneWidget);
+      expect(find.text('Context limit'), findsOneWidget);
       expect(find.text('128K'), findsOneWidget);
-      expect(find.text('Summarize earlier messages'), findsOneWidget);
+      expect(find.byIcon(Icons.expand_more_rounded), findsOneWidget);
+      expect(find.text('32K'), findsNothing);
+    });
+
+    testWidgets('expands context limit options from dropdown', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: UiContextMeter(
+                promptTokens: 1000,
+                contextLimit: 65536,
+                windowOptions: const [32768, 65536, 131072],
+                onWindowSelected: (_) {},
+                onSummarize: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(UiContextMeter));
+      await tester.pumpAndSettle();
+
+      expect(find.text('64K'), findsOneWidget);
+      expect(find.text('32K'), findsNothing);
+
+      await tester.tap(find.text('Context limit'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('32K'), findsOneWidget);
+      expect(find.text('64K'), findsNWidgets(2));
     });
 
     testWidgets('menu lists a window option', (tester) async {
@@ -121,9 +154,12 @@ void main() {
       await tester.tap(find.byType(UiContextMeter));
       await tester.pumpAndSettle();
 
+      await tester.tap(find.text('Context limit'));
+      await tester.pumpAndSettle();
+
       expect(find.text('32K'), findsOneWidget);
       expect(find.text('64K'), findsOneWidget);
-      expect(find.text('128K'), findsOneWidget);
+      expect(find.text('128K'), findsNWidgets(2));
       expect(find.text('256K'), findsNothing);
     });
   });

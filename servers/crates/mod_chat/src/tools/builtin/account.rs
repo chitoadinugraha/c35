@@ -5,7 +5,8 @@ use c35_mod_device::{mcp_client_list, mcp_device_list};
 use c35_mod_identity::{identity_list, identity_nav_counts, identity_profile_get};
 use c35_mod_referral::{referral_ledger_list, referral_user_stats};
 use c35_proto::{
-    BillingAccount, IdentityListRow, ReferralUserStatColumn, ReferralUserWalletSnapshot,
+    BillingAccount, IdentityListRow, ReferralUserReferrerBrief, ReferralUserStatColumn,
+    ReferralUserWalletSnapshot,
     ReqBillingHistory, ReqIdentityList, ReqReferralLedgerList, ReqReferralUserStats,
 };
 use serde_json::{json, Value};
@@ -58,6 +59,19 @@ fn wallet_json(w: &ReferralUserWalletSnapshot) -> Value {
         "commission_available_idr": w.commission_available_idr,
         "commission_available_usd": w.commission_available_usd,
         "billing_currency": w.billing_currency,
+    })
+}
+
+fn referrer_brief_json(r: &ReferralUserReferrerBrief) -> Value {
+    json!({
+        "identity_id": r.identity_id,
+        "name": r.name,
+        "alien_id": r.alien_id,
+        "handle": if r.alien_id.is_empty() {
+            Value::Null
+        } else {
+            json!(format!("@{}", r.alien_id))
+        },
     })
 }
 
@@ -226,19 +240,33 @@ pub async fn account_referral_stats_exec(ctx: &ToolContext, _args: &Value) -> Re
         subject_uid: 0,
         col_a: None,
         col_b: None,
+        subject_handle: String::new(),
     };
     match referral_user_stats(&ctx.pool, ctx.owner_iid, req).await {
         Ok(res) => {
             let wallet = res.wallet.as_ref().map(wallet_json).unwrap_or(json!({}));
             let col_a = res.col_a.as_ref().map(stat_col_json).unwrap_or(json!({}));
             let col_b = res.col_b.as_ref().map(stat_col_json).unwrap_or(json!({}));
-            let llm = json!({ "wallet": wallet, "col_a": col_a, "col_b": col_b });
+            let referred_by = res
+                .referred_by
+                .as_ref()
+                .map(referrer_brief_json)
+                .unwrap_or(Value::Null);
+            let llm = json!({
+                "wallet": wallet,
+                "col_a": col_a,
+                "col_b": col_b,
+                "referred_by": referred_by,
+                "registered_ts_ms": res.registered_ts_ms,
+            });
             Ok(json!({
                 "ok": true,
                 "tool": "account.referral.stats",
                 "wallet": wallet,
                 "col_a": col_a,
                 "col_b": col_b,
+                "referred_by": referred_by,
+                "registered_ts_ms": res.registered_ts_ms,
                 "llm": llm,
             }))
         }

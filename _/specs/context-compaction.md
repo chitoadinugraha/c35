@@ -16,6 +16,8 @@ Long prompt threads exceed model context windows. c35 manages this with **three 
 
 **Billing rule:** Compaction and memory-extraction LLM calls are **metered** (allowance → on-demand wallet). Rolled into the triggering turn's `req_id` when possible. See [billing.md](billing.md) § Context compaction billing.
 
+**Owner prompt session (L1):** On a locked app WebSocket, the server may cache a **compaction-aware prompt tail** per focused chat (`context_summary` + recent rows), not full `ai.chat_msg` history. UI scroll-up (`chat_msg_list` older pages) does not extend that cache. See [chat.md](chat.md) § Owner prompt session.
+
 ---
 
 ## Current state (pre-ship)

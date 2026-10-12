@@ -112,6 +112,7 @@ enum InvokeReq_Body {
   billingAdminPlanChange,
   adminPlatformUserMetrics,
   deviceEgressLease,
+  adminDiskClean,
   notSet
 }
 
@@ -185,6 +186,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     $0.ReqBillingAdminPlanChange? billingAdminPlanChange,
     $3.ReqAdminPlatformUserMetrics? adminPlatformUserMetrics,
     $13.ReqDeviceEgressLease? deviceEgressLease,
+    $12.ReqAdminDiskClean? adminDiskClean,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -286,6 +288,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     if (adminPlatformUserMetrics != null)
       result.adminPlatformUserMetrics = adminPlatformUserMetrics;
     if (deviceEgressLease != null) result.deviceEgressLease = deviceEgressLease;
+    if (adminDiskClean != null) result.adminDiskClean = adminDiskClean;
     return result;
   }
 
@@ -364,6 +367,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     142: InvokeReq_Body.billingAdminPlanChange,
     143: InvokeReq_Body.adminPlatformUserMetrics,
     144: InvokeReq_Body.deviceEgressLease,
+    145: InvokeReq_Body.adminDiskClean,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -435,7 +439,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       141,
       142,
       143,
-      144
+      144,
+      145
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -608,6 +613,8 @@ class InvokeReq extends $pb.GeneratedMessage {
     ..aOM<$13.ReqDeviceEgressLease>(
         144, _omitFieldNames ? '' : 'deviceEgressLease',
         subBuilder: $13.ReqDeviceEgressLease.$_createMessage)
+    ..aOM<$12.ReqAdminDiskClean>(145, _omitFieldNames ? '' : 'adminDiskClean',
+        subBuilder: $12.ReqAdminDiskClean.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -695,6 +702,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(142)
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
+  @$pb.TagNumber(145)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -761,6 +769,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(142)
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
+  @$pb.TagNumber(145)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1537,6 +1546,17 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearDeviceEgressLease() => $_clearField(144);
   @$pb.TagNumber(144)
   $13.ReqDeviceEgressLease ensureDeviceEgressLease() => $_ensure(66);
+
+  @$pb.TagNumber(145)
+  $12.ReqAdminDiskClean get adminDiskClean => $_getN(67);
+  @$pb.TagNumber(145)
+  set adminDiskClean($12.ReqAdminDiskClean value) => $_setField(145, value);
+  @$pb.TagNumber(145)
+  $core.bool hasAdminDiskClean() => $_has(67);
+  @$pb.TagNumber(145)
+  void clearAdminDiskClean() => $_clearField(145);
+  @$pb.TagNumber(145)
+  $12.ReqAdminDiskClean ensureAdminDiskClean() => $_ensure(67);
 }
 
 enum InvokeRes_Body {
@@ -1604,6 +1624,7 @@ enum InvokeRes_Body {
   billingAdminPlanChange,
   adminPlatformUserMetrics,
   deviceEgressLease,
+  adminDiskClean,
   notSet
 }
 
@@ -1676,6 +1697,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     $0.ResBillingPlanChange? billingAdminPlanChange,
     $3.ResAdminPlatformUserMetrics? adminPlatformUserMetrics,
     $13.ResDeviceEgressLease? deviceEgressLease,
+    $12.ResAdminDiskClean? adminDiskClean,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1776,6 +1798,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     if (adminPlatformUserMetrics != null)
       result.adminPlatformUserMetrics = adminPlatformUserMetrics;
     if (deviceEgressLease != null) result.deviceEgressLease = deviceEgressLease;
+    if (adminDiskClean != null) result.adminDiskClean = adminDiskClean;
     return result;
   }
 
@@ -1853,6 +1876,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     142: InvokeRes_Body.billingAdminPlanChange,
     143: InvokeRes_Body.adminPlatformUserMetrics,
     144: InvokeRes_Body.deviceEgressLease,
+    145: InvokeRes_Body.adminDiskClean,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1923,7 +1947,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       141,
       142,
       143,
-      144
+      144,
+      145
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -2094,6 +2119,8 @@ class InvokeRes extends $pb.GeneratedMessage {
     ..aOM<$13.ResDeviceEgressLease>(
         144, _omitFieldNames ? '' : 'deviceEgressLease',
         subBuilder: $13.ResDeviceEgressLease.$_createMessage)
+    ..aOM<$12.ResAdminDiskClean>(145, _omitFieldNames ? '' : 'adminDiskClean',
+        subBuilder: $12.ResAdminDiskClean.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2180,6 +2207,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(142)
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
+  @$pb.TagNumber(145)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -2245,6 +2273,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(142)
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
+  @$pb.TagNumber(145)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -3018,6 +3047,17 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearDeviceEgressLease() => $_clearField(144);
   @$pb.TagNumber(144)
   $13.ResDeviceEgressLease ensureDeviceEgressLease() => $_ensure(66);
+
+  @$pb.TagNumber(145)
+  $12.ResAdminDiskClean get adminDiskClean => $_getN(67);
+  @$pb.TagNumber(145)
+  set adminDiskClean($12.ResAdminDiskClean value) => $_setField(145, value);
+  @$pb.TagNumber(145)
+  $core.bool hasAdminDiskClean() => $_has(67);
+  @$pb.TagNumber(145)
+  void clearAdminDiskClean() => $_clearField(145);
+  @$pb.TagNumber(145)
+  $12.ResAdminDiskClean ensureAdminDiskClean() => $_ensure(67);
 }
 
 enum WsReq_Body {
@@ -3181,6 +3221,7 @@ enum WsReq_Body {
   reqDeviceEgressData,
   reqDeviceEgressClose,
   rootConsole,
+  sessionFocus,
   notSet
 }
 
@@ -3348,6 +3389,7 @@ class WsReq extends $pb.GeneratedMessage {
     $13.ReqDeviceEgressData? reqDeviceEgressData,
     $13.ReqDeviceEgressClose? reqDeviceEgressClose,
     $12.ReqRootConsole? rootConsole,
+    $14.ReqSessionFocus? sessionFocus,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3542,6 +3584,7 @@ class WsReq extends $pb.GeneratedMessage {
     if (reqDeviceEgressClose != null)
       result.reqDeviceEgressClose = reqDeviceEgressClose;
     if (rootConsole != null) result.rootConsole = rootConsole;
+    if (sessionFocus != null) result.sessionFocus = sessionFocus;
     return result;
   }
 
@@ -3715,6 +3758,7 @@ class WsReq extends $pb.GeneratedMessage {
     219: WsReq_Body.reqDeviceEgressData,
     220: WsReq_Body.reqDeviceEgressClose,
     221: WsReq_Body.rootConsole,
+    224: WsReq_Body.sessionFocus,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3881,7 +3925,8 @@ class WsReq extends $pb.GeneratedMessage {
       218,
       219,
       220,
-      221
+      221,
+      224
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$14.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -4255,6 +4300,8 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $13.ReqDeviceEgressClose.$_createMessage)
     ..aOM<$12.ReqRootConsole>(221, _omitFieldNames ? '' : 'rootConsole',
         subBuilder: $12.ReqRootConsole.$_createMessage)
+    ..aOM<$14.ReqSessionFocus>(224, _omitFieldNames ? '' : 'sessionFocus',
+        subBuilder: $14.ReqSessionFocus.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4437,6 +4484,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(219)
   @$pb.TagNumber(220)
   @$pb.TagNumber(221)
+  @$pb.TagNumber(224)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4598,6 +4646,7 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(219)
   @$pb.TagNumber(220)
   @$pb.TagNumber(221)
+  @$pb.TagNumber(224)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6415,6 +6464,17 @@ class WsReq extends $pb.GeneratedMessage {
   void clearRootConsole() => $_clearField(221);
   @$pb.TagNumber(221)
   $12.ReqRootConsole ensureRootConsole() => $_ensure(160);
+
+  @$pb.TagNumber(224)
+  $14.ReqSessionFocus get sessionFocus => $_getN(161);
+  @$pb.TagNumber(224)
+  set sessionFocus($14.ReqSessionFocus value) => $_setField(224, value);
+  @$pb.TagNumber(224)
+  $core.bool hasSessionFocus() => $_has(161);
+  @$pb.TagNumber(224)
+  void clearSessionFocus() => $_clearField(224);
+  @$pb.TagNumber(224)
+  $14.ReqSessionFocus ensureSessionFocus() => $_ensure(161);
 }
 
 enum WsRes_Body {
@@ -6591,6 +6651,8 @@ enum WsRes_Body {
   deviceEgressClose,
   statsSubscribe,
   rootConsole,
+  sessionFocus,
+  sessionSuperseded,
   notSet
 }
 
@@ -6771,6 +6833,8 @@ class WsRes extends $pb.GeneratedMessage {
     $13.DeviceEgressClose? deviceEgressClose,
     $12.ResStatsSubscribe? statsSubscribe,
     $12.ResRootConsole? rootConsole,
+    $14.ResSessionFocus? sessionFocus,
+    $14.SessionSuperseded? sessionSuperseded,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -6978,6 +7042,8 @@ class WsRes extends $pb.GeneratedMessage {
     if (deviceEgressClose != null) result.deviceEgressClose = deviceEgressClose;
     if (statsSubscribe != null) result.statsSubscribe = statsSubscribe;
     if (rootConsole != null) result.rootConsole = rootConsole;
+    if (sessionFocus != null) result.sessionFocus = sessionFocus;
+    if (sessionSuperseded != null) result.sessionSuperseded = sessionSuperseded;
     return result;
   }
 
@@ -7164,6 +7230,8 @@ class WsRes extends $pb.GeneratedMessage {
     220: WsRes_Body.deviceEgressClose,
     221: WsRes_Body.statsSubscribe,
     222: WsRes_Body.rootConsole,
+    223: WsRes_Body.sessionFocus,
+    224: WsRes_Body.sessionSuperseded,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -7343,7 +7411,9 @@ class WsRes extends $pb.GeneratedMessage {
       219,
       220,
       221,
-      222
+      222,
+      223,
+      224
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -7744,6 +7814,11 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $12.ResStatsSubscribe.$_createMessage)
     ..aOM<$12.ResRootConsole>(222, _omitFieldNames ? '' : 'rootConsole',
         subBuilder: $12.ResRootConsole.$_createMessage)
+    ..aOM<$14.ResSessionFocus>(223, _omitFieldNames ? '' : 'sessionFocus',
+        subBuilder: $14.ResSessionFocus.$_createMessage)
+    ..aOM<$14.SessionSuperseded>(
+        224, _omitFieldNames ? '' : 'sessionSuperseded',
+        subBuilder: $14.SessionSuperseded.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -7939,6 +8014,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(220)
   @$pb.TagNumber(221)
   @$pb.TagNumber(222)
+  @$pb.TagNumber(223)
+  @$pb.TagNumber(224)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -8113,6 +8190,8 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(220)
   @$pb.TagNumber(221)
   @$pb.TagNumber(222)
+  @$pb.TagNumber(223)
+  @$pb.TagNumber(224)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -10070,6 +10149,28 @@ class WsRes extends $pb.GeneratedMessage {
   void clearRootConsole() => $_clearField(222);
   @$pb.TagNumber(222)
   $12.ResRootConsole ensureRootConsole() => $_ensure(173);
+
+  @$pb.TagNumber(223)
+  $14.ResSessionFocus get sessionFocus => $_getN(174);
+  @$pb.TagNumber(223)
+  set sessionFocus($14.ResSessionFocus value) => $_setField(223, value);
+  @$pb.TagNumber(223)
+  $core.bool hasSessionFocus() => $_has(174);
+  @$pb.TagNumber(223)
+  void clearSessionFocus() => $_clearField(223);
+  @$pb.TagNumber(223)
+  $14.ResSessionFocus ensureSessionFocus() => $_ensure(174);
+
+  @$pb.TagNumber(224)
+  $14.SessionSuperseded get sessionSuperseded => $_getN(175);
+  @$pb.TagNumber(224)
+  set sessionSuperseded($14.SessionSuperseded value) => $_setField(224, value);
+  @$pb.TagNumber(224)
+  $core.bool hasSessionSuperseded() => $_has(175);
+  @$pb.TagNumber(224)
+  void clearSessionSuperseded() => $_clearField(224);
+  @$pb.TagNumber(224)
+  $14.SessionSuperseded ensureSessionSuperseded() => $_ensure(175);
 }
 
 class NotifyItem extends $pb.GeneratedMessage {

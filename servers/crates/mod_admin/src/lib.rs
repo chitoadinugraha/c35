@@ -1,5 +1,6 @@
 use c35_proto::{
-    AdminUserHit, ReqAdminUserPut, ReqAdminUserSearch, ResAdminUserPut, ResAdminUserSearch,
+    AdminUserHit, ReqAdminUserPut, ReqAdminUserSearch,
+    ResAdminUserPut, ResAdminUserSearch,
 };
 use std::collections::HashSet;
 
@@ -12,7 +13,10 @@ mod ops_peaks;
 mod platform_pnl;
 mod platform_user_metrics;
 mod llm_catalog_admin;
+mod registrations_list;
+mod disk_clean;
 
+pub use disk_clean::admin_disk_clean;
 pub use admin_event::{admin_event_profile_updated, admin_event_referrer_updated, admin_event_roles_updated};
 pub use staff_view::{staff_tool_eligible, staff_view_load, StaffView};
 pub use log_admin::admin_log_list;
@@ -22,6 +26,7 @@ pub use ops_peaks::admin_ops_peaks;
 pub use platform_pnl::admin_platform_pnl;
 pub use platform_user_metrics::admin_platform_user_metrics;
 pub use llm_catalog_admin::admin_llm_catalog_list;
+pub use registrations_list::{admin_user_registrations_list, registration_window};
 use sqlx::{PgPool, Row};
 
 #[derive(Debug)]
@@ -136,7 +141,7 @@ async fn require_root_actor(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminE
     require_root(pool, viewer_iid).await
 }
 
-async fn require_root_or_director(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminError> {
+pub async fn require_root_or_director(pool: &PgPool, viewer_iid: i64) -> Result<(), AdminError> {
     let meta = viewer_meta(pool, viewer_iid).await?;
     if meta_is_root(&meta) || meta_is_director(&meta) {
         Ok(())

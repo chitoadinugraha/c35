@@ -10,6 +10,10 @@ String appVersionLabel() => 'v${csaiVersionBuild()}';
 
 String appVersionDetailLabel() => 'Version: ${csaiVersionBuild()}';
 
+String appVersionErrorPageLabel() => 'Version ${csaiVersionBuild()}';
+
+String appVersionErrorCopyPrefix() => '[Version: ${csaiVersionBuild()}]';
+
 String settingsReleaseVersionsFooter({
   int? appLatest,
   int? agentLatest,

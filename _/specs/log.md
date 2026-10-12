@@ -117,3 +117,29 @@ WHERE deleted_ts IS NULL AND kind = 'tool' AND class = 'trace'
   AND created_ts >= NOW() - INTERVAL '30 days'
 GROUP BY 1 ORDER BY 2 DESC;
 ```
+
+---
+
+## Session warmup trace (`trace_session_warmup`)
+
+Owner prompt session warmups (connect bundle, `ReqSessionFocus`, chat cache) emit one **`ai.log`** row per completion:
+
+| Field | Value |
+|-------|--------|
+| `kind` | `system` |
+| `topic` | `trace_session_warmup` |
+| `class` | `trace` (not published on NATS user fanout) |
+| `req_id` | `warmup:{conn_id}:{run_id}` |
+| `meta` | `stages[]` (same shape as turn `trace_stages`), `outcome` (`ready` \| `failed` \| `cancelled`), optional `chat_id`, `warmup_wait_ms` |
+
+**Ops:** MCP `log_tail` with `owner_iid` and topic filter, or SQL:
+
+```sql
+SELECT created_ts, req_id, duration_ms, meta
+FROM ai.log
+WHERE owner_iid = $iid AND topic = 'trace_session_warmup'
+ORDER BY created_ts DESC
+LIMIT 20;
+```
+
+See [chat.md](chat.md) § Owner prompt session.

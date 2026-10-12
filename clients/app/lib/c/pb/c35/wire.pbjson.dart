@@ -606,6 +606,15 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'deviceEgressLease'
     },
+    {
+      '1': 'admin_disk_clean',
+      '3': 145,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqAdminDiskClean',
+      '9': 0,
+      '10': 'adminDiskClean'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -706,7 +715,8 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'USYgobYWRtaW5fcGxhdGZvcm1fdXNlcl9tZXRyaWNzGI8BIAEoCzIgLmMzNS5SZXFBZG1pblBs'
     'YXRmb3JtVXNlck1ldHJpY3NIAFIYYWRtaW5QbGF0Zm9ybVVzZXJNZXRyaWNzEkwKE2RldmljZV'
     '9lZ3Jlc3NfbGVhc2UYkAEgASgLMhkuYzM1LlJlcURldmljZUVncmVzc0xlYXNlSABSEWRldmlj'
-    'ZUVncmVzc0xlYXNlQgYKBGJvZHk=');
+    'ZUVncmVzc0xlYXNlEkMKEGFkbWluX2Rpc2tfY2xlYW4YkQEgASgLMhYuYzM1LlJlcUFkbWluRG'
+    'lza0NsZWFuSABSDmFkbWluRGlza0NsZWFuQgYKBGJvZHk=');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -1291,6 +1301,15 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'deviceEgressLease'
     },
+    {
+      '1': 'admin_disk_clean',
+      '3': 145,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminDiskClean',
+      '9': 0,
+      '10': 'adminDiskClean'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1390,7 +1409,8 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'ZRJiChthZG1pbl9wbGF0Zm9ybV91c2VyX21ldHJpY3MYjwEgASgLMiAuYzM1LlJlc0FkbWluUG'
     'xhdGZvcm1Vc2VyTWV0cmljc0gAUhhhZG1pblBsYXRmb3JtVXNlck1ldHJpY3MSTAoTZGV2aWNl'
     'X2VncmVzc19sZWFzZRiQASABKAsyGS5jMzUuUmVzRGV2aWNlRWdyZXNzTGVhc2VIAFIRZGV2aW'
-    'NlRWdyZXNzTGVhc2VCBgoEYm9keQ==');
+    'NlRWdyZXNzTGVhc2USQwoQYWRtaW5fZGlza19jbGVhbhiRASABKAsyFi5jMzUuUmVzQWRtaW5E'
+    'aXNrQ2xlYW5IAFIOYWRtaW5EaXNrQ2xlYW5CBgoEYm9keQ==');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {
@@ -2837,6 +2857,15 @@ const WsReq$json = {
       '9': 0,
       '10': 'rootConsole'
     },
+    {
+      '1': 'session_focus',
+      '3': 224,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSessionFocus',
+      '9': 0,
+      '10': 'sessionFocus'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3040,7 +3069,9 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'ZWdyZXNzX2RhdGEY2wEgASgLMhguYzM1LlJlcURldmljZUVncmVzc0RhdGFIAFITcmVxRGV2aW'
     'NlRWdyZXNzRGF0YRJTChdyZXFfZGV2aWNlX2VncmVzc19jbG9zZRjcASABKAsyGS5jMzUuUmVx'
     'RGV2aWNlRWdyZXNzQ2xvc2VIAFIUcmVxRGV2aWNlRWdyZXNzQ2xvc2USOQoMcm9vdF9jb25zb2'
-    'xlGN0BIAEoCzITLmMzNS5SZXFSb290Q29uc29sZUgAUgtyb290Q29uc29sZUIGCgRib2R5');
+    'xlGN0BIAEoCzITLmMzNS5SZXFSb290Q29uc29sZUgAUgtyb290Q29uc29sZRI8Cg1zZXNzaW9u'
+    'X2ZvY3VzGOABIAEoCzIULmMzNS5SZXFTZXNzaW9uRm9jdXNIAFIMc2Vzc2lvbkZvY3VzQgYKBG'
+    'JvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -4596,6 +4627,24 @@ const WsRes$json = {
       '9': 0,
       '10': 'rootConsole'
     },
+    {
+      '1': 'session_focus',
+      '3': 223,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSessionFocus',
+      '9': 0,
+      '10': 'sessionFocus'
+    },
+    {
+      '1': 'session_superseded',
+      '3': 224,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.SessionSuperseded',
+      '9': 0,
+      '10': 'sessionSuperseded'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4813,7 +4862,10 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'ZWdyZXNzX2Nsb3NlGNwBIAEoCzIWLmMzNS5EZXZpY2VFZ3Jlc3NDbG9zZUgAUhFkZXZpY2VFZ3'
     'Jlc3NDbG9zZRJCCg9zdGF0c19zdWJzY3JpYmUY3QEgASgLMhYuYzM1LlJlc1N0YXRzU3Vic2Ny'
     'aWJlSABSDnN0YXRzU3Vic2NyaWJlEjkKDHJvb3RfY29uc29sZRjeASABKAsyEy5jMzUuUmVzUm'
-    '9vdENvbnNvbGVIAFILcm9vdENvbnNvbGVCBgoEYm9keQ==');
+    '9vdENvbnNvbGVIAFILcm9vdENvbnNvbGUSPAoNc2Vzc2lvbl9mb2N1cxjfASABKAsyFC5jMzUu'
+    'UmVzU2Vzc2lvbkZvY3VzSABSDHNlc3Npb25Gb2N1cxJIChJzZXNzaW9uX3N1cGVyc2VkZWQY4A'
+    'EgASgLMhYuYzM1LlNlc3Npb25TdXBlcnNlZGVkSABSEXNlc3Npb25TdXBlcnNlZGVkQgYKBGJv'
+    'ZHk=');
 
 @$core.Deprecated('Use notifyItemDescriptor instead')
 const NotifyItem$json = {

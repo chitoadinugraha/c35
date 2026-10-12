@@ -554,22 +554,35 @@ img.guest-order-pic.guest-pic-preview {
 }
 .guest-note {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   margin-top: 10px;
-  padding: 4px 8px;
+  padding: 8px 8px;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--commerce-outline) 70%, transparent);
   background: color-mix(in srgb, var(--fg, #111) 4%, transparent);
 }
-.guest-note input {
+.guest-note span {
+  line-height: 1.4;
+  padding-top: 4px;
+}
+.guest-note textarea {
   flex: 1;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
   outline: none;
-  padding: 6px 0;
+  padding: 4px 0;
+  min-height: 2.8em;
+  resize: vertical;
+  line-height: 1.35;
+}
+.guest-product-desc {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted, #71717a);
 }
 .guest-stock {
   margin: 0 0 8px;

@@ -669,6 +669,219 @@ class ResSessionInit extends $pb.GeneratedMessage {
   $6.LiveCatalog ensureLive() => $_ensure(13);
 }
 
+/// Home thread focus: warm prompt-tail cache for this chat (owner WS session).
+class ReqSessionFocus extends $pb.GeneratedMessage {
+  factory ReqSessionFocus({
+    $fixnum.Int64? chatId,
+    $fixnum.Int64? lastSeenMsgId,
+  }) {
+    final result = ReqSessionFocus._();
+    if (chatId != null) result.chatId = chatId;
+    if (lastSeenMsgId != null) result.lastSeenMsgId = lastSeenMsgId;
+    return result;
+  }
+
+  ReqSessionFocus._();
+
+  factory ReqSessionFocus.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSessionFocus()..mergeFromBuffer(data, registry);
+  factory ReqSessionFocus.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSessionFocus()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSessionFocus',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSessionFocus.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'chatId')
+    ..aInt64(2, _omitFieldNames ? '' : 'lastSeenMsgId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSessionFocus clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSessionFocus copyWith(void Function(ReqSessionFocus) updates) =>
+      super.copyWith((message) => updates(message as ReqSessionFocus))
+          as ReqSessionFocus;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSessionFocus() / ReqSessionFocus.new instead')
+  static ReqSessionFocus create() => ReqSessionFocus._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSessionFocus._();
+  @$core.override
+  ReqSessionFocus createEmptyInstance() => ReqSessionFocus._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSessionFocus getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqSessionFocus>(
+          ReqSessionFocus.$_createMessage);
+  static ReqSessionFocus? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get chatId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set chatId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasChatId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearChatId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get lastSeenMsgId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set lastSeenMsgId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasLastSeenMsgId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearLastSeenMsgId() => $_clearField(2);
+}
+
+class ResSessionFocus extends $pb.GeneratedMessage {
+  factory ResSessionFocus({
+    $core.bool? warming,
+    $fixnum.Int64? revision,
+  }) {
+    final result = ResSessionFocus._();
+    if (warming != null) result.warming = warming;
+    if (revision != null) result.revision = revision;
+    return result;
+  }
+
+  ResSessionFocus._();
+
+  factory ResSessionFocus.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSessionFocus()..mergeFromBuffer(data, registry);
+  factory ResSessionFocus.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSessionFocus()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSessionFocus',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSessionFocus.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'warming')
+    ..a<$fixnum.Int64>(
+        2, _omitFieldNames ? '' : 'revision', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSessionFocus clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSessionFocus copyWith(void Function(ResSessionFocus) updates) =>
+      super.copyWith((message) => updates(message as ResSessionFocus))
+          as ResSessionFocus;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSessionFocus() / ResSessionFocus.new instead')
+  static ResSessionFocus create() => ResSessionFocus._();
+  static $pb.GeneratedMessage $_createMessage() => ResSessionFocus._();
+  @$core.override
+  ResSessionFocus createEmptyInstance() => ResSessionFocus._();
+  @$core.pragma('dart2js:noInline')
+  static ResSessionFocus getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResSessionFocus>(
+          ResSessionFocus.$_createMessage);
+  static ResSessionFocus? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get warming => $_getBF(0);
+  @$pb.TagNumber(1)
+  set warming($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasWarming() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearWarming() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get revision => $_getI64(1);
+  @$pb.TagNumber(2)
+  set revision($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRevision() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRevision() => $_clearField(2);
+}
+
+/// Server push when a newer app WebSocket supersedes this connection.
+class SessionSuperseded extends $pb.GeneratedMessage {
+  factory SessionSuperseded({
+    $core.String? reason,
+    $fixnum.Int64? revision,
+  }) {
+    final result = SessionSuperseded._();
+    if (reason != null) result.reason = reason;
+    if (revision != null) result.revision = revision;
+    return result;
+  }
+
+  SessionSuperseded._();
+
+  factory SessionSuperseded.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SessionSuperseded()..mergeFromBuffer(data, registry);
+  factory SessionSuperseded.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SessionSuperseded()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SessionSuperseded',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SessionSuperseded.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'reason')
+    ..a<$fixnum.Int64>(
+        2, _omitFieldNames ? '' : 'revision', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SessionSuperseded clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SessionSuperseded copyWith(void Function(SessionSuperseded) updates) =>
+      super.copyWith((message) => updates(message as SessionSuperseded))
+          as SessionSuperseded;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SessionSuperseded() / SessionSuperseded.new instead')
+  static SessionSuperseded create() => SessionSuperseded._();
+  static $pb.GeneratedMessage $_createMessage() => SessionSuperseded._();
+  @$core.override
+  SessionSuperseded createEmptyInstance() => SessionSuperseded._();
+  @$core.pragma('dart2js:noInline')
+  static SessionSuperseded getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SessionSuperseded>(
+          SessionSuperseded.$_createMessage);
+  static SessionSuperseded? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get reason => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set reason($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasReason() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearReason() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get revision => $_getI64(1);
+  @$pb.TagNumber(2)
+  set revision($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRevision() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRevision() => $_clearField(2);
+}
+
 const $core.bool _omitFieldNames =
     $core.bool.fromEnvironment('protobuf.omit_field_names');
 const $core.bool _omitMessageNames =

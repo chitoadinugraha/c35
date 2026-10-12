@@ -23,8 +23,18 @@ mod optimize;
 pub mod pdf;
 pub mod pptx;
 pub mod report_table;
+mod blob_ref;
 mod s3;
+mod storage_usage;
 mod tool_artifact;
+
+pub use blob_ref::{
+    blob_ref_chat_msg, blob_ref_delete_source_key, blob_ref_propagate_variant, blob_ref_upsert,
+    cas_hashes_from_json_value, cas_hashes_from_text, BlobRefScope,
+};
+pub use storage_usage::{
+    storage_usage_account, storage_usage_scope, ScopeUsageRow, SingleScopeUsage, StorageUsageReport,
+};
 
 pub use doc_cache::{
     doc_index_get, doc_index_load_or_build, doc_index_put, doc_kind_from_mime_name,
@@ -304,6 +314,9 @@ pub async fn file_variant_set(
         return Err(sqlx::Error::RowNotFound);
     }
     tx.commit().await?;
+    if let Err(e) = blob_ref_propagate_variant(pool, &canonical_hash, key, &variant_hash).await {
+        tracing::warn!("blob_ref variant propagate {canonical_hash}/{key}: {e}");
+    }
     Ok(())
 }
 

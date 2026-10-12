@@ -22,6 +22,10 @@ import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_calc.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/receipt_config_of.dart';
 import 'package:alienai_c35/widgets/sites/tx/receipt/ui_receipt.dart';
+import 'package:alienai_c35/c/site/site_guest_order_bus.dart';
+import 'package:alienai_c35/widgets/sites/tx/pos_queue/pos_queue_mode.dart';
+import 'package:alienai_c35/widgets/sites/tx/pos_queue/pos_queue_store.dart';
+import 'package:alienai_c35/widgets/sites/tx/pos_queue/show_pos_queue_sheet.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_parked_orders.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_tx_save_menu.dart';
 import 'package:fixnum/fixnum.dart';
@@ -59,6 +63,7 @@ class UiSiteTxEditor extends StatefulWidget {
 class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStateMixin {
   final _posItemsKey = GlobalKey<SectionTxItemsState>();
   late final TxApi _txApi = TxApi(widget.api.conn);
+  late final PosQueueStore _posQueueStore;
   TabController? _tabs;
   var _loading = true;
   var _busy = false;
@@ -78,13 +83,20 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
   @override
   void initState() {
     super.initState();
+    _posQueueStore = PosQueueStore(txApi: _txApi, siteIid: widget.siteIid);
     _syncTabController();
     widget.api.conn.status.addListener(_onConnStatus);
+    _posQueueStore.addListener(_onPosQueueCounts);
+    siteGuestOrderBus.addListener(_onGuestOrderPush);
+    if (widget.posEntry) unawaited(_posQueueStore.refreshCounts());
     _load();
   }
 
   @override
   void dispose() {
+    siteGuestOrderBus.removeListener(_onGuestOrderPush);
+    _posQueueStore.removeListener(_onPosQueueCounts);
+    _posQueueStore.dispose();
     widget.api.conn.status.removeListener(_onConnStatus);
     _previewDebounce?.cancel();
     _tabs?.dispose();
@@ -94,6 +106,28 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
   void _onConnStatus() {
     if (widget.api.conn.status.value != ChatConnStatus.connected) return;
     unawaited(_syncOfflineQueue());
+    if (widget.posEntry) unawaited(_posQueueStore.refreshCounts());
+  }
+
+  void _onPosQueueCounts() {
+    if (mounted) setState(() {});
+  }
+
+  void _onGuestOrderPush() {
+    if (!widget.posEntry) return;
+    unawaited(_posQueueStore.refreshCounts());
+  }
+
+  Future<void> _openPosQueue(PosQueueMode mode) async {
+    await showPosQueueSheet(
+      context: context,
+      mode: mode,
+      txApi: _txApi,
+      siteIid: widget.siteIid,
+      products: _products,
+    );
+    if (!mounted) return;
+    await _posQueueStore.refreshCounts();
   }
 
   Future<void> _syncOfflineQueue() async {
@@ -655,12 +689,48 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
                 );
               },
             ),
+          if (widget.posEntry) ...[
+            ListenableBuilder(
+              listenable: _posQueueStore,
+              builder: (context, _) {
+                final count = _posQueueStore.paymentCount;
+                return IconButton(
+                  tooltip: count > 0 ? 'Payment verification ($count)' : 'Payment verification',
+                  icon: Badge.count(
+                    count: count,
+                    isLabelVisible: count > 0,
+                    backgroundColor: _accent,
+                    textColor: const Color(0xFF052E1B),
+                    child: const Icon(Icons.verified_outlined),
+                  ),
+                  onPressed: () => _openPosQueue(PosQueueMode.paymentVerification),
+                );
+              },
+            ),
+            ListenableBuilder(
+              listenable: _posQueueStore,
+              builder: (context, _) {
+                final count = _posQueueStore.orderCount;
+                return IconButton(
+                  tooltip: count > 0 ? 'Orders ($count)' : 'Orders',
+                  icon: Badge.count(
+                    count: count,
+                    isLabelVisible: count > 0,
+                    backgroundColor: const Color(0xFFF59E0B),
+                    textColor: Colors.black,
+                    child: const Icon(Icons.restaurant_menu_outlined),
+                  ),
+                  onPressed: () => _openPosQueue(PosQueueMode.orders),
+                );
+              },
+            ),
+          ],
           ListenableBuilder(
             listenable: TxParkedOrders.instance,
             builder: (context, _) {
               final count = TxParkedOrders.instance.count(widget.siteIid);
               return IconButton(
-                tooltip: count > 0 ? 'Parked orders ($count)' : 'Parked orders',
+                tooltip: count > 0 ? 'Held carts ($count)' : 'Held carts',
                 icon: Badge.count(
                   count: count,
                   isLabelVisible: count > 0,

@@ -3,6 +3,7 @@ mod bot_draft;
 mod bot_inbox;
 mod browser;
 mod captcha;
+mod captcha_billing;
 mod chat_history;
 mod consumption;
 mod delegate;
@@ -23,6 +24,7 @@ mod site;
 mod site_pic;
 mod site_query;
 mod site_tx;
+mod storage;
 mod staff;
 mod staff_debug;
 mod task;
@@ -89,9 +91,11 @@ pub use site_tx::{
     SiteOrderStatusTool, SiteTxDebtPayTool, SiteTxGetTool, SiteTxListTool, SiteTxPreviewTool,
     SiteTxPutTool,
 };
+pub use storage::StorageUsageTool;
 pub use staff::{
     AdminBotListTool, AdminChatMessagesTool, AdminChatSearchTool, AdminClientListTool,
-    AdminDeviceListTool, AdminTaskListTool, AdminUserSearchTool, BillingTopupListTool,
+    AdminDeviceListTool, AdminTaskListTool, AdminUserRegistrationsListTool, AdminUserSearchTool,
+    BillingTopupListTool,
     BillingTopupReviewTool, BillingWithdrawListTool, BillingWithdrawReviewTool,
     ReferralCommissionSimulateTool, ReferralUserStatsStaffTool,
 };

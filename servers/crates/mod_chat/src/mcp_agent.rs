@@ -22,6 +22,10 @@ use crate::mention_tool_registry::mention_force_tools;
 use crate::prompt::time::user_asks_time;
 use crate::prompt::tool_loop::user_wants_search;
 use crate::prompt_run::prompt_run_concurrency_acquire;
+use crate::owner_session::{
+    owner_session_prepare_prompt_turn, owner_session_wait_owner_bundle_traced,
+    session_owner_bundle_wait_mcp_ms,
+};
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
 use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
@@ -312,9 +316,20 @@ pub async fn mcp_prompt_run(
         talk: false,
     };
     let cancel = CancellationToken::new();
+    let owner_session = owner_session_prepare_prompt_turn(pool, nats, owner_iid, chat_id).await;
+    let bundle_wait_ms = owner_session_wait_owner_bundle_traced(
+        pool,
+        nats,
+        owner_session.clone(),
+        owner_iid,
+        req_id,
+        std::time::Duration::from_millis(session_owner_bundle_wait_mcp_ms()),
+    )
+    .await;
     let hooks = PromptTurnHooks {
         skip_billing_gate: true,
         on_hop: None,
+        owner_session: Some(owner_session),
     };
     let _concurrency = match prompt_run_concurrency_acquire().await {
         Ok(p) => p,
@@ -346,6 +361,7 @@ pub async fn mcp_prompt_run(
                 "ok": true,
                 "req_id": req_id,
                 "owner_iid": owner_iid,
+                "session_bundle_wait_ms": bundle_wait_ms,
                 "chat_id": turn.chat_id,
                 "user_msg_id": turn.user_msg_id,
                 "assistant_msg_id": turn.assistant_msg_id,

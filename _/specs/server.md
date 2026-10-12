@@ -140,7 +140,7 @@ cd remotes && cargo build -p c_remote_windows
 |--------|----------------|
 | `.\cleanup.ps1` | Rust cache + cluster buildkit (both) |
 | `.\_\scripts\dev\cleanup_rust_cache.ps1` | Local `.cache/server`, `.cache/c_remote`, `.cache/rust` |
-| `.\_\scripts\deploy\cleanup_buildkit.ps1` | Cluster buildkit cache (default: older than 7d; `-Full` wipes all) |
+| `.\_\scripts\deploy\cleanup_buildkit.ps1` | Cluster buildkit cache (default: older than 7d; `-Full` wipes all); same behavior as root console **buildkit** broom ([root-console-disk-cleanup.md](root-console-disk-cleanup.md)) |
 
 **Publish speed:** cluster publish scripts no longer prune buildkit before each build (that forced cold Rust compiles). Leave buildkit scaled up between publishes when possible; use `-PruneBuildkit` / `-StopBuildkit` only when freeing disk. Manual prune: `cleanup_buildkit.ps1` or `cleanup.ps1 -SkipRust`.
 
@@ -319,9 +319,9 @@ Full spec: [fetcher.md](fetcher.md). Manifest: [`_/deployments/c35-fetcher/`](..
 
 | Monitor | Path / source | Stateful? | Action when high |
 |---------|---------------|-----------|------------------|
-| Node boot disk | `/` on host | — | cleanup logs, resize node disk |
-| Node logs | `/var/log` | — | rotate, truncate |
-| YB data | PVC `yb-data` (`oci-bv`, Retain) | **Yes** | expand disk, add tserver |
+| Node boot disk | `/` on host | — | Root console **broom** (Boot) or [root-console-disk-cleanup.md](root-console-disk-cleanup.md); resize node disk |
+| Node logs | `/var/log` | — | included in Boot broom (journal + rotated logs) |
+| YB data | PVC `yb-data` (`oci-bv`, Retain) | **Yes** | yugabyte broom (log cleanup + optional online compaction); expand disk |
 | NATS JetStream | `emptyDir` on `nats-0` | **No** | hydrate from YB via `c35-server` |
 | c35 CAS | `emptyDir` per pod | Ephemeral | move to PVC later if needed |
 

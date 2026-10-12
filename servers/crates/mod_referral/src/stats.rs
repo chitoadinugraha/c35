@@ -1,7 +1,7 @@
 use c35_mod_admin::require_admin;
 use c35_proto::{
-    ReferralStatPeriod, ReferralUserStatColumn, ReferralUserWalletSnapshot, ReqReferralUserStats,
-    ResReferralUserStats,
+    ReferralStatPeriod, ReferralUserReferrerBrief, ReferralUserStatColumn,
+    ReferralUserWalletSnapshot, ReqReferralUserStats, ResReferralUserStats,
 };
 use sqlx::{PgPool, Row};
 
@@ -232,6 +232,45 @@ async fn subject_auth_contact(pool: &PgPool, subject_iid: i64) -> (String, Strin
     (email, phone)
 }
 
+async fn subject_registration(
+    pool: &PgPool,
+    subject_iid: i64,
+) -> (i64, Option<ReferralUserReferrerBrief>) {
+    let row = sqlx::query(
+        r#"
+        SELECT i.created_ts,
+               COALESCE(i.referred_by_iid, 0) AS referred_by_iid,
+               COALESCE(r.name, '') AS ref_name,
+               COALESCE(r.alien_id, '') AS ref_alien_id
+        FROM ai.identity i
+        LEFT JOIN ai.identity r ON r.id = i.referred_by_iid AND r.deleted_ts IS NULL
+        WHERE i.id = $1 AND i.kind = 'user' AND i.deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(subject_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+    let Some(row) = row else {
+        return (0, None);
+    };
+    let created: chrono::DateTime<chrono::Utc> = row.get("created_ts");
+    let registered_ts_ms = created.timestamp_millis();
+    let ref_id: i64 = row.get("referred_by_iid");
+    let referred_by = if ref_id > 0 {
+        Some(ReferralUserReferrerBrief {
+            identity_id: ref_id,
+            name: row.get("ref_name"),
+            alien_id: row.get("ref_alien_id"),
+        })
+    } else {
+        None
+    };
+    (registered_ts_ms, referred_by)
+}
+
 async fn wallet_snapshot(pool: &PgPool, owner_iid: i64) -> Option<ReferralUserWalletSnapshot> {
     let row = sqlx::query(
         r#"
@@ -280,11 +319,14 @@ pub async fn referral_user_stats(
     } else {
         (String::new(), String::new())
     };
+    let (registered_ts_ms, referred_by) = subject_registration(pool, subject).await;
     Ok(ResReferralUserStats {
         col_a: Some(col_a),
         col_b: Some(col_b),
         wallet,
         auth_email,
         auth_phone,
+        referred_by,
+        registered_ts_ms,
     })
 }

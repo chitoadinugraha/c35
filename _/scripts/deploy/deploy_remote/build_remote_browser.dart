@@ -31,12 +31,28 @@ String remoteBrowserZipFileName(int version) => 'alienai_remote_browser-$version
 
 String _engineDir(String root) => p.join(root, 'remotes', 'browser_engine');
 
-Future<void> _run(String cwd, String executable, List<String> args) async {
-  final proc = await Process.start(executable, args, workingDirectory: cwd, runInShell: true);
-  final out = await proc.stdout.transform(SystemEncoding().decoder).join();
-  final err = await proc.stderr.transform(SystemEncoding().decoder).join();
-  stdout.write(out);
-  stderr.write(err);
+/// Isolated from shared `remotes/.cargo` target-dir so Windows/Linux/browser publishes do not deadlock on `.cargo-lock`.
+String remoteBrowserCargoTargetDir(String root) =>
+    p.join(root, '.cache', 'c_remote_browser_target');
+
+Future<void> _run(
+  String cwd,
+  String executable,
+  List<String> args, {
+  Map<String, String>? environment,
+}) async {
+  final env = {...Platform.environment, ...?environment};
+  final proc = await Process.start(
+    executable,
+    args,
+    workingDirectory: cwd,
+    runInShell: true,
+    environment: env,
+  );
+  await Future.wait([
+    proc.stdout.forEach(stdout.add),
+    proc.stderr.forEach(stderr.add),
+  ]);
   final code = await proc.exitCode;
   if (code != 0) throw StateError('$executable ${args.join(' ')} failed ($code)');
 }
@@ -54,9 +70,16 @@ Future<RemoteBrowserBuildResult> buildRemoteBrowserRelease() async {
   await _run(engine, 'npm', ['run', 'build']);
 
   final remotes = p.join(root, 'remotes');
-  await _run(remotes, 'cargo', ['build', '--release', '-p', 'c_remote_browser']);
+  final cargoTarget = remoteBrowserCargoTargetDir(root);
+  stdout.writeln('==> cargo build -p c_remote_browser (target=$cargoTarget)');
+  await _run(
+    remotes,
+    'cargo',
+    ['build', '--release', '-p', 'c_remote_browser'],
+    environment: {'CARGO_TARGET_DIR': cargoTarget},
+  );
 
-  final targetDir = p.join(root, '.cache', 'c_remote', 'release');
+  final targetDir = p.join(cargoTarget, 'release');
   final exe = File(p.join(targetDir, remoteBrowserExeName));
   if (!exe.existsSync()) {
     throw StateError('Missing ${exe.path} — run cargo build --release -p c_remote_browser from remotes/');

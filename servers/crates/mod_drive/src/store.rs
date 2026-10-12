@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use c35_mod_file::cas_put;
+use c35_mod_file::{blob_ref_delete_source_key, blob_ref_upsert, cas_put, BlobRefScope};
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
 
@@ -262,7 +262,7 @@ pub async fn drive_file_put(
     .fetch_optional(pool)
     .await?;
 
-    if let Some(id) = existing_id {
+    let file_id = if let Some(id) = existing_id {
         sqlx::query(
             r#"
             UPDATE ai.drive_file
@@ -277,6 +277,7 @@ pub async fn drive_file_put(
         .bind(mime_type)
         .execute(pool)
         .await?;
+        id
     } else {
         let id = snowflake_id();
         sqlx::query(
@@ -293,6 +294,17 @@ pub async fn drive_file_put(
         .bind(mime_type)
         .execute(pool)
         .await?;
+        id
+    };
+
+    let scope = BlobRefScope {
+        scope_kind: "user",
+        scope_iid: owner_iid,
+        billable_owner_iid: owner_iid,
+    };
+    let source_key = format!("drive:{}", file_id);
+    if let Err(e) = blob_ref_upsert(pool, &scope, &put.hash, "drive", &source_key).await {
+        tracing::warn!("blob_ref drive file_id={file_id}: {e}");
     }
 
     Ok(DriveUploadResponse {
@@ -310,6 +322,18 @@ pub async fn drive_file_delete(pool: &PgPool, owner_iid: i64, path: &str) -> Res
     if path.is_empty() {
         return Ok(false);
     }
+    let file_id: Option<i64> = sqlx::query_scalar(
+        r#"
+        SELECT id FROM ai.drive_file
+        WHERE owner_iid = $1 AND path = $2 AND deleted_ts IS NULL
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(&path)
+    .fetch_optional(pool)
+    .await?;
+
     let res = sqlx::query(
         r#"
         UPDATE ai.drive_file
@@ -321,6 +345,12 @@ pub async fn drive_file_delete(pool: &PgPool, owner_iid: i64, path: &str) -> Res
     .bind(&path)
     .execute(pool)
     .await?;
+    if res.rows_affected() > 0 {
+        if let Some(id) = file_id {
+            let source_key = format!("drive:{}", id);
+            let _ = blob_ref_delete_source_key(pool, "user", owner_iid, &source_key).await;
+        }
+    }
     Ok(res.rows_affected() > 0)
 }
 

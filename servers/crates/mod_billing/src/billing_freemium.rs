@@ -69,6 +69,9 @@ pub fn freemium_tool_blocked(name: &str) -> bool {
             | "device.command"
             | "device.input"
             | "device.screenshot"
+            | "captcha.solve"
+            | "captcha_solve"
+            | "solve_captcha"
     )
 }
 

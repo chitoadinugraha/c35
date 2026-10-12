@@ -113,8 +113,20 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Expanded(child: Text('Trace', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600))),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Trace', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600)),
+                        if (widget.msgId > 0) ...[
+                          const SizedBox(height: 2),
+                          UiMsgId(id: widget.msgId),
+                        ],
+                      ],
+                    ),
+                  ),
                   uiIconButton(
                     tooltip: 'Refresh',
                     onPressed: _loading ? null : _load,
@@ -124,11 +136,6 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
                 ],
               ),
             ),
-            if (widget.msgId > 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-                child: UiMsgId(id: widget.msgId),
-              ),
             if (_view.totals.tokensIn > 0 || _view.totals.tokensOut > 0 || _view.totals.durationMs > 0)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),

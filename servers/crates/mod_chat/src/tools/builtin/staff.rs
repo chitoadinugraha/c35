@@ -1,5 +1,8 @@
 use anyhow::Result;
-use c35_mod_admin::{admin_user_search, require_referral_staff, require_root, AdminError};
+use c35_mod_admin::{
+    admin_user_registrations_list, admin_user_search, require_referral_staff, require_root,
+    AdminError,
+};
 use c35_mod_billing::{
     billing_topup_list, billing_topup_review, commission_withdraw_list, commission_withdraw_review,
 };
@@ -7,7 +10,8 @@ use c35_mod_device::{mcp_client_list, mcp_device_list};
 use c35_mod_referral::{referral_commission_simulate, referral_user_stats};
 use c35_mod_task::task_list_rpc;
 use c35_proto::{
-    BillingTopupQueueItem, CommissionWithdrawQueueItem, ReferralCommissionLevel,
+    AdminUserRegistrationRow, BillingTopupQueueItem, CommissionWithdrawQueueItem,
+    ReferralCommissionLevel, ReferralUserReferrerBrief, ReqAdminUserRegistrationsList,
     ReqAdminUserSearch, ReqBillingTopupList, ReqBillingTopupReview, ReqCommissionWithdrawList,
     ReqCommissionWithdrawReview, ReqReferralUserStats, ReqTaskList, Task,
 };
@@ -213,15 +217,39 @@ pub async fn admin_user_search_exec(ctx: &ToolContext, args: &Value) -> Result<V
     }
 }
 
+fn referrer_brief_json(r: &ReferralUserReferrerBrief) -> Value {
+    json!({
+        "identity_id": r.identity_id,
+        "name": r.name,
+        "alien_id": r.alien_id,
+        "handle": if r.alien_id.is_empty() {
+            Value::Null
+        } else {
+            json!(format!("@{}", r.alien_id))
+        },
+    })
+}
+
 pub async fn referral_user_stats_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
-    let subject_uid = args
-        .get("subject_uid")
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let subject_uid = arg_i64(args, "subject_uid");
+    let subject_handle = arg_str(args, "subject_handle");
+    let resolved_uid = if subject_uid > 0 {
+        subject_uid
+    } else if !subject_handle.is_empty() {
+        match subject_iid_resolve(&ctx.pool, args).await {
+            Ok(uid) => uid,
+            Err(e) => {
+                return Ok(json!({ "ok": false, "tool": "referral.user.stats", "error": e }));
+            }
+        }
+    } else {
+        0
+    };
     let req = ReqReferralUserStats {
-        subject_uid,
+        subject_uid: resolved_uid,
         col_a: None,
         col_b: None,
+        subject_handle: String::new(),
     };
     match referral_user_stats(&ctx.pool, ctx.owner_iid, req).await {
         Ok(res) => {
@@ -234,16 +262,93 @@ pub async fn referral_user_stats_exec(ctx: &ToolContext, args: &Value) -> Result
                     "billing_currency": w.billing_currency,
                 })
             });
+            let referred_by = res
+                .referred_by
+                .as_ref()
+                .map(referrer_brief_json)
+                .unwrap_or(Value::Null);
+            let effective_uid = if resolved_uid > 0 {
+                resolved_uid
+            } else {
+                ctx.owner_iid
+            };
             Ok(json!({
                 "ok": true,
                 "tool": "referral.user.stats",
-                "subject_uid": if subject_uid > 0 { subject_uid } else { ctx.owner_iid },
+                "subject_uid": effective_uid,
                 "wallet": wallet,
                 "auth_email": res.auth_email,
                 "auth_phone": res.auth_phone,
+                "referred_by": referred_by,
+                "registered_ts_ms": res.registered_ts_ms,
+                "llm": {
+                    "wallet": wallet,
+                    "referred_by": referred_by,
+                    "registered_ts_ms": res.registered_ts_ms,
+                },
             }))
         }
         Err(e) => Ok(json!({ "ok": false, "tool": "referral.user.stats", "error": e })),
+    }
+}
+
+fn registration_row_json(r: &AdminUserRegistrationRow) -> Value {
+    let referred_by = r
+        .referred_by
+        .as_ref()
+        .map(|ref_b| {
+            json!({
+                "identity_id": ref_b.identity_id,
+                "name": ref_b.name,
+                "alien_id": ref_b.alien_id,
+                "handle": if ref_b.alien_id.is_empty() {
+                    Value::Null
+                } else {
+                    json!(format!("@{}", ref_b.alien_id))
+                },
+            })
+        })
+        .unwrap_or(Value::Null);
+    json!({
+        "identity_id": r.identity_id,
+        "name": r.name,
+        "handle": r.handle,
+        "email": r.email,
+        "registered_ts_ms": r.registered_ts_ms,
+        "referred_by": referred_by,
+    })
+}
+
+pub async fn admin_user_registrations_list_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
+    if let Err(e) = require_staff_json(ctx, "admin.user.registrations.list").await {
+        return Ok(e);
+    }
+    let req = ReqAdminUserRegistrationsList {
+        preset: arg_str(args, "preset"),
+        since: arg_str(args, "since"),
+        until: arg_str(args, "until"),
+        count_only: args.get("count_only").and_then(|v| v.as_bool()).unwrap_or(false),
+        limit: args.get("limit").and_then(|v| v.as_i64()).unwrap_or(50) as i32,
+        after_registered_ts_ms: arg_i64(args, "after_registered_ts_ms"),
+        after_identity_id: arg_i64(args, "after_identity_id"),
+        referred_by_uid: arg_i64(args, "referred_by_uid"),
+        timezone: arg_str(args, "timezone"),
+    };
+    match admin_user_registrations_list(&ctx.pool, ctx.owner_iid, req).await {
+        Ok(res) => {
+            let users: Vec<Value> = res.users.iter().map(registration_row_json).collect();
+            Ok(json!({
+                "ok": true,
+                "tool": "admin.user.registrations.list",
+                "count": res.count,
+                "users": users,
+                "timezone_used": res.timezone_used,
+                "window_start_ms": res.window_start_ms,
+                "window_end_ms": res.window_end_ms,
+                "has_more": res.has_more,
+            }))
+        }
+        Err(e) => Ok(admin_err_json(e)),
     }
 }
 
@@ -367,6 +472,28 @@ pub async fn billing_withdraw_review_exec(ctx: &ToolContext, args: &Value) -> Re
 }
 
 tool! {
+    struct: AdminUserRegistrationsListTool,
+    name: "admin.user.registrations.list",
+    description: "List or count platform user signups in a date window (partner/director). Use preset today|yesterday|this_week|last_week|this_month|last_month or since/until YYYY-MM-DD in viewer timezone. count_only for totals only. Each row includes referrer name and handle.",
+    topics: ["staff", "referral"],
+    always: ["general", "staff"],
+    requires_global_roles: ["partner", "director"],
+    readonly: true,
+    parameters: {
+        preset: (string, "today | yesterday | this_week | last_week | this_month | last_month", optional),
+        since: (string, "Start date YYYY-MM-DD inclusive", optional),
+        until: (string, "End date YYYY-MM-DD inclusive", optional),
+        count_only: (boolean, "Return count only", optional, default = false),
+        limit: (integer, "Max rows 1-100 when listing", optional, default = 50),
+        after_registered_ts_ms: (integer, "Pagination cursor", optional),
+        after_identity_id: (integer, "Pagination cursor identity id", optional),
+        referred_by_uid: (integer, "Only direct signups under this referrer uid", optional),
+        timezone: (string, "IANA timezone override", optional),
+    },
+    execute: |args, ctx| admin_user_registrations_list_exec(ctx, &args).await
+}
+
+tool! {
     struct: AdminUserSearchTool,
     name: "admin.user.search",
     description: "Search users by name, email, handle, or numeric id (referral staff). Examples: cari user Alice, search user chito, find uid 99000.",
@@ -384,13 +511,14 @@ tool! {
 tool! {
     struct: ReferralUserStatsStaffTool,
     name: "referral.user.stats",
-    description: "Wallet balance, commission available, and referral counts for a user (self or staff viewing another uid). Examples: cek saldo user 12345, balance for @alice, komisi tersedia uid 99000.",
+    description: "Wallet balance, commission, signup time (registered_ts_ms), and upline referrer for a user. Staff: subject_uid or subject_handle. Reply with name/handle; identity_id only if operator asks.",
     topics: ["staff", "referral", "billing"],
     always: ["general", "staff"],
     requires_global_roles: ["partner", "director", "finance"],
     readonly: true,
     parameters: {
         subject_uid: (integer, "Target identity id; 0 = caller", optional, default = 0),
+        subject_handle: (string, "Target alien_id / handle", optional),
     },
     execute: |args, ctx| referral_user_stats_exec(ctx, &args).await
 }

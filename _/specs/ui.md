@@ -438,7 +438,7 @@ UI reference: `D:\cs_agent\clients\app\lib\widgets\ai\msg_trace_view.dart`
 
 | Section | UI | Purpose |
 |---------|-----|---------|
-| **Stats dashboard** | Default view on open | Per-node cards (multi-node): CPU/RAM bars, network In/Out bars, **Storages** (`sda (boot)`, `sdb`, …), **Volumes** (`yb-tserver`, `yb-master`, `nats` used/capacity) — passive NATS relay via WS `ReqStatsSubscribe` (`c35.stats.>`) |
+| **Stats dashboard** | Default view on open | Per-node cards (multi-node): CPU/RAM bars, network In/Out bars, **Storages** (`sda (boot)`, `sdb`, …) with optional **broom** (small `Icons.cleaning_services` after the device title) for Boot / yugabyte / buildkit cleanup — see [root-console-disk-cleanup.md](root-console-disk-cleanup.md); **Volumes** (`yb-tserver`, `yb-master`, `nats` used/capacity) — passive NATS relay via WS `ReqStatsSubscribe` (`c35.stats.>`) |
 | **Logs** | Action tile → `page_root_logs` | Search/tail `ai.log` by user, date range, text; live via WS `ReqLogSubscribe` |
 | **Inst** | Action tile → `page_root_inst` | Edit `ai.inst` rows in `UITable` (prompt steering) without MCP |
 | **Objects** | Action tile → `page_root_objects` | Curate `ai.object_alias` (unverified queue) in `UITable` — see [tx.md](tx.md) |

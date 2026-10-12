@@ -5,6 +5,7 @@ use c35_mod_billing::billing_embed_cost_usd;
 use c35_mod_llm::{
     embed_cached, embed_model_tag, embed_text, EMBED_MODEL, EMBED_TASK_DOCUMENT, EMBED_TASK_QUERY,
 };
+use c35_proto::UserMemoryBundle;
 use c35_store::snowflake_id;
 use reqwest::Client;
 use sqlx::types::Json;
@@ -324,6 +325,7 @@ pub async fn memory_retrieve(
         query_text,
         limit,
         None,
+        None,
     )
     .await
 }
@@ -376,6 +378,7 @@ pub async fn memory_retrieve_with_nats(
     query_text: &str,
     limit: usize,
     query_embed: Option<Vec<f32>>,
+    preloaded_bundle: Option<UserMemoryBundle>,
 ) -> MemoryRetrieveResult {
     let started = Instant::now();
     match tokio::time::timeout(
@@ -389,6 +392,7 @@ pub async fn memory_retrieve_with_nats(
             query_text,
             limit.max(1),
             query_embed,
+            preloaded_bundle,
         ),
     )
     .await
@@ -509,11 +513,15 @@ async fn memory_retrieve_impl(
     query_text: &str,
     limit: usize,
     query_embed: Option<Vec<f32>>,
+    preloaded_bundle: Option<UserMemoryBundle>,
 ) -> Result<(String, MemoryRetrieveTrace)> {
     let mut trace = MemoryRetrieveTrace::default();
     let q = query_text.trim();
 
-    let bundle = memory_bundle_fetch_or_build(pool, nats, http, owner_iid, bot_iid).await;
+    let bundle = match preloaded_bundle {
+        Some(b) => Some(b),
+        None => memory_bundle_fetch_or_build(pool, nats, http, owner_iid, bot_iid).await,
+    };
 
     if let Some(ref bundle) = bundle {
         let pinned_items: Vec<(String, String)> = bundle

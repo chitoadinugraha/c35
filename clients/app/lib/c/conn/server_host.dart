@@ -181,6 +181,7 @@ Future<void> serverHostInit() async {
     l('server host: $resolved');
   }
   serverHostApply(resolved);
+  serverHostTick.value++;
   if (kDebugMode && serverHostIsLocalDev(C35Config.authApiBase)) {
     // Do not block app boot — local dev_server can take 30–90s (YB/NATS cold start).
     unawaited(serverHostWaitReady());

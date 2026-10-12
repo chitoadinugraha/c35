@@ -11,6 +11,11 @@ WHERE deleted_ts IS NULL AND expires_ts > NOW() AND hash_blake3 ~ '^[0-9a-f]{64}
 ON CONFLICT DO NOTHING;
 
 INSERT INTO cas_kept(hash)
+SELECT lower(hash_blake3) FROM ai.blob_ref
+WHERE hash_blake3 ~ '^[0-9a-f]{64}$'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO cas_kept(hash)
 SELECT lower(file_hash) FROM site.member_face
 WHERE deleted_ts IS NULL AND file_hash ~ '^[0-9a-f]{64}$'
 ON CONFLICT DO NOTHING;

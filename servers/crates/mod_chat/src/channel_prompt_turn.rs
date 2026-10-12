@@ -16,7 +16,8 @@ use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
 use crate::context_pack::{context_window_resolve, token_estimate};
 use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::{inst_pool_signal, inst_scopes_channel};
-use crate::memory::{memory_prompt_merge, memory_retrieve, MemoryRetrieveResult};
+use crate::bot_session::{bot_session_billing_snapshot, bot_session_on_turn};
+use crate::memory::{memory_prompt_merge, memory_retrieve_with_nats, MemoryRetrieveResult};
 use crate::memory_extract::memory_extract_turn_gate;
 use crate::prompt::gemini::gemini_api_key;
 use crate::prompt::thought::thinking_level;
@@ -48,6 +49,7 @@ pub async fn channel_prompt_turn(
         .await
         .context("prompt turn concurrency limit")?;
     let turn_started = Instant::now();
+    bot_session_on_turn(pool.clone(), nats.cloned(), owner_iid, bot_iid);
     let bctx = billing_resolve(
         pool,
         TurnBillingCtx {
@@ -57,13 +59,21 @@ pub async fn channel_prompt_turn(
         },
     )
     .await?;
+    let mut cached_billing = bot_session_billing_snapshot(owner_iid, bot_iid);
+    if cached_billing.is_none() {
+        cached_billing = c35_mod_billing::billing_cache_get(nats, owner_iid).await;
+    }
     let model = match identity_model_resolve(pool, bot_iid).await {
         Some(m) => m,
         None => identity_model_resolve(pool, owner_iid)
             .await
             .unwrap_or_else(|| "alienai".into()),
     };
-    let brow = c35_mod_billing::billing_gate_scoped(pool, &bctx).await?;
+    let brow = if let Some(ref cached) = cached_billing {
+        c35_mod_billing::cached_to_billing_row(cached)
+    } else {
+        c35_mod_billing::billing_gate_scoped(pool, &bctx).await?
+    };
     c35_mod_billing::billing_gate_with_hold_model(
         pool,
         owner_iid,
@@ -116,8 +126,22 @@ pub async fn channel_prompt_turn(
     let memory_task = tokio::spawn({
         let pool = pool.clone();
         let http = http.clone();
+        let nats = nats.cloned();
         let query = prompt_text.clone();
-        async move { memory_retrieve(&pool, &http, owner_iid, Some(bot_iid), &query, 8).await }
+        async move {
+            memory_retrieve_with_nats(
+                &pool,
+                nats.as_ref(),
+                &http,
+                owner_iid,
+                Some(bot_iid),
+                &query,
+                8,
+                None,
+                None,
+            )
+            .await
+        }
     });
     let composed = compose_tools_and_inst_async(
         pool,

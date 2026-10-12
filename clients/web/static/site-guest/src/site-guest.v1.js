@@ -176,6 +176,12 @@
       .replace(/"/g, '&quot;');
   }
 
+  function productDescText(product) {
+    if (!product) return '';
+    const raw = product.desc != null ? product.desc : product.description;
+    return String(raw == null ? '' : raw).trim();
+  }
+
   function apiBase() {
     if (window.__SITE_GUEST__ && window.__SITE_GUEST__.api_base) {
       return window.__SITE_GUEST__.api_base;
@@ -617,13 +623,13 @@
 
     function checkoutPrimaryLabel() {
       if (checkoutStep === 'confirm') {
-        if (!paymentMethods.length) return 'Pesan \u00b7 ' + formatRpPlain(grandTotal());
+        if (!paymentMethods.length) return 'Pesan \u00b7 ' + formatIdr(grandTotal());
         return 'Lanjut';
       }
       if (checkoutStep === 'payment') return 'Pilih metode';
       const m = selectedPayment();
       if (m && m.type === 'whatsapp') return 'Kirim via WhatsApp';
-      return 'Konfirmasi \u00b7 ' + formatRpPlain(grandTotal());
+      return 'Konfirmasi \u00b7 ' + formatIdr(grandTotal());
     }
 
     function payIconHtml(method) {
@@ -754,7 +760,7 @@
       const n = count();
       if (bar) bar.style.display = n > 0 && !sheet ? 'flex' : 'none';
       if (countEl) countEl.textContent = countLabel();
-      if (totalEl) totalEl.textContent = formatRpPlain(grandTotal());
+      if (totalEl) totalEl.textContent = formatIdr(grandTotal());
       refreshTileBadges();
     }
 
@@ -807,7 +813,8 @@
       const pic = picUrl
         ? '<img class="guest-order-pic guest-pic-preview" src="' + escHtml(picUrl) + '" alt="" data-pic-display="' + escHtml(picUrl) + '" role="button" tabindex="0"/>'
         : '<div class="guest-order-pic guest-order-pic-empty">\uD83D\uDECD\uFE0F</div>';
-      const desc = p.description ? '<p class="guest-product-desc">' + escHtml(p.description) + '</p>' : '';
+      const descText = productDescText(p);
+      const desc = descText ? '<p class="guest-product-desc">' + escHtml(descText) + '</p>' : '';
       const stock = orderStockMax != null ? '<p class="guest-stock">Stok: ' + orderStockMax + '</p>' : '';
       const err = orderError ? '<p class="guest-error">' + escHtml(orderError) + '</p>' : '';
       const keys = numpadKeys.map(function (k) {
@@ -817,7 +824,7 @@
       return '<div class="guest-sheet-handle"></div><div class="guest-order-card"><div class="guest-order-pic-wrap">' + pic
         + (orderQty > 0 ? '<span class="guest-product-qty">' + orderQty + '</span>' : '') + '</div><div class="guest-order-info"><div class="guest-order-top">'
         + '<div class="guest-order-name">' + escHtml(p.name || 'Produk') + '</div><div class="guest-order-price">' + formatIdr(p.price || 0) + '</div></div>'
-        + desc + '<label class="guest-note"><span>📝</span><input type="text" id="c35-order-note" value="' + escHtml(orderNote) + '" placeholder="Catatan (opsional)…"/></label>'
+        + desc + '<label class="guest-note"><span>📝</span><textarea id="c35-order-note" rows="2" placeholder="Catatan (opsional)…">' + escHtml(orderNote) + '</textarea></label>'
         + '</div></div>' + stock + err + '<div class="guest-numpad">' + keys + '</div>'
         + '<button type="button" class="guest-sheet-primary' + (orderQty > 0 ? '' : ' muted') + '" id="c35-order-confirm">' + escHtml(primary) + '</button>';
     }
@@ -1091,7 +1098,7 @@
             const m = selectedPayment();
             const digits = String(m && (m.whatsapp || m.subtitle) || '').replace(/\D/g, '');
             if (digits) {
-              const text = encodeURIComponent('Halo, pesanan #' + txId + ' \u2014 ' + formatRpPlain(savedTotal));
+              const text = encodeURIComponent('Halo, pesanan #' + txId + ' \u2014 ' + formatIdr(savedTotal));
               window.open('https://wa.me/' + digits + '?text=' + text, '_blank', 'noopener');
             }
           }

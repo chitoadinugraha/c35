@@ -102,6 +102,8 @@ message InvokeReq {
     ReqBillingAdminPlanChange billing_admin_plan_change = 142;
     ReqAdminPlatformUserMetrics admin_platform_user_metrics = 143;
     ReqDeviceEgressLease device_egress_lease = 144;
+    ReqAdminDiskClean admin_disk_clean = 145;
+    ReqAdminUserRegistrationsList admin_user_registrations_list = 146;
   }
 }
 
@@ -175,6 +177,8 @@ message InvokeRes {
     ResBillingPlanChange billing_admin_plan_change = 142;
     ResAdminPlatformUserMetrics admin_platform_user_metrics = 143;
     ResDeviceEgressLease device_egress_lease = 144;
+    ResAdminDiskClean admin_disk_clean = 145;
+    ResAdminUserRegistrationsList admin_user_registrations_list = 146;
   }
 }
 
@@ -351,6 +355,7 @@ message WsReq {
     ReqDeviceEgressData req_device_egress_data = 219;
     ReqDeviceEgressClose req_device_egress_close = 220;
     ReqRootConsole root_console = 221;
+    ReqSessionFocus session_focus = 224;
   }
 }
 
@@ -550,6 +555,8 @@ message WsRes {
     DeviceEgressClose device_egress_close = 220;
     ResStatsSubscribe stats_subscribe = 221;
     ResRootConsole root_console = 222;
+    ResSessionFocus session_focus = 223;
+    SessionSuperseded session_superseded = 224;
   }
 }
 

@@ -768,7 +768,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         _openProductDetail(p);
         return;
       }
-      cart.openOrder(productId: pid, name: name, price: price, pic: pic, stockMax: stock);
+      cart.openOrder(productId: pid, name: name, price: price, pic: pic, desc: desc, stockMax: stock);
     }
 
     final priceLabel = guestProductPriceLabel(price);
@@ -877,7 +877,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         _openProductDetail(p);
         return;
       }
-      cart.openOrder(productId: pid, name: name, price: price, pic: pic, stockMax: stock);
+      cart.openOrder(productId: pid, name: name, price: price, pic: pic, desc: desc, stockMax: stock);
     }
 
     final card = Column(
@@ -2166,7 +2166,7 @@ class GuestSiteProductDetailContent extends StatelessWidget {
         else if (!canReserve && cart != null && pid > 0 && guestProductCanAddToCart(price))
           TextButton(
             onPressed: () {
-              cart!.openOrder(productId: pid, name: name, price: price, pic: pic, stockMax: stock);
+              cart!.openOrder(productId: pid, name: name, price: price, pic: pic, desc: desc, stockMax: stock);
               onClose?.call();
             },
             child: const Text('+ Pesan'),

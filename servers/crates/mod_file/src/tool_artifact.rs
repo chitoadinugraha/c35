@@ -3,6 +3,8 @@ use chrono::{DateTime, Duration, Utc};
 use serde_json::Value as JsonValue;
 use sqlx::{PgPool, Row};
 
+use crate::{blob_ref_upsert, BlobRefScope};
+
 pub const TOOL_ARTIFACT_TTL_DAYS: i64 = 14;
 
 pub async fn tool_artifact_insert(
@@ -40,6 +42,16 @@ pub async fn tool_artifact_insert(
     .bind(expires_ts)
     .execute(pool)
     .await?;
+    let scope = BlobRefScope {
+        scope_kind: "user",
+        scope_iid: owner_iid,
+        billable_owner_iid: owner_iid,
+    };
+    let source_key = format!("tool_artifact:{}", id);
+    if let Err(e) = blob_ref_upsert(pool, &scope, hash_blake3, "tool_artifact", &source_key).await
+    {
+        tracing::warn!("blob_ref tool_artifact id={id}: {e}");
+    }
     Ok(id)
 }
 

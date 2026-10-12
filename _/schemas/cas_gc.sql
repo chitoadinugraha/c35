@@ -77,6 +77,9 @@ roots AS (
     UNION
     SELECT lower(hash_blake3) FROM ai.tool_artifact
     WHERE deleted_ts IS NULL AND expires_ts > NOW() AND hash_blake3 ~ '^[0-9a-f]{64}$'
+    UNION
+    SELECT lower(hash_blake3) FROM ai.blob_ref
+    WHERE hash_blake3 ~ '^[0-9a-f]{64}$'
 ),
 kept AS (
     SELECT hash FROM roots

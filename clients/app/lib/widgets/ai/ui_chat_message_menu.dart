@@ -9,8 +9,12 @@ abstract final class ChatMessageMenuStyle {
   static const rowText = Color(0xFFF4F4F5);
   static const rowMuted = Color(0xFFA1A1AA);
   static const rowIconHover = rowMuted;
-  static const minWidth = 184.0;
-  static const maxWidth = 240.0;
+  static const rowPaddingH = 12.0;
+  static const rowPaddingV = 8.0;
+  static const iconSize = 16.0;
+  static const iconGap = 10.0;
+  static const minWidth = 220.0;
+  static const maxWidth = 280.0;
 }
 
 sealed class ChatMessageMenuItem {
@@ -137,63 +141,13 @@ class _ChatMessageMenuPanel extends StatelessWidget {
                     )
                   else if (item is ChatMessageMenuAction)
                     _ChatMessageMenuRow(action: item)
-                  else if (item is ChatMessageMenuButtonRow && item.actions.length == 2)
-                    Row(
-                      children: [
-                        for (final action in item.actions) Expanded(child: _ChatMessageMenuHalfButton(action: action)),
-                      ],
-                    ),
+                  else if (item is ChatMessageMenuButtonRow)
+                    for (final action in item.actions) _ChatMessageMenuRow(action: action),
               ],
             ),
           ),
         ),
       );
-}
-
-class _ChatMessageMenuHalfButton extends StatefulWidget {
-  const _ChatMessageMenuHalfButton({required this.action});
-
-  final ChatMessageMenuAction action;
-
-  @override
-  State<_ChatMessageMenuHalfButton> createState() => _ChatMessageMenuHalfButtonState();
-}
-
-class _ChatMessageMenuHalfButtonState extends State<_ChatMessageMenuHalfButton> {
-  var _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final act = widget.action;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Material(
-        color: _hovered ? ChatMessageMenuStyle.rowHover : Colors.transparent,
-        child: InkWell(
-          onTap: act.onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(act.icon, size: 16, color: ChatMessageMenuStyle.rowText),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    act.label,
-                    style: const TextStyle(color: ChatMessageMenuStyle.rowText, fontSize: 13, fontWeight: FontWeight.w500, height: 1.2),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _ChatMessageMenuRow extends StatefulWidget {
@@ -219,11 +173,21 @@ class _ChatMessageMenuRowState extends State<_ChatMessageMenuRow> {
         child: InkWell(
           onTap: act.onPressed,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: ChatMessageMenuStyle.rowPaddingH,
+              vertical: ChatMessageMenuStyle.rowPaddingV,
+            ),
             child: Row(
               children: [
-                Icon(act.icon, size: 16, color: _hovered ? ChatMessageMenuStyle.rowIconHover : ChatMessageMenuStyle.rowMuted),
-                const SizedBox(width: 10),
+                SizedBox(
+                  width: ChatMessageMenuStyle.iconSize,
+                  child: Icon(
+                    act.icon,
+                    size: ChatMessageMenuStyle.iconSize,
+                    color: _hovered ? ChatMessageMenuStyle.rowIconHover : ChatMessageMenuStyle.rowMuted,
+                  ),
+                ),
+                const SizedBox(width: ChatMessageMenuStyle.iconGap),
                 Expanded(
                   child: Text(
                     act.label,
@@ -231,8 +195,10 @@ class _ChatMessageMenuRowState extends State<_ChatMessageMenuRow> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (act.shortcut != null)
+                if (act.shortcut != null) ...[
+                  const SizedBox(width: 12),
                   Text(act.shortcut!, style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontFamily: 'monospace')),
+                ],
               ],
             ),
           ),

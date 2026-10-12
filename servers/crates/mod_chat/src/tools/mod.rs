@@ -33,7 +33,8 @@ use builtin::{
     AccountBillingGetTool, AccountBillingHistoryTool, AccountGetTool, AccountReferralLedgerTool,
     AccountReferralStatsTool, AccountSnapshotTool, AdminBotListTool, AdminChatMessagesTool,
     AdminChatSearchTool, AdminClientListTool, AdminDeviceListTool, AdminLogTailTool,
-    AdminMsgFindTool, AdminMsgGetTool, AdminTaskListTool, AdminTraceGetTool, AdminUserSearchTool,
+    AdminMsgFindTool, AdminMsgGetTool, AdminTaskListTool, AdminTraceGetTool,
+    AdminUserRegistrationsListTool, AdminUserSearchTool,
     BillingTopupListTool, BillingTopupReviewTool, BillingWithdrawListTool,
     BillingWithdrawReviewTool, BotDraftTool, BotInboxQueryTool, BotListTool,
     BrowserAgentRestartTool, BrowserCaptchaApplyTool, BrowserExtensionTool, BrowserFileUploadTool,
@@ -61,7 +62,7 @@ use builtin::{
     SiteOrderStatusTool, SitePatchTool, SitePicGenerateTool, SiteProductDeleteTool,
     SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool,
     SiteQueryRunTool, SiteTxDebtPayTool, SiteTxGetTool, SiteTxListTool, SiteTxPreviewTool,
-    SiteTxPutTool,
+    SiteTxPutTool, StorageUsageTool,
     TaskCreateTool, TaskDeleteTool, TaskListTool, TaskRunCancelDeviceTool, TaskRunCancelTool,
     TaskRunStartTool, TaskRunStatusTool, VidGenerateTool, WebResearchTool, WebSearchTool,
     WebVisitTool,
@@ -241,11 +242,13 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(AccountReferralStatsTool));
     dispatcher.register(Arc::new(AccountReferralLedgerTool));
     dispatcher.register(Arc::new(AccountSnapshotTool));
+    dispatcher.register(Arc::new(StorageUsageTool));
     dispatcher.register(Arc::new(DeviceListTool));
     dispatcher.register(Arc::new(BotListTool));
     dispatcher.register(Arc::new(SiteListTool));
     dispatcher.register(Arc::new(ClientListTool));
     dispatcher.register(Arc::new(AdminUserSearchTool));
+    dispatcher.register(Arc::new(AdminUserRegistrationsListTool));
     dispatcher.register(Arc::new(AdminChatSearchTool));
     dispatcher.register(Arc::new(AdminChatMessagesTool));
     dispatcher.register(Arc::new(AdminDeviceListTool));

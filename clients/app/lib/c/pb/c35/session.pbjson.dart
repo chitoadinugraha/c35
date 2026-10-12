@@ -182,3 +182,45 @@ final $typed_data.Uint8List resSessionInitDescriptor = $convert.base64Decode(
     'T3B0aW9uUgZtb2RlbHMSLwoIbWVudGlvbnMYDCABKAsyEy5jMzUuTWVudGlvbkNhdGFsb2dSCG'
     '1lbnRpb25zEiYKBWhpbnRzGA0gASgLMhAuYzM1LkhpbnRDYXRhbG9nUgVoaW50cxIkCgRsaXZl'
     'GA4gASgLMhAuYzM1LkxpdmVDYXRhbG9nUgRsaXZl');
+
+@$core.Deprecated('Use reqSessionFocusDescriptor instead')
+const ReqSessionFocus$json = {
+  '1': 'ReqSessionFocus',
+  '2': [
+    {'1': 'chat_id', '3': 1, '4': 1, '5': 3, '10': 'chatId'},
+    {'1': 'last_seen_msg_id', '3': 2, '4': 1, '5': 3, '10': 'lastSeenMsgId'},
+  ],
+};
+
+/// Descriptor for `ReqSessionFocus`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSessionFocusDescriptor = $convert.base64Decode(
+    'Cg9SZXFTZXNzaW9uRm9jdXMSFwoHY2hhdF9pZBgBIAEoA1IGY2hhdElkEicKEGxhc3Rfc2Vlbl'
+    '9tc2dfaWQYAiABKANSDWxhc3RTZWVuTXNnSWQ=');
+
+@$core.Deprecated('Use resSessionFocusDescriptor instead')
+const ResSessionFocus$json = {
+  '1': 'ResSessionFocus',
+  '2': [
+    {'1': 'warming', '3': 1, '4': 1, '5': 8, '10': 'warming'},
+    {'1': 'revision', '3': 2, '4': 1, '5': 4, '10': 'revision'},
+  ],
+};
+
+/// Descriptor for `ResSessionFocus`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSessionFocusDescriptor = $convert.base64Decode(
+    'Cg9SZXNTZXNzaW9uRm9jdXMSGAoHd2FybWluZxgBIAEoCFIHd2FybWluZxIaCghyZXZpc2lvbh'
+    'gCIAEoBFIIcmV2aXNpb24=');
+
+@$core.Deprecated('Use sessionSupersededDescriptor instead')
+const SessionSuperseded$json = {
+  '1': 'SessionSuperseded',
+  '2': [
+    {'1': 'reason', '3': 1, '4': 1, '5': 9, '10': 'reason'},
+    {'1': 'revision', '3': 2, '4': 1, '5': 4, '10': 'revision'},
+  ],
+};
+
+/// Descriptor for `SessionSuperseded`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List sessionSupersededDescriptor = $convert.base64Decode(
+    'ChFTZXNzaW9uU3VwZXJzZWRlZBIWCgZyZWFzb24YASABKAlSBnJlYXNvbhIaCghyZXZpc2lvbh'
+    'gCIAEoBFIIcmV2aXNpb24=');

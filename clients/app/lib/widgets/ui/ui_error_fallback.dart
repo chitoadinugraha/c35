@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/log.dart';
+import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_root_error_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
@@ -95,6 +96,12 @@ class UiErrorFallback extends StatelessWidget {
                 Text(_title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFF4F4F5))),
                 const SizedBox(height: 8),
                 Text(_subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFFA1A1AA))),
+                const SizedBox(height: 10),
+                Text(
+                  appVersionErrorPageLabel(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF71717A)),
+                ),
                 if (error != null && sessionViewerIsRoot()) ...[
                   const SizedBox(height: 12),
                   UiRootErrorDetail(detail: uiErrorDetailText(error!)),

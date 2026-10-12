@@ -91,6 +91,9 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   if (lower.contains('cannot add event after closing') || lower == 'disconnected' || lower.contains('connection failed')) {
     return uiConnectionFailed;
   }
+  if (lower.contains('rpc timeout')) {
+    return 'Request timed out. Check your internet and try again.';
+  }
   if (lower.contains('websocketchannel') ||
       lower.contains('websocket') ||
       lower.contains('connection closed before full header') ||

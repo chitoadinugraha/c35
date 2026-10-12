@@ -82,3 +82,20 @@ message ResSessionInit {
   // Live Call offers (ai.live_offer) — not in chat model picker
   LiveCatalog live = 14;
 }
+
+// Home thread focus: warm prompt-tail cache for this chat (owner WS session).
+message ReqSessionFocus {
+  int64 chat_id = 1;
+  int64 last_seen_msg_id = 2;
+}
+
+message ResSessionFocus {
+  bool warming = 1;
+  uint64 revision = 2;
+}
+
+// Server push when a newer app WebSocket supersedes this connection.
+message SessionSuperseded {
+  string reason = 1;
+  uint64 revision = 2;
+}

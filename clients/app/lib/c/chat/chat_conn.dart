@@ -88,15 +88,23 @@ class PromptStreamEvent {
   final ResPromptEnd? end;
 }
 
+typedef ChatSocketOpen = WebSocketChannel Function(Uri uri);
+
 class ChatConn {
+  ChatConn({@visibleForTesting ChatSocketOpen? openSocket}) : _openSocket = openSocket;
+
+  final ChatSocketOpen? _openSocket;
   WebSocketChannel? _ch;
   StreamSubscription? _sub;
   Timer? _reconnectTimer;
   var _manualDisconnect = false;
   var _retryCount = 0;
+  var _supersedeReconnecting = false;
   var _socketGen = 0;
   var _connectEpoch = 0;
   static const _wsReadyTimeout = Duration(seconds: 8);
+  @visibleForTesting
+  var readyTimeout = _wsReadyTimeout;
   var _locale = 'en';
   var _tz = '';
   var _appBuild = 0;
@@ -197,6 +205,7 @@ class ChatConn {
     final epoch = ++_connectEpoch;
     _statusSet(ChatConnStatus.connecting);
     await _tearDownSocket(failPending: true);
+    if (epoch != _connectEpoch) return;
     try {
       await _attachSocket(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName);
       if (epoch != _connectEpoch) return;
@@ -234,13 +243,7 @@ class ChatConn {
 
   Future<void> _tearDownSocket({required bool failPending}) async {
     // Invalidate stream callbacks before closing so a racing onDone cannot schedule reconnect.
-    _socketGen++;
-    await _sub?.cancel();
-    _sub = null;
-    try {
-      await _ch?.sink.close();
-    } catch (_) {}
-    _ch = null;
+    _detachSocket();
     if (!failPending) return;
     for (final c in _promptPending.values) {
       if (c.isClosed) continue;
@@ -263,9 +266,9 @@ class ChatConn {
     final token = Session.instance.token.trim();
     if (token.isEmpty) throw 'not signed in';
     final gen = ++_socketGen;
-    _ch = WebSocketChannel.connect(
-      Uri.parse(_wsUrl(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName)),
-    );
+    final uri = Uri.parse(_wsUrl(locale: locale, tz: tz, appBuild: appBuild, appVersionName: appVersionName));
+    final open = _openSocket;
+    _ch = open != null ? open(uri) : WebSocketChannel.connect(uri);
     _sub = _ch!.stream.listen(
       (data) => _onData(data, gen),
       onError: (e) => _onWsError(e, gen),
@@ -286,10 +289,9 @@ class ChatConn {
     final ch = _ch;
     if (ch == null) throw StateError('no socket');
     try {
-      await ch.ready.timeout(_wsReadyTimeout);
+      await ch.ready.timeout(readyTimeout);
     } on TimeoutException {
       if (gen != _socketGen) throw const ChatConnAttachSuperseded();
-      await _dropSocketIfGen(gen);
       throw StateError('chat ws ready timeout');
     }
     if (gen != _socketGen) throw const ChatConnAttachSuperseded();
@@ -297,13 +299,34 @@ class ChatConn {
 
   Future<void> _dropSocketIfGen(int gen) async {
     if (gen != _socketGen || _ch == null) return;
+    _detachSocket();
+  }
+
+  /// Drop the current socket without waiting for [WebSocketChannel.sink.close].
+  ///
+  /// web_socket_channel only listens to its local stream after the handshake
+  /// succeeds. [StreamSink.close] does not complete until that listener exists,
+  /// so a refused or timed-out connect would leave [ChatConnStatus.connecting]
+  /// stuck and block a later host change until process restart.
+  void _detachSocket() {
     _socketGen++;
-    await _sub?.cancel();
+    final sub = _sub;
     _sub = null;
-    try {
-      await _ch?.sink.close();
-    } catch (_) {}
+    final ch = _ch;
     _ch = null;
+    if (sub != null) {
+      unawaited(() async {
+        try {
+          await sub.cancel();
+        } catch (_) {}
+      }());
+    }
+    if (ch == null) return;
+    unawaited(() async {
+      try {
+        await ch.sink.close();
+      } catch (_) {}
+    }());
   }
 
   void _markConnected(int gen) {
@@ -356,6 +379,7 @@ class ChatConn {
       try {
         _statusSet(ChatConnStatus.connecting);
         await _tearDownSocket(failPending: true);
+        if (epoch != _connectEpoch || _manualDisconnect) return;
         await _attachSocket(
           locale: _locale,
           tz: _tz,
@@ -457,6 +481,10 @@ class ChatConn {
 
     if (res.hasSyncPush()) {
       if (!_syncPushCtrl.isClosed) _syncPushCtrl.add(res.syncPush);
+    }
+    if (res.hasSessionSuperseded() && reqId.isEmpty) {
+      unawaited(_onSessionSuperseded());
+      return;
     }
     if (res.hasBillingBalance() && !_billingBalanceCtrl.isClosed) _billingBalanceCtrl.add(res.billingBalance);
     if (res.hasBillingQuota() && !_billingQuotaCtrl.isClosed) _billingQuotaCtrl.add(res.billingQuota);
@@ -623,6 +651,26 @@ class ChatConn {
         ),
         (res) => res.sessionInit,
       );
+
+  Future<ResSessionFocus> sessionFocus({required int chatId, int lastSeenMsgId = 0}) => _rpc<ResSessionFocus>(
+        WsReq(
+          sessionFocus: ReqSessionFocus(
+            chatId: Int64(chatId),
+            lastSeenMsgId: Int64(lastSeenMsgId),
+          ),
+        ),
+        (res) => res.sessionFocus,
+      );
+
+  Future<void> _onSessionSuperseded() async {
+    if (_supersedeReconnecting || _manualDisconnect) return;
+    _supersedeReconnecting = true;
+    try {
+      await reconnect();
+    } finally {
+      _supersedeReconnecting = false;
+    }
+  }
 
   Future<ResHintTouch> hintTouch({required Int64 assetIid, required String assetKind}) => _rpc<ResHintTouch>(
         WsReq(hintTouch: ReqHintTouch(assetIid: assetIid, assetKind: assetKind)),
@@ -1345,10 +1393,26 @@ class ChatConn {
         (res) => res.txGet,
       );
 
-  Future<ResTxList> txList(int siteIid, {String q = '', int limit = 100, bool includeArchived = false}) => _rpc<ResTxList>(
-        WsReq(txList: ReqTxList(siteIid: Int64(siteIid), q: q, limit: limit, includeArchived: includeArchived)),
-        (res) => res.txList,
-      );
+  Future<ResTxList> txList(
+    int siteIid, {
+    String q = '',
+    int limit = 100,
+    bool includeArchived = false,
+    TxType? type,
+    TxState? state,
+    bool openOnly = false,
+  }) {
+    final req = ReqTxList(
+      siteIid: Int64(siteIid),
+      q: q,
+      limit: limit,
+      includeArchived: includeArchived,
+      openOnly: openOnly,
+    );
+    if (type != null) req.type = type;
+    if (state != null) req.state = state;
+    return _rpc<ResTxList>(WsReq(txList: req), (res) => res.txList);
+  }
 
   Future<ResTxPut> txPut(Tx tx) => _rpc<ResTxPut>(
         WsReq(txPut: ReqTxPut(tx: tx)),

@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/widgets/sites/tx/pos_queue/tx_queue_helpers.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_parked_orders.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_site_product_thumb.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -32,22 +33,6 @@ Future<ParkedTx?> showTransaksiParkedDialog({
       ),
       builder: (ctx) => _SheetParkedOrders(siteIid: siteIid, products: products),
     );
-
-String formatTimeAgo(DateTime dateTime) {
-  final diff = DateTime.now().difference(dateTime);
-  if (diff.inSeconds < 45) {
-    return 'Just now';
-  } else if (diff.inMinutes < 60) {
-    final mins = diff.inMinutes;
-    return '$mins min${mins == 1 ? '' : 's'} ago';
-  } else if (diff.inHours < 24) {
-    final hrs = diff.inHours;
-    return '$hrs hour${hrs == 1 ? '' : 's'} ago';
-  } else {
-    final days = diff.inDays;
-    return '$days day${days == 1 ? '' : 's'} ago';
-  }
-}
 
 class _SheetParkedOrders extends StatelessWidget {
   const _SheetParkedOrders({required this.siteIid, required this.products});
@@ -320,7 +305,7 @@ class _ParkedOrderTile extends StatelessWidget {
                           const Icon(Icons.access_time, size: 12, color: _muted),
                           const SizedBox(width: 4),
                           Text(
-                            formatTimeAgo(order.timestamp),
+                            txQueueFormatTimeAgo(order.timestamp),
                             style: const TextStyle(color: _muted, fontSize: 11),
                           ),
                           const Text(' • ', style: TextStyle(color: _muted, fontSize: 11)),

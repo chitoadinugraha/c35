@@ -20,7 +20,8 @@ use c35_proto::{
 };
 use c35_wire::WireErr;
 use futures_util::StreamExt;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 use tokio_util::sync::CancellationToken;
 
 use crate::router::WsQuery;
@@ -59,6 +60,16 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
     let ctx = Ctx::from_state(&state, caller_iid);
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<WsRes>();
     let app_conn_id = c35_mod_device::remote_signaling_app_conn_register(out_tx.clone());
+    let owner_conn_id = format!("app-{}", app_conn_id);
+    let owner_session = c35_mod_chat::owner_session_supersede(caller_iid, owner_conn_id.clone());
+    c35_mod_chat::owner_session_bind_ws(caller_iid, out_tx.clone());
+    let _owner_ws_guard = c35_mod_chat::OwnerSessionConnection::new(owner_conn_id);
+    {
+        let pool = state.pool.clone();
+        let nats = state.nats.clone();
+        let session = owner_session.clone();
+        c35_mod_chat::owner_session_ensure_owner_warm(&pool, nats.as_ref(), session.clone());
+    }
     let admin_session_id = crate::admin_fanout::admin_session_id();
     {
         let mut ev = c35_mod_event::EventCtx::for_owner(caller_iid, "c35-app");
@@ -91,7 +102,7 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
         });
     }
     let mut prompt_flight: Option<PromptFlight> = None;
-    let mut app_client_id = String::new();
+    let app_client_id = Arc::new(Mutex::new(String::new()));
     if let Some(nats) = state.nats.clone() {
         let fanout_tx = out_tx.clone();
         tokio::spawn(async move {
@@ -126,7 +137,16 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
                         let req_id = req.req_id.clone();
                         match req.body {
                             Some(ws_req::Body::Prompt(p)) => {
-                                prompt_req_put(&state, &ctx, &q, req_id, p, &out_tx, &mut prompt_flight);
+                                prompt_req_put(
+                                    &state,
+                                    &ctx,
+                                    &q,
+                                    req_id,
+                                    p,
+                                    &out_tx,
+                                    &mut prompt_flight,
+                                    owner_session.clone(),
+                                );
                             }
                             Some(ws_req::Body::PromptAbort(ReqPromptAbort { chat_id, req_id: abort_req_id })) => {
                                 if abort_req_id.is_empty() {
@@ -154,16 +174,39 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
                                     Some(ws_req::Body::AppPresence(p)) => Some(p.client_id.clone()),
                                     _ => None,
                                 };
-                                let res = dispatch(&state, &ctx, req, &q, &geo_hint, app_conn_id, admin_session_id, &out_tx).await;
-                                if let Some(id) = presence_id.as_deref() {
-                                    notify_rpc::note_presence(&state.pool, caller_iid, &mut app_client_id, id, &res).await;
-                                }
-                                if socket.send(Message::Binary(pb_encode(&res).into())).await.is_err() {
-                                    break;
-                                }
-                                if matches!(res.body, Some(ws_res::Body::Err(_))) && req_id.is_empty() {
-                                    break;
-                                }
+                                let state = state.clone();
+                                let ctx = ctx.clone();
+                                let q = q.clone();
+                                let geo_hint = geo_hint.clone();
+                                let out_tx = out_tx.clone();
+                                let app_client_id = app_client_id.clone();
+                                tokio::spawn(async move {
+                                    let res = dispatch(
+                                        &state,
+                                        &ctx,
+                                        req,
+                                        &q,
+                                        &geo_hint,
+                                        app_conn_id,
+                                        admin_session_id,
+                                        &out_tx,
+                                    )
+                                    .await;
+                                    if let Some(id) = presence_id.as_deref() {
+                                        let mut stored = app_client_id.lock().await;
+                                        notify_rpc::note_presence(
+                                            &state.pool,
+                                            caller_iid,
+                                            &mut *stored,
+                                            id,
+                                            &res,
+                                        )
+                                        .await;
+                                    }
+                                    if out_tx.send(res).is_err() {
+                                        return;
+                                    }
+                                });
                             }
                         }
                     }
@@ -176,7 +219,8 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
         }
     }
 
-    notify_rpc::forget_presence(&state.pool, caller_iid, &app_client_id).await;
+    let stored = app_client_id.lock().await;
+    notify_rpc::forget_presence(&state.pool, caller_iid, &*stored).await;
     let nats_dc = state.nats.clone();
     tokio::spawn(async move {
         c35_mod_chat::prompt_prepare_cache_on_disconnect(nats_dc.as_ref(), caller_iid).await;
@@ -215,6 +259,7 @@ fn prompt_req_put(
     mut p: c35_proto::ReqPrompt,
     out_tx: &mpsc::UnboundedSender<WsRes>,
     prompt_flight: &mut Option<PromptFlight>,
+    owner_session: Arc<c35_mod_chat::OwnerPromptSession>,
 ) {
     let locale = q.locale.clone().unwrap_or_default();
     let pool = state.pool.clone();
@@ -296,7 +341,11 @@ fn prompt_req_put(
                 });
             },
             &cancel,
-            PromptTurnHooks::default(),
+            PromptTurnHooks {
+                skip_billing_gate: false,
+                on_hop: None,
+                owner_session: Some(owner_session),
+            },
         )
         .await
         {
@@ -462,13 +511,36 @@ async fn dispatch(
             },
             Err(e) => err_res(req_id, WireErr::client("inbox_list_failed", e.to_string())),
         },
-        Some(ws_req::Body::ChatMsgList(r)) => match c35_mod_chat::chat_msg_list(&state.pool, ctx.caller_iid, r).await {
-            Ok(body) => WsRes {
-                req_id,
-                body: Some(ws_res::Body::ChatMsgList(body)),
-            },
-            Err(e) => err_res(req_id, WireErr::client("chat_msg_list_failed", e.to_string())),
-        },
+        Some(ws_req::Body::ChatMsgList(r)) => {
+            let chat_id = r.chat_id;
+            let before_id = r.before_id;
+            match c35_mod_chat::chat_msg_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => {
+                    if before_id == 0 && chat_id > 0 {
+                        if let Some(session) = c35_mod_chat::owner_session_get(ctx.caller_iid) {
+                            let anchor = body.messages.first().map(|m| m.id).unwrap_or(0);
+                            let pool = state.pool.clone();
+                            let nats = state.nats.clone();
+                            tokio::spawn(async move {
+                                let _ = c35_mod_chat::session_focus_chat(
+                                    &pool,
+                                    nats.as_ref(),
+                                    session,
+                                    chat_id,
+                                    anchor,
+                                )
+                                .await;
+                            });
+                        }
+                    }
+                    WsRes {
+                        req_id,
+                        body: Some(ws_res::Body::ChatMsgList(body)),
+                    }
+                }
+                Err(e) => err_res(req_id, WireErr::client("chat_msg_list_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::ChatPatch(r)) => match c35_mod_chat::chat_patch(&state.pool, state.nats.as_ref(), ctx.caller_iid, r).await {
             Ok(body) => WsRes {
                 req_id,
@@ -1774,6 +1846,43 @@ async fn dispatch(
         }
         Some(ws_req::Body::AppPresence(r)) => {
             notify_rpc::app_presence_res(&state.pool, ctx.caller_iid, req_id, r).await
+        }
+        Some(ws_req::Body::SessionFocus(r)) => {
+            let chat_id = r.chat_id;
+            let last_seen = r.last_seen_msg_id;
+            match c35_mod_chat::owner_session_get(ctx.caller_iid) {
+                None => err_res(
+                    req_id,
+                    WireErr::client("session_missing", "No active app session"),
+                ),
+                Some(session) => {
+                    match c35_mod_chat::session_focus_chat(
+                        &state.pool,
+                        state.nats.as_ref(),
+                        session.clone(),
+                        chat_id,
+                        last_seen,
+                    )
+                    .await
+                    {
+                        Ok(revision) => {
+                            let warming = c35_mod_chat::chat_cache_warm_state(&session, chat_id)
+                                != c35_mod_chat::WarmState::Ready;
+                            WsRes {
+                                req_id,
+                                body: Some(ws_res::Body::SessionFocus(c35_proto::ResSessionFocus {
+                                    warming,
+                                    revision,
+                                })),
+                            }
+                        }
+                        Err(e) => err_res(
+                            req_id,
+                            WireErr::client("session_focus_failed", e.to_string()),
+                        ),
+                    }
+                }
+            }
         }
         _ => err_res(
             req_id,

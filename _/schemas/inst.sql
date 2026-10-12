@@ -878,7 +878,7 @@ UPDATE ai.inst SET
         'makan malam apa', 'sarapan apa', 'makan siang apa', 'rekomendasi makanan',
         'rekomendasi makan', 'food recommendation', 'what should i eat', 'apa yang harus dimakan',
         'nutrition recap', 'ringkasan nutrisi',
-        'berapa banyak', 'how much', 'kemarin', 'yesterday', 'mie', 'noodle', 'nasi'
+        'berapa banyak', 'how much did i eat', 'how much protein', 'kemarin', 'yesterday', 'mie', 'noodle', 'nasi'
     ],
     include_tools = ARRAY['consumption.today'],
     exclude_tools = ARRAY['img.generate'],
@@ -2274,6 +2274,65 @@ INSERT INTO ai.inst (
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
 ) VALUES (
+    'inst.staff.registrations',
+    'global',
+    'task',
+    '',
+    '[STAFF REGISTRATIONS] Partner/director asks how many users signed up or who registered in a period. Call admin.user.registrations.list. Count only: count_only true. List with referrers: count_only false. Map hari ini to preset today, minggu lalu to last_week, bulan ini to this_month, or since/until YYYY-MM-DD. Reply with names and @handles; omit numeric uid unless the operator asks. Do not use referral.tree.get for signup reports.',
+    ARRAY[
+        'berapa user mendaftar', 'berapa user yang mendaftar', 'berapa yang mendaftar', 'user mendaftar hari ini',
+        'siapa yang mendaftar', 'daftar user baru', 'registrasi hari ini',
+        'signups today', 'new users today', 'who registered', 'user registrations'
+    ],
+    ARRAY['tool_include:admin.user.registrations.list'],
+    ARRAY['admin.user.registrations.list'],
+    ARRAY[]::TEXT[],
+    ARRAY['partner', 'director']::TEXT[],
+    139,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.user_lookup',
+    'global',
+    'task',
+    '',
+    '[STAFF USER LOOKUP] Partner/director asks about another user: wallet/saldo, signup date, or who referred them. Resolve ambiguous names with admin.user.search first, then referral.user.stats with subject_handle or subject_uid. Saldo and komisi from wallet in tool JSON. Referrer from referred_by. Signup time from registered_ts_ms. Show name and @handle only; uid only if asked.',
+    ARRAY[
+        'berapa saldo user', 'saldo user', 'cek saldo', 'kapan daftar', 'siapa yang me refer',
+        'siapa refer', 'who referred', 'when did register', 'user balance'
+    ],
+    ARRAY['tool_include:admin.user.search', 'tool_include:referral.user.stats'],
+    ARRAY['admin.user.search', 'referral.user.stats'],
+    ARRAY[]::TEXT[],
+    ARRAY['partner', 'director']::TEXT[],
+    138,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
     'inst.staff.finance_queues',
     'global',
     'task',
@@ -2615,6 +2674,121 @@ Present a concise summary in the user language from the combined tool payload â€
     triggers = EXCLUDED.triggers,
     include_tools = EXCLUDED.include_tools,
     exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.account.storage',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[ACCOUNT STORAGE] User asks how much file storage they use. Call storage.usage with scope=account. \
+Report total_bytes first, then summarize personal, sites, bots, and mailboxes from the JSON. \
+scopes_attributed_sum_bytes can exceed total_bytes when one hash is cited in multiple scopes.',
+    ARRAY[
+        'how much storage do I use', 'berapa storage saya', 'storage saya', 'penyimpanan saya',
+        'berapa besar storage', 'my file storage', 'berapa penyimpanan'
+    ],
+    ARRAY['tool_include:storage.usage'],
+    ARRAY['storage.usage'],
+    ARRAY[]::TEXT[],
+    135,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.storage',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[SITE STORAGE] User asks storage for a site (this site, @handle, or name). Call storage.usage with scope=site and site_handle or site_iid.',
+    ARRAY[
+        'storage for this site', 'berapa storage site', 'how big is my site storage',
+        'penyimpanan site', 'site storage usage'
+    ],
+    ARRAY['tool_include:storage.usage'],
+    ARRAY['storage.usage'],
+    ARRAY[]::TEXT[],
+    134,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.bot.storage',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[BOT STORAGE] User asks storage for a bot. Call storage.usage with scope=bot; resolve bot_handle or bot_iid from the message.',
+    ARRAY[
+        'bot storage', 'storage bot', 'berapa storage bot', 'berapa besar storage bot'
+    ],
+    ARRAY['tool_include:storage.usage'],
+    ARRAY['storage.usage'],
+    ARRAY[]::TEXT[],
+    134,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, requires_global_roles, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.storage',
+    'global',
+    'task',
+    '',
+    '[STAFF STORAGE] Director/root asks how much storage another user uses. Resolve subject with admin.user.search if needed, then storage.usage with subject_handle or subject_uid.',
+    ARRAY[
+        'how much storage does', 'storage usage user', 'berapa storage user',
+        'berapa storage chito', 'storage chito uses', 'how much storage does chito use',
+        'how much stroage chito use'
+    ],
+    ARRAY['tool_include:storage.usage', 'tool_include:admin.user.search'],
+    ARRAY['storage.usage', 'admin.user.search'],
+    ARRAY['web.search', 'web.visit'],
+    ARRAY['director', 'root'],
+    136,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    requires_global_roles = EXCLUDED.requires_global_roles,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 

@@ -12,7 +12,7 @@ use serde::Deserialize;
 use crate::live_ws;
 use crate::{agent_session, session};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct WsQuery {
     pub jwt: Option<String>,
     pub since: Option<i64>,

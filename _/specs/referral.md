@@ -60,6 +60,10 @@ Wire: `ReqAdminUserSearch`, `ReqAdminUserPut` in [`../schemas/proto/c35/admin.pr
 
 `admin_user_search` — any **referral staff** (root, director, partner). Used for “set referred by” picker and profile admin.
 
+`admin_user_registrations_list` — same staff gate. Count or list platform user signups in a date window (`preset` or `since`/`until` in viewer TZ). Rows include referrer brief. Home tool: `admin.user.registrations.list`.
+
+`referral_user_stats` — includes subject `referred_by` (upline) and `registered_ts_ms`. Home staff tool: `referral.user.stats` (`subject_uid` or `subject_handle`).
+
 ### Put — permission matrix
 
 | Field | Root | Director | Partner |

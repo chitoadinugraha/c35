@@ -537,7 +537,7 @@ pub fn run(
         }
         let personal_name = if blank(personal) { "Personal" } else { personal.trim() };
         if blank(device) {
-            format!("Package: Shared with {personal_name}")
+            format!("Package: Shared with User ({personal_name} Plan)")
         } else {
             format!("Package: {} · {personal_name}", device.trim())
         }

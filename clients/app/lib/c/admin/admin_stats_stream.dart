@@ -6,23 +6,17 @@ import 'package:alienai_c35/c/pb/c35/stats.pb.dart';
 import 'package:flutter/foundation.dart';
 
 class _NetPeak {
-  static const double _minScaleBps = 100 * 1024; // 100 KB/s — keeps low rates from filling the bar
-  static const double _defaultScaleBps = 10 * 1024 * 1024; // 10 MB/s until we see higher traffic
+  /// Bar full scale at this rate unless we observe sustained higher throughput.
+  static const double _defaultScaleBps = 10 * 1024 * 1024; // 10 MB/s
 
-  DateTime _since = DateTime.now();
   double _max = _defaultScaleBps;
 
   double get max => _max;
 
   void update(double inBps, double outBps) {
-    final now = DateTime.now();
     final sample = inBps > outBps ? inBps : outBps;
-    if (now.difference(_since).inSeconds > 60) {
-      _since = now;
-      _max = (_max * 0.65).clamp(_minScaleBps, _defaultScaleBps).toDouble();
-    }
     if (sample > _max * 0.92) {
-      _max = (sample * 1.15).clamp(_minScaleBps, double.infinity).toDouble();
+      _max = (sample * 1.15).clamp(_defaultScaleBps, double.infinity).toDouble();
     }
   }
 }

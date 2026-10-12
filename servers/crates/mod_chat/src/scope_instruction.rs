@@ -472,3 +472,46 @@ pub fn scope_instruction_build_trace(
         block_preview: preview_trim(block, 480),
     }
 }
+
+pub fn scope_instruction_rows_from_bundle(
+    bundle: &c35_proto::ScopeInstructionBundle,
+    owner_iid: i64,
+    site_iids: &[i64],
+    site_names: &[(i64, String)],
+) -> (Option<ScopeInstructionRow>, Vec<(String, ScopeInstructionRow)>) {
+    let user = bundle
+        .items
+        .iter()
+        .find(|i| i.scope_kind == KIND_USER && i.scope_iid == owner_iid)
+        .map(|i| ScopeInstructionRow {
+            id: i.id,
+            owner_iid: i.owner_iid,
+            scope_kind: i.scope_kind.clone(),
+            scope_iid: i.scope_iid,
+            mode: i.mode.clone(),
+            body: i.body.clone(),
+        });
+    let mut site_rows = Vec::new();
+    for i in &bundle.items {
+        if i.scope_kind == KIND_SITE && site_iids.contains(&i.scope_iid) {
+            let name = site_names
+                .iter()
+                .find(|(id, _)| *id == i.scope_iid)
+                .map(|(_, n)| n.clone())
+                .unwrap_or_default();
+            site_rows.push((
+                name,
+                ScopeInstructionRow {
+                    id: i.id,
+                    owner_iid: i.owner_iid,
+                    scope_kind: i.scope_kind.clone(),
+                    scope_iid: i.scope_iid,
+                    mode: i.mode.clone(),
+                    body: i.body.clone(),
+                },
+            ));
+        }
+    }
+    (user, site_rows)
+}
+

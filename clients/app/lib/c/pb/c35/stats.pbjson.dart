@@ -15,6 +15,23 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
+@$core.Deprecated('Use adminDiskCleanKindDescriptor instead')
+const AdminDiskCleanKind$json = {
+  '1': 'AdminDiskCleanKind',
+  '2': [
+    {'1': 'ADMIN_DISK_CLEAN_UNSPECIFIED', '2': 0},
+    {'1': 'ADMIN_DISK_CLEAN_BOOT', '2': 1},
+    {'1': 'ADMIN_DISK_CLEAN_YUGABYTE', '2': 2},
+    {'1': 'ADMIN_DISK_CLEAN_BUILDKIT', '2': 3},
+  ],
+};
+
+/// Descriptor for `AdminDiskCleanKind`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List adminDiskCleanKindDescriptor = $convert.base64Decode(
+    'ChJBZG1pbkRpc2tDbGVhbktpbmQSIAocQURNSU5fRElTS19DTEVBTl9VTlNQRUNJRklFRBAAEh'
+    'kKFUFETUlOX0RJU0tfQ0xFQU5fQk9PVBABEh0KGUFETUlOX0RJU0tfQ0xFQU5fWVVHQUJZVEUQ'
+    'AhIdChlBRE1JTl9ESVNLX0NMRUFOX0JVSUxES0lUEAM=');
+
 @$core.Deprecated('Use diskMountStatDescriptor instead')
 const DiskMountStat$json = {
   '1': 'DiskMountStat',
@@ -571,3 +588,89 @@ final $typed_data.Uint8List resAdminOpsPeaksDescriptor = $convert.base64Decode(
     'ChBSZXNBZG1pbk9wc1BlYWtzEicKBHJvd3MYASADKAsyEy5jMzUuT3BzTWV0cmljMW1Sb3dSBH'
     'Jvd3MSIAoMcGVha19jcHVfbWF4GAIgASgBUgpwZWFrQ3B1TWF4EicKEHBlYWtfbWVtX3BjdF9t'
     'YXgYAyABKAFSDXBlYWtNZW1QY3RNYXg=');
+
+@$core.Deprecated('Use reqAdminDiskCleanDescriptor instead')
+const ReqAdminDiskClean$json = {
+  '1': 'ReqAdminDiskClean',
+  '2': [
+    {'1': 'node_name', '3': 1, '4': 1, '5': 9, '10': 'nodeName'},
+    {
+      '1': 'kind',
+      '3': 2,
+      '4': 1,
+      '5': 14,
+      '6': '.c35.AdminDiskCleanKind',
+      '10': 'kind'
+    },
+    {'1': 'full', '3': 3, '4': 1, '5': 8, '10': 'full'},
+    {'1': 'force', '3': 4, '4': 1, '5': 8, '10': 'force'},
+  ],
+};
+
+/// Descriptor for `ReqAdminDiskClean`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqAdminDiskCleanDescriptor = $convert.base64Decode(
+    'ChFSZXFBZG1pbkRpc2tDbGVhbhIbCglub2RlX25hbWUYASABKAlSCG5vZGVOYW1lEisKBGtpbm'
+    'QYAiABKA4yFy5jMzUuQWRtaW5EaXNrQ2xlYW5LaW5kUgRraW5kEhIKBGZ1bGwYAyABKAhSBGZ1'
+    'bGwSFAoFZm9yY2UYBCABKAhSBWZvcmNl');
+
+@$core.Deprecated('Use adminDiskCleanStepDescriptor instead')
+const AdminDiskCleanStep$json = {
+  '1': 'AdminDiskCleanStep',
+  '2': [
+    {'1': 'name', '3': 1, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'detail', '3': 2, '4': 1, '5': 9, '10': 'detail'},
+    {'1': 'ok', '3': 3, '4': 1, '5': 8, '10': 'ok'},
+  ],
+};
+
+/// Descriptor for `AdminDiskCleanStep`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List adminDiskCleanStepDescriptor = $convert.base64Decode(
+    'ChJBZG1pbkRpc2tDbGVhblN0ZXASEgoEbmFtZRgBIAEoCVIEbmFtZRIWCgZkZXRhaWwYAiABKA'
+    'lSBmRldGFpbBIOCgJvaxgDIAEoCFICb2s=');
+
+@$core.Deprecated('Use resAdminDiskCleanDescriptor instead')
+const ResAdminDiskClean$json = {
+  '1': 'ResAdminDiskClean',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+    {
+      '1': 'steps',
+      '3': 3,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.AdminDiskCleanStep',
+      '10': 'steps'
+    },
+    {
+      '1': 'used_bytes_after',
+      '3': 4,
+      '4': 1,
+      '5': 4,
+      '9': 0,
+      '10': 'usedBytesAfter',
+      '17': true
+    },
+    {
+      '1': 'total_bytes_after',
+      '3': 5,
+      '4': 1,
+      '5': 4,
+      '9': 1,
+      '10': 'totalBytesAfter',
+      '17': true
+    },
+  ],
+  '8': [
+    {'1': '_used_bytes_after'},
+    {'1': '_total_bytes_after'},
+  ],
+};
+
+/// Descriptor for `ResAdminDiskClean`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resAdminDiskCleanDescriptor = $convert.base64Decode(
+    'ChFSZXNBZG1pbkRpc2tDbGVhbhIOCgJvaxgBIAEoCFICb2sSGAoHbWVzc2FnZRgCIAEoCVIHbW'
+    'Vzc2FnZRItCgVzdGVwcxgDIAMoCzIXLmMzNS5BZG1pbkRpc2tDbGVhblN0ZXBSBXN0ZXBzEi0K'
+    'EHVzZWRfYnl0ZXNfYWZ0ZXIYBCABKARIAFIOdXNlZEJ5dGVzQWZ0ZXKIAQESLwoRdG90YWxfYn'
+    'l0ZXNfYWZ0ZXIYBSABKARIAVIPdG90YWxCeXRlc0FmdGVyiAEBQhMKEV91c2VkX2J5dGVzX2Fm'
+    'dGVyQhQKEl90b3RhbF9ieXRlc19hZnRlcg==');

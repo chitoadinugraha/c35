@@ -16,8 +16,11 @@ import 'package:fixnum/fixnum.dart' as $fixnum;
 import 'package:protobuf/protobuf.dart' as $pb;
 
 import 'admin.pb.dart' as $0;
+import 'stats.pbenum.dart';
 
 export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
+
+export 'stats.pbenum.dart';
 
 class DiskMountStat extends $pb.GeneratedMessage {
   factory DiskMountStat({
@@ -1754,6 +1757,285 @@ class ResAdminOpsPeaks extends $pb.GeneratedMessage {
   $core.bool hasPeakMemPctMax() => $_has(2);
   @$pb.TagNumber(3)
   void clearPeakMemPctMax() => $_clearField(3);
+}
+
+class ReqAdminDiskClean extends $pb.GeneratedMessage {
+  factory ReqAdminDiskClean({
+    $core.String? nodeName,
+    AdminDiskCleanKind? kind,
+    $core.bool? full,
+    $core.bool? force,
+  }) {
+    final result = ReqAdminDiskClean._();
+    if (nodeName != null) result.nodeName = nodeName;
+    if (kind != null) result.kind = kind;
+    if (full != null) result.full = full;
+    if (force != null) result.force = force;
+    return result;
+  }
+
+  ReqAdminDiskClean._();
+
+  factory ReqAdminDiskClean.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminDiskClean()..mergeFromBuffer(data, registry);
+  factory ReqAdminDiskClean.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminDiskClean()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAdminDiskClean',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAdminDiskClean.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'nodeName')
+    ..aE<AdminDiskCleanKind>(2, _omitFieldNames ? '' : 'kind',
+        enumValues: AdminDiskCleanKind.values)
+    ..aOB(3, _omitFieldNames ? '' : 'full')
+    ..aOB(4, _omitFieldNames ? '' : 'force')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminDiskClean clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminDiskClean copyWith(void Function(ReqAdminDiskClean) updates) =>
+      super.copyWith((message) => updates(message as ReqAdminDiskClean))
+          as ReqAdminDiskClean;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqAdminDiskClean() / ReqAdminDiskClean.new instead')
+  static ReqAdminDiskClean create() => ReqAdminDiskClean._();
+  static $pb.GeneratedMessage $_createMessage() => ReqAdminDiskClean._();
+  @$core.override
+  ReqAdminDiskClean createEmptyInstance() => ReqAdminDiskClean._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAdminDiskClean getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqAdminDiskClean>(
+          ReqAdminDiskClean.$_createMessage);
+  static ReqAdminDiskClean? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get nodeName => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set nodeName($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasNodeName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearNodeName() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  AdminDiskCleanKind get kind => $_getN(1);
+  @$pb.TagNumber(2)
+  set kind(AdminDiskCleanKind value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasKind() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearKind() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get full => $_getBF(2);
+  @$pb.TagNumber(3)
+  set full($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasFull() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearFull() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get force => $_getBF(3);
+  @$pb.TagNumber(4)
+  set force($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasForce() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearForce() => $_clearField(4);
+}
+
+class AdminDiskCleanStep extends $pb.GeneratedMessage {
+  factory AdminDiskCleanStep({
+    $core.String? name,
+    $core.String? detail,
+    $core.bool? ok,
+  }) {
+    final result = AdminDiskCleanStep._();
+    if (name != null) result.name = name;
+    if (detail != null) result.detail = detail;
+    if (ok != null) result.ok = ok;
+    return result;
+  }
+
+  AdminDiskCleanStep._();
+
+  factory AdminDiskCleanStep.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminDiskCleanStep()..mergeFromBuffer(data, registry);
+  factory AdminDiskCleanStep.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminDiskCleanStep()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AdminDiskCleanStep',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: AdminDiskCleanStep.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'name')
+    ..aOS(2, _omitFieldNames ? '' : 'detail')
+    ..aOB(3, _omitFieldNames ? '' : 'ok')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminDiskCleanStep clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminDiskCleanStep copyWith(void Function(AdminDiskCleanStep) updates) =>
+      super.copyWith((message) => updates(message as AdminDiskCleanStep))
+          as AdminDiskCleanStep;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use AdminDiskCleanStep() / AdminDiskCleanStep.new instead')
+  static AdminDiskCleanStep create() => AdminDiskCleanStep._();
+  static $pb.GeneratedMessage $_createMessage() => AdminDiskCleanStep._();
+  @$core.override
+  AdminDiskCleanStep createEmptyInstance() => AdminDiskCleanStep._();
+  @$core.pragma('dart2js:noInline')
+  static AdminDiskCleanStep getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AdminDiskCleanStep>(
+          AdminDiskCleanStep.$_createMessage);
+  static AdminDiskCleanStep? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get name => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set name($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasName() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearName() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get detail => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set detail($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasDetail() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearDetail() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get ok => $_getBF(2);
+  @$pb.TagNumber(3)
+  set ok($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasOk() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearOk() => $_clearField(3);
+}
+
+class ResAdminDiskClean extends $pb.GeneratedMessage {
+  factory ResAdminDiskClean({
+    $core.bool? ok,
+    $core.String? message,
+    $core.Iterable<AdminDiskCleanStep>? steps,
+    $fixnum.Int64? usedBytesAfter,
+    $fixnum.Int64? totalBytesAfter,
+  }) {
+    final result = ResAdminDiskClean._();
+    if (ok != null) result.ok = ok;
+    if (message != null) result.message = message;
+    if (steps != null) result.steps.addAll(steps);
+    if (usedBytesAfter != null) result.usedBytesAfter = usedBytesAfter;
+    if (totalBytesAfter != null) result.totalBytesAfter = totalBytesAfter;
+    return result;
+  }
+
+  ResAdminDiskClean._();
+
+  factory ResAdminDiskClean.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminDiskClean()..mergeFromBuffer(data, registry);
+  factory ResAdminDiskClean.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminDiskClean()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAdminDiskClean',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAdminDiskClean.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..pPM<AdminDiskCleanStep>(3, _omitFieldNames ? '' : 'steps',
+        subBuilder: AdminDiskCleanStep.$_createMessage)
+    ..a<$fixnum.Int64>(
+        4, _omitFieldNames ? '' : 'usedBytesAfter', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$fixnum.Int64>(
+        5, _omitFieldNames ? '' : 'totalBytesAfter', $pb.PbFieldType.OU6,
+        defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminDiskClean clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminDiskClean copyWith(void Function(ResAdminDiskClean) updates) =>
+      super.copyWith((message) => updates(message as ResAdminDiskClean))
+          as ResAdminDiskClean;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResAdminDiskClean() / ResAdminDiskClean.new instead')
+  static ResAdminDiskClean create() => ResAdminDiskClean._();
+  static $pb.GeneratedMessage $_createMessage() => ResAdminDiskClean._();
+  @$core.override
+  ResAdminDiskClean createEmptyInstance() => ResAdminDiskClean._();
+  @$core.pragma('dart2js:noInline')
+  static ResAdminDiskClean getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResAdminDiskClean>(
+          ResAdminDiskClean.$_createMessage);
+  static ResAdminDiskClean? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<AdminDiskCleanStep> get steps => $_getList(2);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get usedBytesAfter => $_getI64(3);
+  @$pb.TagNumber(4)
+  set usedBytesAfter($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasUsedBytesAfter() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearUsedBytesAfter() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get totalBytesAfter => $_getI64(4);
+  @$pb.TagNumber(5)
+  set totalBytesAfter($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasTotalBytesAfter() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearTotalBytesAfter() => $_clearField(5);
 }
 
 const $core.bool _omitFieldNames =

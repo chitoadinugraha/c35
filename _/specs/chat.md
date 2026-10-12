@@ -80,6 +80,26 @@ While `ai.prompt_run` is **active** (`queued` / `running` / `waiting_child`), th
 
 Wire: `ReqPromptFollowupPut` / `List` / `Cancel`, push `PromptFollowupPush` on fanout. Disable cluster-wide with `C35_PROMPT_FOLLOWUP=0`. Schema: [`_/schemas/prompt_followup.sql`](../schemas/prompt_followup.sql).
 
+### Owner prompt session (L1 cache)
+
+While the Home app WebSocket is connected, the pod that owns the connection keeps an **`OwnerPromptSession`** in RAM so `prompt_turn` can avoid per-stage NATS/DB reads. Plan: [`plans/2026-10-12-owner-prompt-session-cache-multitask.md`](plans/2026-10-12-owner-prompt-session-cache-multitask.md).
+
+| Layer | Store | Role |
+|-------|--------|------|
+| **L1** | Pod RAM (`Arc<OwnerPromptSession>` on `wire_ws`) | Billing snapshot, memory/scope/assets, LRU chat prompt-tails, continuity hints — **primary on WS** |
+| **L2** | NATS KV (optional composite snapshot on disconnect/grace) | Reconnect, MCP/bot workers; not per-turn when L1 is `Ready` |
+| **L3** | Yugabyte (`ai.chat_msg`, billing tables, …) | Authority |
+
+**Session lock:** one active Home app WS per `owner_iid`; a new connect **supersedes** the previous (`session_superseded`).
+
+**Focus RPC:** client sends **`ReqSessionFocus`** (`chat_id`, optional `last_seen_msg_id`) when opening a thread; server single-flights **`chat_cache_warm`** and sets `focused_chat_id`. Lazy `chat_msg_list` pages do **not** grow the prompt cache — only focus, first page, or new messages update it.
+
+**Chat LRU:** up to **K** chats (default **8**) touched in 24h per connection; evict LRU. Each cached chat holds a compaction-aware tail (~30 msgs + summary), same shape as `history_prefetch`.
+
+**Continuity:** after a tool-heavy assistant turn, keep compose hints (`force_tools`, inst suffix, catalog boosts) for up to **10 user messages** in that chat (no time TTL; reset on chat switch). Not a full tool catalog.
+
+**Warmup trace:** one `ai.log` row per warmup completion — `kind=system`, `topic=trace_session_warmup`, `class=trace` (ops only; no NATS user fanout). See [log.md](log.md).
+
 ---
 
 ## Kind: `prompt` (personal AI)

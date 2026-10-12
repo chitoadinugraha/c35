@@ -23,6 +23,7 @@ import 'package:alienai_c35/c/files/msg_attachment.dart';
 import 'package:alienai_c35/c/llm/agent_model.dart';
 import 'package:alienai_c35/c/pb/c35/chat.pb.dart';
 import 'package:alienai_c35/c/pb/c35/live.pb.dart';
+import 'package:alienai_c35/c/pb/c35/session.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/mail/mail_inbox_bus.dart';
@@ -1003,6 +1004,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _usage = const ContextUsageParts();
     _closeHistoryDrawerIfNarrow();
     _store.chatSelect(id);
+    var lastSeenMsgId = 0;
+    for (final m in _store.msgs) {
+      if (m.chatId == id && m.id > lastSeenMsgId) lastSeenMsgId = m.id;
+    }
+    unawaited(_conn.sessionFocus(chatId: id, lastSeenMsgId: lastSeenMsgId).catchError((_) => ResSessionFocus()));
     _composerReset();
     _mentionContextSyncFromChat(restoreComposer: true);
     _canvasStore.close();
@@ -1775,7 +1781,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 icon: const Icon(Icons.add_rounded),
                 onPressed: _newChat,
               ),
-            Builder(builder: _chatHeaderAccountTrailing),
+            Builder(
+              builder: (menuCtx) => KeyedSubtree(
+                key: const ValueKey('chat_header_account_trailing'),
+                child: _chatHeaderAccountTrailing(menuCtx),
+              ),
+            ),
           ],
         ),
       ),
@@ -2406,39 +2417,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         },
       );
 
-  Widget _jumpToLatestPill(int unread) => Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _timeline.scrollToBottom(force: true, animate: true),
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFF18181C).withValues(alpha: 0.95),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF3F3F46)),
-              boxShadow: const [
-                BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 3)),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF06B6D4)),
-                const SizedBox(width: 6),
-                Text(
-                  unread > 0 ? '$unread new message${unread > 1 ? 's' : ''}' : 'Jump to latest',
-                  style: const TextStyle(
-                    color: Color(0xFFF4F4F5),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
+  Widget _jumpToLatestButton(int unread) {
+    final tooltip = unread > 0 ? '$unread new message${unread > 1 ? 's' : ''}' : 'Jump to latest';
+    return uiIconButton(
+      tooltip: tooltip,
+      color: _muted,
+      icon: const Icon(Icons.arrow_downward_rounded),
+      onPressed: () => _timeline.scrollToBottom(force: true, animate: true),
+    );
+  }
 
   Widget _threadThinkingTail() => UiPromptThinkingIndicator(startedAtMs: _store.promptStartedAtMs, model: _model);
 
@@ -2484,7 +2471,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                   listenable: Listenable.merge([_timeline.isAtBottom, _timeline.unreadStreamCount]),
                   builder: (ctx, _) {
                     if (_timeline.isAtBottom.value) return const SizedBox.shrink();
-                    return _jumpToLatestPill(_timeline.unreadStreamCount.value);
+                    return _jumpToLatestButton(_timeline.unreadStreamCount.value);
                   },
                 ),
               ),
