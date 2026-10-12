@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
+import 'package:alienai_c35/guest_site/guest_site_analytics.dart';
 import 'package:alienai_c35/guest_site/guest_site_assistant.dart';
 import 'package:alienai_c35/guest_site/guest_site_view.dart';
 import 'package:flutter/material.dart';
@@ -60,10 +61,13 @@ class GuestSiteShell extends StatefulWidget {
   State<GuestSiteShell> createState() => _GuestSiteShellState();
 }
 
-class _GuestSiteShellState extends State<GuestSiteShell> {
+class _GuestSiteShellState extends State<GuestSiteShell> with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   late GuestSiteCartController _cart = _newCart(widget.boot);
+  int _analyticsActiveStartMs = 0;
+  int _analyticsActiveMs = 0;
+  bool _analyticsVisible = true;
 
   static GuestSiteCartController _newCart(GuestSiteBoot boot) {
     final cart = GuestSiteCartController(siteIid: boot.siteIid);
@@ -74,6 +78,8 @@ class _GuestSiteShellState extends State<GuestSiteShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _analyticsActiveStartMs = DateTime.now().millisecondsSinceEpoch;
     unawaited(_cart.load());
   }
 
@@ -90,8 +96,44 @@ class _GuestSiteShellState extends State<GuestSiteShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_flushAnalyticsPing());
     _cart.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _accumulateAnalyticsActive();
+      _analyticsVisible = false;
+      unawaited(_flushAnalyticsPing());
+    } else if (state == AppLifecycleState.resumed) {
+      _analyticsVisible = true;
+      _analyticsActiveStartMs = DateTime.now().millisecondsSinceEpoch;
+    }
+  }
+
+  void _accumulateAnalyticsActive() {
+    if (!_analyticsVisible) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _analyticsActiveMs += now - _analyticsActiveStartMs;
+    _analyticsActiveStartMs = now;
+  }
+
+  Future<void> _flushAnalyticsPing() async {
+    if (!GuestSiteAnalytics.analyticsEnabled(widget.boot.capabilities)) return;
+    _accumulateAnalyticsActive();
+    final ms = _analyticsActiveMs;
+    _analyticsActiveMs = 0;
+    if (ms <= 0) return;
+    await GuestSiteAnalytics.pingOnHidden(
+      siteIid: widget.boot.siteIid,
+      alienId: widget.boot.alienId,
+      activeDurationMs: ms,
+    );
   }
 
   Widget _home() {

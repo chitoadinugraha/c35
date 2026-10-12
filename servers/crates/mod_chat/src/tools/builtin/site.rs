@@ -64,7 +64,7 @@ pub async fn site_draft_put_exec(ctx: &ToolContext, args: &Value) -> Result<Valu
     Ok(json!({ "ok": true, "site_iid": site_iid }))
 }
 
-const SITE_CAPABILITY_KEYS: &[&str] = &["commerce", "booking", "queue", "attendance"];
+const SITE_CAPABILITY_KEYS: &[&str] = &["commerce", "booking", "queue", "attendance", "analytics"];
 
 fn site_capabilities_merge(args: &Value, existing: Value) -> Result<Value> {
     let mut caps = if existing.as_object().is_some() {
@@ -93,7 +93,7 @@ fn site_capabilities_merge(args: &Value, existing: Value) -> Result<Value> {
     }
     if !touched {
         bail!(
-            "capabilities_json or at least one of commerce, booking, queue, attendance is required"
+            "capabilities_json or at least one of commerce, booking, queue, attendance, analytics is required"
         );
     }
     Ok(caps)
@@ -573,7 +573,7 @@ tool! {
     struct: SiteConfigPutTool,
     name: "site.config.put",
     aliases: ["site_config_put", "site.config_put"],
-    description: "Update site.config capabilities_json (enable or disable POS/commerce, booking, queue, attendance). Merges into existing flags when individual booleans are passed.",
+    description: "Update site.config capabilities_json (enable or disable POS/commerce, booking, queue, attendance, guest visitor analytics). Merges into existing flags when individual booleans are passed.",
     topics: ["web.builder"],
     requires_kinds: ["site"],
     ui_calling_key: "tool.site.config.put.calling",
@@ -585,6 +585,7 @@ tool! {
         booking: (boolean, "Enable booking / reservations", optional),
         queue: (boolean, "Enable queue / antrian", optional),
         attendance: (boolean, "Enable attendance tracking", optional),
+        analytics: (boolean, "Enable guest visitor analytics pings on the public site (default on when omitted)", optional),
     },
     execute: |args, ctx| {
         site_config_put_exec(ctx, &args).await

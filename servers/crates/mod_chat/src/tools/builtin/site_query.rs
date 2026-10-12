@@ -230,7 +230,7 @@ tool! {
     struct: SiteQueryRunTool,
     name: "site.query.run",
     aliases: ["site_query_run"],
-    description: "Readonly site query catalog. params use DATE RANGE wire: range (today/yesterday/this_week/last_week/this_month/last_month/mtd/ytd), date_from/date_to (YYYY-MM-DD), or time_from_ms/time_to_ms. tx.sales_list filters: limit, open_only, state, q, min_total, max_total. Examples: tx.sales_summary, tx.profit_summary, tx.sales_list, tx.top_products, product.stock.",
+    description: "Readonly site query catalog. params use DATE RANGE wire: range (today/yesterday/this_week/last_week/this_month/last_month/mtd/ytd), date_from/date_to (YYYY-MM-DD), or time_from_ms/time_to_ms. tx.sales_list filters: limit, open_only, state, q, min_total, max_total. Examples: tx.sales_summary, tx.profit_summary, tx.sales_list, tx.top_products, product.stock, visitor.summary, visitor.paths, link.clicks.",
     topics: ["site.commerce", "web.builder"],
     rag_phrases: [
         "omzet", "untung", "laba", "transaksi", "daftar transaksi", "penjualan", "terlaris",

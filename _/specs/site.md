@@ -396,6 +396,45 @@ The rendered HTML compiled by `render.rs` includes a lightweight, zero-build cli
    - `contact_form` blocks submit via async POST to `https://api.alienai.id/v1/site/guest-contact/put`.
    - Payload writes to `site.contact` (with `source = 'guest_form'`), and triggers notification to site staff.
 
+## Visitor analytics (guest traffic)
+
+CSA-parity **rollup-on-write** metrics for published guest pages. Ingest is **HTTP only** (no LLM tool). Owners read aggregates via **`site.query.run`** (`visitor.summary`, `visitor.paths`, `link.clicks`) — same grant checks as tx reports.
+
+Plan: [`plans/2026-10-12-site-visitor-analytics-multitask.md`](plans/2026-10-12-site-visitor-analytics-multitask.md).
+
+### Tables (`site` schema)
+
+| Table | Role |
+|-------|------|
+| `site.analytics_day` | One row per site per calendar **day** (bucket in `site.config` TZ): `page_views`, `unique_visitors`, `active_duration_ms`, `visitor_slots` (12×2h JSON array) |
+| `site.analytics_visitor_day` | Distinct visitor per day (`visitor_key`, session rollup, `last_path`, `referrer_host`) — drives unique count and slot histogram |
+| `site.analytics_path_day` | Path views per day (normalized path, max 256 chars) |
+| `site.analytics_link_day` | Hub link clicks per day (`link_id` → `site.link`) |
+
+DDL: [`../schemas/site.sql`](../schemas/site.sql) and migration [`../schemas/migrations/site_analytics_v1.sql`](../schemas/migrations/site_analytics_v1.sql).
+
+### Ingest HTTP
+
+| Route | Host | Notes |
+|-------|------|--------|
+| `POST /v1/site/guest-analytics/ping` | `api.alienai.id` | JSON body: `alien_id`, `session_id`, `visitor_id`, `path`, `referrer`, `active_duration_ms`, optional `user_agent` |
+| `POST /v1/site/guest-analytics/link-click` | `api.alienai.id` | v2: `alien_id`, `link_id`, `visitor_id` |
+| `POST /api/analytics/ping` | `alienai.id` guest router | Optional alias for relative `sendBeacon` from published HTML; preferred client URL is absolute `api.alienai.id` |
+
+Server resolves **`site_iid`** from `alien_id` (and optional `Referer` / `X-Site-Alien-Id`), requires an **active published** snapshot, and rejects when analytics is disabled. Rate limit per client IP (in-memory map; separate from guest-assistant limits). Success and skip paths return **`204 No Content`**; abuse returns **`429`** with `Retry-After`.
+
+Guest clients fire pings on **`pagehide`** and **`visibilitychange` (hidden)** via `sendBeacon`, reusing the same `visitor_id` as guest assistant chat (`localStorage`).
+
+### Opt-out
+
+Capability boolean **`analytics`** in `site.config.capabilities_json`. **Default enabled** when the key is absent. Explicit `analytics: false` stops ingest (server returns `204` without writing). Toggle via **`site.config.put`** (documented on the tool) or Sites settings UI.
+
+### Privacy and retention
+
+- **No raw visitor UUID in YSQL.** Ingest hashes `visitor_id` to **`visitor_key`** (blake3 hex) before storage; optional **`session_key`** from `session_id`.
+- **`referrer`** and **`user_agent`** are truncated to **512** characters at ingest; only **`referrer_host`** is stored on visitor-day rows.
+- **Retention (planned ops):** `site.analytics_visitor_day` detail rows older than **90 days** may be deleted while **`site.analytics_day`** aggregates are kept; `analytics_path_day` / `analytics_link_day` default **365** days (`C35_SITE_ANALYTICS_RETENTION_DAYS`). Documented for operators — job ships in analytics Wave 7.
+
 ## Wire
 
 | Proto | Purpose |

@@ -69,6 +69,7 @@ Web effects host is `site-guest.effects.v1.js` (WASM). Flutter effects use `Gues
 | Order status | `order` | `ReqSiteGuestOrderGet` / tx get |
 | Featured contacts | `contacts` | `site.contact` rows (future hub block) |
 | Social posts | `social_post` | Not in c35 v1 SiteDoc (CSA hub); add block type later |
+| Visitor analytics | `c35GuestAnalytics` | `POST https://api.alienai.id/v1/site/guest-analytics/ping` on tab hide / `pagehide`; reuses guest assistant `visitor_id` (`localStorage`); `session_id` in `sessionStorage` key `c35.guest.session.v1.{site_iid}`; skipped when `capabilities.analytics === false` |
 
 ## Boot JSON (`site.boot_get`)
 

@@ -5,6 +5,7 @@ mod drive;
 mod drive_notify;
 mod catalog;
 mod device;
+mod guest_analytics;
 mod guest_contact;
 mod guest_order;
 mod guest_reservation;
@@ -88,6 +89,7 @@ pub fn router(state: AppState) -> Router {
         .merge(invoke::invoke_router())
         .merge(c35_mod_billing::billing_webhook_router())
         .merge(c35_mod_mail::mail_router())
+        .merge(guest_analytics::guest_analytics_router())
         .merge(guest_order::guest_order_router())
         .merge(guest_reservation::guest_reservation_router())
         .merge(guest_contact::guest_contact_router())

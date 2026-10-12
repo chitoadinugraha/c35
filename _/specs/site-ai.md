@@ -245,8 +245,13 @@ Grant: for each `site_iid`, same check as `site_grant_check` (owner or staff gra
 | `tx.stock_list` | Tracked products and current qty. Preview 40 rows. Export cap 20,000 |
 | `tx.stock_card` | One product's in/out lines. Requires `q` or `product_id` |
 | `tx.stock_movement` | Qty in, qty out, and net per product for a time window |
+| `visitor.summary` | Guest traffic per day: `unique_visitors`, `page_views`, `active_duration_ms`, `visitor_slots` (JSON). `params.range` or `day_from` / `day_to` (max **62** days, CSA cap) |
+| `visitor.paths` | Top paths by views over the range; optional `params.limit` (default **20**) |
+| `link.clicks` | Hub link clicks: per-day rows with `day`, `link_id`, `title`, `url`, `clicks`; optional `params.limit` (default **50**) |
 
 Port SQL ideas from id.alienai `tx.acc_profit_loss` / CSA `mod_site_tx` reports — implement as defs, not LLM SQL.
+
+Visitor queries read `site.analytics_*` rollups only (no web search). See [`site.md`](site.md) Visitor analytics.
 
 Time filters use the shared **DATE RANGE** wire — see [`_/specs/time-range.md`](time-range.md). `params.range` tokens include `today`, `yesterday`, `this_week`, `last_week`, `this_month`, `last_month`, `mtd`, `ytd`, or explicit `date_*` / `time_*_ms` with optional `tz`.
 
@@ -280,6 +285,7 @@ User: `compare @warung-a @warung-b which is more profitable?`
 | `inst.site.catalog` | task | `tool_include:site.query.run` — stock, stok, product lookup. On price-change phrases also `tool_include:site.product.patch` |
 | `inst.site.catalog.price` | task | `tool_include:site.query.run` — phrases: berapa harga, how much is, price of |
 | `inst.site.price_compare` | task | `tool_include:site.query.run` — phrases: reasonable, kemahalan, harga pasaran, murah, termasuk murah, harga murah, too expensive, my price, compare to the web |
+| `inst.site.visitor` | task | `tool_include:site.query.run`, `tool_exclude:web.search`, `tool_exclude:web.visit` — phrases: pengunjung, kunjungan, traffic, visitors, page view, berapa orang buka, pengunjung hari ini. Readonly `visitor.summary` / `visitor.paths` / `link.clicks` |
 
 `inst.site.catalog` tells the model how to talk. It does not choose a site.
 

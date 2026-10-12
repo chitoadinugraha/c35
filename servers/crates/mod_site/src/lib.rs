@@ -32,6 +32,7 @@ mod site_grant;
 mod site_hr;
 mod site_draft;
 mod site_editor_warm;
+mod site_analytics;
 mod site_assistant;
 mod site_boot;
 mod site_handle;
@@ -73,6 +74,10 @@ pub use site_domain_buy::{
 };
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
 pub use commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
+pub use site_analytics::{
+    normalize_analytics_path, site_analytics_day_bucket, site_analytics_enabled,
+    site_analytics_link_click, site_analytics_ping, visitor_key_hash, SiteAnalyticsPing,
+};
 pub use site_assistant::{
     site_assistant_boot_extras, site_assistant_capabilities_merge, site_assistant_ensure,
     site_assistant_ensure_bot, site_assistant_get, site_assistant_bot_iid_get,

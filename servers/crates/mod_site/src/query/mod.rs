@@ -3,6 +3,7 @@ mod product;
 mod stock_report;
 mod tx;
 mod tx_browse;
+mod visitor;
 
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
@@ -52,6 +53,9 @@ fn query_registry() -> &'static Vec<Arc<dyn QueryDef>> {
             Arc::new(stock_report::StockCardQuery),
             Arc::new(stock_report::StockMovementQuery),
             Arc::new(tx_browse::SalesListQuery),
+            Arc::new(visitor::VisitorSummaryQuery),
+            Arc::new(visitor::VisitorPathsQuery),
+            Arc::new(visitor::LinkClicksQuery),
         ]
     })
 }
