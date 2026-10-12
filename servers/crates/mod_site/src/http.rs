@@ -76,7 +76,7 @@ async fn serve_draft_html_page(
     let page_path = render_key_to_page_path(render_key);
     match site_draft_html_render(pool, site_id, page_path).await {
         Ok((body, etag)) => draft_response(body, etag),
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Err(e) => guest_render_error_response(&e),
     }
 }
 
@@ -94,6 +94,53 @@ fn not_found_page() -> Response {
         "<!DOCTYPE html><html><body><h1>Not found</h1></body></html>",
     )
         .into_response()
+}
+
+const GUEST_BUSY_MESSAGE: &str =
+    "This page is loading. Wait a moment and refresh.";
+
+fn service_unavailable_page(message: &str) -> Response {
+    let body = format!(
+        "<!DOCTYPE html><html><body><h1>Please try again</h1><p>{}</p></body></html>",
+        html_escape(message)
+    );
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        [
+            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+            (header::RETRY_AFTER, "3"),
+        ],
+        body,
+    )
+        .into_response()
+}
+
+fn guest_busy_page() -> Response {
+    service_unavailable_page(GUEST_BUSY_MESSAGE)
+}
+
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+fn is_site_not_found_err(err: &anyhow::Error) -> bool {
+    err.to_string() == "site not found"
+}
+
+fn guest_resolve_error_response(err: &anyhow::Error) -> Response {
+    if is_site_not_found_err(err) {
+        return not_found_page();
+    }
+    tracing::warn!("guest site resolve failed: {:#}", err);
+    guest_busy_page()
+}
+
+fn guest_render_error_response(err: &anyhow::Error) -> Response {
+    tracing::warn!("guest site render failed: {:#}", err);
+    guest_busy_page()
 }
 
 fn request_host(headers: &HeaderMap) -> String {
@@ -156,7 +203,11 @@ pub async fn try_custom_domain_root(
     }
     let site_id = match domain_site_id_verified(&state.pool, &host).await {
         Ok(Some(id)) => id,
-        _ => return Some(not_found_page()),
+        Ok(None) => return Some(not_found_page()),
+        Err(e) => {
+            tracing::warn!("custom domain lookup failed host={}: {:#}", host, e);
+            return Some(guest_busy_page());
+        }
     };
     Some(serve_render_site(&state.pool, site_id, "html:/", &headers, None).await)
 }
@@ -169,11 +220,17 @@ async fn guest_site_root(
 ) -> Response {
     let host = request_host(&headers);
     if !host_is_primary(&host) {
-        if let Ok(Some(site_id)) = domain_site_id_verified(&state.pool, &host).await {
-            let render_key = format!("html:/{}", alien_id.trim());
-            return serve_render_site(&state.pool, site_id, &render_key, &headers, Some(&query)).await;
-        }
-        return not_found_page();
+        return match domain_site_id_verified(&state.pool, &host).await {
+            Ok(Some(site_id)) => {
+                let render_key = format!("html:/{}", alien_id.trim());
+                serve_render_site(&state.pool, site_id, &render_key, &headers, Some(&query)).await
+            }
+            Ok(None) => not_found_page(),
+            Err(e) => {
+                tracing::warn!("custom domain lookup failed host={}: {:#}", host, e);
+                guest_busy_page()
+            }
+        };
     }
     serve_render_path(&state.pool, &alien_id, "html:/", &headers, Some(&query)).await
 }
@@ -186,12 +243,18 @@ async fn guest_site_path(
 ) -> Response {
     let host = request_host(&headers);
     if !host_is_primary(&host) {
-        if let Ok(Some(site_id)) = domain_site_id_verified(&state.pool, &host).await {
-            let full_path = format!("/{}/{}", alien_id.trim(), path.trim_start_matches('/'));
-            let render_key = format!("html:{}", full_path);
-            return serve_render_site(&state.pool, site_id, &render_key, &headers, Some(&query)).await;
-        }
-        return not_found_page();
+        return match domain_site_id_verified(&state.pool, &host).await {
+            Ok(Some(site_id)) => {
+                let full_path = format!("/{}/{}", alien_id.trim(), path.trim_start_matches('/'));
+                let render_key = format!("html:{}", full_path);
+                serve_render_site(&state.pool, site_id, &render_key, &headers, Some(&query)).await
+            }
+            Ok(None) => not_found_page(),
+            Err(e) => {
+                tracing::warn!("custom domain lookup failed host={}: {:#}", host, e);
+                guest_busy_page()
+            }
+        };
     }
     let page_path = if path.starts_with('/') {
         path
@@ -213,13 +276,13 @@ async fn serve_render_path(
     headers: &HeaderMap,
     query: Option<&GuestQuery>,
 ) -> Response {
-    let key = alien_id.trim();
-    if key.is_empty() || RESERVED.iter().any(|r| r.eq_ignore_ascii_case(key)) {
+    let key = crate::site_publish::guest_alien_id_key(alien_id);
+    if key.is_empty() || RESERVED.iter().any(|r| r.eq_ignore_ascii_case(&key)) {
         return not_found_page();
     }
-    match resolve_site_by_alien_id(pool, key).await {
+    match resolve_site_by_alien_id(pool, &key).await {
         Ok(site_id) => serve_render_site(pool, site_id, render_key, headers, query).await,
-        Err(_) => not_found_page(),
+        Err(e) => guest_resolve_error_response(&e),
     }
 }
 
@@ -233,26 +296,40 @@ async fn serve_render_site(
     if query.filter(|q| is_draft_request(q)).is_some() {
         return serve_draft_html_page(pool, site_id, render_key).await;
     }
-    if !site_published(pool, site_id).await.unwrap_or(false) {
-        let name = sqlx::query(r#"SELECT name FROM ai.identity WHERE id = $1"#)
-            .bind(site_id)
-            .fetch_optional(pool)
-            .await
-            .ok()
-            .flatten()
-            .map(|r| r.get::<String, _>("name"))
-            .unwrap_or_else(|| "Site".into());
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
-            render_offline_html(&name),
-        )
-            .into_response();
+    match site_published(pool, site_id).await {
+        Ok(true) => {}
+        Ok(false) => {
+            let name = sqlx::query(r#"SELECT name FROM ai.identity WHERE id = $1"#)
+                .bind(site_id)
+                .fetch_optional(pool)
+                .await
+                .ok()
+                .flatten()
+                .map(|r| r.get::<String, _>("name"))
+                .unwrap_or_else(|| "Site".into());
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                render_offline_html(&name),
+            )
+                .into_response();
+        }
+        Err(e) => {
+            tracing::warn!("guest site_published check failed site_iid={}: {:#}", site_id, e);
+            return guest_busy_page();
+        }
     }
     if guest_dev_live_render_enabled() && is_local_dev_host(headers) {
         let page_path = render_key_to_page_path(render_key);
-        if let Ok((body, etag)) = site_published_html_render(pool, site_id, page_path).await {
-            return draft_response(body, etag);
+        match site_published_html_render(pool, site_id, page_path).await {
+            Ok((body, etag)) => return draft_response(body, etag),
+            Err(e) => {
+                tracing::warn!(
+                    "guest dev live published render failed site_iid={}: {:#}",
+                    site_id,
+                    e
+                );
+            }
         }
     }
     match render_get(pool, site_id, render_key).await {
@@ -262,11 +339,11 @@ async fn serve_render_site(
                 Ok(Some((body, etag, content_type))) => {
                     render_response(body, etag, content_type, headers)
                 }
-                _ => not_found_page(),
+                Ok(None) | Err(_) => guest_busy_page(),
             }
         }
-        Ok(None) => not_found_page(),
-        Err(_) => StatusCode::INTERNAL_SERVER_ERROR.into_response(),
+        Ok(None) => guest_busy_page(),
+        Err(e) => guest_render_error_response(&e),
     }
 }
 
@@ -317,4 +394,15 @@ fn render_response(body: Vec<u8>, etag: String, content_type: String, headers: &
         }
     }
     res
+}
+
+#[cfg(test)]
+mod guest_http_tests {
+    use super::*;
+
+    #[test]
+    fn site_not_found_is_only_explicit_message() {
+        assert!(is_site_not_found_err(&anyhow::anyhow!("site not found")));
+        assert!(!is_site_not_found_err(&anyhow::anyhow!("pool timed out")));
+    }
 }

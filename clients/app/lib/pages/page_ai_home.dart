@@ -669,8 +669,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final cid = _store.activeChatId;
     if (cid == null || cid <= 0) return;
     final locale = CatalogTranslationCache.instance.lang;
+    final pullForce = force && !_store.promptBusyFor(cid);
     try {
-      await _store.msgsPullFromServer(_conn, cid, locale: locale, force: force);
+      await _store.msgsPullFromServer(_conn, cid, locale: locale, force: pullForce);
       if (_store.promptBusyFor(cid)) await _store.feedbackPull(_conn, cid, locale: locale);
     } catch (e) {
       lError('prompt reconcile: $e');
@@ -2282,16 +2283,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             ),
           if (!hasError)
             Builder(builder: (_) {
-              final usageMsg = m.model.isNotEmpty || i != lastAssistantIdx
-                  ? m
-                  : m.copyWith(model: m.model.isNotEmpty ? m.model : _model.id);
               final feedback = _store.feedbackFor(m.id);
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   UiMsgUsageWithTrace(
                     conn: _conn,
-                    msg: usageMsg,
+                    msg: m,
                     streaming: usageStreaming,
                     billingCurrency: AppStore.instance.wallet.billingCurrency,
                     fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,

@@ -2,9 +2,44 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/site/guest_order_api.dart';
+import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/guest_site/guest_site_commerce_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_modal.dart';
+import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+enum GuestSiteCartSheet { none, order, checkout }
+
+enum GuestCheckoutStep { confirm, payment, payDetail }
+
+class GuestOrderDraft {
+  GuestOrderDraft({
+    required this.productId,
+    required this.name,
+    required this.price,
+    required this.pic,
+    required this.qty,
+    this.note = '',
+    this.stockMax,
+  });
+
+  final int productId;
+  final String name;
+  final int price;
+  final String pic;
+  int qty;
+  String note;
+  final int? stockMax;
+}
+
+IconData guestPaymentMethodIcon(String type) => switch (type.trim().toLowerCase()) {
+      'cash' => Icons.payments_outlined,
+      'transfer' => Icons.account_balance_outlined,
+      'qris' => Icons.qr_code_scanner,
+      'whatsapp' => Icons.chat_outlined,
+      _ => Icons.payment_outlined,
+    };
 
 class GuestReservationSlot {
   const GuestReservationSlot({
@@ -64,6 +99,7 @@ class GuestSiteCartLine {
     required this.name,
     required this.price,
     int qty = 1,
+    this.note = '',
     List<GuestReservationSlot> slots = const [],
   })  : slots = List<GuestReservationSlot>.unmodifiable(slots),
         qty = slots.isEmpty ? qty : guestReservationLineQty(slots);
@@ -72,6 +108,7 @@ class GuestSiteCartLine {
   final String name;
   final int price;
   final int qty;
+  final String note;
   final List<GuestReservationSlot> slots;
 
   int get lineTotal => price * qty;
@@ -92,17 +129,21 @@ class GuestSiteCartLine {
   Map<String, dynamic> orderItemJson() => {
         'product_id': productId,
         'qty': qty,
+        if (note.trim().isNotEmpty) 'note': note.trim(),
         if (slots.isNotEmpty) 'reservations': reservationJson(),
       };
 
   Object toStoredJson() {
-    if (slots.isEmpty) return qty;
-    return {
-      'name': name,
-      'price': price,
-      'qty': qty,
-      'slots': [for (final slot in slots) slot.toStoredJson()],
-    };
+    if (slots.isNotEmpty) {
+      return {
+        'name': name,
+        'price': price,
+        'qty': qty,
+        'slots': [for (final slot in slots) slot.toStoredJson()],
+      };
+    }
+    if (note.trim().isEmpty) return qty;
+    return {'qty': qty, 'note': note.trim()};
   }
 }
 
@@ -118,6 +159,15 @@ Map<int, GuestSiteCartLine> guestCartLinesFromJsonMap(Map<dynamic, dynamic> map)
       lines[pid] = GuestSiteCartLine(productId: pid, name: 'Product $pid', price: 0, qty: qty);
       continue;
     }
+    if (value is Map && value['qty'] is num && value['slots'] == null) {
+      final qty = (value['qty'] as num).toInt();
+      if (qty <= 0) continue;
+      final note = value['note']?.toString() ?? '';
+      final name = value['name']?.toString() ?? 'Product $pid';
+      final price = (value['price'] as num?)?.toInt() ?? 0;
+      lines[pid] = GuestSiteCartLine(productId: pid, name: name, price: price, qty: qty, note: note);
+      continue;
+    }
     if (value is! Map) continue;
     final slots = <GuestReservationSlot>[];
     final rawSlots = value['slots'];
@@ -129,10 +179,11 @@ Map<int, GuestSiteCartLine> guestCartLinesFromJsonMap(Map<dynamic, dynamic> map)
     }
     final name = value['name']?.toString() ?? 'Product $pid';
     final price = (value['price'] as num?)?.toInt() ?? 0;
+    final lineNote = value['note']?.toString() ?? '';
     if (slots.isEmpty) {
       final qty = (value['qty'] as num?)?.toInt() ?? 0;
       if (qty <= 0) continue;
-      lines[pid] = GuestSiteCartLine(productId: pid, name: name, price: price, qty: qty);
+      lines[pid] = GuestSiteCartLine(productId: pid, name: name, price: price, qty: qty, note: lineNote);
       continue;
     }
     lines[pid] = GuestSiteCartLine(productId: pid, name: name, price: price, slots: slots);
@@ -149,10 +200,20 @@ class GuestSiteCartController extends ChangeNotifier {
   List<Map<String, dynamic>> _taxes = const [];
   List<Map<String, dynamic>> _paymentMethods = const [];
   var _paymentId = 'cash';
-  var _sheetOpen = false;
+  var _sheet = GuestSiteCartSheet.none;
+  var _checkoutStep = GuestCheckoutStep.confirm;
+  GuestOrderDraft? _orderDraft;
+  var _orderQtyReplaceNext = true;
   var _busy = false;
+  String checkoutCustomerName = '';
+  String checkoutCustomerPhone = '';
+  String checkoutOrderNote = '';
+  String? checkoutError;
 
-  bool get sheetOpen => _sheetOpen;
+  bool get sheetOpen => _sheet != GuestSiteCartSheet.none;
+  GuestSiteCartSheet get sheet => _sheet;
+  GuestCheckoutStep get checkoutStep => _checkoutStep;
+  GuestOrderDraft? get orderDraft => _orderDraft;
   bool get busy => _busy;
   int get count => _lines.values.fold(0, (a, l) => a + l.qty);
   int get subtotal => _lines.values.fold(0, (a, l) => a + l.lineTotal);
@@ -185,6 +246,8 @@ class GuestSiteCartController extends ChangeNotifier {
 
   int qtyForProduct(int productId) => _lines[productId]?.qty ?? 0;
 
+  GuestSiteCartLine? lineForProduct(int productId) => _lines[productId];
+
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString('c35.guest.cart.v1.$siteIid');
@@ -207,22 +270,177 @@ class GuestSiteCartController extends ChangeNotifier {
     );
   }
 
-  void addProduct({required int productId, required String name, required int price}) {
+  void addProduct({required int productId, required String name, required int price, int delta = 1}) {
     final prev = _lines[productId];
     if (prev != null && prev.slots.isNotEmpty) return;
-    _lines[productId] = GuestSiteCartLine(
-      productId: productId,
-      name: name,
-      price: price,
-      qty: (prev?.qty ?? 0) + 1,
-    );
+    final nextQty = (prev?.qty ?? 0) + delta;
+    if (nextQty <= 0) {
+      _lines.remove(productId);
+    } else {
+      _lines[productId] = GuestSiteCartLine(
+        productId: productId,
+        name: name,
+        price: price,
+        qty: nextQty,
+        note: prev?.note ?? '',
+      );
+    }
     unawaited(_persist());
     notifyListeners();
   }
 
-  void addProductWithFeedback(BuildContext context, {required int productId, required String name, required int price}) {
-    addProduct(productId: productId, name: name, price: price);
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(content: Text('Ditambahkan'), duration: Duration(seconds: 2)));
+  void openOrder({
+    required int productId,
+    required String name,
+    required int price,
+    String pic = '',
+    int? stockMax,
+  }) {
+    final prev = _lines[productId];
+    if (prev != null && prev.slots.isNotEmpty) return;
+    final startQty = prev?.qty ?? 0;
+    _orderDraft = GuestOrderDraft(
+      productId: productId,
+      name: name,
+      price: price,
+      pic: pic,
+      qty: startQty,
+      note: prev?.note ?? '',
+      stockMax: stockMax,
+    );
+    _orderQtyReplaceNext = startQty == 0;
+    _sheet = GuestSiteCartSheet.order;
+    notifyListeners();
+  }
+
+  void orderSetNote(String note) {
+    final draft = _orderDraft;
+    if (draft == null) return;
+    draft.note = note;
+    notifyListeners();
+  }
+
+  void orderNumpad(String key) {
+    final draft = _orderDraft;
+    if (draft == null) return;
+    var qty = draft.qty;
+    if (key == 'C') {
+      qty = 0;
+      _orderQtyReplaceNext = true;
+    } else if (key == '⌫') {
+      final s = qty.toString();
+      qty = s.length > 1 ? int.parse(s.substring(0, s.length - 1)) : 0;
+      _orderQtyReplaceNext = qty == 0;
+    } else {
+      if (_orderQtyReplaceNext) {
+        qty = int.tryParse(key) ?? qty;
+        _orderQtyReplaceNext = false;
+      } else {
+        final s = qty == 0 ? key : '$qty$key';
+        qty = int.tryParse(s) ?? qty;
+      }
+    }
+    final max = draft.stockMax;
+    if (max != null && qty > max) qty = max;
+    draft.qty = qty.clamp(0, 9999);
+    notifyListeners();
+  }
+
+  void confirmOrder() {
+    final draft = _orderDraft;
+    if (draft == null) return;
+    if (draft.qty <= 0) {
+      _lines.remove(draft.productId);
+    } else {
+      _lines[draft.productId] = GuestSiteCartLine(
+        productId: draft.productId,
+        name: draft.name,
+        price: draft.price,
+        qty: draft.qty,
+        note: draft.note.trim(),
+      );
+    }
+    _orderDraft = null;
+    _sheet = GuestSiteCartSheet.none;
+    unawaited(_persist());
+    notifyListeners();
+  }
+
+  void cancelOrder() {
+    _orderDraft = null;
+    if (_sheet == GuestSiteCartSheet.order) _sheet = GuestSiteCartSheet.none;
+    notifyListeners();
+  }
+
+  void pesan() {
+    if (count == 0) return;
+    checkoutError = null;
+    _checkoutStep = GuestCheckoutStep.confirm;
+    _sheet = GuestSiteCartSheet.checkout;
+    notifyListeners();
+  }
+
+  void checkoutBack() {
+    checkoutError = null;
+    if (_checkoutStep == GuestCheckoutStep.payDetail) {
+      _checkoutStep = GuestCheckoutStep.payment;
+    } else if (_checkoutStep == GuestCheckoutStep.payment) {
+      _checkoutStep = GuestCheckoutStep.confirm;
+    } else {
+      closeSheet();
+    }
+    notifyListeners();
+  }
+
+  void checkoutSelectPayment(String id) {
+    setPaymentId(id);
+    _checkoutStep = GuestCheckoutStep.payDetail;
+    checkoutError = null;
+    notifyListeners();
+  }
+
+  bool checkoutAdvance() {
+    checkoutError = null;
+    if (_checkoutStep == GuestCheckoutStep.confirm) {
+      if (_paymentMethods.isEmpty) {
+        _checkoutStep = GuestCheckoutStep.payDetail;
+      } else {
+        _checkoutStep = GuestCheckoutStep.payment;
+      }
+      notifyListeners();
+      return false;
+    }
+    return _checkoutStep == GuestCheckoutStep.payDetail;
+  }
+
+  Map<String, dynamic>? selectedPaymentMethod() {
+    for (final m in _paymentMethods) {
+      if (m['id']?.toString() == _paymentId) return m;
+    }
+    return _paymentMethods.isEmpty ? null : _paymentMethods.first;
+  }
+
+  String checkoutPrimaryLabel() {
+    switch (_checkoutStep) {
+      case GuestCheckoutStep.confirm:
+        return _paymentMethods.isEmpty ? 'Kirim pesanan' : 'Lanjutkan';
+      case GuestCheckoutStep.payment:
+        return 'Pilih metode pembayaran';
+      case GuestCheckoutStep.payDetail:
+        return busy ? 'Mengirim...' : 'Kirim pesanan';
+    }
+  }
+
+  String checkoutTitle() {
+    switch (_checkoutStep) {
+      case GuestCheckoutStep.confirm:
+        return 'Pesanan';
+      case GuestCheckoutStep.payment:
+        return 'Pembayaran';
+      case GuestCheckoutStep.payDetail:
+        final m = selectedPaymentMethod();
+        return m?['title']?.toString() ?? 'Detail pembayaran';
+    }
   }
 
   void replaceReservation({
@@ -245,20 +463,24 @@ class GuestSiteCartController extends ChangeNotifier {
     } else if (qty <= 0) {
       _lines.remove(productId);
     } else {
-      _lines[productId] = GuestSiteCartLine(productId: productId, name: prev.name, price: prev.price, qty: qty);
+      _lines[productId] = GuestSiteCartLine(
+        productId: productId,
+        name: prev.name,
+        price: prev.price,
+        qty: qty,
+        note: prev.note,
+      );
     }
     unawaited(_persist());
     notifyListeners();
   }
 
-  void openSheet() {
-    if (count == 0) return;
-    _sheetOpen = true;
-    notifyListeners();
-  }
+  void openSheet() => pesan();
 
   void closeSheet() {
-    _sheetOpen = false;
+    _sheet = GuestSiteCartSheet.none;
+    _checkoutStep = GuestCheckoutStep.confirm;
+    checkoutError = null;
     notifyListeners();
   }
 
@@ -286,7 +508,8 @@ class GuestSiteCartController extends ChangeNotifier {
       final orderTotal = tx is Map ? (tx['total'] as num?)?.toInt() ?? total : total;
       _lines.clear();
       await _persist();
-      _sheetOpen = false;
+      _sheet = GuestSiteCartSheet.none;
+      _checkoutStep = GuestCheckoutStep.confirm;
       if (txId != null) await GuestSiteMemberStore.orderSave(siteIid: siteIid, txId: txId, total: orderTotal);
       return txId;
     } finally {
@@ -342,39 +565,189 @@ class GuestSiteCartChrome extends StatelessWidget {
           children: [
             child,
             GuestSiteOrdersChip(siteIid: controller.siteIid, accent: accent, controller: controller),
-            if (controller.count > 0)
+            if (controller.count > 0 && !controller.sheetOpen)
               Positioned(
                 left: 12,
                 right: 12,
                 bottom: 12,
                 child: Material(
+                  key: const Key('guest-cart-bar'),
                   color: const Color(0xFF18181B),
-                  borderRadius: BorderRadius.circular(999),
-                  child: InkWell(
-                    onTap: controller.openSheet,
-                    borderRadius: BorderRadius.circular(999),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 12,
-                            backgroundColor: accent,
-                            child: Text('${controller.count}', style: const TextStyle(fontSize: 11, color: Colors.white)),
+                  elevation: 8,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                moneyFmtIdr(controller.total),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                              ),
+                              Text(
+                                '${controller.count} item',
+                                style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text('Rp ${controller.total}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
-                          Text('Lihat', style: TextStyle(color: accent, fontWeight: FontWeight.w600)),
-                        ],
-                      ),
+                        ),
+                        FilledButton(
+                          key: const Key('guest-cart-pesan'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: controller.pesan,
+                          child: const Text('Pesan', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            if (controller.sheetOpen) GuestSiteCheckoutSheet(controller: controller, accent: accent),
+            if (controller.sheet == GuestSiteCartSheet.order)
+              GuestSiteOrderSheet(
+                controller: controller,
+                accent: accent,
+                fg: const Color(0xFFF4F4F5),
+                cardBg: const Color(0xFF18181B),
+                muted: const Color(0xFFA1A1AA),
+              ),
+            if (controller.sheet == GuestSiteCartSheet.checkout)
+              GuestSiteCheckoutSheet(controller: controller, accent: accent),
           ],
         ),
       );
+}
+
+class GuestSiteOrderSheet extends StatelessWidget {
+  const GuestSiteOrderSheet({
+    super.key,
+    required this.controller,
+    required this.accent,
+    required this.fg,
+    required this.cardBg,
+    required this.muted,
+  });
+
+  final GuestSiteCartController controller;
+  final Color accent;
+  final Color fg;
+  final Color cardBg;
+  final Color muted;
+
+  static const _numpad = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '00', '\u232b'];
+
+  @override
+  Widget build(BuildContext context) {
+    final draft = controller.orderDraft;
+    if (draft == null) return const SizedBox.shrink();
+    final lineTotal = draft.price * draft.qty;
+    final primary = draft.qty > 0 ? 'Pesan ${draft.qty} item · Rp $lineTotal' : 'Batalkan';
+    return Material(
+      color: Colors.black54,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 480),
+          decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2))),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          _orderPic(draft.pic, accent),
+                          if (draft.qty > 0)
+                            Positioned(
+                              top: -6,
+                              right: -6,
+                              child: CircleAvatar(radius: 10, backgroundColor: accent, child: Text('${draft.qty}', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800))),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(children: [
+                              Expanded(child: Text(draft.name, style: TextStyle(fontWeight: FontWeight.w700, color: fg))),
+                              Text('Rp ${draft.price}', style: TextStyle(fontWeight: FontWeight.w800, color: accent)),
+                            ]),
+                            const SizedBox(height: 8),
+                            TextField(
+                              style: TextStyle(color: fg),
+                              decoration: InputDecoration(isDense: true, hintText: 'Catatan (opsional)...', hintStyle: TextStyle(color: muted), filled: true, fillColor: fg.withValues(alpha: 0.06), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
+                              onChanged: controller.orderSetNote,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (draft.stockMax != null)
+                    Padding(padding: const EdgeInsets.only(top: 8), child: Align(alignment: Alignment.centerLeft, child: Text('Stok: ${draft.stockMax}', style: TextStyle(fontSize: 12, color: muted)))),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    shrinkWrap: true,
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.8,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [
+                      for (final k in _numpad)
+                        Material(
+                          color: fg.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            onTap: () => controller.orderNumpad(k),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Center(child: Text(k, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: fg))),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: draft.qty > 0 ? accent : muted.withValues(alpha: 0.3), foregroundColor: draft.qty > 0 ? Colors.white : muted, padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                      onPressed: () => draft.qty <= 0 ? controller.cancelOrder() : controller.confirmOrder(),
+                      child: Text(primary, textAlign: TextAlign.center),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _orderPic(String pic, Color accent) {
+    if (pic.isNotEmpty) {
+      return ClipRRect(borderRadius: BorderRadius.circular(14), child: GuestSitePic(pic: pic, width: 52, height: 52, fit: BoxFit.cover));
+    }
+    return Container(width: 52, height: 52, alignment: Alignment.center, decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)), child: const Text('\u{1F6CD}', style: TextStyle(fontSize: 22)));
+  }
 }
 
 class GuestSiteCheckoutSheet extends StatefulWidget {
@@ -388,10 +761,13 @@ class GuestSiteCheckoutSheet extends StatefulWidget {
 }
 
 class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
-  late final TextEditingController _name = TextEditingController();
-  late final TextEditingController _phone = TextEditingController();
-  late final TextEditingController _note = TextEditingController();
-  String? _paymentId;
+  static const _fg = Color(0xFFF4F4F5);
+  static const _cardBg = Color(0xFF18181B);
+  static const _muted = Color(0xFFA1A1AA);
+
+  late final TextEditingController _name = TextEditingController(text: widget.controller.checkoutCustomerName);
+  late final TextEditingController _phone = TextEditingController(text: widget.controller.checkoutCustomerPhone);
+  late final TextEditingController _note = TextEditingController(text: widget.controller.checkoutOrderNote);
 
   @override
   void dispose() {
@@ -401,11 +777,303 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
     super.dispose();
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _paymentId = widget.controller.paymentId;
+  void _syncCheckoutFields() {
+    widget.controller.checkoutCustomerName = _name.text;
+    widget.controller.checkoutCustomerPhone = _phone.text;
+    widget.controller.checkoutOrderNote = _note.text;
   }
+
+  Future<void> _submit() async {
+    _syncCheckoutFields();
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      widget.controller.checkoutError = 'Nama wajib diisi';
+      setState(() {});
+      return;
+    }
+    final id = await widget.controller.submit(customerName: name, phone: _phone.text, note: _note.text);
+    if (id != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pesanan #$id diterima')));
+    }
+  }
+
+  Future<void> _onPrimary() async {
+    final c = widget.controller;
+    if (c.checkoutStep == GuestCheckoutStep.payment) return;
+    if (c.checkoutStep == GuestCheckoutStep.confirm) {
+      c.checkoutAdvance();
+      if (c.paymentMethods.isEmpty) {
+        await _submit();
+      } else {
+        setState(() {});
+      }
+      return;
+    }
+    await _submit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    final step = c.checkoutStep;
+    final canSubmit = step == GuestCheckoutStep.payDetail || (step == GuestCheckoutStep.confirm && c.paymentMethods.isEmpty);
+
+    return GuestSiteCheckoutSheetPanel(
+      fg: _fg,
+      cardBg: _cardBg,
+      muted: _muted,
+      accent: widget.accent,
+      title: c.checkoutTitle(),
+      onBack: step == GuestCheckoutStep.confirm ? null : c.checkoutBack,
+      onClose: c.closeSheet,
+      body: switch (step) {
+        GuestCheckoutStep.confirm => _confirmBody(c),
+        GuestCheckoutStep.payment => _paymentBody(c),
+        GuestCheckoutStep.payDetail => _payDetailBody(c),
+      },
+      footer: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: widget.accent,
+          minimumSize: const Size.fromHeight(48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+        onPressed: c.busy || (step == GuestCheckoutStep.payment && !canSubmit)
+            ? null
+            : () => unawaited(_onPrimary()),
+        child: Text(c.checkoutPrimaryLabel()),
+      ),
+    );
+  }
+
+  Widget _confirmBody(GuestSiteCartController c) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: _fg.withValues(alpha: 0.06),
+          ),
+          child: Column(
+            children: [
+              for (final l in c.lines) _checkoutLineRow(l, c),
+            ],
+          ),
+        ),
+        _checkoutRow('Subtotal', moneyFmtIdr(c.subtotal), muted: true),
+        if (c.taxTotal > 0) _checkoutRow('Pajak', moneyFmtIdr(c.taxTotal), muted: true),
+        _checkoutRow('Total', moneyFmtIdr(c.total), bold: true),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _name,
+          onChanged: (_) => _syncCheckoutFields(),
+          style: const TextStyle(color: _fg),
+          decoration: const InputDecoration(labelText: 'Nama', labelStyle: TextStyle(color: _muted)),
+        ),
+        TextField(
+          controller: _phone,
+          onChanged: (_) => _syncCheckoutFields(),
+          style: const TextStyle(color: _fg),
+          decoration: const InputDecoration(labelText: 'HP / WhatsApp', labelStyle: TextStyle(color: _muted)),
+        ),
+        TextField(
+          controller: _note,
+          onChanged: (_) => _syncCheckoutFields(),
+          style: const TextStyle(color: _fg),
+          maxLines: 2,
+          decoration: const InputDecoration(labelText: 'Catatan pesanan', labelStyle: TextStyle(color: _muted)),
+        ),
+        if (c.paymentMethods.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Tidak ada metode pembayaran dikonfigurasi. Pesanan tetap bisa dikirim.',
+              style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12),
+            ),
+          ),
+        if (c.checkoutError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(c.checkoutError!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12)),
+          ),
+      ],
+    );
+  }
+
+  Widget _checkoutLineRow(GuestSiteCartLine l, GuestSiteCartController c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(color: widget.accent, borderRadius: BorderRadius.circular(999)),
+            child: Text('${l.qty}×', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(l.name, style: const TextStyle(color: _fg, fontWeight: FontWeight.w600)),
+                if (l.note.trim().isNotEmpty)
+                  Text(l.note.trim(), style: const TextStyle(color: _muted, fontSize: 12)),
+                if (l.slots.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(color: const Color(0xFFFFEDD5), borderRadius: BorderRadius.circular(999)),
+                    child: const Text('Reservasi', style: TextStyle(color: Color(0xFF9A3412), fontSize: 10, fontWeight: FontWeight.w800)),
+                  ),
+              ],
+            ),
+          ),
+          Text(moneyFmtIdr(l.lineTotal), style: const TextStyle(color: _fg, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+
+  Widget _checkoutRow(String label, String value, {bool muted = false, bool bold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: TextStyle(color: muted ? _muted : _fg, fontWeight: bold ? FontWeight.w800 : FontWeight.w500))),
+          Text(value, style: TextStyle(color: _fg, fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _paymentBody(GuestSiteCartController c) {
+    return Column(
+      children: [
+        for (final m in c.paymentMethods)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
+              color: _fg.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () {
+                  final id = m['id']?.toString() ?? '';
+                  if (id.isEmpty) return;
+                  c.checkoutSelectPayment(id);
+                  setState(() {});
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 18,
+                        backgroundColor: _cardBg,
+                        child: Icon(guestPaymentMethodIcon(m['type']?.toString() ?? ''), color: _muted, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(m['title']?.toString() ?? m['id']?.toString() ?? '', style: const TextStyle(color: _fg, fontWeight: FontWeight.w700)),
+                            if ((m['subtitle']?.toString() ?? '').trim().isNotEmpty)
+                              Text(m['subtitle']!.toString(), style: const TextStyle(color: _muted, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, color: _muted),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _qrisPreview(Map<String, dynamic>? method) {
+    final qris = method?['qris_pic']?.toString() ?? '';
+    if (qris.trim().isEmpty) {
+      return const Text('QRIS belum dikonfigurasi.', style: TextStyle(color: _muted));
+    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: GuestSitePic(pic: qris, height: 180, width: 180, fit: BoxFit.contain),
+    );
+  }
+
+  Widget _payDetailBody(GuestSiteCartController c) {
+    final m = c.selectedPaymentMethod();
+    final type = m?['type']?.toString().toLowerCase() ?? 'cash';
+    final title = m?['title']?.toString() ?? 'Pembayaran';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: _fg.withValues(alpha: 0.05),
+          ),
+          child: Column(
+            children: [
+              Icon(guestPaymentMethodIcon(type), size: 32, color: _fg),
+              const SizedBox(height: 8),
+              Text(title, textAlign: TextAlign.center, style: const TextStyle(color: _fg, fontWeight: FontWeight.w800, fontSize: 17)),
+              const SizedBox(height: 6),
+              if (type == 'cash')
+                const Text('Siapkan uang pas saat pesanan diantar.', textAlign: TextAlign.center, style: TextStyle(color: _muted))
+              else if (type == 'transfer') ...[
+                if ((m?['bank']?.toString() ?? '').trim().isNotEmpty) Text('Bank: ${m!['bank']}', style: const TextStyle(color: _muted)),
+                if ((m?['account_name']?.toString() ?? '').trim().isNotEmpty) Text(m!['account_name']!.toString(), style: const TextStyle(color: _fg, fontWeight: FontWeight.w600)),
+                if ((m?['account_number']?.toString() ?? '').trim().isNotEmpty) Text(m!['account_number']!.toString(), style: const TextStyle(color: _fg, fontWeight: FontWeight.w700)),
+              ]               else if (type == 'qris')
+                _qrisPreview(m)
+              else
+                const Text('Ikuti instruksi dari toko setelah pesanan dikirim.', textAlign: TextAlign.center, style: TextStyle(color: _muted)),
+              const SizedBox(height: 12),
+              Text(moneyFmtIdr(c.total), style: TextStyle(color: widget.accent, fontWeight: FontWeight.w900, fontSize: 20)),
+            ],
+          ),
+        ),
+        if (c.checkoutError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(c.checkoutError!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12)),
+          ),
+      ],
+    );
+  }
+}
+
+class GuestSiteCheckoutSheetPanel extends StatelessWidget {
+  const GuestSiteCheckoutSheetPanel({
+    super.key,
+    required this.fg,
+    required this.cardBg,
+    required this.muted,
+    required this.accent,
+    required this.title,
+    required this.body,
+    required this.footer,
+    this.onBack,
+    required this.onClose,
+  });
+
+  final Color fg;
+  final Color cardBg;
+  final Color muted;
+  final Color accent;
+  final String title;
+  final Widget body;
+  final Widget footer;
+  final VoidCallback? onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -414,110 +1082,51 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
           alignment: Alignment.bottomCenter,
           child: Container(
             width: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 520),
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Color(0xFF18181B),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 560),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Expanded(child: Text('Pesanan', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
-                    IconButton(onPressed: widget.controller.closeSheet, icon: const Icon(Icons.close, color: Colors.white70)),
+                    Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
+                    ),
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 40,
+                          child: onBack != null
+                              ? IconButton(onPressed: onBack, icon: Icon(Icons.arrow_back, color: fg))
+                              : const SizedBox.shrink(),
+                        ),
+                        Expanded(
+                          child: Text(title, textAlign: TextAlign.center, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 17)),
+                        ),
+                        IconButton(onPressed: onClose, icon: Icon(Icons.close, color: muted)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(child: SingleChildScrollView(child: body)),
+                    const SizedBox(height: 12),
+                    footer,
                   ],
                 ),
-                Expanded(
-                  child: ListView(
-                    children: [
-                      for (final l in widget.controller.lines)
-                        ListTile(
-                          dense: true,
-                          title: Text(l.name, style: const TextStyle(color: Colors.white, fontSize: 13)),
-                          subtitle: Text('Rp ${l.lineTotal}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
-                          trailing: l.slots.isEmpty
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.remove, size: 18, color: Colors.white70),
-                                      onPressed: () => widget.controller.setQty(l.productId, l.qty - 1),
-                                    ),
-                                    Text('${l.qty}', style: const TextStyle(color: Colors.white)),
-                                    IconButton(
-                                      icon: const Icon(Icons.add, size: 18, color: Colors.white70),
-                                      onPressed: () => widget.controller.setQty(l.productId, l.qty + 1),
-                                    ),
-                                  ],
-                                )
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('${l.qty}', style: const TextStyle(color: Colors.white)),
-                                    IconButton(
-                                      icon: const Icon(Icons.close, size: 18, color: Colors.white70),
-                                      onPressed: () => widget.controller.setQty(l.productId, 0),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      TextField(controller: _name, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Nama')),
-                      TextField(controller: _phone, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'HP / WhatsApp')),
-                      TextField(controller: _note, style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: 'Catatan'), maxLines: 2),
-                      if (widget.controller.paymentMethods.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          initialValue: _paymentId ?? widget.controller.paymentId,
-                          dropdownColor: const Color(0xFF27272A),
-                          style: const TextStyle(color: Colors.white),
-                          decoration: const InputDecoration(labelText: 'Pembayaran'),
-                          items: [
-                            for (final m in widget.controller.paymentMethods)
-                              DropdownMenuItem(
-                                value: m['id']?.toString() ?? '',
-                                child: Text(m['title']?.toString() ?? m['id']?.toString() ?? ''),
-                              ),
-                          ],
-                          onChanged: (v) {
-                            if (v == null) return;
-                            setState(() => _paymentId = v);
-                            widget.controller.setPaymentId(v);
-                          },
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Expanded(child: Text('Total', style: TextStyle(color: Colors.white70))),
-                          Text(
-                            'Rp ${widget.controller.total}',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: widget.accent),
-                  onPressed: widget.controller.busy
-                      ? null
-                      : () async {
-                          final id = await widget.controller.submit(customerName: _name.text, phone: _phone.text, note: _note.text);
-                          if (id != null && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Pesanan #$id diterima')));
-                          }
-                        },
-                  child: Text(widget.controller.busy ? 'Mengirim...' : 'Kirim pesanan'),
-                ),
-              ],
+              ),
             ),
           ),
         ),
       );
 }
+
 class GuestSiteOrdersChip extends StatefulWidget {
   const GuestSiteOrdersChip({super.key, required this.siteIid, required this.accent, this.controller});
 
@@ -556,7 +1165,7 @@ class _GuestSiteOrdersChipState extends State<GuestSiteOrdersChip> {
   Future<void> _openSheet() async {
     final orders = await GuestSiteMemberStore.ordersList(widget.siteIid);
     if (!mounted) return;
-    await showModalBottomSheet<void>(
+    await guestSiteShowModalBottomSheet<void>(
       context: context,
       backgroundColor: const Color(0xFF18181B),
       builder: (ctx) => SafeArea(

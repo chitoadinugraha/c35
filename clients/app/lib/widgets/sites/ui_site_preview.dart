@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/site/site_editor_preview_cache.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_preview_external_url.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/guest_site/guest_site_preview_app.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/guest_site/site_preview_mode.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -177,7 +178,7 @@ class _UiSitePreviewState extends State<UiSitePreview> {
       if (boot == null) {
         return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
       }
-      final guest = GuestSiteShell.bootJson(bootJson: boot);
+      final guest = _guestPreviewWidget(boot);
       if (widget.embedded) return _embeddedPreview(child: guest);
       return _previewChrome(child: guest);
     }
@@ -200,9 +201,15 @@ class _UiSitePreviewState extends State<UiSitePreview> {
     if (boot == null) {
       return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
-    final guest = GuestSiteShell.bootJson(bootJson: boot);
+    final guest = _guestPreviewWidget(boot);
     if (widget.embedded) return _embeddedPreview(child: guest);
     return _previewChrome(child: guest);
+  }
+
+  /// Editor phone frame (`embedded`) uses nested [MaterialApp] so overlays stay in the virtual screen.
+  Widget _guestPreviewWidget(Map<String, dynamic> boot) {
+    if (widget.embedded) return GuestSitePreviewApp.bootJson(bootJson: boot);
+    return GuestSiteShell.bootJson(bootJson: boot);
   }
 
   Widget _embeddedPreview({required Widget child}) => Stack(

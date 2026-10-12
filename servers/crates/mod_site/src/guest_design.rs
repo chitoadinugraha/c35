@@ -425,15 +425,15 @@ fn profile_from(raw: Option<&Value>) -> ProfileDesign {
     let m = raw.and_then(|v| v.as_object());
     ProfileDesign {
         show_avatar: bool_or(m, "showAvatar", true),
-        avatar_size: f64_or(m, "avatarSize", 40.0),
+        avatar_size: f64_or(m, "avatarSize", 72.0),
         avatar_outline_width: f64_or(m, "avatarOutlineWidth", 0.0),
         avatar_outline_color: str_or(m, "avatarOutlineColor", ""),
         show_title: bool_or(m, "showTitle", true),
-        title_font_size: f64_or(m, "titleFontSize", 22.0),
+        title_font_size: f64_or(m, "titleFontSize", 18.0),
         title_font_family: str_or(m, "titleFontFamily", ""),
         title_align: str_or(m, "titleAlign", "center"),
         show_bio: bool_or(m, "showBio", true),
-        bio_font_size: f64_or(m, "bioFontSize", 13.0),
+        bio_font_size: f64_or(m, "bioFontSize", 12.0),
         bio_font_family: str_or(m, "bioFontFamily", ""),
         bio_align: str_or(m, "bioAlign", "center"),
         show_location: bool_or(m, "showLocation", true),

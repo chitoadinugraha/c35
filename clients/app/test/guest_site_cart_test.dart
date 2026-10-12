@@ -8,6 +8,13 @@ void main() {
     expect(line.lineTotal, 30000);
   });
 
+  test('GuestSiteCartLine persists qty+note json', () {
+    final line = GuestSiteCartLine(productId: 2, name: 'Snack', price: 3000, qty: 2, note: 'pedas');
+    expect(line.toStoredJson(), {'qty': 2, 'note': 'pedas'});
+    final lines = guestCartLinesFromJsonMap({'2': {'qty': 2, 'note': 'pedas', 'name': 'Snack', 'price': 3000}});
+    expect(lines[2]!.note, 'pedas');
+  });
+
   test('GuestSiteCartController persists cart keyed by site_iid', () async {
     SharedPreferences.setMockInitialValues({});
     final cartA = GuestSiteCartController(siteIid: 42);

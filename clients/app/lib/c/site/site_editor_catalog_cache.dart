@@ -117,8 +117,8 @@ class SiteEditorCatalogCache extends ChangeNotifier {
       _mergeProducts(page.products);
       productNextCursor = page.nextCursor;
       productHasMore = page.hasMore;
-    } catch (e) {
-      warmError = '$e';
+    } catch (_) {
+      // Pagination errors are local to the products editor; do not set [warmError].
     } finally {
       productLoadingMore = false;
       notifyListeners();
@@ -139,8 +139,8 @@ class SiteEditorCatalogCache extends ChangeNotifier {
         productHasMore = false;
         productNextCursor = '';
       }
-    } catch (e) {
-      warmError = '$e';
+    } catch (_) {
+      // Pagination errors are local to the products editor; do not set [warmError].
     } finally {
       productLoadingAll = false;
       notifyListeners();
@@ -181,6 +181,13 @@ class SiteEditorCatalogCache extends ChangeNotifier {
 
   void removePost(int postId) {
     _postsById.remove('$postId');
+    notifyListeners();
+  }
+
+  void setPosts(List<SitePost> items) {
+    _postsById
+      ..clear()
+      ..addEntries(items.map((p) => MapEntry('${p.postId}', p)));
     notifyListeners();
   }
 

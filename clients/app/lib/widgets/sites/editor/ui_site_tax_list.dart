@@ -1,4 +1,5 @@
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
 import 'package:flutter/material.dart';
@@ -105,123 +106,190 @@ class _TaxRowState extends State<_TaxRow> {
     super.dispose();
   }
 
-  void _setType(String type) => widget.onChanged(widget.tax.copyWith(type: type, name: siteTaxDefaultName(type)));
+  void _setType(String type) {
+    final name = siteTaxDefaultName(type);
+    _nameCtrl.text = name;
+    widget.onChanged(widget.tax.copyWith(type: type, name: name));
+  }
+
+  InputDecoration _inlineFieldDecoration({String? hintText, String? suffixText}) => InputDecoration(
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        isDense: true,
+        hintText: hintText,
+        hintStyle: const TextStyle(color: siteEditorFormMuted, fontSize: 13),
+        suffixText: suffixText,
+        suffixStyle: const TextStyle(color: siteEditorFormMuted, fontSize: 12),
+        contentPadding: EdgeInsets.zero,
+      );
 
   @override
   Widget build(BuildContext context) {
     final tax = widget.tax;
     final type = siteTaxTypeNormalize(tax.type);
+    final title = tax.name.isEmpty ? siteTaxDefaultName(type) : tax.name;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: UiSiteEditorFormSection(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: siteEditorFieldFill,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: siteEditorFieldBorder),
-                ),
-                child: Icon(siteTaxTypeIcon(type), color: siteEditorFormAccent, size: 20),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        decoration: BoxDecoration(
+          color: siteEditorCardBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: siteEditorFieldBorder.withValues(alpha: 0.85)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            UiSiteCatalogDetailHeader(
+              icon: siteTaxTypeIcon(type),
+              title: title,
+              active: tax.active,
+              onActiveChanged: widget.busy ? null : (v) => widget.onChanged(tax.copyWith(active: v)),
+              onDelete: widget.busy ? null : widget.onRemove,
+              deleteLabel: 'Remove tax',
+              deleteConfirmTitle: 'Remove tax?',
+              deleteConfirmBody: 'This tax will no longer apply at checkout.',
+            ),
+            const SizedBox(height: 8),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: siteEditorFieldFill,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: siteEditorFieldBorder),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  tax.name.isEmpty ? siteTaxDefaultName(type) : tax.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: siteEditorFormText, fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-              ),
-              IconButton(
-                onPressed: widget.busy ? null : widget.onRemove,
-                tooltip: 'Remove tax',
-                icon: const Icon(Icons.delete_outline, size: 20, color: siteEditorFormMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text('Tax type', style: TextStyle(color: siteEditorFormMuted, fontSize: 11, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: kSiteTaxTypes.map((t) {
-              final selected = type == t;
-              return Material(
-                color: selected ? siteEditorFormAccent.withValues(alpha: 0.15) : siteEditorFieldFill,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: selected ? siteEditorFormAccent : siteEditorFieldBorder),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  onTap: widget.busy ? null : () => _setType(t),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(siteTaxTypeIcon(t), size: 16, color: selected ? siteEditorFormAccent : siteEditorFormMuted),
-                        const SizedBox(width: 6),
-                        Text(
-                          siteTaxDefaultName(t),
-                          style: TextStyle(
-                            color: selected ? siteEditorFormText : siteEditorFormMuted,
-                            fontSize: 12,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                          ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < kSiteTaxTypes.length; i++) ...[
+                      if (i > 0) Container(width: 1, height: 34, color: siteEditorFieldBorder),
+                      Expanded(
+                        child: _TaxTypeSegment(
+                          type: kSiteTaxTypes[i],
+                          selected: type == kSiteTaxTypes[i],
+                          busy: widget.busy,
+                          onTap: () => _setType(kSiteTaxTypes[i]),
                         ),
-                      ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: siteEditorFieldFill,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: siteEditorFieldBorder),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Column(
+                  children: [
+                    _TaxInlineField(
+                      label: 'Label on receipt',
+                      child: TextField(
+                        controller: _nameCtrl,
+                        enabled: !widget.busy,
+                        textAlign: TextAlign.end,
+                        style: const TextStyle(color: siteEditorFormText, fontSize: 13),
+                        decoration: _inlineFieldDecoration(hintText: 'e.g. PPN 11%'),
+                        onChanged: (v) => widget.onChanged(tax.copyWith(name: v)),
+                      ),
                     ),
-                  ),
-                ),
-              );
-            }).toList(growable: false),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: UiSiteEditorLabeledField(
-                  label: 'Label on receipt',
-                  child: TextField(
-                    controller: _nameCtrl,
-                    enabled: !widget.busy,
-                    style: const TextStyle(color: siteEditorFormText, fontSize: 13),
-                    decoration: siteEditorInputDecoration(hintText: 'e.g. PPN 11%'),
-                    onChanged: (v) => widget.onChanged(tax.copyWith(name: v)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 108,
-                child: UiSiteEditorLabeledField(
-                  label: 'Rate',
-                  child: TextField(
-                    controller: _rateCtrl,
-                    enabled: !widget.busy,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(color: siteEditorFormText, fontSize: 13),
-                    decoration: siteEditorInputDecoration(suffixText: '%'),
-                    onChanged: (v) => widget.onChanged(tax.copyWith(percent: double.tryParse(v.replaceAll(',', '.')) ?? 0)),
-                  ),
+                    Divider(height: 1, thickness: 1, color: siteEditorFieldBorder),
+                    _TaxInlineField(
+                      label: 'Rate',
+                      child: SizedBox(
+                        width: 88,
+                        child: TextField(
+                          controller: _rateCtrl,
+                          enabled: !widget.busy,
+                          textAlign: TextAlign.end,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(color: siteEditorFormText, fontSize: 13),
+                          decoration: _inlineFieldDecoration(suffixText: '%'),
+                          onChanged: (v) =>
+                              widget.onChanged(tax.copyWith(percent: double.tryParse(v.replaceAll(',', '.')) ?? 0)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-          UiSiteEditorSwitchRow(
-            label: 'Active',
-            value: tax.active,
-            onChanged: widget.busy ? null : (v) => widget.onChanged(tax.copyWith(active: v)),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _TaxTypeSegment extends StatelessWidget {
+  const _TaxTypeSegment({
+    required this.type,
+    required this.selected,
+    required this.busy,
+    required this.onTap,
+  });
+
+  final String type;
+  final bool selected;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = siteTaxDefaultName(type);
+    return Material(
+      color: selected ? siteEditorFormAccent.withValues(alpha: 0.14) : Colors.transparent,
+      child: InkWell(
+        onTap: busy ? null : onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(siteTaxTypeIcon(type), size: 14, color: selected ? siteEditorFormAccent : siteEditorFormMuted),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: selected ? siteEditorFormText : siteEditorFormMuted,
+                    fontSize: 11,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaxInlineField extends StatelessWidget {
+  const _TaxInlineField({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(label, style: const TextStyle(color: siteEditorFormMuted, fontSize: 12)),
+            const SizedBox(width: 12),
+            Expanded(child: Align(alignment: Alignment.centerRight, child: child)),
+          ],
+        ),
+      );
 }

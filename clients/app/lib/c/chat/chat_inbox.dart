@@ -170,6 +170,12 @@ class MsgUsageStats {
   bool get hasData => hasMetrics || model.isNotEmpty;
 }
 
+/// True when trace fetch can still fill model (and related totals) on assistant rows.
+bool msgUsageNeedsTraceBackfill(MsgRow m) {
+  if (m.role != 'assistant' || m.reqId.trim().isEmpty) return false;
+  return msgUsageStats(m).model.isEmpty;
+}
+
 MsgUsageStats msgUsageStats(MsgRow m) {
   var tokensIn = m.tokensIn;
   var tokensOut = m.tokensOut;

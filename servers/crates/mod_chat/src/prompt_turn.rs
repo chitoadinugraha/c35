@@ -10,8 +10,8 @@ use sqlx::types::Json;
 use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
-use crate::catalog_add_followup::{catalog_add_followup_boost, chat_last_assistant_content};
-use crate::commerce_tx_followup::{chat_last_assistant_blocks, commerce_tx_followup_boost};
+use crate::catalog_add_followup::{catalog_add_followup_boost, chat_last_assistant_snapshot};
+use crate::commerce_tx_followup::commerce_tx_followup_boost;
 use crate::catalog_web::{catalog_skip_web_prefetch, catalog_web_phase};
 use crate::site_commerce_compose::site_commerce_skip_web_prefetch;
 use crate::compose::{
@@ -19,7 +19,9 @@ use crate::compose::{
     ComposeTurnOpts,
 };
 use crate::context_billing::ContextBillingExtra;
-use crate::context_compact::{prepare_prompt_history, PreparedPromptHistory};
+use crate::context_compact::{
+    history_prefetch, prepare_prompt_history_with_prefetch, HistoryPrefetch, PreparedPromptHistory,
+};
 use crate::context_pack::{context_window_resolve, token_estimate, ContextUsageEst};
 use crate::device_context::{
     bound_device_prompt_prepare, chat_bound_device_iid_for_owner, chat_mention_context_commit,
@@ -30,7 +32,7 @@ use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::{inst_pool_signal, inst_scopes_home};
 use crate::compose::ComposePreload;
 use crate::memory::{
-    memory_prompt_merge, memory_retrieve_with_nats, memory_skip_site_scoped,
+    memory_prompt_merge, memory_retrieve_with_nats, memory_skip_site_scoped, retrieval_query_embed,
     MemoryRetrieveResult,
 };
 
@@ -54,7 +56,9 @@ use crate::prompt::ChatReq;
 use crate::prompt_run::prompt_run_get;
 use crate::site_capability::site_capability_view_for_mention;
 use crate::site_resolve::site_context_resolve;
-use crate::user_asset_rag::{user_asset_retrieve, UserAssetRetrieveResult};
+use crate::user_asset_rag::{
+    user_asset_retrieve, user_asset_turn_skip, UserAssetRetrieveResult,
+};
 use crate::device_context::user_asks_local_file_op;
 use crate::tools::{http_client, tool_decls, TurnCtx};
 use crate::turn_tracer::{timed, StageClock, TurnTracer};
@@ -395,12 +399,12 @@ where
 
     let prepare_started = Instant::now();
     let st = Instant::now();
-    let title = if req.chat_id != 0 {
-        String::new()
+    let chat_id = if req.chat_id > 0 {
+        req.chat_id
     } else {
-        chat_title_from_prompt(pool, owner_iid, &req.text, &req.mention_ids).await
+        let title = chat_title_from_prompt(pool, owner_iid, &req.text, &req.mention_ids).await;
+        chat_ensure(pool, owner_iid, 0, &title).await?
     };
-    let chat_id = chat_ensure(pool, owner_iid, req.chat_id, &title).await?;
     bound_device_prompt_prepare(pool, owner_iid, chat_id, &mut req).await?;
     chat_mention_context_commit(pool, chat_id, owner_iid, &req.mention_ids).await?;
     clock.seq("chat_setup", "Chat & device setup", st);
@@ -489,13 +493,17 @@ where
             _ => None,
         })
         .collect();
-    let warm_embed = !is_simple_time && crate::tool_index::tool_index_ready();
+    let skip_user_assets =
+        is_simple_time || user_asset_turn_skip(&req.text, &mention_ids);
     let user_with_attachments = attach_prompt(&user_content, &req.attachments_json);
 
-    // Stage 1: every independent read (and the user-message persist) runs concurrently.
-    // The user-message INSERT only needs to finish before history is loaded, and none of the
-    // other branches read the new row (the last-assistant queries filter role = 'assistant').
-    let persist_fut = async {
+    let pool_persist = pool.clone();
+    let user_content_persist = user_content.clone();
+    let attachments_json_persist = req.attachments_json.clone();
+    let nats_persist = nats.cloned();
+    let req_id_persist = req_id.to_string();
+    let persist_st = Instant::now();
+    let persist_handle = tokio::spawn(async move {
         sqlx::query(
             r#"
             INSERT INTO ai.chat_msg (id, chat_id, owner_iid, req_id, sender_iid, role, source, content, attachments, created_ts, updated_ts)
@@ -505,39 +513,37 @@ where
         .bind(user_msg_id)
         .bind(chat_id)
         .bind(owner_iid)
-        .bind(req_id)
-        .bind(&user_content)
-        .bind(chat_attachments_json(&req.attachments_json))
-        .execute(pool)
+        .bind(&req_id_persist)
+        .bind(&user_content_persist)
+        .bind(chat_attachments_json(&attachments_json_persist))
+        .execute(&pool_persist)
         .await?;
         let _ = crate::chat_sync::chat_touch(
-            pool,
-            nats,
+            &pool_persist,
+            nats_persist.as_ref(),
             chat_id,
             owner_iid,
-            &user_content,
+            &user_content_persist,
             "streaming",
         )
         .await;
         Ok::<(), sqlx::Error>(())
-    };
+    });
+
+    // Stage 1: independent reads (tool RAG embed runs in compose, not here — avoids duplicate API calls).
     let (
-        (persist_res, persist_st, persist_ms),
         (user, doc_st, doc_ms),
         (inst_rows, inst_st, inst_ms),
         (mentions, mlist_st, mlist_ms),
         (prompt_run_res, run_st, run_ms),
         (resolved, mres_st, mres_ms),
         (user_ctx, uctx_st, uctx_ms),
-        (user_assets, ua_st, ua_ms),
         (site_resolved, sr_st, sr_ms),
         (bound_device_iid, bdev_st, bdev_ms),
-        (catalog_followup_raw, lac_st, lac_ms),
-        (last_assistant_blocks, lab_st, lab_ms),
+        (last_assistant, las_st, las_ms),
+        (history_prefetch_res, hist_pf_st, hist_pf_ms),
         (staff, staff_st, staff_ms),
-        (_, warm_st, warm_ms),
     ) = tokio::join!(
-        timed(persist_fut),
         timed(crate::doc_prompt::append_doc_outlines(
             pool,
             &user_with_attachments,
@@ -550,13 +556,6 @@ where
         timed(user_prompt_context_get(pool, owner_iid)),
         timed(async {
             if is_simple_time {
-                UserAssetRetrieveResult::default()
-            } else {
-                user_asset_retrieve(pool, &http, owner_iid, &req.text).await
-            }
-        }),
-        timed(async {
-            if is_simple_time {
                 None
             } else {
                 site_context_resolve(pool, owner_iid, &req.text, &inst_mention_ids)
@@ -566,39 +565,39 @@ where
             }
         }),
         timed(chat_bound_device_iid_for_owner(pool, owner_iid, chat_id)),
-        timed(chat_last_assistant_content(pool, chat_id)),
-        timed(chat_last_assistant_blocks(pool, chat_id)),
+        timed(chat_last_assistant_snapshot(pool, chat_id)),
+        timed(async { history_prefetch(pool, chat_id, user_msg_id).await }),
         timed(c35_mod_admin::staff_view_load(pool, owner_iid)),
-        timed(async {
-            if warm_embed {
-                let _ = c35_mod_llm::embed_cached(
-                    pool,
-                    &http,
-                    req.text.trim(),
-                    c35_mod_llm::EMBED_TASK_QUERY,
-                    c35_mod_llm::EMBED_DIMENSIONS_DEFAULT,
-                )
-                .await;
-            }
-        }),
     );
-    persist_res?;
-    clock.par("persist_user_msg", "Save user message", persist_st, persist_ms);
     clock.par("doc_outlines", "Attachment outlines", doc_st, doc_ms);
     clock.par("inst_list", "Inst list", inst_st, inst_ms);
     clock.par("mention_list", "Mention list", mlist_st, mlist_ms);
     clock.par("prompt_run", "Prompt run checkpoint", run_st, run_ms);
     clock.par("mention_resolve", "Mention resolve", mres_st, mres_ms);
     clock.par("user_context", "User context", uctx_st, uctx_ms);
-    clock.par("user_assets", "User assets retrieve", ua_st, ua_ms);
     clock.par("site_resolve", "Site resolve", sr_st, sr_ms);
     clock.par("bound_device", "Bound device", bdev_st, bdev_ms);
-    clock.par("last_assistant", "Last assistant msg", lac_st, lac_ms);
-    clock.par("last_blocks", "Last assistant blocks", lab_st, lab_ms);
+    clock.par("last_assistant", "Last assistant snapshot", las_st, las_ms);
+    let history_prefetch = match history_prefetch_res {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!("[c35:history_prefetch] fail open chat_id={chat_id}: {e:#}");
+            HistoryPrefetch {
+                ctx: crate::context_compact::ChatContextState {
+                    summary: String::new(),
+                    summary_upto_msg_id: 0,
+                    context_window: 0,
+                    title: String::new(),
+                    meta: serde_json::json!({}),
+                },
+                rows: vec![],
+            }
+        }
+    };
+    clock.par("history_prefetch", "History prefetch", hist_pf_st, hist_pf_ms);
     clock.par("staff_view", "Staff view", staff_st, staff_ms);
-    if warm_embed {
-        clock.par("embed_warm", "Prompt embed (warm cache)", warm_st, warm_ms);
-    }
+    let catalog_followup_raw = last_assistant.content;
+    let last_assistant_blocks = last_assistant.blocks_json;
     let prompt_run = prompt_run_res;
     let run_kind = prompt_run
         .as_ref()
@@ -616,20 +615,29 @@ where
     let inst_match_ids = crate::inst_macro::inst_mention_ids(&inst_mention_ids, req.talk);
     let force_tools = mention_force_tools(&resolved);
     let mut mention_ctx = mention_context_build(&resolved);
-    let skip_memory = is_simple_time || memory_skip_site_scoped(&mention_ctx);
     if mention_ctx.sites.is_empty() {
         if let Some(site) = site_resolved {
             mention_ctx = MentionContext::from_site(site);
-        } else if let Some(site) = user_assets.scope_site.clone() {
-            mention_ctx = MentionContext::from_site(site);
         }
     }
+    let skip_memory = is_simple_time || memory_skip_site_scoped(&mention_ctx);
+    let want_retrieval_embed = (!skip_user_assets
+        || (!skip_memory && !crate::memory::is_trivial_query(&req.text) && !req.text.trim().is_empty()))
+        && !is_simple_time;
+    let shared_retrieval_embed = if want_retrieval_embed {
+        retrieval_query_embed(pool, &http, &req.text).await
+    } else {
+        None
+    };
     let site_iids = mention_ctx.site_iids();
     let site_names = crate::scope_instruction::mention_site_names(&mention_ctx);
 
     // Stage 2: everything that needs the final mention context, concurrently.
+    let embed_for_memory = shared_retrieval_embed.clone();
+    let embed_for_assets = shared_retrieval_embed.clone();
     let (
         (memory, mem_st, mem_ms),
+        (user_assets, ua_st, ua_ms),
         ((scope_user_row, scope_site_rows), scope_st, scope_ms),
         (caps, caps_st, caps_ms),
         ((platform_scope, device_tool_exclude), dev_st, dev_ms),
@@ -639,7 +647,24 @@ where
             if skip_memory {
                 MemoryRetrieveResult::default()
             } else {
-                memory_retrieve_with_nats(pool, nats, &http, owner_iid, None, &req.text, 8).await
+                memory_retrieve_with_nats(
+                    pool,
+                    nats,
+                    &http,
+                    owner_iid,
+                    None,
+                    &req.text,
+                    8,
+                    embed_for_memory,
+                )
+                .await
+            }
+        }),
+        timed(async {
+            if skip_user_assets {
+                UserAssetRetrieveResult::default()
+            } else {
+                user_asset_retrieve(pool, &http, owner_iid, &req.text, embed_for_assets).await
             }
         }),
         timed(async {
@@ -688,6 +713,12 @@ where
         }),
     );
     clock.par("memory", "Memory retrieve", mem_st, mem_ms);
+    clock.par("user_assets", "User assets retrieve", ua_st, ua_ms);
+    if mention_ctx.sites.is_empty() {
+        if let Some(site) = user_assets.scope_site.clone() {
+            mention_ctx = MentionContext::from_site(site);
+        }
+    }
     clock.par("scope_instruction", "Scope instructions load", scope_st, scope_ms);
     clock.par("site_caps", "Site capabilities", caps_st, caps_ms);
     clock.par("device_scope", "Device scope & tool exclude", dev_st, dev_ms);
@@ -887,7 +918,7 @@ where
     system = prompt_context_append(&system, &time_block, &location_block);
 
     let st = Instant::now();
-    let prepared = prepare_prompt_history(
+    let prepared = prepare_prompt_history_with_prefetch(
         pool,
         &http,
         nats,
@@ -899,6 +930,7 @@ where
         &system,
         &user,
         None,
+        history_prefetch,
     )
     .await
     .unwrap_or_else(|e| {
@@ -1022,6 +1054,13 @@ where
         doc_ocr: std::sync::Arc::new(std::sync::Mutex::new(ContextBillingExtra::default())),
         billing: Some(bctx.clone()),
     };
+    let persist_ms = match persist_handle.await {
+        Ok(Ok(())) => persist_st.elapsed().as_millis() as i64,
+        Ok(Err(e)) => return Err(e.into()),
+        Err(e) => return Err(e.into()),
+    };
+    clock.par("persist_user_msg", "Save user message", persist_st, persist_ms);
+
     let res = match prompt_cluster_turn(
         &chat_req,
         &mut on_delta,

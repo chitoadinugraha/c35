@@ -9,6 +9,7 @@ use crate::grant::site_grant_check;
 use crate::rows::{contact_from_row, link_from_row, object_from_row, post_from_row, queue_from_row};
 use crate::site_grant::site_grants_load_for_site;
 use crate::site_hr::site_work_shifts_load;
+use crate::site_draft::site_draft_ensure_product_grid;
 use crate::site_product::site_product_list_page;
 
 pub const SITE_EDITOR_WARM_PRODUCT_DEFAULT: i32 = 30;
@@ -152,6 +153,9 @@ pub async fn site_editor_warm(
     );
 
     let products_res = products_res?;
+    if !products_res.products.is_empty() {
+        let _ = site_draft_ensure_product_grid(pool, caller_iid, site_iid).await;
+    }
     Ok(ResSiteEditorWarm {
         links: links?,
         contacts: contacts?,

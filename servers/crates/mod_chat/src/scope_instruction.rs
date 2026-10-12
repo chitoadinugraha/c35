@@ -349,6 +349,56 @@ pub async fn scope_instruction_load_for_prompt_nats(
 }
 
 
+/// Warm scope-instruction NATS KV for Home (all rows owned by the user).
+pub async fn scope_instruction_warm_owner_bundle(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+) {
+    if owner_iid <= 0 {
+        return;
+    }
+    let rows = sqlx::query(
+        r#"
+        SELECT id, owner_iid, scope_kind, scope_iid, mode, body
+        FROM ai.scope_instruction
+        WHERE owner_iid = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await;
+    let rows = match rows {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!("[c35:scope_instruction] warm load failed owner_iid={owner_iid}: {e:#}");
+            return;
+        }
+    };
+    let mut items = Vec::new();
+    for r in rows {
+        items.push(c35_proto::ScopeInstruction {
+            id: r.get("id"),
+            owner_iid: r.get("owner_iid"),
+            scope_kind: r.get("scope_kind"),
+            scope_iid: r.get("scope_iid"),
+            mode: r.get("mode"),
+            body: r.get("body"),
+            updated_ts_ms: chrono::Utc::now().timestamp_millis(),
+        });
+    }
+    let bundle = c35_proto::ScopeInstructionBundle {
+        owner_iid,
+        updated_ts_ms: chrono::Utc::now().timestamp_millis(),
+        items,
+    };
+    if let Some(client) = nats {
+        if let Ok(store) = c35_nats::scope_inst_kv_ensure(client).await {
+            let _ = c35_nats::scope_inst_bundle_put(&store, &bundle).await;
+        }
+    }
+}
+
 pub fn mention_site_names(ctx: &MentionContext) -> Vec<(i64, String)> {
     ctx.sites
         .iter()

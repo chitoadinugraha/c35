@@ -80,7 +80,10 @@ class SiteEditorPreviewCache extends ChangeNotifier {
       if (_disposed || !identical(_boot, boot)) return;
       siteEditorPreviewApplyDocToBoot(boot, row, SiteDoc());
     }
-    if (!_disposed) notifyListeners();
+    if (!_disposed) {
+      siteEditorPreviewSyncCommerceCatalog(boot);
+      notifyListeners();
+    }
   }
 
   Future<void> reloadFromServer({required bool keepVisible}) async {
@@ -100,6 +103,7 @@ class SiteEditorPreviewCache extends ChangeNotifier {
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) throw 'Invalid site boot payload';
       _boot = decoded;
+      siteEditorPreviewSyncCommerceCatalog(decoded);
       _error = null;
     } catch (e) {
       _error = '$e';

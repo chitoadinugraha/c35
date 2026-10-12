@@ -191,7 +191,9 @@ class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> with SiteEditorCata
     if (mounted) {
       setState(() {
         _loading = false;
-        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+        if (catalog.warmError != null && _grants.isEmpty) {
+          _error = uiFriendlyError(catalog.warmError!);
+        }
       });
     }
   }

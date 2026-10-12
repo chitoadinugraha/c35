@@ -34,6 +34,7 @@ class GuestSiteShell extends StatefulWidget {
     required this.boot,
     this.blockKeyAt,
     this.emptyLabel = 'Empty Site Document',
+    this.navigatorObservers = const [],
   });
 
   factory GuestSiteShell.bootJson({
@@ -52,6 +53,7 @@ class GuestSiteShell extends StatefulWidget {
   final GuestSiteBoot boot;
   final GlobalKey? Function(int index)? blockKeyAt;
   final String emptyLabel;
+  final List<NavigatorObserver> navigatorObservers;
 
   @override
   State<GuestSiteShell> createState() => _GuestSiteShellState();
@@ -114,6 +116,7 @@ class _GuestSiteShellState extends State<GuestSiteShell> {
       navigatorKey: _navigatorKey,
       child: Navigator(
         key: _navigatorKey,
+        observers: widget.navigatorObservers,
         onGenerateRoute: (settings) {
         final name = settings.name ?? '/';
         if (name == '/') {

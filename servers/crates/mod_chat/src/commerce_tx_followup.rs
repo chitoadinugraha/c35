@@ -74,19 +74,9 @@ fn parse_tx_list_block(blocks_json: &str) -> TxListCtx {
 }
 
 pub async fn chat_last_assistant_blocks(pool: &sqlx::PgPool, chat_id: i64) -> Option<String> {
-    sqlx::query_scalar(
-        r#"
-        SELECT blocks_json::text FROM ai.chat_msg
-        WHERE chat_id = $1 AND role = 'assistant' AND deleted_ts IS NULL AND status <> 'error'
-        ORDER BY id DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(chat_id)
-    .fetch_optional(pool)
-    .await
-    .ok()
-    .flatten()
+    crate::catalog_add_followup::chat_last_assistant_snapshot(pool, chat_id)
+        .await
+        .blocks_json
 }
 
 #[cfg(test)]

@@ -21,6 +21,7 @@ mod log_list;
 pub mod compose;
 mod inst;
 pub mod prompt_run;
+mod prompt_prepare_cache;
 pub mod prompt_followup;
 mod pdf_cas;
 mod video_source;
@@ -156,8 +157,9 @@ pub use media_regenerate::media_regenerate;
 pub use context_idle::{context_idle_compact_enabled, ContextIdleFetchTask};
 pub use context_pack::{context_window_options, context_window_resolve, model_context_limit, token_estimate};
 pub use memory::{
-    memory_delete, memory_list_active, memory_prompt_merge, memory_put, memory_retrieve,
-    memory_skip_site_scoped, MemoryRetrieveResult,
+    memory_bundle_warmup, memory_delete, memory_list_active, memory_prompt_merge, memory_put,
+    memory_retrieve, memory_skip_site_scoped, retrieval_query_embed, MemoryRetrieveResult,
+    RETRIEVAL_EMBED_DIMS,
 };
 pub use memory_rpc::{memory_delete_rpc, memory_list_rpc};
 pub use scope_instruction::{
@@ -188,6 +190,9 @@ pub use prompt_run::{
     prompt_run_fanout_fail, prompt_run_fanout_publish, prompt_run_push_from_row,
     prompt_run_worker_start, PromptRunRow,
     PromptRunWorker,
+};
+pub use prompt_prepare_cache::{
+    prompt_prepare_cache_on_connect, prompt_prepare_cache_on_disconnect,
 };
 pub use prompt_turn::{
     chat_ensure, chat_title_from_prompt, chat_title_from_text, prompt_turn, PromptHopCheckpoint, PromptTurn,

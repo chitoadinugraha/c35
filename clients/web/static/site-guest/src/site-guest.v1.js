@@ -485,14 +485,37 @@
       }
     }
 
-    let items = loadCart();
-    let modalOpen = false;
+    function migrateCart(raw) {
+      const out = {};
+      for (const pair of Object.entries(raw || {})) {
+        const v = pair[1];
+        if (typeof v === 'number') {
+          if (v > 0) out[pair[0]] = { qty: v, note: '' };
+        } else if (v && typeof v === 'object') {
+          out[pair[0]] = v;
+        }
+      }
+      return out;
+    }
+
+    let items = migrateCart(loadCart());
+    let sheet = '';
+    let orderProduct = null;
+    let orderQty = 0;
+    let orderNote = '';
+    let orderError = '';
+    let orderStockMax = null;
+    const numpadKeys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '00', 'back'];
+    let checkoutStep = 'confirm';
+    let selectedPaymentId = paymentMethods.length ? paymentMethods[0].id : 'cash';
+    let nameError = '';
+    let checkoutError = '';
     let customerName = '';
     let customerPhone = '';
-    let note = '';
-    let paymentId = 'cash';
+    let customerNotes = '';
     let busy = false;
     let reserveSeq = 0;
+    let sheetMount = null;
 
     function persist() {
       localStorage.setItem(storageKey, JSON.stringify(items));
@@ -517,19 +540,154 @@
       return n;
     }
 
+    function isProductLine(value) {
+      return !!(value && typeof value === 'object' && !isSlotLine(value) && (value.qty != null || value.note != null));
+    }
+
+    function lineQty(value) {
+      if (typeof value === 'number') return value;
+      if (isSlotLine(value)) return slotsBillable(value.slots);
+      if (isProductLine(value)) return value.qty || 0;
+      return 0;
+    }
+
     function lineView(key, value) {
       if (typeof value === 'number') {
-        return { key: key, productId: parseInt(key, 10), qty: value, slots: null };
+        return { key: key, productId: parseInt(key, 10), qty: value, note: '', slots: null };
       }
       if (isSlotLine(value)) {
         return {
           key: key,
           productId: value.product_id,
           qty: slotsBillable(value.slots),
+          note: '',
           slots: value.slots,
         };
       }
+      if (isProductLine(value)) {
+        return {
+          key: key,
+          productId: parseInt(key, 10),
+          qty: value.qty || 0,
+          note: value.note || '',
+          slots: null,
+        };
+      }
       return null;
+    }
+
+    function checkoutLines() {
+      const lines = [];
+      eachLine(function (line) {
+        const p = products.get(line.productId);
+        lines.push({
+          key: line.key,
+          productId: line.productId,
+          name: p ? p.name : 'Item',
+          qty: line.qty,
+          note: line.note || '',
+          reservable: !!line.slots,
+          lineTotal: lineTotal(line.productId, line.qty),
+          slots: line.slots,
+        });
+      });
+      return lines;
+    }
+
+    function taxLines() {
+      const base = subtotal();
+      return taxes.map(function (t) {
+        const amount = Math.round(base * (t.percent || 0) / 100);
+        return { id: t.id || t.name, name: t.name || 'Tax', percent: t.percent || 0, amount };
+      });
+    }
+
+    function selectedPayment() {
+      return paymentMethods.find(function (m) { return m.id === selectedPaymentId; }) || null;
+    }
+
+    function checkoutHeader() {
+      if (checkoutStep === 'payment') return 'Metode pembayaran';
+      if (checkoutStep === 'pay_detail') {
+        const m = selectedPayment();
+        return (m && (m.title || m.label)) || 'Pembayaran';
+      }
+      return 'Checkout';
+    }
+
+    function checkoutPrimaryLabel() {
+      if (checkoutStep === 'confirm') {
+        if (!paymentMethods.length) return 'Pesan \u00b7 ' + formatRpPlain(grandTotal());
+        return 'Lanjut';
+      }
+      if (checkoutStep === 'payment') return 'Pilih metode';
+      const m = selectedPayment();
+      if (m && m.type === 'whatsapp') return 'Kirim via WhatsApp';
+      return 'Konfirmasi \u00b7 ' + formatRpPlain(grandTotal());
+    }
+
+    function payIconHtml(method) {
+      const t = (method && method.type) || '';
+      const glyph = t === 'cash' ? '\uD83D\uDCB5' : (t === 'transfer' ? '\uD83C\uDFE6' : (t === 'qris' ? '\u25A3' : (t === 'whatsapp' ? '\uD83D\uDCAC' : '\u2022')));
+      return '<span class="guest-pay-icon" aria-hidden="true">' + glyph + '</span>';
+    }
+
+    function transferSubtitle(method) {
+      if (!method) return '';
+      const bits = [method.bank, method.account_name, method.account_number].filter(function (x) {
+        return !!(x && String(x).trim());
+      });
+      if (bits.length) return bits.join('\n');
+      return (method.subtitle || method.title || '').trim();
+    }
+
+    function qrisData() {
+      const m = selectedPayment();
+      if (!m || m.type !== 'qris') return '';
+      const pic = (m.qris_pic || m.qris_url || '').trim();
+      if (pic) return picUrlDisplay(pic) || pic;
+      return (m.account_number || m.account || '').trim();
+    }
+
+    function qrisIsImage(data) {
+      const u = (data || '').trim();
+      return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('/fs/') || u.startsWith('data:');
+    }
+
+    function renderPayDetailHtml(method) {
+      if (!method) return '<p class="guest-error">Metode tidak dipilih</p>';
+      const t = method.type || '';
+      if (t === 'cash') {
+        return '<div class="guest-pay-detail-card"><div class="guest-pay-detail-sub" style="font-weight:700">Bayar di tempat</div></div>';
+      }
+      if (t === 'whatsapp') {
+        const wa = (method.whatsapp || method.subtitle || '').trim();
+        return '<div class="guest-pay-detail-card guest-pay-wa"><div class="guest-pay-detail-title">WhatsApp</div>'
+          + '<div class="guest-pay-detail-sub">' + escHtml(wa || 'Hubungi toko via WhatsApp') + '</div></div>';
+      }
+      if (t === 'transfer') {
+        return '<div class="guest-pay-detail-card guest-pay-transfer"><div class="guest-pay-detail-title">Transfer bank</div>'
+          + '<div class="guest-pay-transfer-rows" style="white-space:pre-line">' + escHtml(transferSubtitle(method)) + '</div>'
+          + '<div class="guest-checkout-row total" style="margin-top:12px"><span>Jumlah</span><span>'
+          + escHtml(formatIdr(grandTotal())) + '</span></div></div>';
+      }
+      if (t === 'qris') {
+        const data = qrisData();
+        const has = data.length > 0;
+        const img = has && qrisIsImage(data);
+        let frame = '';
+        if (img) frame = '<img class="guest-qris-img" src="' + escHtml(data) + '" alt="QRIS"/>';
+        else if (has) frame = '<div class="guest-qris-empty"><span>QRIS</span></div>';
+        else frame = '<div class="guest-qris-empty"><span>QRIS belum dikonfigurasi</span></div>';
+        return '<div class="guest-qris-preview"><div class="guest-qris-frame' + (has ? ' has-data' : '') + '">' + frame
+          + '</div><div class="guest-qris-amount">' + escHtml(formatIdr(grandTotal())) + '</div></div>';
+      }
+      return '<div class="guest-pay-detail-card"><div class="guest-pay-detail-sub">' + escHtml(method.title || method.id) + '</div></div>';
+    }
+
+    function countLabel() {
+      const n = count();
+      return n === 1 ? '1 item' : n + ' item';
     }
 
     function eachLine(fn) {
@@ -578,7 +736,7 @@
         const badge = tile.querySelector('.guest-tile-cart-badge');
         if (!badge) return;
         const line = items[pid];
-        const qty = line && !line.slots ? (line.qty || 0) : 0;
+        const qty = line && !isSlotLine(line) ? lineQty(line) : 0;
         if (qty > 0) {
           badge.hidden = false;
           badge.textContent = String(qty);
@@ -594,8 +752,8 @@
       const countEl = document.getElementById('c35-cart-count');
       const totalEl = document.getElementById('c35-cart-total');
       const n = count();
-      if (bar) bar.style.display = n > 0 ? 'flex' : 'none';
-      if (countEl) countEl.textContent = String(n);
+      if (bar) bar.style.display = n > 0 && !sheet ? 'flex' : 'none';
+      if (countEl) countEl.textContent = countLabel();
       if (totalEl) totalEl.textContent = formatRpPlain(grandTotal());
       refreshTileBadges();
     }
@@ -610,102 +768,228 @@
       }, 3200);
     }
 
-    function renderModal() {
-      const sheet = document.getElementById('c35-modal-content');
+    function removeSheetMount() {
+      if (sheetMount && sheetMount.parentNode) sheetMount.parentNode.removeChild(sheetMount);
+      sheetMount = null;
+      const legacy = document.getElementById('c35-guest-modal');
+      if (legacy) legacy.style.display = 'none';
+    }
+
+    function renderSheet() {
+      removeSheetMount();
       if (!sheet) return;
-      const lines = [];
-      eachLine(function (line) {
-        const p = products.get(line.productId);
-        const name = p ? p.name : 'Item';
-        const price = lineTotal(line.productId, line.qty);
-        if (line.slots) {
-          const summary = line.slots.map(function (s) {
-            const when = (s.startLabel && s.endLabel) ? (s.startLabel + ' \u2013 ' + s.endLabel) : 'Slot';
-            const obj = s.objectName ? (' \u00b7 ' + s.objectName) : '';
-            return escHtml(when + ' \u00b7 ' + (s.units || 1) + obj);
-          }).join('<br>');
-          lines.push('<div class="guest-cart-item" data-key="' + escHtml(line.key) + '">'
-            + '<div><div class="guest-item-title">' + escHtml(name) + '</div>'
-            + '<div class="guest-item-price">' + summary + '</div>'
-            + '<div class="guest-item-price">' + formatRpPlain(price) + '</div></div>'
-            + '<button type="button" class="guest-qty-btn" data-act="rm" data-key="' + escHtml(line.key) + '">\u00d7</button>'
-            + '</div>');
-        } else {
-          lines.push('<div class="guest-cart-item" data-pid="' + escHtml(line.key) + '">'
-            + '<div><div class="guest-item-title">' + escHtml(name) + '</div>'
-            + '<div class="guest-item-price">' + formatRpPlain(price) + '</div></div>'
-            + '<div class="guest-qty-stepper">'
-            + '<button type="button" class="guest-qty-btn" data-act="dec" data-pid="' + escHtml(line.key) + '">\u2212</button>'
-            + '<span>' + line.qty + '</span>'
-            + '<button type="button" class="guest-qty-btn" data-act="inc" data-pid="' + escHtml(line.key) + '">+</button>'
-            + '</div></div>');
-        }
+      sheetMount = document.createElement('div');
+      sheetMount.className = 'guest-sheet-root';
+      sheetMount.addEventListener('click', function (e) {
+        if (e.target === sheetMount) api.closeSheet();
       });
-      const lineHtml = lines.join('');
-      const payOpts = paymentMethods
-        .map(
-          (m) =>
-            `<option value="${m.id}"${m.id === paymentId ? ' selected' : ''}>${m.title || m.id}</option>`,
-        )
-        .join('');
-      sheet.innerHTML = `
-        <div class="guest-sheet-head"><h3>Pesanan</h3><button type="button" class="guest-close-btn" id="c35-cart-close">×</button></div>
-        <div class="guest-cart-list">${lineHtml || '<p class="guest-cart-empty">Keranjang kosong</p>'}</div>
-        <label class="guest-field"><span>Nama</span><input id="c35-guest-name" value="${customerName.replace(/"/g, '&quot;')}" placeholder="Nama Anda"/></label>
-        <label class="guest-field"><span>HP / WhatsApp</span><input id="c35-guest-phone" value="${customerPhone.replace(/"/g, '&quot;')}" placeholder="08..."/></label>
-        <label class="guest-field"><span>Catatan</span><textarea id="c35-guest-note" rows="2">${note.replace(/</g, '&lt;')}</textarea></label>
-        ${payOpts ? `<label class="guest-field"><span>Pembayaran</span><select id="c35-guest-pay">${payOpts}</select></label>` : ''}
-        <div class="guest-checkout-total"><span>Total</span><strong>${formatRpPlain(grandTotal())}</strong></div>
-        <button type="button" class="guest-submit-btn" id="c35-guest-submit">${busy ? 'Mengirim...' : 'Kirim pesanan'}</button>
-        <p id="c35-guest-err" class="guest-error"></p>`;
-      sheet.querySelector('#c35-cart-close')?.addEventListener('click', () => api.closeModal());
-      sheet.querySelectorAll('.guest-qty-btn').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const key = btn.getAttribute('data-key') || btn.getAttribute('data-pid');
-          const act = btn.getAttribute('data-act');
-          if (!key || items[key] == null) return;
-          if (isSlotLine(items[key])) {
-            if (act === 'rm') delete items[key];
-          } else {
-            const cur = items[key] || 0;
-            if (act === 'inc') items[key] = cur + 1;
-            else items[key] = Math.max(0, cur - 1);
-            if (items[key] <= 0) delete items[key];
-          }
-          persist();
-          renderModal();
-        });
+      const inner = document.createElement('div');
+      inner.className = 'guest-sheet' + (sheet === 'checkout' ? ' guest-sheet-tall' : '');
+      inner.setAttribute('data-guest', sheet === 'order' ? 'order' : 'checkout');
+      inner.addEventListener('click', function (e) { e.stopPropagation(); });
+      if (sheet === 'order' && orderProduct) inner.innerHTML = renderOrderSheetHtml();
+      else if (sheet === 'checkout') inner.innerHTML = renderCheckoutSheetHtml();
+      sheetMount.appendChild(inner);
+      document.body.appendChild(sheetMount);
+      bindSheetEvents(inner);
+      refreshBar();
+    }
+
+    function orderPriceLabel() {
+      if (!orderProduct) return '';
+      const total = (orderProduct.price || 0) * (orderQty || 0);
+      return orderQty > 0 ? formatIdr(total) : formatIdr(orderProduct.price || 0);
+    }
+
+    function renderOrderSheetHtml() {
+      const p = orderProduct;
+      const picUrl = picUrlDisplay(p.pic || '');
+      const pic = picUrl ? '<img class="guest-order-pic" src="' + escHtml(picUrl) + '" alt=""/>' : '<div class="guest-order-pic guest-order-pic-empty">\uD83D\uDECD\uFE0F</div>';
+      const desc = p.description ? '<p class="guest-product-desc">' + escHtml(p.description) + '</p>' : '';
+      const stock = orderStockMax != null ? '<p class="guest-stock">Stok: ' + orderStockMax + '</p>' : '';
+      const err = orderError ? '<p class="guest-error">' + escHtml(orderError) + '</p>' : '';
+      const keys = numpadKeys.map(function (k) {
+        return '<button type="button" class="guest-numpad-key" data-numpad="' + escHtml(k) + '">' + (k === 'back' ? '⌫' : k) + '</button>';
+      }).join('');
+      const primary = orderQty > 0 ? ('Pesan ' + orderQty + ' item · ' + orderPriceLabel()) : 'Batalkan';
+      return '<div class="guest-sheet-handle"></div><div class="guest-order-card"><div class="guest-order-pic-wrap">' + pic
+        + (orderQty > 0 ? '<span class="guest-product-qty">' + orderQty + '</span>' : '') + '</div><div class="guest-order-info"><div class="guest-order-top">'
+        + '<div class="guest-order-name">' + escHtml(p.name || 'Produk') + '</div><div class="guest-order-price">' + formatIdr(p.price || 0) + '</div></div>'
+        + desc + '<label class="guest-note"><span>📝</span><input type="text" id="c35-order-note" value="' + escHtml(orderNote) + '" placeholder="Catatan (opsional)…"/></label>'
+        + '</div></div>' + stock + err + '<div class="guest-numpad">' + keys + '</div>'
+        + '<button type="button" class="guest-sheet-primary' + (orderQty > 0 ? '' : ' muted') + '" id="c35-order-confirm">' + escHtml(primary) + '</button>';
+    }
+
+    function renderCheckoutSheetHtml() {
+      const backBtn = checkoutStep !== 'confirm'
+        ? '<button type="button" class="guest-icon-btn" id="c35-checkout-back" aria-label="Back">←</button>'
+        : '<button type="button" class="guest-icon-btn" style="visibility:hidden" aria-hidden="true">←</button>';
+      let body = '';
+      if (checkoutStep === 'confirm') {
+        const lineRows = checkoutLines().map(function (line) {
+          const note = line.note ? '<div class="guest-checkout-line-note">Catatan: ' + escHtml(line.note) + '</div>' : '';
+          const badge = line.reservable ? '<div class="guest-checkout-badge">Reservasi</div>' : '';
+          return '<div class="guest-checkout-line"><span class="guest-checkout-qty">' + line.qty + '×</span><div class="guest-checkout-mid"><div class="guest-checkout-line-name">'
+            + escHtml(line.name) + '</div>' + note + badge + '</div><div class="guest-checkout-line-price">' + formatIdr(line.lineTotal) + '</div></div>';
+        }).join('');
+        const taxRows = taxLines().map(function (t) {
+          return '<div class="guest-checkout-row muted"><span>' + escHtml(t.name) + ' (' + t.percent + '%)</span><span>' + formatIdr(t.amount) + '</span></div>';
+        }).join('');
+        const sub = taxLines().length ? '<div class="guest-checkout-row muted"><span>Subtotal</span><span>' + formatIdr(subtotal()) + '</span></div>' : '';
+        const warn = !paymentMethods.length ? '<div class="guest-warn-box">Belum ada metode pembayaran di Publish.</div>' : '';
+        body = '<div class="guest-checkout-body"><div class="guest-checkout-lines">' + (lineRows || '<p>Keranjang kosong</p>') + '</div>' + sub + taxRows
+          + '<div class="guest-checkout-row total"><span>Total</span><span>' + formatIdr(grandTotal()) + '</span></div>'
+          + '<label class="guest-field"><span>Nama</span><input type="text" id="c35-guest-name" value="' + escHtml(customerName) + '" placeholder="Nama Anda"/>'
+          + (nameError ? '<span class="guest-error">' + escHtml(nameError) + '</span>' : '') + '</label>'
+          + '<label class="guest-field"><span>HP / WhatsApp</span><input type="text" id="c35-guest-phone" value="' + escHtml(customerPhone) + '" placeholder="08..."/></label>'
+          + '<label class="guest-field"><span>Catatan pesanan</span><textarea id="c35-guest-notes" rows="2">' + escHtml(customerNotes) + '</textarea></label>' + warn + '</div>';
+      } else if (checkoutStep === 'payment') {
+        body = '<div class="guest-checkout-body">' + paymentMethods.map(function (m) {
+          return '<button type="button" class="guest-pay-option" data-pay-id="' + escHtml(m.id) + '">' + payIconHtml(m)
+            + '<span class="guest-pay-text"><span class="guest-pay-label">' + escHtml(m.title || m.id) + '</span>'
+            + (m.subtitle ? '<span class="guest-pay-meta">' + escHtml(m.subtitle) + '</span>' : '')
+            + '</span><span class="guest-pay-chevron">\u203A</span></button>';
+        }).join('') + '</div>';
+      } else if (checkoutStep === 'pay_detail') {
+        body = '<div class="guest-checkout-body guest-pay-detail">' + renderPayDetailHtml(selectedPayment()) + '</div>';
+      }
+      return '<div class="guest-sheet-handle"></div><div class="guest-sheet-header">' + backBtn + '<h2 class="guest-sheet-title-center">' + escHtml(checkoutHeader())
+        + '</h2><button type="button" class="guest-icon-btn" id="c35-sheet-close" aria-label="Close">×</button></div>' + body
+        + '<div class="guest-sheet-footer"><button type="button" class="guest-sheet-primary" id="c35-checkout-primary">' + escHtml(checkoutPrimaryLabel()) + '</button>'
+        + (checkoutError ? '<p class="guest-error">' + escHtml(checkoutError) + '</p>' : '') + '</div>';
+    }
+
+    function bindSheetEvents(root) {
+      root.querySelector('#c35-sheet-close')?.addEventListener('click', () => api.closeSheet());
+      root.querySelector('#c35-checkout-back')?.addEventListener('click', () => api.checkoutBack());
+      root.querySelector('#c35-checkout-primary')?.addEventListener('click', () => api.checkoutPrimary());
+      root.querySelector('#c35-order-confirm')?.addEventListener('click', () => api.confirmOrder());
+      root.querySelector('#c35-order-note')?.addEventListener('input', (e) => { orderNote = e.target.value; });
+      root.querySelectorAll('[data-numpad]').forEach((btn) => {
+        btn.addEventListener('click', () => api.numpad(btn.getAttribute('data-numpad')));
       });
-      sheet.querySelector('#c35-guest-name')?.addEventListener('input', (e) => {
-        customerName = e.target.value;
+      root.querySelectorAll('[data-pay-id]').forEach((btn) => {
+        btn.addEventListener('click', () => api.selectPayment(btn.getAttribute('data-pay-id')));
       });
-      sheet.querySelector('#c35-guest-phone')?.addEventListener('input', (e) => {
-        customerPhone = e.target.value;
-      });
-      sheet.querySelector('#c35-guest-note')?.addEventListener('input', (e) => {
-        note = e.target.value;
-      });
-      sheet.querySelector('#c35-guest-pay')?.addEventListener('change', (e) => {
-        paymentId = e.target.value;
-      });
-      sheet.querySelector('#c35-guest-submit')?.addEventListener('click', () => api.submit());
+      root.querySelector('#c35-guest-name')?.addEventListener('input', (e) => { customerName = e.target.value; nameError = ''; });
+      root.querySelector('#c35-guest-phone')?.addEventListener('input', (e) => { customerPhone = e.target.value; });
+      root.querySelector('#c35-guest-notes')?.addEventListener('input', (e) => { customerNotes = e.target.value; });
     }
 
     const api = {
-      add(pid, name, price, pic) {
-        const known = products.get(pid);
-        if (known && known.can_reserve) {
-          if (window.c35GuestReserve) window.c35GuestReserve.open(known);
+      openOrder(pid) {
+        const id = Number(pid);
+        let p = products.get(id);
+        if (!p) {
+          p = { product_id: id, name: 'Produk', price: 0, can_reserve: false };
+          products.set(id, p);
+        }
+        if (p.can_reserve) {
+          if (window.c35GuestReserve) window.c35GuestReserve.open(p);
           return;
         }
-        const id = String(pid);
-        if (isSlotLine(items[id])) return;
-        items[id] = (items[id] || 0) + 1;
+        const key = String(id);
+        const line = items[key];
+        orderProduct = p;
+        orderQty = line && isProductLine(line) ? (line.qty || 0) : (typeof line === 'number' ? line : 0);
+        orderNote = line && isProductLine(line) ? (line.note || '') : '';
+        orderError = '';
+        const track = p.track_stock === true || p.track_stock === 1;
+        const stockVal = p.stock_count != null ? p.stock_count : p.stock_qty;
+        orderStockMax = track && typeof stockVal === 'number' && stockVal >= 0 ? stockVal : null;
+        sheet = 'order';
+        renderSheet();
+      },
+      numpad(key) {
+        orderError = '';
+        if (key === 'back') {
+          const cur = String(orderQty);
+          orderQty = cur.length <= 1 ? 0 : parseInt(cur.slice(0, -1), 10) || 0;
+        } else {
+          const nextStr = (orderQty === 0 ? '' : String(orderQty)) + key;
+          let next = parseInt(nextStr, 10);
+          if (Number.isNaN(next)) return;
+          if (next > 9999) next = 9999;
+          if (orderStockMax != null && next > orderStockMax) {
+            orderError = 'Stok hanya ' + orderStockMax;
+            orderQty = orderStockMax;
+            renderSheet();
+            return;
+          }
+          orderQty = next;
+        }
+        renderSheet();
+      },
+      confirmOrder() {
+        const p = orderProduct;
+        if (!p) return;
+        const key = String(p.product_id);
+        if (orderQty <= 0) delete items[key];
+        else items[key] = { qty: orderQty, note: (orderNote || '').trim() };
+        persist();
+        api.closeSheet();
+      },
+      pesan() {
+        if (!count()) return;
+        checkoutStep = 'confirm';
+        checkoutError = '';
+        nameError = '';
+        sheet = 'checkout';
+        renderSheet();
+      },
+      closeSheet() {
+        sheet = '';
+        orderProduct = null;
+        orderError = '';
+        nameError = '';
+        checkoutStep = 'confirm';
+        removeSheetMount();
+        refreshBar();
+      },
+      checkoutBack() {
+        if (checkoutStep === 'pay_detail') {
+          checkoutStep = 'payment';
+          renderSheet();
+          return;
+        }
+        if (checkoutStep === 'payment') {
+          checkoutStep = 'confirm';
+          renderSheet();
+          return;
+        }
+        api.closeSheet();
+      },
+      selectPayment(id) {
+        selectedPaymentId = id;
+        checkoutStep = 'pay_detail';
+        renderSheet();
+      },
+      checkoutPrimary() {
+        if (checkoutStep === 'confirm') {
+          if (!customerName.trim()) {
+            nameError = 'Nama wajib diisi';
+            renderSheet();
+            return;
+          }
+          if (!paymentMethods.length) {
+            api.submit();
+            return;
+          }
+          checkoutStep = 'payment';
+          renderSheet();
+          return;
+        }
+        if (checkoutStep === 'payment') return;
+        if (checkoutStep === 'pay_detail') {
+          const m = selectedPayment();
+          api.submit(!!(m && m.type === 'whatsapp'));
+        }
+      },
+      add(pid, name, price, pic) {
         if (!products.has(pid)) {
           products.set(pid, { product_id: pid, name, price, pic, can_reserve: false });
         }
-        persist();
-        toast('Ditambahkan');
+        api.openOrder(pid);
       },
       confirmReservation(product, slots) {
         if (!product || !slots || !slots.length) return;
@@ -718,24 +1002,15 @@
         persist();
         toast('Reservasi ditambahkan');
       },
-      openModal() {
-        if (!count()) return;
-        modalOpen = true;
-        const backdrop = document.getElementById('c35-guest-modal');
-        if (backdrop) backdrop.style.display = 'flex';
-        renderModal();
-      },
-      closeModal() {
-        modalOpen = false;
-        const backdrop = document.getElementById('c35-guest-modal');
-        if (backdrop) backdrop.style.display = 'none';
-      },
-      async submit() {
+      openModal() { api.pesan(); },
+      closeModal() { api.closeSheet(); },
+      async submit(openWhatsAppAfter) {
         if (busy || !siteIid) return;
-        const name = (customerName || document.getElementById('c35-guest-name')?.value || '').trim();
+        const name = customerName.trim();
         if (!name) {
-          const err = document.getElementById('c35-guest-err');
-          if (err) err.textContent = 'Nama wajib diisi';
+          nameError = 'Nama wajib diisi';
+          checkoutStep = 'confirm';
+          renderSheet();
           return;
         }
         const txItems = [];
@@ -764,17 +1039,23 @@
               reservations: reservations,
             });
           } else {
-            txItems.push({ product_id: line.productId, qty: line.qty });
+            const item = { product_id: line.productId, qty: line.qty };
+            if (line.note) item.note = line.note;
+            txItems.push(item);
           }
         });
         if (!txItems.length) return;
         busy = true;
-        renderModal();
+        checkoutError = '';
+        renderSheet();
+        const savedTotal = grandTotal();
         try {
-          const payLabel = (paymentMethods.find(function (m) { return m.id === paymentId; }) || {}).title || paymentId;
-          const baseNote = (note || '').trim();
+          const payLabel = (paymentMethods.find(function (m) { return m.id === selectedPaymentId; }) || {}).title || selectedPaymentId;
+          const baseNote = (customerNotes || '').trim();
+          const lineNotes = checkoutLines().filter(function (l) { return l.note; }).map(function (l) { return l.name + ': ' + l.note; }).join('\n');
+          const merged = [baseNote, lineNotes].filter(Boolean).join('\n');
           const payLine = payLabel ? ('Pembayaran: ' + payLabel) : '';
-          const fullNote = payLine ? (baseNote ? (baseNote + '\n' + payLine) : payLine) : baseNote;
+          const fullNote = payLine ? (merged ? (merged + '\n' + payLine) : payLine) : merged;
           const resp = await fetch(apiBase() + '/v1/site/guest-order/put', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -797,19 +1078,27 @@
           const txId = tx.tx_id || tx.txId;
           saveOrder(siteIid, {
             tx_id: txId,
-            total: tx.total || grandTotal(),
+            total: tx.total || savedTotal,
             placed_ts_ms: Date.now(),
           });
           items = {};
           persist();
-          api.closeModal();
+          api.closeSheet();
           toast('Pesanan #' + txId + ' diterima');
+          if (openWhatsAppAfter) {
+            const m = selectedPayment();
+            const digits = String(m && (m.whatsapp || m.subtitle) || '').replace(/\D/g, '');
+            if (digits) {
+              const text = encodeURIComponent('Halo, pesanan #' + txId + ' \u2014 ' + formatRpPlain(savedTotal));
+              window.open('https://wa.me/' + digits + '?text=' + text, '_blank', 'noopener');
+            }
+          }
         } catch (err) {
-          const errEl = document.getElementById('c35-guest-err');
-          if (errEl) errEl.textContent = err.message || String(err);
+          checkoutError = err.message || String(err);
+          renderSheet();
         } finally {
           busy = false;
-          renderModal();
+          if (sheet === 'checkout') renderSheet();
         }
       },
     };

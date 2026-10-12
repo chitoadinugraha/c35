@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:alienai_c35/c/media/media_disk_cache.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class UiImgCached extends StatefulWidget {
@@ -31,11 +32,16 @@ class UiImgCached extends StatefulWidget {
 class _UiImgCachedState extends State<UiImgCached> {
   File? _file;
   var _failed = false;
+  final _useNetworkOnly = kIsWeb || !mediaDiskCacheEnabled;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_resolve());
+    if (!_useNetworkOnly) {
+      unawaited(_resolve());
+    } else {
+      _failed = true;
+    }
   }
 
   @override
@@ -43,18 +49,27 @@ class _UiImgCachedState extends State<UiImgCached> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.networkUrl != widget.networkUrl) {
       _file = null;
-      _failed = false;
-      unawaited(_resolve());
+      if (_useNetworkOnly) {
+        _failed = true;
+      } else {
+        _failed = false;
+        unawaited(_resolve());
+      }
     }
   }
 
   Future<void> _resolve() async {
-    final file = await mediaDiskCacheFetch(widget.src, headers: widget.headers);
-    if (!mounted) return;
-    setState(() {
-      _file = file;
-      _failed = file == null;
-    });
+    try {
+      final file = await mediaDiskCacheFetch(widget.src, headers: widget.headers);
+      if (!mounted) return;
+      setState(() {
+        _file = file;
+        _failed = file == null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _failed = true);
+    }
   }
 
   @override

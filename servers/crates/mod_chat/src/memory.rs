@@ -15,7 +15,8 @@ const MEMORY_PINNED_LIMIT: i64 = 4;
 const MEMORY_SIM_FLOOR: f32 = 0.50;
 const MEMORY_RETRIEVE_TIMEOUT: Duration = Duration::from_millis(3500);
 const MEMORY_EMBED_TIMEOUT: Duration = Duration::from_millis(2000);
-const EMBED_DIMS: i32 = 256;
+pub const RETRIEVAL_EMBED_DIMS: i32 = 256;
+const EMBED_DIMS: i32 = RETRIEVAL_EMBED_DIMS;
 
 static QUERY_EMBED_CACHE: std::sync::LazyLock<dashmap::DashMap<String, Vec<f32>>> =
     std::sync::LazyLock::new(dashmap::DashMap::new);
@@ -314,7 +315,56 @@ pub async fn memory_retrieve(
     query_text: &str,
     limit: usize,
 ) -> MemoryRetrieveResult {
-    memory_retrieve_with_nats(pool, None, http, owner_iid, bot_iid, query_text, limit).await
+    memory_retrieve_with_nats(
+        pool,
+        None,
+        http,
+        owner_iid,
+        bot_iid,
+        query_text,
+        limit,
+        None,
+    )
+    .await
+}
+
+/// MRL 256-dim query embedding shared by memory retrieve and user-asset RAG (tool RAG stays 768).
+pub async fn retrieval_query_embed(
+    pool: &PgPool,
+    http: &Client,
+    query_text: &str,
+) -> Option<Vec<f32>> {
+    let q = query_text.trim();
+    if q.is_empty() || is_trivial_query(q) {
+        return None;
+    }
+    if let Some(hit) = QUERY_EMBED_CACHE.get(q) {
+        return Some(hit.value().clone());
+    }
+    match tokio::time::timeout(
+        MEMORY_EMBED_TIMEOUT,
+        embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS),
+    )
+    .await
+    {
+        Ok(Ok(r)) => {
+            if QUERY_EMBED_CACHE.len() < 512 {
+                QUERY_EMBED_CACHE.insert(q.to_string(), r.embedding.clone());
+            }
+            Some(r.embedding)
+        }
+        _ => None,
+    }
+}
+
+pub async fn memory_bundle_warmup(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    http: &Client,
+    owner_iid: i64,
+    bot_iid: Option<i64>,
+) {
+    let _ = memory_bundle_fetch_or_build(pool, nats, http, owner_iid, bot_iid).await;
 }
 
 pub async fn memory_retrieve_with_nats(
@@ -325,11 +375,21 @@ pub async fn memory_retrieve_with_nats(
     bot_iid: Option<i64>,
     query_text: &str,
     limit: usize,
+    query_embed: Option<Vec<f32>>,
 ) -> MemoryRetrieveResult {
     let started = Instant::now();
     match tokio::time::timeout(
         MEMORY_RETRIEVE_TIMEOUT,
-        memory_retrieve_impl(pool, nats, http, owner_iid, bot_iid, query_text, limit.max(1)),
+        memory_retrieve_impl(
+            pool,
+            nats,
+            http,
+            owner_iid,
+            bot_iid,
+            query_text,
+            limit.max(1),
+            query_embed,
+        ),
     )
     .await
     {
@@ -448,6 +508,7 @@ async fn memory_retrieve_impl(
     bot_iid: Option<i64>,
     query_text: &str,
     limit: usize,
+    query_embed: Option<Vec<f32>>,
 ) -> Result<(String, MemoryRetrieveTrace)> {
     let mut trace = MemoryRetrieveTrace::default();
     let q = query_text.trim();
@@ -481,7 +542,11 @@ async fn memory_retrieve_impl(
         let model = embed_model_tag(EMBED_MODEL, EMBED_DIMS);
         trace.embed_model = model.clone();
 
-        let query_vec: Option<Vec<f32>> = if let Some(hit) = QUERY_EMBED_CACHE.get(q) {
+        let query_vec: Option<Vec<f32>> = if let Some(pre) = query_embed {
+            trace.embed_cached = true;
+            trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
+            Some(pre)
+        } else if let Some(hit) = QUERY_EMBED_CACHE.get(q) {
             trace.embed_cached = true;
             trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
             Some(hit.value().clone())

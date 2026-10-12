@@ -42,10 +42,18 @@ class _UiSitePostsEditorState extends State<UiSitePostsEditor> with SiteEditorCa
   String? _error;
   String? _selectedId;
   final _byId = <String, SitePost>{};
+  var _loadScheduled = false;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_load());
   }
 
@@ -118,7 +126,9 @@ class _UiSitePostsEditorState extends State<UiSitePostsEditor> with SiteEditorCa
     if (mounted) {
       setState(() {
         _loading = false;
-        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+        if (catalog.warmError != null && _byId.isEmpty) {
+          _error = uiFriendlyError(catalog.warmError!);
+        }
       });
     }
   }
@@ -131,9 +141,7 @@ class _UiSitePostsEditorState extends State<UiSitePostsEditor> with SiteEditorCa
     try {
       if (await ensureEditorCatalog()) return;
       final items = await widget.api.sitePostList(widget.siteIid);
-      for (final p in items) {
-        editorCatalog?.upsertPost(p);
-      }
+      editorCatalog?.setPosts(items);
       _byId
         ..clear()
         ..addEntries(items.map((p) => MapEntry('${p.postId}', p)));

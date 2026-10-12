@@ -109,18 +109,37 @@ String siteTaglineSuggest({required String name, required String locale, int pic
   return templates[i < 0 ? i + templates.length : i];
 }
 
-SiteDraft siteCreateDraft({required Int64 siteIid, required String name, required String tagline, String pic = ''}) {
+SiteDraft siteCreateDraft({
+  required Int64 siteIid,
+  required String name,
+  required String tagline,
+  String pic = '',
+  SiteCreateFeatures? features,
+}) {
+  final f = features ?? SiteCreateFeatures();
   final props = <String, dynamic>{'title': name, if (tagline.isNotEmpty) 'subtitle': tagline, if (pic.isNotEmpty) 'pic': pic};
+  final blocks = <SiteBlock>[
+    SiteBlock(id: 'hero1', type: 'hero', propsJson: jsonEncode(props)),
+  ];
+  final normalized = siteCreateFeaturesNormalize(SiteCreateFeatures(
+    product: f.product,
+    pos: f.pos,
+    attendance: f.attendance,
+    reservation: f.reservation,
+  ));
+  final commerce = normalized.product || normalized.pos;
+  final meta = <String, dynamic>{
+    if (tagline.isNotEmpty) 'tagline': tagline,
+    if (tagline.isNotEmpty) 'seo_desc': tagline,
+    if (commerce) 'catalog_display': 'grid',
+  };
+  if (commerce) {
+    blocks.add(SiteBlock(id: 'product_grid1', type: 'product_grid', propsJson: jsonEncode(const {'filter': 'all'})));
+  }
   final doc = SiteDoc(
-    pages: [
-      SitePage(
-        path: '/',
-        title: name,
-        blocks: [SiteBlock(id: 'hero1', type: 'hero', propsJson: jsonEncode(props))],
-      ),
-    ],
+    pages: [SitePage(path: '/', title: name, blocks: blocks)],
     themeJson: '{"accent":"#2563eb"}',
-    metaJson: jsonEncode({if (tagline.isNotEmpty) 'tagline': tagline, if (tagline.isNotEmpty) 'seo_desc': tagline}),
+    metaJson: jsonEncode(meta),
   );
   return SiteDraft(siteIid: siteIid, doc: doc);
 }

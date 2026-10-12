@@ -75,12 +75,21 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
   var _loadingMore = false;
   var _loadingAllForSearch = false;
   var _extrasLoaded = false;
+  var _loadScheduled = false;
 
   @override
   void initState() {
     super.initState();
+    _def = collectionDefForFallback('site.product');
     _pickDefault();
-    _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
+    unawaited(_load());
   }
 
   @override
@@ -107,7 +116,10 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
   @override
   void didUpdateWidget(covariant UiSiteProductsEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.siteIid != widget.siteIid) _load();
+    if (oldWidget.siteIid != widget.siteIid) {
+      _extrasLoaded = false;
+      unawaited(_load());
+    }
     if (oldWidget.masterDetail != widget.masterDetail) _pickDefault();
     if (_selectedId != null && _productsById[_selectedId] == null) _pickDefault();
   }
@@ -153,7 +165,7 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
 
   @override
   void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
-    _syncProducts(catalog.products);
+    _syncProducts(catalog.products, updateCatalog: false);
     _nextCursor = catalog.productNextCursor;
     _hasMore = catalog.productHasMore;
     _loadingMore = catalog.productLoadingMore;
@@ -161,25 +173,31 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
     if (mounted) {
       setState(() {
         if (_extrasLoaded) _loading = false;
-        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+        if (catalog.warmError != null && _productsById.isEmpty) {
+          _error = uiFriendlyError(catalog.warmError!);
+        }
       });
     }
   }
 
   Future<void> _loadExtras() async {
     if (_extrasLoaded) return;
-    final results = await Future.wait([
-      widget.api.collectionDefs(siteIid: widget.siteIid),
-      widget.api.productEmbedList(widget.siteIid),
-      widget.api.draftGetMeta(widget.siteIid),
-    ]);
-    final defs = results[0] as List<TableDef>;
-    _def = widget.api.tableDefFor(defs, 'site.product') ?? collectionDefForFallback('site.product');
-    _embeds = results[1] as List<SiteProductEmbed>;
-    final meta = results[2] as SiteDraftMeta;
-    _taxes = meta.taxes;
-    _design = meta.productDesign;
-    _catalogDisplay = meta.catalogDisplay;
+    _def ??= collectionDefForFallback('site.product');
+    try {
+      final defs = await widget.api.collectionDefs(siteIid: widget.siteIid);
+      _def = widget.api.tableDefFor(defs, 'site.product') ?? _def;
+    } catch (_) {
+      _def ??= collectionDefForFallback('site.product');
+    }
+    try {
+      _embeds = await widget.api.productEmbedList(widget.siteIid);
+    } catch (_) {}
+    try {
+      final meta = await widget.api.draftGetMeta(widget.siteIid);
+      _taxes = meta.taxes;
+      _design = meta.productDesign;
+      _catalogDisplay = meta.catalogDisplay;
+    } catch (_) {}
     _extrasLoaded = true;
   }
 
@@ -210,11 +228,11 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
     }
   }
 
-  void _syncProducts(List<SiteProduct> items, {bool append = false}) {
+  void _syncProducts(List<SiteProduct> items, {bool append = false, bool updateCatalog = true}) {
     if (!append) _productsById.clear();
     for (final p in items) {
       _productsById['${p.productId}'] = p;
-      editorCatalog?.upsertProduct(p);
+      if (updateCatalog) editorCatalog?.upsertProduct(p);
     }
   }
 
@@ -488,8 +506,11 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
   Widget _detailPane(String productId) {
     final product = _productsById[productId];
     final def = _def;
-    if (product == null || def == null) {
+    if (product == null) {
       return const Center(child: Text('Product not found', style: TextStyle(color: _muted)));
+    }
+    if (def == null) {
+      return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
     return UiSiteProductDetail(
       api: widget.api,

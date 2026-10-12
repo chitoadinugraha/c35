@@ -43,6 +43,27 @@ pub async fn site_draft_render_hash(
     Ok(render_bundle_hash(&pages))
 }
 
+/// Stable fingerprint for draft vs published doc comparison (avoids full HTML render on draft get).
+pub fn doc_json_fingerprint(doc_json: &serde_json::Value) -> String {
+    let canonical = serde_json::to_string(doc_json).unwrap_or_default();
+    blake3::hash(canonical.as_bytes()).to_hex().to_string()
+}
+
+async fn active_publish_doc_json(pool: &PgPool, site_iid: i64) -> Result<Option<serde_json::Value>> {
+    let row = sqlx::query(
+        r#"
+        SELECT doc_json FROM site.publish
+        WHERE site_iid = $1 AND is_active = TRUE AND deleted_ts IS NULL
+        ORDER BY published_ts DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await?;
+    Ok(row.map(|r| r.get("doc_json")))
+}
+
 pub async fn active_publish_render_hash(pool: &PgPool, site_iid: i64) -> Result<String> {
     let row = sqlx::query(
         r#"
@@ -59,16 +80,22 @@ pub async fn active_publish_render_hash(pool: &PgPool, site_iid: i64) -> Result<
         .unwrap_or_default())
 }
 
-/// Read-only publish status: same render_hash comparison as [site_publish_from_draft].
+/// Read-only publish status for the editor (`publish_pending` only needs doc equality).
 pub async fn site_publish_pending_for_draft(
     pool: &PgPool,
     site_iid: i64,
     doc_json: &serde_json::Value,
 ) -> Result<(bool, String, String)> {
-    let draft_render_hash = site_draft_render_hash(pool, site_iid, doc_json).await?;
     let published_render_hash = active_publish_render_hash(pool, site_iid).await?;
-    let publish_pending = published_render_hash.is_empty()
-        || draft_render_hash != published_render_hash;
+    let draft_render_hash = doc_json_fingerprint(doc_json);
+    let publish_pending = if published_render_hash.is_empty() {
+        true
+    } else {
+        match active_publish_doc_json(pool, site_iid).await? {
+            None => true,
+            Some(pub_doc) => draft_render_hash != doc_json_fingerprint(&pub_doc),
+        }
+    };
     Ok((publish_pending, draft_render_hash, published_render_hash))
 }
 use crate::sync_push::site_sync_push;
@@ -243,20 +270,28 @@ pub async fn site_published(pool: &PgPool, site_iid: i64) -> Result<bool> {
     Ok(row.is_some())
 }
 
+pub fn guest_alien_id_key(alien_id: &str) -> String {
+    alien_id.trim().trim_start_matches('@').to_lowercase()
+}
+
 pub async fn resolve_site_by_alien_id(pool: &PgPool, alien_id: &str) -> Result<i64> {
+    let key = guest_alien_id_key(alien_id);
+    if key.is_empty() {
+        return Err(anyhow!("site not found"));
+    }
     let row = sqlx::query(
         r#"
         SELECT id FROM ai.identity
         WHERE kind = 'site' AND alien_id = $1 AND deleted_ts IS NULL
         "#,
     )
-    .bind(alien_id)
+    .bind(&key)
     .fetch_optional(pool)
     .await?;
     if let Some(row) = row {
         return Ok(row.get("id"));
     }
-    if let Ok(site_id) = alien_id.parse::<i64>() {
+    if let Ok(site_id) = key.parse::<i64>() {
         if let Some(row) = sqlx::query(
             r#"
             SELECT id FROM ai.identity
@@ -271,4 +306,25 @@ pub async fn resolve_site_by_alien_id(pool: &PgPool, alien_id: &str) -> Result<i
         }
     }
     Err(anyhow!("site not found"))
+}
+
+#[cfg(test)]
+mod pending_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn doc_json_fingerprint_stable() {
+        let a = json!({"pages": [], "meta": {}});
+        let b = json!({"pages": [], "meta": {}});
+        assert_eq!(doc_json_fingerprint(&a), doc_json_fingerprint(&b));
+        let c = json!({"pages": [{"path": "/"}], "meta": {}});
+        assert_ne!(doc_json_fingerprint(&a), doc_json_fingerprint(&c));
+    }
+
+    #[test]
+    fn guest_alien_id_key_normalizes() {
+        assert_eq!(guest_alien_id_key(" NatePaperie "), "natepaperie");
+        assert_eq!(guest_alien_id_key("@natepaperie"), "natepaperie");
+    }
 }

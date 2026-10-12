@@ -23,6 +23,7 @@ import 'package:alienai_c35/c/site/site_schedule.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
+import 'package:alienai_c35/guest_site/guest_site_modal.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/guest_site/guest_site_product.dart';
 import 'package:alienai_c35/guest_site/guest_site_reservation_sheet.dart';
@@ -736,6 +737,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       fallbackSize: 13,
       fallbackWeight: FontWeight.w700,
     );
+    final stock = guestProductVisibleStock(p);
 
     void onProductTap() {
       final cart = GuestSiteCartScope.maybeOf(context);
@@ -755,10 +757,9 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         _openProductDetail(p);
         return;
       }
-      cart.addProductWithFeedback(context, productId: pid, name: name, price: price);
+      cart.openOrder(productId: pid, name: name, price: price, pic: pic, stockMax: stock);
     }
 
-    final stock = guestProductVisibleStock(p);
     final priceLabel = guestProductPriceLabel(price);
 
     final row = Row(
@@ -866,7 +867,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         _openProductDetail(p);
         return;
       }
-      cart.addProductWithFeedback(context, productId: pid, name: name, price: price);
+      cart.openOrder(productId: pid, name: name, price: price, pic: pic, stockMax: stock);
     }
 
     final card = Column(
@@ -2060,6 +2061,7 @@ class GuestSiteProductDetailContent extends StatelessWidget {
     final canReserve = product['can_reserve'] == true;
     final pic = product['pic']?.toString() ?? '';
     final icon = product['icon']?.toString() ?? '';
+    final stock = guestProductVisibleStock(product);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -2115,7 +2117,7 @@ class GuestSiteProductDetailContent extends StatelessWidget {
         else if (!canReserve && cart != null && pid > 0 && guestProductCanAddToCart(price))
           TextButton(
             onPressed: () {
-              cart!.addProductWithFeedback(context, productId: pid, name: name, price: price);
+              cart!.openOrder(productId: pid, name: name, price: price, pic: pic, stockMax: stock);
               onClose?.call();
             },
             child: const Text('+ Pesan'),
@@ -2197,7 +2199,7 @@ Future<void> showGuestSiteProductDetailSheet({
   required Color accent,
   GuestSiteCartController? cart,
 }) {
-  return showModalBottomSheet<void>(
+  return guestSiteShowModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: const Color(0xFF18181B),
@@ -2272,7 +2274,7 @@ Future<void> showGuestSitePostDetailSheet({
   required Map<String, dynamic> post,
   Color accent = const Color(0xFFF97316),
 }) {
-  return showModalBottomSheet<void>(
+  return guestSiteShowModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     backgroundColor: const Color(0xFF18181B),

@@ -1203,7 +1203,7 @@ class ChatStore extends ChangeNotifier {
     _touchMsgs(chatId);
   }
 
-  void msgPutFromServer(ChatMsg m) {
+  void msgPutFromServer(ChatMsg m, {MsgRow? prior}) {
     if (m.id.toInt() > 0 && _tombstonedMsgIds.contains(m.id.toInt())) return;
     final role = switch (m.role) {
       ChatMsgRole.CHAT_MSG_ROLE_USER => 'user',
@@ -1211,21 +1211,25 @@ class ChatStore extends ChangeNotifier {
       ChatMsgRole.CHAT_MSG_ROLE_SYSTEM => 'system',
       _ => 'assistant',
     };
+    final id = m.id.toInt();
+    final old = prior;
     msgPut(
       MsgRow(
-        id: m.id.toInt(),
+        id: id,
         chatId: m.chatId.toInt(),
         role: role,
         content: m.content,
         thought: m.thought,
         attachmentsJson: m.attachmentsJson,
         blocksJson: m.blocksJson,
-        traceJson: '',
+        traceJson: old?.traceJson ?? '',
         reqId: m.reqId,
-        tokensIn: m.tokensIn,
-        tokensOut: m.tokensOut,
-        durationMs: m.durationMs,
-        costUsd: m.costUsd,
+        clientKey: old?.clientKey ?? '',
+        tokensIn: m.tokensIn > 0 ? m.tokensIn : (old?.tokensIn ?? 0),
+        tokensOut: m.tokensOut > 0 ? m.tokensOut : (old?.tokensOut ?? 0),
+        durationMs: m.durationMs > 0 ? m.durationMs : (old?.durationMs ?? 0),
+        costUsd: m.costUsd > 0 ? m.costUsd : (old?.costUsd ?? 0),
+        model: old?.model ?? '',
         error: m.hasErrorText() ? m.errorText : '',
         createdAtMs: m.createdTsMs.toInt(),
         mentionIdsJson: role == 'user'
@@ -1627,6 +1631,10 @@ class ChatStore extends ChangeNotifier {
 
   void msgsReloadFromServer(int chatId, List<ChatMsg> serverMsgs) {
     if (chatId <= 0 || promptBusyFor(chatId)) return;
+    final priorById = <int, MsgRow>{
+      for (final m in msgs)
+        if (m.chatId == chatId && m.id > 0) m.id: m,
+    };
     final mentionByReq = <String, String>{
       for (final m in msgs)
         if (m.chatId == chatId && m.role == 'user' && m.reqId.isNotEmpty && m.mentionIdsJson != '[]') m.reqId: m.mentionIdsJson,
@@ -1642,7 +1650,7 @@ class ChatStore extends ChangeNotifier {
         newestAt = at;
         newestPreview = m.content;
       }
-      msgPutFromServer(m);
+      msgPutFromServer(m, prior: priorById[m.id.toInt()]);
     }
     _msgsDedupeTrailingUsers(chatId);
     for (var i = 0; i < msgs.length; i++) {

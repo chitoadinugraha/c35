@@ -443,29 +443,31 @@ fn contact_field_html(field: &Value) -> String {
     )
 }
 
-fn open_hours_from_meta(meta: &Value) -> Vec<Value> {
-    meta
-        .get("open_hours")
-        .and_then(|x| x.as_array())
-        .map(|a| a.clone())
-        .unwrap_or_default()
-}
-
-fn hub_hours_compact_html(schedule: &[Value]) -> String {
-    if schedule.is_empty() {
+fn hub_hours_compact_html(meta: &Value) -> String {
+    use crate::guest_schedule::{hours_panel_rows, schedule_status, slots_from_meta};
+    let slots = slots_from_meta(meta);
+    if slots.is_empty() {
         return String::new();
     }
-    let rows = schedule
+    let (open, label) = schedule_status(&slots);
+    let status_class = if open { "is-open" } else { "is-closed" };
+    let panel = hours_panel_rows(&slots)
         .iter()
-        .map(hours_row_html)
+        .map(|(day, open_t, close_t)| {
+            format!(
+                r#"<div class="guest-hub-hours-row"><strong>{day}</strong> {open_t} – {close_t}</div>"#,
+                day = esc(day),
+                open_t = esc(open_t),
+                close_t = esc(close_t),
+            )
+        })
         .collect::<Vec<_>>()
         .join("");
-    if rows.is_empty() {
-        return String::new();
-    }
     format!(
-        r#"<div class="hub-hours-compact"><table class="hours"><tbody>{rows}</tbody></table></div>"#,
-        rows = rows
+        r#"<div class="hub-hours-compact"><details class="guest-hub-hours-chip"><summary><span class="guest-hub-hours-icon" aria-hidden="true">&#9201;</span><span class="guest-hub-hours-status {status_class}">{label}</span></summary><div class="guest-hub-hours-panel">{panel}</div></details></div>"#,
+        status_class = esc_attr(status_class),
+        label = esc(&label),
+        panel = panel,
     )
 }
 
@@ -1007,7 +1009,7 @@ pub fn block_html_render(
                 String::new()
             };
             let hours_html = if profile.show_hours && show_hours {
-                hub_hours_compact_html(&open_hours_from_meta(site_meta))
+                hub_hours_compact_html(site_meta)
             } else {
                 String::new()
             };
@@ -1250,14 +1252,14 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
 .embed iframe{{display:block;border-radius:8px}}
 .md{{line-height:1.6}}
 </style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
-<div id="c35-guest-cart-bar" class="guest-cart-bar" style="display:none;" onclick="c35GuestCart.openModal()">
-  <div class="guest-cart-count" id="c35-cart-count">0</div>
-  <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
-  <span class="guest-cart-cta">Lihat</span>
+<div id="c35-guest-cart-bar" data-guest="cart" class="guest-cart" style="display:none;">
+  <div class="guest-cart-meta">
+    <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
+    <div class="guest-cart-count" id="c35-cart-count">0 item</div>
+  </div>
+  <button type="button" class="guest-cart-btn" onclick="c35GuestCart.pesan()">Pesan</button>
 </div>
-<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" onclick="if(event.target===this)c35GuestCart.closeModal()">
-  <div class="guest-modal-sheet" id="c35-modal-content"></div>
-</div>
+<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" aria-hidden="true"></div>
 <div id="c35-guest-toast" class="guest-toast" style="display:none;"></div>
 <button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
 {client_js}</body></html>"#,
@@ -1548,14 +1550,14 @@ async fn guest_storefront_page_html(
 body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
 .wrap{{max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
 </style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
-<div id="c35-guest-cart-bar" class="guest-cart-bar" style="display:none;" onclick="c35GuestCart.openModal()">
-  <div class="guest-cart-count" id="c35-cart-count">0</div>
-  <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
-  <span class="guest-cart-cta">Lihat</span>
+<div id="c35-guest-cart-bar" data-guest="cart" class="guest-cart" style="display:none;">
+  <div class="guest-cart-meta">
+    <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
+    <div class="guest-cart-count" id="c35-cart-count">0 item</div>
+  </div>
+  <button type="button" class="guest-cart-btn" onclick="c35GuestCart.pesan()">Pesan</button>
 </div>
-<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" onclick="if(event.target===this)c35GuestCart.closeModal()">
-  <div class="guest-modal-sheet" id="c35-modal-content"></div>
-</div>
+<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" aria-hidden="true"></div>
 <div id="c35-guest-toast" class="guest-toast" style="display:none;"></div>
 <button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
 {client_js}</body></html>"#,

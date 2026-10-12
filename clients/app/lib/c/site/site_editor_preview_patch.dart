@@ -77,6 +77,118 @@ void siteEditorPreviewUpsertProduct(Map<String, dynamic> boot, SiteProduct p) {
   }
 }
 
+bool siteEditorPreviewCommerceEnabled(Map<String, dynamic> boot) {
+  final caps = boot['capabilities'];
+  if (caps is Map) {
+    final commerce = caps['commerce'];
+    if (commerce == true) return true;
+  }
+  final commerce = boot['commerce_boot'];
+  if (commerce is Map && commerce['enabled'] == true) return true;
+  return false;
+}
+
+const _defaultProductGridBlockId = 'product_grid1';
+
+List<Map<String, dynamic>> _siteEditorPreviewProductRowsFromBoot(Map<String, dynamic> boot) {
+  final commerce = boot['commerce_boot'];
+  if (commerce is! Map) return const [];
+  final products = commerce['products'];
+  if (products is! List) return const [];
+  return products.whereType<Map<String, dynamic>>().toList(growable: false);
+}
+
+List<Map<String, dynamic>> siteEditorPreviewProductRowsForGridProps(
+  List<Map<String, dynamic>> rows,
+  Map<String, dynamic> props,
+) {
+  final category = props['category']?.toString().trim() ?? '';
+  if (category.isEmpty) return rows;
+  return rows
+      .where((p) => (p['category']?.toString().trim() ?? '') == category)
+      .toList(growable: false);
+}
+
+void siteEditorPreviewEnsureProductGridBlock(Map<String, dynamic> boot) {
+  if (!siteEditorPreviewCommerceEnabled(boot)) return;
+  final pages = boot['pages'];
+  if (pages is! List || pages.isEmpty) return;
+  final first = pages.first;
+  if (first is! Map) return;
+  final blocksRaw = first['blocks'];
+  final blocks = blocksRaw is List ? blocksRaw : <dynamic>[];
+  if (blocksRaw is! List) {
+    first['blocks'] = blocks;
+  }
+  for (final b in blocks) {
+    if (b is Map && b['type']?.toString() == 'product_grid') return;
+  }
+  blocks.add({
+    'id': _defaultProductGridBlockId,
+    'type': 'product_grid',
+    'props': const {'filter': 'all'},
+  });
+}
+
+void siteEditorPreviewApplyProductPreloadForGrids(Map<String, dynamic> boot, List<Map<String, dynamic>> allRows) {
+  final preloadRaw = boot['product_preload'];
+  final preload = preloadRaw is Map<String, dynamic>
+      ? preloadRaw
+      : preloadRaw is Map
+          ? preloadRaw.map((k, v) => MapEntry(k.toString(), v))
+          : <String, dynamic>{};
+  if (preloadRaw is! Map) boot['product_preload'] = preload;
+
+  final pages = boot['pages'];
+  if (pages is! List) return;
+  for (final page in pages) {
+    if (page is! Map) continue;
+    final blocks = page['blocks'];
+    if (blocks is! List) continue;
+    for (final block in blocks) {
+      if (block is! Map) continue;
+      if (block['type']?.toString() != 'product_grid') continue;
+      final id = block['id']?.toString() ?? '';
+      if (id.isEmpty) continue;
+      final props = block['props'];
+      final propsMap = props is Map<String, dynamic>
+          ? props
+          : props is Map
+              ? props.map((k, v) => MapEntry(k.toString(), v))
+              : const <String, dynamic>{};
+      preload[id] = siteEditorPreviewProductRowsForGridProps(allRows, propsMap);
+    }
+  }
+}
+
+/// Ensures a home [product_grid] block and `product_preload` when commerce is on.
+void siteEditorPreviewSyncCommerceCatalog(Map<String, dynamic> boot, [Iterable<SiteProduct>? products]) {
+  if (!siteEditorPreviewCommerceEnabled(boot)) return;
+
+  final List<Map<String, dynamic>> rows;
+  if (products != null) {
+    rows = <Map<String, dynamic>>[];
+    for (final p in products) {
+      if (p.isArchived || !p.canSell) continue;
+      rows.add(siteEditorPreviewProductRow(p));
+    }
+    rows.sort((a, b) => ((a['product_id'] as num?) ?? 0).compareTo((b['product_id'] as num?) ?? 0));
+  } else {
+    rows = List<Map<String, dynamic>>.from(_siteEditorPreviewProductRowsFromBoot(boot));
+  }
+  if (rows.isEmpty) return;
+
+  siteEditorPreviewEnsureProductGridBlock(boot);
+  final commerce = boot['commerce_boot'];
+  if (commerce is Map) {
+    commerce['enabled'] = true;
+    commerce['products'] = rows;
+  } else {
+    boot['commerce_boot'] = {'enabled': true, 'products': rows};
+  }
+  siteEditorPreviewApplyProductPreloadForGrids(boot, rows);
+}
+
 void siteEditorPreviewRemoveProduct(Map<String, dynamic> boot, int productId) {
   final commerce = boot['commerce_boot'];
   if (commerce is Map<String, dynamic>) {

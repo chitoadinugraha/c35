@@ -61,10 +61,17 @@ fn catalog_add_assistant_asked_confirm(assistant: &str) -> bool {
         || lower.contains("situs mana")
 }
 
-pub async fn chat_last_assistant_content(pool: &sqlx::PgPool, chat_id: i64) -> Option<String> {
-    sqlx::query_scalar(
+#[derive(Clone, Debug, Default)]
+pub struct LastAssistantSnapshot {
+    pub content: Option<String>,
+    pub blocks_json: Option<String>,
+}
+
+pub async fn chat_last_assistant_snapshot(pool: &sqlx::PgPool, chat_id: i64) -> LastAssistantSnapshot {
+    let row: Option<(String, String)> = sqlx::query_as(
         r#"
-        SELECT content FROM ai.chat_msg
+        SELECT content, COALESCE(blocks_json::text, '[]')
+        FROM ai.chat_msg
         WHERE chat_id = $1 AND role = 'assistant' AND deleted_ts IS NULL AND status <> 'error'
         ORDER BY id DESC
         LIMIT 1
@@ -73,8 +80,18 @@ pub async fn chat_last_assistant_content(pool: &sqlx::PgPool, chat_id: i64) -> O
     .bind(chat_id)
     .fetch_optional(pool)
     .await
-    .ok()
-    .flatten()
+    .unwrap_or(None);
+    match row {
+        Some((content, blocks)) => LastAssistantSnapshot {
+            content: Some(content),
+            blocks_json: Some(blocks),
+        },
+        None => LastAssistantSnapshot::default(),
+    }
+}
+
+pub async fn chat_last_assistant_content(pool: &sqlx::PgPool, chat_id: i64) -> Option<String> {
+    chat_last_assistant_snapshot(pool, chat_id).await.content
 }
 
 #[cfg(test)]

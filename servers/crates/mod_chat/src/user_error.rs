@@ -44,10 +44,11 @@ fn chat_error_looks_technical(s: &str) -> bool {
 }
 
 /// Prompt-end `trace_json` for WS + inbox (usage fallback + allowance pool hint).
-pub fn prompt_end_trace_json(billing_included: bool, cost_usd: f64) -> String {
+pub fn prompt_end_trace_json(billing_included: bool, cost_usd: f64, model: &str) -> String {
     serde_json::json!({
         "billing_included": billing_included,
         "cost_usd": cost_usd,
+        "model": model,
     })
     .to_string()
 }

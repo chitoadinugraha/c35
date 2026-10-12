@@ -21,8 +21,23 @@ pub const USER_ASSET_SCOPE_SIM_MIN: f32 = 0.55;
 pub const USER_ASSET_TOP_K: usize = 5;
 pub const USER_ASSET_INJECT_MAX: usize = 3;
 const USER_ASSET_CANDIDATE_CAP: i64 = 48;
-const EMBED_DIMS: i32 = 768;
+/// Max site/bot rows to vector-score per turn (avoids dozens of parallel doc embeds).
+const USER_ASSET_EMBED_CANDIDATE_CAP: usize = 10;
+const EMBED_DIMS: i32 = crate::memory::RETRIEVAL_EMBED_DIMS;
 const EMBED_TIMEOUT: Duration = Duration::from_millis(2500);
+
+/// Skip user-asset RAG when the turn already names a site or does not need asset hints.
+pub fn user_asset_turn_skip(query_text: &str, mention_ids: &[String]) -> bool {
+    if crate::memory::is_trivial_query(query_text) {
+        return true;
+    }
+    mention_ids.iter().any(|raw| {
+        matches!(
+            crate::mention_registry::mention_ref_parse(raw),
+            Some(crate::mention_registry::MentionRef::Iid(_))
+        )
+    })
+}
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct UserAssetTraceEntry {
@@ -242,6 +257,7 @@ pub async fn user_asset_retrieve(
     http: &Client,
     owner_iid: i64,
     query_text: &str,
+    query_embed: Option<Vec<f32>>,
 ) -> UserAssetRetrieveResult {
     let t0 = Instant::now();
     let mut trace = UserAssetRetrieveTrace::default();
@@ -286,25 +302,36 @@ pub async fn user_asset_retrieve(
             > USER_ASSET_INJECT_MAX;
 
     if needs_embed {
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        if scored.len() > USER_ASSET_EMBED_CANDIDATE_CAP {
+            scored.truncate(USER_ASSET_EMBED_CANDIDATE_CAP);
+        }
+
         let embed_t0 = Instant::now();
         let model = embed_model_tag(EMBED_MODEL, EMBED_DIMS);
         trace.embed_model = model.clone();
-        let query_vec = match tokio::time::timeout(
-            EMBED_TIMEOUT,
-            embed_cached(pool, http, &q, EMBED_TASK_QUERY, EMBED_DIMS),
-        )
-        .await
-        {
-            Ok(Ok(r)) => {
-                trace.embed_cached = r.cached;
-                trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
-                trace.embed_token_in = r.token_in;
-                trace.embed_cost_usd = billing_embed_cost_usd(&model, r.token_in);
-                Some(r.embedding)
-            }
-            _ => {
-                trace.embed_skipped = true;
-                None
+        let query_vec = if let Some(pre) = query_embed {
+            trace.embed_cached = true;
+            trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
+            Some(pre)
+        } else {
+            match tokio::time::timeout(
+                EMBED_TIMEOUT,
+                embed_cached(pool, http, &q, EMBED_TASK_QUERY, EMBED_DIMS),
+            )
+            .await
+            {
+                Ok(Ok(r)) => {
+                    trace.embed_cached = r.cached;
+                    trace.embed_ms = embed_t0.elapsed().as_millis() as i64;
+                    trace.embed_token_in = r.token_in;
+                    trace.embed_cost_usd = billing_embed_cost_usd(&model, r.token_in);
+                    Some(r.embedding)
+                }
+                _ => {
+                    trace.embed_skipped = true;
+                    None
+                }
             }
         };
 
@@ -392,7 +419,7 @@ pub async fn live_mention_ids_from_text(
         };
         return Some((vec![format!("iid:{}", ctx.site_iid)], label));
     }
-    let assets = user_asset_retrieve(pool, http, owner_iid, trimmed).await;
+    let assets = user_asset_retrieve(pool, http, owner_iid, trimmed, None).await;
     if let Some(ctx) = assets.scope_site {
         let label = if ctx.name.is_empty() {
             ctx.alien_id.clone()
@@ -419,6 +446,17 @@ mod tests {
             crate::site_resolve::utterance_site_phrase("Berapa harga es teh di Gucicha"),
             "Gucicha"
         );
+    }
+
+    #[test]
+    fn user_asset_turn_skip_trivial_and_iid_mention() {
+        assert!(user_asset_turn_skip("halo", &[]));
+        assert!(user_asset_turn_skip("ok", &[]));
+        assert!(!user_asset_turn_skip("berapa harga es teh", &[]));
+        assert!(user_asset_turn_skip(
+            "berapa stok",
+            &["iid:12345".to_string()]
+        ));
     }
 
     #[test]

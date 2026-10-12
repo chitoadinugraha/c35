@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
@@ -8,10 +10,11 @@ import 'package:flutter/material.dart';
 const _muted = Color(0xFF71717A);
 
 class UiSiteQueueEditor extends StatefulWidget {
-  const UiSiteQueueEditor({super.key, required this.api, required this.siteIid});
+  const UiSiteQueueEditor({super.key, required this.api, required this.siteIid, this.queueEnabled = true});
 
   final SiteApi api;
   final int siteIid;
+  final bool queueEnabled;
 
   @override
   State<UiSiteQueueEditor> createState() => _UiSiteQueueEditorState();
@@ -22,11 +25,19 @@ class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> with SiteEditorCa
   var _busy = false;
   String? _error;
   SiteQueue? _queue;
+  var _loadScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    _reload();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
+    unawaited(_reload());
   }
 
   @override
@@ -35,7 +46,9 @@ class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> with SiteEditorCa
     setState(() {
       _queue = catalog.primaryQueue ?? widget.api.queueNew(widget.siteIid);
       _loading = false;
-      _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+      if (catalog.warmError != null && _queue == null) {
+        _error = uiFriendlyError(catalog.warmError!);
+      }
     });
   }
 
@@ -82,6 +95,18 @@ class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> with SiteEditorCa
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.queueEnabled) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'Queue is off for this site. Turn it on under Settings → Capabilities to use take-a-number on the storefront.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted, fontSize: 13, height: 1.4),
+          ),
+        ),
+      );
+    }
     if (_loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     if (_error != null) {
       return Center(

@@ -17,7 +17,11 @@ pub use bundle_kv::{
     memory_bundle_delete, memory_bundle_get, memory_bundle_kv_ensure, memory_bundle_kv_key,
     memory_bundle_put, scope_inst_bundle_delete, scope_inst_bundle_get, scope_inst_kv_ensure,
     scope_inst_bundle_put, scope_inst_kv_key, BUNDLE_CACHE_TTL_SECS, DEVICE_PRESENCE_KV_BUCKET,
-    HINT_BUNDLE_KV_BUCKET, MEMORY_BUNDLE_KV_BUCKET, SCOPE_INST_KV_BUCKET,
+    HINT_BUNDLE_KV_BUCKET, MEMORY_BUNDLE_KV_BUCKET, PROMPT_BUNDLE_DISCONNECT_GRACE_SECS,
+    PROMPT_BUNDLE_SESSION_KV_BUCKET, PromptBundleSession, SCOPE_INST_KV_BUCKET,
+    prompt_bundle_disconnect_grace_secs, prompt_bundle_session_decode, prompt_bundle_session_encode,
+    prompt_bundle_session_get, prompt_bundle_session_kv_ensure, prompt_bundle_session_kv_key,
+    prompt_bundle_session_put,
 };
 
 pub use connect::{connect, connect_supervised, configured, Client};

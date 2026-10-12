@@ -11,6 +11,7 @@ import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
+import 'package:alienai_c35/guest_site/guest_site_preview_handoff.dart';
 import 'package:alienai_c35/guest_site/guest_site_scroll_behavior.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/widgets/sites/ui_powered_by_alien.dart';
@@ -205,8 +206,11 @@ class _GuestSiteBody extends StatelessWidget {
     ];
 
     // CSA `UiSitePreview` scrolls inside the phone frame (ListView), not via an outer wrapper.
+    final scrollBehavior = SitePreviewViewportHandoff.maybeOf(context) != null
+        ? const SitePreviewHandoffScrollBehavior()
+        : const GuestSitePreviewScrollBehavior();
     final scrollBody = ScrollConfiguration(
-      behavior: const GuestSitePreviewScrollBehavior(),
+      behavior: scrollBehavior,
       child: ListView(
         padding: EdgeInsets.zero,
         children: blockWidgets,

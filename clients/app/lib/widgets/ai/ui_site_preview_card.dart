@@ -4,7 +4,7 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
-import 'package:alienai_c35/guest_site/guest_site_shell.dart';
+import 'package:alienai_c35/guest_site/guest_site_preview_app.dart';
 import 'package:alienai_c35/widgets/sites/io_site_handle_claim_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:flutter/material.dart';
@@ -169,6 +169,8 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
   static const _border = Color(0xFF26262C);
   static const _textPrimary = Color(0xFFF4F4F5);
   static const _textSecondary = Color(0xFFA1A1AA);
+  /// In-card site scroll (guest ListView scrolls inside this box).
+  static const _cardPreviewViewportHeight = 200.0;
 
   @override
   void initState() {
@@ -703,8 +705,10 @@ class _UiSitePreviewCardState extends State<UiSitePreviewCard> {
                             ),
                           )
                         else
-                          GuestSiteShell(
+                          GuestSitePreviewViewport(
                             boot: boot,
+                            height: _cardPreviewViewportHeight,
+                            borderRadius: BorderRadius.circular(6),
                             blockKeyAt: (i) => i < _blockKeys.length ? _blockKeys[i] : null,
                           ),
                         KeyedSubtree(

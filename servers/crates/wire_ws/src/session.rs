@@ -83,6 +83,13 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
             c35_mod_billing::billing_cache_warmup(&pool, nats.as_ref(), caller_iid).await;
         });
     }
+    {
+        let pool = state.pool.clone();
+        let nats = state.nats.clone();
+        tokio::spawn(async move {
+            c35_mod_chat::prompt_prepare_cache_on_connect(&pool, nats.as_ref(), caller_iid).await;
+        });
+    }
     let mut prompt_flight: Option<PromptFlight> = None;
     let mut app_client_id = String::new();
     if let Some(nats) = state.nats.clone() {
@@ -170,6 +177,10 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
     }
 
     notify_rpc::forget_presence(&state.pool, caller_iid, &app_client_id).await;
+    let nats_dc = state.nats.clone();
+    tokio::spawn(async move {
+        c35_mod_chat::prompt_prepare_cache_on_disconnect(nats_dc.as_ref(), caller_iid).await;
+    });
     c35_mod_device::remote_signaling_app_conn_unregister(app_conn_id);
     c35_mod_event::event_spawn(
         state.pool.clone(),
@@ -313,6 +324,11 @@ fn prompt_req_put(
                     fail_reason,
                 )
                 .await;
+                let trace_json = c35_mod_chat::prompt_end_trace_json(
+                    turn.billing_included,
+                    turn.cost_usd,
+                    &turn.model,
+                );
                 let _ = out_tx.send(WsRes {
                     req_id: req_id_spawn.clone(),
                     body: Some(ws_res::Body::PromptEnd(ResPromptEnd {
@@ -323,7 +339,7 @@ fn prompt_req_put(
                         duration_ms: turn.duration_ms,
                         model: turn.model,
                         req_id: req_id_spawn.clone(),
-                        trace_json: c35_mod_chat::prompt_end_trace_json(turn.billing_included, turn.cost_usd),
+                        trace_json,
                         error_message: c35_mod_chat::chat_user_error_message(&turn.error_text),
                         prompt_tokens: turn.prompt_tokens,
                         context_window: turn.context_window,

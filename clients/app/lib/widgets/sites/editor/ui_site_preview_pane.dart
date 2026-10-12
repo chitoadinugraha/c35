@@ -37,22 +37,19 @@ class UiSitePreviewPane extends StatelessWidget {
       color: cs.surfaceContainerLowest,
       child: UiSitePreviewStage(
         headerBuilder: (context, controls) => Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 4, 2),
+          padding: const EdgeInsets.fromLTRB(4, 4, 4, 2),
           child: Row(
             children: [
-              SitePreviewStageModeToggle(mode: controls.mode, onMode: controls.onMode),
-              _VisitSiteButton(row: row, api: api, mode: mode),
-              const Spacer(),
-              if (onModeChanged != null) ...[
-                _DraftLiveToggle(mode: mode, onChanged: onModeChanged!),
-                const SizedBox(width: 4),
-              ],
               IconButton(
                 tooltip: 'Fit to screen',
                 visualDensity: VisualDensity.compact,
                 onPressed: controls.onRecenter,
                 icon: Icon(Icons.fit_screen_outlined, size: 20, color: cs.onSurfaceVariant),
               ),
+              _VisitSiteButton(row: row, api: api, mode: mode),
+              const Spacer(),
+              if (onModeChanged != null)
+                _DraftLiveToggle(mode: mode, onChanged: onModeChanged!),
             ],
           ),
         ),

@@ -214,7 +214,7 @@ class _UiMsgUsageWithTraceState extends State<UiMsgUsageWithTrace> {
     final m = widget.msg;
     if (m.reqId.trim().isEmpty || m.role != 'assistant') return;
     final stats = msgUsageStats(m);
-    if (stats.hasData) return;
+    if (!msgUsageNeedsTraceBackfill(m) && stats.hasData) return;
     await widget.conn.tracePrefetch(m.reqId);
     if (!mounted) return;
     _applyFromCache();

@@ -1,3 +1,4 @@
+import 'package:alienai_c35/guest_site/guest_site_modal.dart';
 import 'package:alienai_c35/guest_site/guest_site_product.dart';
 import 'package:alienai_c35/widgets/ai/ui_serve_image.dart';
 import 'package:flutter/material.dart';
@@ -59,7 +60,7 @@ class GuestSitePic extends StatelessWidget {
 Future<void> showGuestSitePicViewer(BuildContext context, String pic) {
   final p = pic.trim();
   if (p.isEmpty) return Future.value();
-  return showDialog<void>(
+  return guestSiteShowDialog<void>(
     context: context,
     builder: (ctx) => Dialog(
       backgroundColor: const Color(0xFF18181B),

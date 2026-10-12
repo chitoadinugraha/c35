@@ -42,9 +42,18 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
   String? _error;
   String? _selectedId;
   final _byId = <String, SiteLink>{};
+  var _loadScheduled = false;
+
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_load());
   }
 
@@ -108,7 +117,9 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
     if (mounted) {
       setState(() {
         _loading = false;
-        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+        if (catalog.warmError != null && _byId.isEmpty) {
+          _error = uiFriendlyError(catalog.warmError!);
+        }
       });
     }
   }

@@ -165,7 +165,9 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> with SiteEdit
     if (mounted) {
       setState(() {
         _loading = false;
-        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+        if (catalog.warmError != null && _byId.isEmpty) {
+          _error = uiFriendlyError(catalog.warmError!);
+        }
       });
     }
   }

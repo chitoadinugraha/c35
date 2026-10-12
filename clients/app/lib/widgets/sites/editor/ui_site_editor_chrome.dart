@@ -46,7 +46,7 @@ class UiSiteEditorChrome extends StatelessWidget {
         child: SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 4, 8, 8),
+            padding: const EdgeInsets.fromLTRB(4, 4, 8, 6),
             child: Row(
               children: [
                 if (onBack != null)
@@ -71,7 +71,7 @@ class UiSiteEditorChrome extends StatelessWidget {
                           style: theme.textTheme.bodySmall?.copyWith(color: statusColor ?? muted),
                         ),
                       ] else if (breadcrumb.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         _BreadcrumbRow(segments: breadcrumb, muted: muted, accent: cs.primary),
                       ],
                     ],
@@ -132,6 +132,7 @@ class _SegmentChip extends StatelessWidget {
     final style = Theme.of(context).textTheme.bodySmall?.copyWith(
           color: isLast ? muted : accent.withValues(alpha: 0.95),
           fontWeight: isLast ? FontWeight.w500 : FontWeight.w400,
+          height: 1.15,
         );
     final label = segment.label;
     if (segment.onTap == null || isLast) {
@@ -141,8 +142,8 @@ class _SegmentChip extends StatelessWidget {
       onTap: segment.onTap,
       borderRadius: BorderRadius.circular(4),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style?.copyWith(decoration: TextDecoration.underline)),
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
       ),
     );
   }

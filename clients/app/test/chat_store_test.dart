@@ -621,6 +621,41 @@ void main() {
     expect(store.chats.single.lastMsgAt, 2100);
   });
 
+  test('msgsReloadFromServer keeps client model and usage when server omits them', () {
+    final store = ChatStore();
+    store.chats = [ChatRow(id: 5, title: 'A', lastMsgAt: 1000)];
+    store.msgs = [
+      MsgRow(
+        id: 12,
+        chatId: 5,
+        role: 'assistant',
+        content: 'local answer',
+        model: 'alienai',
+        traceJson: '{"model":"alienai","billing_included":true}',
+        tokensIn: 4000,
+        tokensOut: 180,
+        durationMs: 19000,
+        costUsd: 0.008,
+      ),
+    ];
+
+    store.msgsReloadFromServer(5, [
+      ChatMsg(
+        id: Int64(12),
+        chatId: Int64(5),
+        role: ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT,
+        content: 'server answer',
+        createdTsMs: Int64(2100),
+      ),
+    ]);
+
+    final assistant = store.msgs.singleWhere((m) => m.role == 'assistant');
+    expect(assistant.content, 'server answer');
+    expect(assistant.model, 'alienai');
+    expect(assistant.tokensIn, 4000);
+    expect(assistant.traceJson, contains('alienai'));
+  });
+
   test('msgPut merge keeps chip draft when server wire matches same turn', () {
     final store = ChatStore();
     const deviceId = 'iid:42';

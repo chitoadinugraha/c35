@@ -1,6 +1,8 @@
 import 'package:alienai_c35/c/media/media_disk_cache.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 
 const kIconifyPicScheme = 'iconify://';
 
@@ -25,6 +27,12 @@ Future<String?> iconSvgStringLoad(String iconId) {
     try {
       final file = await mediaDiskCacheFetch(url);
       if (file != null) return iconSvgSanitize(await file.readAsString());
+      if (kIsWeb) {
+        final res = await http.get(Uri.parse(url));
+        if (res.statusCode >= 200 && res.statusCode < 300 && res.body.isNotEmpty) {
+          return iconSvgSanitize(res.body);
+        }
+      }
       return null;
     } catch (_) {
       return null;

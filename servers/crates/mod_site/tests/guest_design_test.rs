@@ -70,7 +70,18 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
         None,
         &design,
         &[],
-        &json!({}),
+        &json!({
+            "open_hours": [{
+                "startDay": 0,
+                "startMin": 540,
+                "endDay": 0,
+                "endMin": 1020
+            }]
+        }),
+    );
+    assert!(
+        profile.contains("guest-hub-hours-chip"),
+        "hub hours chip from meta.open_hours: {profile}"
     );
     let links = block_html_render(
         "links",

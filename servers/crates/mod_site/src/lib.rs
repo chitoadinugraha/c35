@@ -10,6 +10,7 @@ pub mod grant;
 mod http;
 mod commerce_boot;
 pub mod guest_design;
+mod guest_schedule;
 mod guest_product;
 mod guest_product_display;
 mod guest_reservation;

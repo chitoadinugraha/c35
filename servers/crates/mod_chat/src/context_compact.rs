@@ -364,6 +364,22 @@ pub async fn context_compact(
     }))
 }
 
+#[derive(Clone)]
+pub struct HistoryPrefetch {
+    pub ctx: ChatContextState,
+    pub rows: Vec<HistoryRow>,
+}
+
+pub async fn history_prefetch(
+    pool: &PgPool,
+    chat_id: i64,
+    user_msg_id: i64,
+) -> Result<HistoryPrefetch> {
+    let ctx = chat_context_load(pool, chat_id).await?;
+    let rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
+    Ok(HistoryPrefetch { ctx, rows })
+}
+
 pub async fn prepare_prompt_history(
     pool: &PgPool,
     http: &Client,
@@ -377,12 +393,44 @@ pub async fn prepare_prompt_history(
     user: &str,
     bot_iid: Option<i64>,
 ) -> Result<PreparedPromptHistory> {
+    let prefetch = history_prefetch(pool, chat_id, user_msg_id).await?;
+    prepare_prompt_history_with_prefetch(
+        pool,
+        http,
+        nats,
+        chat_id,
+        owner_iid,
+        user_msg_id,
+        req_id,
+        model,
+        system,
+        user,
+        bot_iid,
+        prefetch,
+    )
+    .await
+}
+
+pub async fn prepare_prompt_history_with_prefetch(
+    pool: &PgPool,
+    http: &Client,
+    nats: Option<&NatsClient>,
+    chat_id: i64,
+    owner_iid: i64,
+    user_msg_id: i64,
+    req_id: &str,
+    model: &str,
+    system: &str,
+    user: &str,
+    bot_iid: Option<i64>,
+    mut prefetch: HistoryPrefetch,
+) -> Result<PreparedPromptHistory> {
     let mut billing = ContextBillingExtra::default();
     let system_tokens = token_estimate(system);
     let user_tokens = token_estimate(user);
-    let mut ctx = chat_context_load(pool, chat_id).await?;
+    let mut ctx = prefetch.ctx;
     let window = context_window_resolve(model, ctx.context_window);
-    let mut rows = history_rows_load(pool, chat_id, ctx.summary_upto_msg_id, user_msg_id).await?;
+    let mut rows = prefetch.rows;
     let full_history_tokens = history_rows_tokens(&rows);
     let mut compact_ms = 0i64;
     if should_compact(

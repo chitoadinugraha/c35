@@ -109,7 +109,9 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> with SiteEd
     if (mounted) {
       setState(() {
         _loading = false;
-        _error = catalog.warmError != null ? uiFriendlyError(catalog.warmError!) : null;
+        if (catalog.warmError != null && _byId.isEmpty) {
+          _error = uiFriendlyError(catalog.warmError!);
+        }
       });
     }
   }

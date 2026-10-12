@@ -48,14 +48,14 @@ List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps, {bool platfo
       ]),
       SiteEditorMenuGroup('Catalog', [
         SiteEditorMenuItem('products', Icons.shopping_bag_outlined, 'Products', enabled: caps.commerce),
-        SiteEditorMenuItem('objects', Icons.table_restaurant_outlined, 'Objects', enabled: caps.booking),
+        const SiteEditorMenuItem('objects', Icons.table_restaurant_outlined, 'Objects'),
         SiteEditorMenuItem(
           'contacts',
           Icons.people_outline,
           'Contacts',
           enabled: platformSite || caps.commerce || caps.booking,
         ),
-        SiteEditorMenuItem('queue', Icons.queue, 'Queue', enabled: caps.queue),
+        if (caps.queue) const SiteEditorMenuItem('queue', Icons.queue, 'Queue'),
       ]),
       SiteEditorMenuGroup('Settings', [
         const SiteEditorMenuItem('capabilities', Icons.tune_outlined, 'Capabilities'),

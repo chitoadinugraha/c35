@@ -320,6 +320,7 @@ class SiteStore extends ChangeNotifier {
         name: trimmed,
         tagline: tagline.trim(),
         pic: pic,
+        features: features,
       );
       await _conn.siteDraftPut(draft, skipPublish: true);
       final row = siteRowFromIdentity(res.row);

@@ -110,7 +110,10 @@ Guest `GET /fs` public access uses the same site/identity/product rules as `cas_
 Inline blobs with **no** root reference (above) and **not** reachable as a variant of a kept canonical row may be removed to reclaim YB disk.
 
 - SQL CTE: [`../schemas/cas_gc.sql`](../schemas/cas_gc.sql)
-- Driver: `.\_\scripts\dev\cleanup_cas_orphans.ps1` (dry-run default; `-Execute -MinAgeDays 14 -BatchLimit 5000`)
+- Drivers:
+  - `.\_\scripts\dev\fs_gc.ps1` — inline + S3 (dry-run default)
+  - `.\_\scripts\dev\cleanup_cas_orphans.ps1` — inline only (`-MinAgeDays 0` deletes recent orphans; default filter: small `image/jpeg`/`image/webp`)
+  - `.\_\scripts\dev\cleanup_cas_s3_orphans.ps1` — `store=s3` rows not in `cas_kept` (deletes object `fs/{hash}` then meta)
 
 Run during low traffic; full scans over millions of CAS rows can take minutes. Always dry-run first.
 

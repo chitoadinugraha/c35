@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
 use c35_proto::{SiteBlock, SiteDoc, SitePage};
-use serde_json::Value;
+use serde_json::{json, Value};
+
+pub const DEFAULT_PRODUCT_GRID_BLOCK_ID: &str = "product_grid1";
 
 pub const BLOCK_TYPES_V1: &[&str] = &[
     "hero",
@@ -271,6 +273,61 @@ fn block_props_validate(block_type: &str, props: &Value) -> Result<()> {
     Ok(())
 }
 
+pub fn site_doc_has_product_grid(doc: &SiteDoc) -> bool {
+    doc.pages.iter().any(|page| {
+        page.blocks
+            .iter()
+            .any(|block| block.r#type == "product_grid")
+    })
+}
+
+fn site_doc_ensure_catalog_display_default(doc: &mut SiteDoc) -> bool {
+    let mut meta: Value = if doc.meta_json.is_empty() {
+        json!({})
+    } else {
+        serde_json::from_str(&doc.meta_json).unwrap_or_else(|_| json!({}))
+    };
+    let obj = match meta.as_object_mut() {
+        Some(o) => o,
+        None => return false,
+    };
+    let set = obj
+        .get("catalog_display")
+        .and_then(|x| x.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .is_none();
+    if !set {
+        return false;
+    }
+    obj.insert("catalog_display".into(), json!("grid"));
+    doc.meta_json = meta.to_string();
+    true
+}
+
+/// Home-page `product_grid` + default `meta.catalog_display` (`grid` / `list` in Products → Design).
+pub fn site_doc_ensure_product_grid(doc: &mut SiteDoc) -> bool {
+    let mut changed = false;
+    if !site_doc_has_product_grid(doc) {
+        if doc.pages.is_empty() {
+            doc.pages.push(SitePage {
+                path: "/".into(),
+                title: String::new(),
+                blocks: vec![],
+            });
+        }
+        let home = &mut doc.pages[0];
+        home.blocks.push(SiteBlock {
+            id: DEFAULT_PRODUCT_GRID_BLOCK_ID.into(),
+            r#type: "product_grid".into(),
+            props_json: r#"{"filter":"all"}"#.into(),
+        });
+        changed = true;
+    }
+    changed |= site_doc_ensure_catalog_display_default(doc);
+    changed
+}
+
 pub fn render_key_for_page(path: &str) -> String {
     let p = path.trim();
     if p.is_empty() || p == "/" {
@@ -284,5 +341,50 @@ pub fn render_key_for_page(path: &str) -> String {
                 format!("/{p}")
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod ensure_product_grid_tests {
+    use super::*;
+    use c35_proto::SitePage;
+
+    #[test]
+    fn ensure_adds_grid_and_catalog_display() {
+        let mut doc = SiteDoc {
+            pages: vec![SitePage {
+                path: "/".into(),
+                title: "Shop".into(),
+                blocks: vec![SiteBlock {
+                    id: "hero1".into(),
+                    r#type: "hero".into(),
+                    props_json: r#"{"title":"Shop"}"#.into(),
+                }],
+            }],
+            theme_json: "{}".into(),
+            meta_json: "{}".into(),
+        };
+        assert!(site_doc_ensure_product_grid(&mut doc));
+        assert!(site_doc_has_product_grid(&doc));
+        let meta: Value = serde_json::from_str(&doc.meta_json).expect("meta json");
+        assert_eq!(meta.get("catalog_display").and_then(|x| x.as_str()), Some("grid"));
+    }
+
+    #[test]
+    fn ensure_idempotent_when_grid_present() {
+        let mut doc = SiteDoc {
+            pages: vec![SitePage {
+                path: "/".into(),
+                title: "Shop".into(),
+                blocks: vec![SiteBlock {
+                    id: "g1".into(),
+                    r#type: "product_grid".into(),
+                    props_json: r#"{"filter":"all"}"#.into(),
+                }],
+            }],
+            theme_json: "{}".into(),
+            meta_json: r#"{"catalog_display":"list"}"#.into(),
+        };
+        assert!(!site_doc_ensure_product_grid(&mut doc));
     }
 }

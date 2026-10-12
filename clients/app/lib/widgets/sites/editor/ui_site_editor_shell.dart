@@ -7,6 +7,7 @@ import 'package:alienai_c35/c/site/site_editor_flush_coordinator.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_nav.dart';
 import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_cache.dart';
+import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/site/site_editor_save_bus.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
@@ -33,6 +34,7 @@ import 'package:alienai_c35/widgets/sites/editor/ui_site_publish_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_settings_editor.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_team_editor.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
+import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -103,7 +105,14 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     if (initial != siteEditorMenuDefaultId) _nav.section = initial;
     unawaited(_loadCaps());
     unawaited(_refreshPublishPending());
+    _catalogCache.addListener(_syncCatalogToPreview);
     unawaited(_catalogCache.warm());
+  }
+
+  void _syncCatalogToPreview() {
+    if (!_catalogCache.warmDone || _catalogCache.products.isEmpty) return;
+    _previewCache.patch((boot) => siteEditorPreviewSyncCommerceCatalog(boot, _catalogCache.products));
+    _previewCache.scheduleServerSync();
   }
 
   @override
@@ -112,7 +121,9 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     if (oldWidget.row.siteIid != widget.row.siteIid) {
       _row = widget.row.clone();
       final oldCatalog = _catalogCache;
+      oldCatalog.removeListener(_syncCatalogToPreview);
       _catalogCache = SiteEditorCatalogCache(api: widget.api, siteIid: _siteIid);
+      _catalogCache.addListener(_syncCatalogToPreview);
       _previewCache.resetForSite(_row);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         oldCatalog.dispose();
@@ -127,6 +138,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   @override
   void dispose() {
+    _catalogCache.removeListener(_syncCatalogToPreview);
     unawaited(_flush.flush());
     _previewCache.dispose();
     _catalogCache.dispose();
@@ -371,6 +383,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   bool get _showPublishedLabel => !_publishPending && _row.publishedVersionId.isNotEmpty;
 
   List<Widget> _chromeActions({required bool showPreviewToggle}) => [
+        UiConnWifi(conn: widget.api.conn),
         OutlinedButton.icon(
           onPressed: (_publishing || !_publishPending) ? null : _confirmPublish,
           icon: _publishing
@@ -490,7 +503,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           detailId: _nav.catalogDetailId,
           onDetailIdChanged: (id) => _scheduleCatalogDetailId(id, section: shown),
         ),
-      'queue' => UiSiteQueueEditor(api: widget.api, siteIid: _siteIid),
+      'queue' => UiSiteQueueEditor(api: widget.api, siteIid: _siteIid, queueEnabled: _caps.queue),
       'attendance' => UiSiteAttendanceEditor(
           api: widget.api,
           siteIid: _siteIid,
