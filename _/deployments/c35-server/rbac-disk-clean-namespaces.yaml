@@ -1,0 +1,75 @@
+# Namespace-scoped exec for disk clean (some clusters deny ClusterRole pods/exec until Role exists).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: c35-server-disk-clean
+  namespace: yugabyte
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/attach"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: c35-server-disk-clean
+  namespace: yugabyte
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: c35-server-disk-clean
+subjects:
+  - kind: ServiceAccount
+    name: c35-server
+    namespace: c35
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: c35-server-disk-clean
+  namespace: build
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  - apiGroups: [""]
+    resources: ["pods/attach"]
+    verbs: ["create"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: c35-server-disk-clean
+  namespace: build
+  labels:
+    app.kubernetes.io/name: c35-server
+    app.kubernetes.io/part-of: c35
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: c35-server-disk-clean
+subjects:
+  - kind: ServiceAccount
+    name: c35-server
+    namespace: c35
