@@ -32,6 +32,7 @@ mod site_grant;
 mod site_hr;
 mod site_draft;
 mod site_editor_warm;
+mod site_assistant;
 mod site_boot;
 mod site_handle;
 mod platform_site;
@@ -72,6 +73,11 @@ pub use site_domain_buy::{
 };
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
 pub use commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
+pub use site_assistant::{
+    site_assistant_boot_extras, site_assistant_capabilities_merge, site_assistant_ensure,
+    site_assistant_ensure_bot, site_assistant_get, site_assistant_bot_iid_get,
+    site_guest_ai_assistant_public, site_guest_knowledge_public,
+};
 pub use site_boot::{site_boot_get, site_boot_json_assemble};
 pub use site_editor_warm::{
     site_editor_warm, site_editor_warm_product_limit, SITE_EDITOR_WARM_PRODUCT_DEFAULT,

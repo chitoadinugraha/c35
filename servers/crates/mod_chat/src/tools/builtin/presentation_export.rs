@@ -675,6 +675,7 @@ mod tests {
             1,
             1,
             None,
+            None,
             crate::mention_context::MentionContext::default(),
             vec![],
             "",

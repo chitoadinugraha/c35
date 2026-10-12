@@ -123,7 +123,10 @@ pub async fn live_openai_run(
     let (mut o_tx, mut o_rx) = openai_ws.split();
 
     // Prepare system prompt
-    let user_ctx = c35_mod_chat::prompt::user_context::user_prompt_context_get(&pool, owner_iid).await;
+    let user_ctx = match &ticket.hydrate {
+        Some(h) => h.user_ctx.clone(),
+        None => c35_mod_chat::prompt::user_context::user_prompt_context_get(&pool, owner_iid).await,
+    };
     let tz = c35_mod_chat::prompt::time::time_timezone_resolve(&user_ctx.tz, &user_ctx.locale, "");
     let time_block = c35_mod_chat::prompt::time::time_prompt_block(&tz);
     let inst_text = crate::google::live_inst_text(&pool, &offer.inst_id).await;

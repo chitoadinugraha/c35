@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use c35_mod_site::guest_design::{FeaturedContact, GuestDesign};
+use c35_mod_site::site_assistant_boot_extras;
 use c35_mod_site::render::{block_html_render, guest_root_css, guest_shell_html, ProductRow};
 use c35_mod_site::site_boot_json_assemble;
 use c35_proto::SiteBootMode;
@@ -112,6 +113,9 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
             duration_value: 0,
             duration_unit: String::new(),
             reservation_unit_selection: String::new(),
+            reservation_inventory_mode: "capacity".into(),
+            reservation_capacity: 1,
+            reservation_hold_ttl_seconds: 3600,
             icon: String::new(),
             stock_show_to_customer: false,
             stock_qty: None,
@@ -206,6 +210,27 @@ fn guest_root_css_includes_typography_tokens() {
     assert!(css.contains("--product-title-size:"));
     assert!(css.contains("--product-subtitle-size:"));
     assert!(css.contains("--product-price-size:"));
+}
+
+#[test]
+fn guest_assistant_boot_extras_caps_knowledge() {
+    let meta = json!({
+        "ai_assistant": {
+            "chat_enabled": true,
+            "call_enabled": true,
+            "chat_placeholder": "Hi",
+            "chat_intro": "Welcome",
+        },
+        "knowledge": [
+            {"title": "Hours", "content": "9-5"},
+            {"title": "", "content": ""},
+        ],
+    });
+    let boot = site_assistant_boot_extras(&meta);
+    assert_eq!(boot["ai_assistant"]["chat_enabled"], true);
+    assert_eq!(boot["ai_assistant"]["call_enabled"], true);
+    assert_eq!(boot["knowledge"].as_array().unwrap().len(), 1);
+    assert_eq!(boot["knowledge"][0]["title"], "Hours");
 }
 
 #[test]

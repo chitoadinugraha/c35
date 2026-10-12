@@ -45,6 +45,35 @@ void main() {
     expect((body['reservations'] as List), hasLength(1));
   });
 
+  test('guest picks two units expands to two reservation rows', () {
+    final start = DateTime(2026, 6, 1);
+    final end = DateTime(2026, 6, 2);
+    final line = GuestSiteCartLine(
+      productId: 5,
+      name: 'Meja',
+      price: 50000,
+      slots: [
+        GuestReservationSlot(
+          start: start,
+          end: end,
+          units: 2,
+          durationQty: 1,
+          assignments: const [
+            GuestReservationAssignment(siteObjectId: 101, objectName: 'A'),
+            GuestReservationAssignment(siteObjectId: 102, objectName: 'B'),
+          ],
+        ),
+      ],
+    );
+    final rows = line.reservationJson();
+    expect(rows, hasLength(2));
+    expect(rows[0]['qty'], 1);
+    expect(rows[1]['qty'], 1);
+    expect(rows[0]['site_object_id'], 101);
+    expect(rows[1]['site_object_id'], 102);
+    expect(line.qty, 2);
+  });
+
   test('qty-only cart maps load as non-reservable lines', () {
     final lines = guestCartLinesFromJsonMap({'4': 2});
     expect(lines[4]!.qty, 2);

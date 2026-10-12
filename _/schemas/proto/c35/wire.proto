@@ -356,6 +356,8 @@ message WsReq {
     ReqDeviceEgressClose req_device_egress_close = 220;
     ReqRootConsole root_console = 221;
     ReqSessionFocus session_focus = 224;
+    ReqSiteAssistantGet site_assistant_get = 225;
+    ReqSiteAssistantEnsure site_assistant_ensure = 226;
   }
 }
 
@@ -557,6 +559,8 @@ message WsRes {
     ResRootConsole root_console = 222;
     ResSessionFocus session_focus = 223;
     SessionSuperseded session_superseded = 224;
+    ResSiteAssistantGet site_assistant_get = 225;
+    ResSiteAssistantEnsure site_assistant_ensure = 226;
   }
 }
 

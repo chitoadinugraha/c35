@@ -131,18 +131,19 @@ class GuestSiteReservationSheet extends StatefulWidget {
 }
 
 class _SlotDraft {
-  _SlotDraft({required this.start, required this.end, required this.units, required this.durationQty});
+  _SlotDraft({required this.start, required this.end, required this.units, required this.durationQty})
+      : assignments = guestReservationAssignmentsFit(const [], units);
 
   DateTime start;
   DateTime end;
   int units;
   int durationQty;
-  int siteObjectId = 0;
-  String objectName = '';
+  List<GuestReservationAssignment?> assignments;
   int? unitsAvailable;
   Set<int>? freeObjectIds;
   Timer? timer;
   int fetchGen = 0;
+  int? pickAssignIndex;
 }
 
 class _GuestSiteReservationSheetState extends State<GuestSiteReservationSheet> {
@@ -212,13 +213,61 @@ class _GuestSiteReservationSheetState extends State<GuestSiteReservationSheet> {
     setState(() {
       slot.unitsAvailable = result.unitsAvailable;
       slot.freeObjectIds = result.freeObjectIds;
+      final free = result.freeObjectIds;
+      if (free != null) {
+        final next = guestReservationAssignmentsFit(slot.assignments, slot.units);
+        for (var i = 0; i < next.length; i++) {
+          final id = next[i]?.siteObjectId ?? 0;
+          if (id > 0 && !free.contains(id)) next[i] = null;
+        }
+        slot.assignments = next;
+      }
     });
   }
 
   void _setUnits(_SlotDraft slot, int units) {
     if (units < 1) return;
-    setState(() => slot.units = units);
+    setState(() {
+      slot.units = units;
+      slot.assignments = guestReservationAssignmentsFit(slot.assignments, units);
+      if (slot.pickAssignIndex != null && slot.pickAssignIndex! >= units) {
+        slot.pickAssignIndex = null;
+      }
+    });
     _schedule(slot);
+  }
+
+  bool _slotsOverlap(_SlotDraft a, _SlotDraft b) =>
+      a.start.isBefore(b.end) && b.start.isBefore(a.end);
+
+  Set<int> _takenObjIds(_SlotDraft slot, int exceptAssignIndex) {
+    final taken = <int>{};
+    for (final other in _slots) {
+      final assigns = guestReservationAssignmentsFit(other.assignments, other.units);
+      if (other == slot) {
+        for (var i = 0; i < assigns.length; i++) {
+          if (i == exceptAssignIndex) continue;
+          final id = assigns[i]?.siteObjectId ?? 0;
+          if (id > 0) taken.add(id);
+        }
+        continue;
+      }
+      if (!_slotsOverlap(slot, other)) continue;
+      for (final pick in assigns) {
+        final id = pick?.siteObjectId ?? 0;
+        if (id > 0) taken.add(id);
+      }
+    }
+    return taken;
+  }
+
+  void _setAssignment(_SlotDraft slot, int index, GuestReservationAssignment? pick) {
+    setState(() {
+      final next = guestReservationAssignmentsFit(slot.assignments, slot.units);
+      if (index < 0 || index >= next.length) return;
+      next[index] = pick;
+      slot.assignments = next;
+    });
   }
 
   void _setDuration(_SlotDraft slot, int count) {
@@ -281,8 +330,9 @@ class _GuestSiteReservationSheetState extends State<GuestSiteReservationSheet> {
             end: slot.end,
             units: slot.units,
             durationQty: slot.durationQty,
-            siteObjectId: slot.siteObjectId,
-            objectName: slot.objectName,
+            assignments: widget.guestPicks
+                ? guestReservationAssignmentsFit(slot.assignments, slot.units)
+                : const [],
           ),
     ];
     if (slots.isEmpty) return;
@@ -431,8 +481,60 @@ class _GuestSiteReservationSheetState extends State<GuestSiteReservationSheet> {
               padding: const EdgeInsets.only(top: 4),
               child: Text('Unit left: ${slot.unitsAvailable}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
             ),
-          if (widget.guestPicks) _objectTiles(slot),
+          if (widget.guestPicks) _guestPickSection(slot),
         ],
+      ),
+    );
+  }
+
+  Widget _guestPickSection(_SlotDraft slot) {
+    final assigns = guestReservationAssignmentsFit(slot.assignments, slot.units);
+    final pickIndex = slot.pickAssignIndex;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (var i = 0; i < assigns.length; i++) _assignmentChip(slot, i, assigns[i]),
+            ],
+          ),
+          if (pickIndex != null && pickIndex >= 0 && pickIndex < assigns.length)
+            _objectTiles(slot, pickIndex),
+        ],
+      ),
+    );
+  }
+
+  Widget _assignmentChip(_SlotDraft slot, int index, GuestReservationAssignment? pick) {
+    final selected = slot.pickAssignIndex == index;
+    final label = pick != null && !pick.isAuto
+        ? (pick.objectName.isNotEmpty ? pick.objectName : 'Unit ${index + 1}')
+        : 'Unit ${index + 1}';
+    return Material(
+      color: selected ? widget.accent.withValues(alpha: 0.25) : const Color(0xFF27272A),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            slot.pickAssignIndex = selected ? null : index;
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: pick != null && !pick.isAuto ? Colors.white : Colors.white70,
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -468,27 +570,59 @@ class _GuestSiteReservationSheetState extends State<GuestSiteReservationSheet> {
     );
   }
 
-  Widget _objectTiles(_SlotDraft slot) {
+  Widget _objectTiles(_SlotDraft slot, int assignIndex) {
     final free = slot.freeObjectIds;
+    final takenInCart = _takenObjIds(slot, assignIndex);
+    final assigns = guestReservationAssignmentsFit(slot.assignments, slot.units);
+    final currentId = assignIndex < assigns.length ? (assigns[assignIndex]?.siteObjectId ?? 0) : 0;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
         children: [
+          _autoTile(slot, assignIndex, currentId <= 0),
           for (final object in _productObjects)
-            _objectTile(slot, object, free),
+            _objectTile(slot, assignIndex, object, free, takenInCart, currentId),
         ],
       ),
     );
   }
 
-  Widget _objectTile(_SlotDraft slot, Map<String, dynamic> object, Set<int>? free) {
+  Widget _autoTile(_SlotDraft slot, int assignIndex, bool selected) {
+    return Material(
+      color: selected ? widget.accent.withValues(alpha: 0.25) : const Color(0xFF27272A),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () {
+          _setAssignment(slot, assignIndex, null);
+          setState(() => slot.pickAssignIndex = null);
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 96,
+          padding: const EdgeInsets.all(8),
+          alignment: Alignment.center,
+          child: const Text('Auto', style: TextStyle(color: Colors.white70, fontSize: 12)),
+        ),
+      ),
+    );
+  }
+
+  Widget _objectTile(
+    _SlotDraft slot,
+    int assignIndex,
+    Map<String, dynamic> object,
+    Set<int>? free,
+    Set<int> takenInCart,
+    int currentId,
+  ) {
     final id = (object['id'] as num?)?.toInt() ?? 0;
     final name = object['name']?.toString() ?? '';
     final known = free != null;
-    final taken = known && !free.contains(id);
-    final selected = slot.siteObjectId == id && id > 0;
+    final unavailable = known && !free.contains(id);
+    final taken = unavailable || (takenInCart.contains(id) && currentId != id);
+    final selected = currentId == id && id > 0;
     final picUrl = guestSitePicUrl(object['pic']?.toString() ?? '');
     return Opacity(
       opacity: taken ? 0.35 : 1,
@@ -499,15 +633,16 @@ class _GuestSiteReservationSheetState extends State<GuestSiteReservationSheet> {
           onTap: taken
               ? null
               : () {
-                  setState(() {
-                    if (slot.siteObjectId == id) {
-                      slot.siteObjectId = 0;
-                      slot.objectName = '';
-                    } else {
-                      slot.siteObjectId = id;
-                      slot.objectName = name;
-                    }
-                  });
+                  if (selected) {
+                    _setAssignment(slot, assignIndex, null);
+                  } else {
+                    _setAssignment(
+                      slot,
+                      assignIndex,
+                      GuestReservationAssignment(siteObjectId: id, objectName: name),
+                    );
+                  }
+                  setState(() => slot.pickAssignIndex = null);
                 },
           borderRadius: BorderRadius.circular(8),
           child: Container(

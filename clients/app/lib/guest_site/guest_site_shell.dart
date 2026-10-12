@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
+import 'package:alienai_c35/guest_site/guest_site_assistant.dart';
 import 'package:alienai_c35/guest_site/guest_site_view.dart';
 import 'package:flutter/material.dart';
 
@@ -99,13 +100,14 @@ class _GuestSiteShellState extends State<GuestSiteShell> {
       blockKeyAt: widget.blockKeyAt,
       emptyLabel: widget.emptyLabel,
     );
-    if (!widget.boot.commerceEnabled) return view;
+    final layered = GuestSiteAssistantLayer(boot: widget.boot, child: view);
+    if (!widget.boot.commerceEnabled) return layered;
     return GuestSiteCartScope(
       controller: _cart,
       child: GuestSiteCartChrome(
         controller: _cart,
         accent: widget.boot.accentColor,
-        child: view,
+        child: layered,
       ),
     );
   }

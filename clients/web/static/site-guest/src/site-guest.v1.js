@@ -70,6 +70,89 @@
     return u * d;
   }
 
+  function guestSlotDurationQty(slot) {
+    if (slot.durationQty != null) return slot.durationQty;
+    if (slot.duration_qty != null) return slot.duration_qty;
+    if (slot.durationCount != null) return slot.durationCount;
+    return 1;
+  }
+
+  function guestAssignmentsFit(src, units) {
+    const list = Array.isArray(src) ? src.slice() : [];
+    const n = units | 0;
+    if (n <= 0) return [];
+    while (list.length < n) list.push(null);
+    if (list.length > n) list.length = n;
+    return list;
+  }
+
+  function guestSlotsOverlap(a, b) {
+    const aStart = a.start && a.start.getTime ? a.start.getTime() : NaN;
+    const aEnd = a.end && a.end.getTime ? a.end.getTime() : NaN;
+    const bStart = b.start && b.start.getTime ? b.start.getTime() : NaN;
+    const bEnd = b.end && b.end.getTime ? b.end.getTime() : NaN;
+    if (!isFinite(aStart) || !isFinite(aEnd) || !isFinite(bStart) || !isFinite(bEnd)) return true;
+    return aStart < bEnd && bStart < aEnd;
+  }
+
+  function guestTakenObjIds(slots, exceptSlot, exceptAssignIndex) {
+    const taken = new Set();
+    for (const other of slots) {
+      const assigns = guestAssignmentsFit(other.assignments, other.units || 1);
+      if (other === exceptSlot) {
+        assigns.forEach(function (pick, i) {
+          if (i === exceptAssignIndex) return;
+          const id = pick && pick.site_object_id ? Number(pick.site_object_id) : 0;
+          if (id > 0) taken.add(id);
+        });
+        continue;
+      }
+      if (!guestSlotsOverlap(exceptSlot, other)) continue;
+      assigns.forEach(function (pick) {
+        const id = pick && pick.site_object_id ? Number(pick.site_object_id) : 0;
+        if (id > 0) taken.add(id);
+      });
+    }
+    return taken;
+  }
+
+  function guestReservationsFromSlot(slot, productId) {
+    const units = slot.units || 1;
+    const durationQty = guestSlotDurationQty(slot) || 1;
+    const startMs = slot.start_ts_ms != null ? slot.start_ts_ms : (slot.start && slot.start.getTime());
+    const endMs = slot.end_ts_ms != null ? slot.end_ts_ms : (slot.end && slot.end.getTime());
+    const assigns = guestAssignmentsFit(slot.assignments, units);
+    const expand = units > 1 && Array.isArray(slot.assignments) && slot.assignments.length > 0;
+    if (expand) {
+      return assigns.map(function (pick) {
+        return {
+          product_id: productId,
+          qty: 1,
+          duration_qty: durationQty,
+          start_ts_ms: startMs,
+          end_ts_ms: endMs,
+          site_object_id: pick && pick.site_object_id ? Number(pick.site_object_id) : 0,
+          state: 'pending',
+        };
+      });
+    }
+    let objId = 0;
+    if (assigns.length && assigns[0] && assigns[0].site_object_id) {
+      objId = Number(assigns[0].site_object_id);
+    } else if (slot.site_object_id) {
+      objId = Number(slot.site_object_id);
+    }
+    return [{
+      product_id: productId,
+      qty: units,
+      duration_qty: durationQty,
+      start_ts_ms: startMs,
+      end_ts_ms: endMs,
+      site_object_id: objId,
+      state: 'pending',
+    }];
+  }
+
   function reservationEndFromDuration(start, unit, count) {
     const s = reservationInstant(start);
     const n = count | 0;
@@ -754,14 +837,20 @@
     }
 
     function refreshBar() {
+      const row = document.getElementById('c35-guest-cart-row');
       const bar = document.getElementById('c35-guest-cart-bar');
       const countEl = document.getElementById('c35-cart-count');
       const totalEl = document.getElementById('c35-cart-total');
       const n = count();
-      if (bar) bar.style.display = n > 0 && !sheet ? 'flex' : 'none';
+      const visible = n > 0 && !sheet;
+      if (row) row.style.display = visible ? 'flex' : 'none';
+      else if (bar) bar.style.display = visible ? 'flex' : 'none';
       if (countEl) countEl.textContent = countLabel();
       if (totalEl) totalEl.textContent = formatIdr(grandTotal());
       refreshTileBadges();
+      if (window.c35GuestAssistant && window.c35GuestAssistant.syncCartLayout) {
+        window.c35GuestAssistant.syncCartLayout();
+      }
     }
 
     function toast(msg) {
@@ -1012,6 +1101,7 @@
         toast('Reservasi ditambahkan');
       },
       openModal() { api.pesan(); },
+      checkoutLines,
       closeModal() { api.closeSheet(); },
       async submit(openWhatsAppAfter) {
         if (busy || !siteIid) return;
@@ -1026,18 +1116,8 @@
         eachLine(function (line) {
           if (!line.qty) return;
           if (line.slots) {
-            const reservations = line.slots.map(function (s) {
-              const units = s.units || 1;
-              const durationQty = slotDurationQty(s) || 1;
-              return {
-                product_id: line.productId,
-                qty: units,
-                duration_qty: durationQty,
-                start_ts_ms: s.start_ts_ms,
-                end_ts_ms: s.end_ts_ms,
-                site_object_id: s.site_object_id || 0,
-                state: 'pending',
-              };
+            const reservations = line.slots.flatMap(function (s) {
+              return guestReservationsFromSlot(s, line.productId);
             });
             const qty = reservations.reduce(function (sum, r) {
               return sum + reservationBillable(r.qty, r.duration_qty);
@@ -1287,6 +1367,8 @@
       end: end,
       site_object_id: 0,
       objectName: '',
+      assignments: [null],
+      pickAssignIndex: null,
       freeIds: null,
       unitsAvailable: null,
       availTimer: null,
@@ -1316,6 +1398,8 @@
       return Number(o.product_id) === Number(product.product_id);
     });
     const slots = [makeSlot(product)];
+    let pickSlotIndex = null;
+    let pickAssignIndex = null;
     let alive = true;
     const scrim = document.createElement('div');
     scrim.className = 'guest-sheet-scrim';
@@ -1359,6 +1443,12 @@
         const free = Array.isArray(data.free_objects) ? data.free_objects : [];
         slot.freeIds = new Set(free.map(function (o) { return Number(o.id); }));
         slot.unitsAvailable = data.units_available;
+        const nextAssign = guestAssignmentsFit(slot.assignments, slot.units || 1);
+        nextAssign.forEach(function (pick, i) {
+          const id = pick && pick.site_object_id ? Number(pick.site_object_id) : 0;
+          if (id > 0 && !slot.freeIds.has(id)) nextAssign[i] = null;
+        });
+        slot.assignments = nextAssign;
         if (slot.site_object_id && !slot.freeIds.has(Number(slot.site_object_id))) {
           slot.site_object_id = 0;
           slot.objectName = '';
@@ -1382,19 +1472,38 @@
           : '<p class="guest-units-left">Unit left: ' + slot.unitsAvailable + '</p>';
         let seats = '';
         if (guestPicks) {
-          const tiles = objects.map(function (o) {
-            const id = Number(o.id);
-            const dim = slot.freeIds && !slot.freeIds.has(id);
-            const on = Number(slot.site_object_id) === id;
-            const cls = 'guest-seat' + (on ? ' guest-seat-on' : '') + (dim ? ' guest-seat-dim' : '');
-            const img = o.pic
-              ? '<img src="' + escHtml(o.pic) + '" alt="">'
-              : '<span class="guest-seat-fallback">' + escHtml(String(o.name || o.code || '?').slice(0, 1)) + '</span>';
-            return '<button type="button" class="' + cls + '" data-seat="' + index + '" data-object-id="' + id + '"'
-              + (dim ? ' disabled' : '') + '>'
-              + img + '<span>' + escHtml(o.name || o.code || '') + '</span></button>';
+          const assigns = guestAssignmentsFit(slot.assignments, slot.units || 1);
+          const chips = assigns.map(function (pick, ai) {
+            const label = pick && pick.objectName ? pick.objectName : ('Unit ' + (ai + 1));
+            const on = pickSlotIndex === index && pickAssignIndex === ai;
+            return '<button type="button" class="guest-assign-chip' + (on ? ' guest-assign-chip-on' : '') + '"'
+              + ' data-pick-slot="' + index + '" data-pick-assign="' + ai + '">' + escHtml(label) + '</button>';
           }).join('');
-          seats = '<div class="guest-seat-grid">' + tiles + '</div>';
+          let grid = '';
+          if (pickSlotIndex === index && pickAssignIndex != null) {
+            const taken = guestTakenObjIds(slots, slot, pickAssignIndex);
+            const current = assigns[pickAssignIndex];
+            const currentId = current && current.site_object_id ? Number(current.site_object_id) : 0;
+            const autoCls = 'guest-seat' + (currentId <= 0 ? ' guest-seat-on' : '');
+            const autoBtn = '<button type="button" class="' + autoCls + '" data-seat="' + index + '" data-object-id="0">'
+              + '<span class="guest-seat-fallback">A</span><span>Auto</span></button>';
+            const tiles = objects.map(function (o) {
+              const id = Number(o.id);
+              const dimAvail = slot.freeIds && !slot.freeIds.has(id);
+              const dimTaken = taken.has(id) && currentId !== id;
+              const dim = dimAvail || dimTaken;
+              const on = currentId === id;
+              const cls = 'guest-seat' + (on ? ' guest-seat-on' : '') + (dim ? ' guest-seat-dim' : '');
+              const img = o.pic
+                ? '<img src="' + escHtml(o.pic) + '" alt="">'
+                : '<span class="guest-seat-fallback">' + escHtml(String(o.name || o.code || '?').slice(0, 1)) + '</span>';
+              return '<button type="button" class="' + cls + '" data-seat="' + index + '" data-assign="' + pickAssignIndex + '" data-object-id="' + id + '"'
+                + (dim ? ' disabled' : '') + '>'
+                + img + '<span>' + escHtml(o.name || o.code || '') + '</span></button>';
+            }).join('');
+            grid = '<div class="guest-seat-grid">' + autoBtn + tiles + '</div>';
+          }
+          seats = '<div class="guest-assign-chips">' + chips + '</div>' + grid;
         }
         const remove = slots.length > 1
           ? '<button type="button" class="guest-close-btn" data-remove-slot="' + index + '">\u00d7</button>'
@@ -1440,13 +1549,16 @@
       sheet.querySelector('[data-act="ok"]').addEventListener('click', function () {
         if (sheetBillable(slots) <= 0) return;
         const payload = slots.map(function (s) {
+          const assigns = guestPicks ? guestAssignmentsFit(s.assignments, s.units || 1) : [];
+          const first = assigns.length ? assigns[0] : null;
           return {
             units: s.units,
             durationQty: s.durationCount,
             start_ts_ms: s.start.getTime(),
             end_ts_ms: s.end.getTime(),
-            site_object_id: s.site_object_id || 0,
-            objectName: s.objectName || '',
+            site_object_id: first && first.site_object_id ? Number(first.site_object_id) : (s.site_object_id || 0),
+            objectName: first && first.objectName ? first.objectName : (s.objectName || ''),
+            assignments: assigns,
             startLabel: formatField(s.start, needsTime),
             endLabel: formatField(s.end, needsTime),
           };
@@ -1473,6 +1585,11 @@
           const step = btn.getAttribute('data-step');
           if (step === 'units') {
             slot.units = Math.max(1, (slot.units || 1) + dir);
+            slot.assignments = guestAssignmentsFit(slot.assignments, slot.units);
+            if (pickAssignIndex != null && pickAssignIndex >= slot.units) {
+              pickSlotIndex = null;
+              pickAssignIndex = null;
+            }
             render();
             scheduleAvail(slot);
           } else {
@@ -1502,6 +1619,20 @@
           scheduleAvail(slot);
         });
       });
+      sheet.querySelectorAll('[data-pick-assign]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const index = parseInt(btn.getAttribute('data-pick-slot'), 10);
+          const ai = parseInt(btn.getAttribute('data-pick-assign'), 10);
+          if (pickSlotIndex === index && pickAssignIndex === ai) {
+            pickSlotIndex = null;
+            pickAssignIndex = null;
+          } else {
+            pickSlotIndex = index;
+            pickAssignIndex = ai;
+          }
+          render();
+        });
+      });
       sheet.querySelectorAll('[data-object-id]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           if (btn.disabled) return;
@@ -1509,14 +1640,24 @@
           const slot = slots[index];
           if (!slot) return;
           const id = Number(btn.getAttribute('data-object-id'));
-          if (Number(slot.site_object_id) === id) {
-            slot.site_object_id = 0;
-            slot.objectName = '';
+          const ai = btn.hasAttribute('data-assign')
+            ? parseInt(btn.getAttribute('data-assign'), 10)
+            : (pickAssignIndex != null ? pickAssignIndex : 0);
+          const next = guestAssignmentsFit(slot.assignments, slot.units || 1);
+          if (id <= 0) {
+            if (ai >= 0 && ai < next.length) next[ai] = null;
+          } else if (next[ai] && Number(next[ai].site_object_id) === id) {
+            next[ai] = null;
           } else {
             const obj = objects.find(function (o) { return Number(o.id) === id; });
-            slot.site_object_id = id;
-            slot.objectName = obj ? (obj.name || obj.code || '') : '';
+            next[ai] = {
+              site_object_id: id,
+              objectName: obj ? (obj.name || obj.code || '') : '',
+            };
           }
+          slot.assignments = next;
+          pickSlotIndex = null;
+          pickAssignIndex = null;
           render();
         });
       });
@@ -1567,6 +1708,409 @@
     },
   };
 
+  window.c35GuestAssistant = window.c35GuestAssistant || (function () {
+    const VISITOR_KEY = 'c35.guest.visitor.v1';
+
+    function guestBoot() {
+      return window.__SITE_GUEST__ || {};
+    }
+
+    function readAssistantConfig() {
+      const g = guestBoot();
+      const raw = g.ai_assistant || (g.meta && g.meta.ai_assistant) || null;
+      if (!raw || typeof raw !== 'object') {
+        return {
+          configured: false,
+          chatEnabled: true,
+          callEnabled: false,
+          chatIntro: '',
+          chatPlaceholder: 'Ask Alien AI...',
+          callIntro: '',
+        };
+      }
+      const map = raw;
+      const configured = map.configured === true || Object.keys(map).length > 0;
+      let chatEnabled = true;
+      if (map.chat_enabled === false) chatEnabled = false;
+      else if (map.chat_enabled === true) chatEnabled = true;
+      else if (map.floating_bubble === false) chatEnabled = false;
+      const callEnabled = map.call_enabled === true;
+      const placeholder = String(map.chat_placeholder || '').trim();
+      return {
+        configured: configured,
+        chatEnabled: configured ? chatEnabled : true,
+        callEnabled: configured ? callEnabled : false,
+        chatIntro: String(map.chat_intro || ''),
+        chatPlaceholder: placeholder || 'Ask Alien AI...',
+        callIntro: String(map.call_intro || ''),
+      };
+    }
+
+    function assistantApiBase() {
+      const g = guestBoot();
+      const base = (g.api_base || '').trim();
+      if (base) return base.replace(/\/$/, '');
+      return 'https://api.alienai.id';
+    }
+
+    function siteIid() {
+      const g = guestBoot();
+      return g.site_iid || g.site_id || 0;
+    }
+
+    function visitorId() {
+      const sid = siteIid();
+      const key = VISITOR_KEY + '.' + sid;
+      try {
+        const existing = localStorage.getItem(key);
+        if (existing) return existing;
+        const id = 'v_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        localStorage.setItem(key, id);
+        return id;
+      } catch (e) {
+        return 'v_anon';
+      }
+    }
+
+    function cartSessionPayload() {
+      if (!window.c35GuestCart || !window.c35GuestCart.checkoutLines) return null;
+      try {
+        const lines = window.c35GuestCart.checkoutLines();
+        if (!lines || !lines.length) return null;
+        return { lines: lines };
+      } catch (e) {
+        return null;
+      }
+    }
+
+    let root = null;
+    let chatFab = null;
+    let callFab = null;
+    let chatDockFab = null;
+    let chatPanel = null;
+    let callOverlay = null;
+    let messages = [];
+    let chatOpen = false;
+    let callActive = false;
+    let callTimerId = null;
+    let callStartedAt = 0;
+    let streaming = false;
+
+    function ensureRoot() {
+      if (root) return root;
+      root = document.getElementById('c35-guest-assistant-root');
+      if (!root) {
+        root = document.createElement('div');
+        root.id = 'c35-guest-assistant-root';
+        root.setAttribute('data-guest-assistant', '');
+        document.body.appendChild(root);
+      }
+      root.removeAttribute('hidden');
+      return root;
+    }
+
+    function fabHtml(kind, label) {
+      return '<button type="button" class="guest-assistant-fab guest-assistant-fab--' + kind + '" data-assistant-fab="' + kind + '" aria-label="' + escHtml(label) + '">' + (kind === 'call' ? '\uD83D\uDCDE' : '\uD83D\uDCAC') + '</button>';
+    }
+
+    function renderChrome() {
+      const cfg = readAssistantConfig();
+      const host = ensureRoot();
+      host.innerHTML = '';
+      chatFab = null;
+      callFab = null;
+      chatDockFab = null;
+      if (!cfg.chatEnabled && !cfg.callEnabled) {
+        host.setAttribute('hidden', '');
+        return;
+      }
+      host.removeAttribute('hidden');
+      if (cfg.chatEnabled) {
+        host.insertAdjacentHTML('beforeend', fabHtml('chat', 'Alien AI chat'));
+        chatFab = host.querySelector('[data-assistant-fab="chat"]');
+        chatFab.addEventListener('click', function () { api.openChat(); });
+      }
+      if (cfg.callEnabled) {
+        host.insertAdjacentHTML('beforeend', fabHtml('call', 'Alien AI call'));
+        callFab = host.querySelector('[data-assistant-fab="call"]');
+        callFab.addEventListener('click', function () { api.startCall(); });
+      }
+      syncCartLayout();
+    }
+
+    function cartRowVisible() {
+      const row = document.getElementById('c35-guest-cart-row');
+      if (!row) return false;
+      return row.style.display !== 'none' && row.offsetParent !== null;
+    }
+
+    function pesanButton() {
+      return document.querySelector('#c35-guest-cart-bar .guest-cart-btn, #c35-guest-cart-trailing .guest-cart-btn');
+    }
+
+    function syncCartLayout() {
+      const cfg = readAssistantConfig();
+      const row = document.getElementById('c35-guest-cart-row');
+      const bar = document.getElementById('c35-guest-cart-bar');
+      const trailing = document.getElementById('c35-guest-cart-trailing');
+      const dock = chatDockFab;
+      const useDock = cfg.chatEnabled && cartRowVisible();
+      document.body.classList.toggle('guest-assistant-cart-dock', useDock);
+      if (dock && dock.parentNode) dock.parentNode.removeChild(dock);
+      chatDockFab = null;
+      if (chatFab) chatFab.style.display = useDock ? 'none' : '';
+      if (useDock && trailing && bar) {
+        trailing.hidden = false;
+        trailing.innerHTML = '';
+        const dockBtn = document.createElement('button');
+        dockBtn.type = 'button';
+        dockBtn.className = 'guest-assistant-fab guest-assistant-fab--chat guest-assistant-fab--dock';
+        dockBtn.setAttribute('aria-label', 'Alien AI chat');
+        dockBtn.textContent = '\uD83D\uDCAC';
+        dockBtn.addEventListener('click', function () { api.openChat(); });
+        trailing.appendChild(dockBtn);
+        chatDockFab = dockBtn;
+        const pesan = pesanButton();
+        if (pesan && pesan.parentNode === bar) {
+          trailing.appendChild(pesan);
+        }
+        bar.classList.add('guest-cart--meta-only');
+      } else if (trailing) {
+        trailing.hidden = true;
+        const pesan = pesanButton();
+        if (pesan && pesan.parentNode === trailing && bar) {
+          bar.appendChild(pesan);
+        }
+        if (bar) bar.classList.remove('guest-cart--meta-only');
+      }
+      if (row) row.classList.toggle('guest-cart-row--assistant', useDock);
+    }
+
+    function removeChatPanel() {
+      if (chatPanel && chatPanel.parentNode) chatPanel.parentNode.removeChild(chatPanel);
+      chatPanel = null;
+      chatOpen = false;
+      document.body.classList.remove('guest-assistant-chat-open');
+    }
+
+    function renderMessagesHtml() {
+      return messages.map(function (m) {
+        const role = m.role === 'user' ? 'user' : 'assistant';
+        return '<div class="guest-assistant-msg guest-assistant-msg--' + role + '">' + escHtml(m.text) + '</div>';
+      }).join('');
+    }
+
+    function renderChatPanel() {
+      removeChatPanel();
+      const cfg = readAssistantConfig();
+      chatOpen = true;
+      document.body.classList.add('guest-assistant-chat-open');
+      chatPanel = document.createElement('div');
+      chatPanel.className = 'guest-assistant-chat-root';
+      chatPanel.setAttribute('data-guest-assistant', 'chat');
+      const intro = cfg.chatIntro ? '<p class="guest-assistant-intro">' + escHtml(cfg.chatIntro) + '</p>' : '';
+      chatPanel.innerHTML = '<div class="guest-assistant-chat-scrim"></div><div class="guest-assistant-chat-sheet" role="dialog" aria-label="Alien AI chat">'
+        + '<div class="guest-assistant-chat-header"><span>Alien AI</span><button type="button" class="guest-icon-btn guest-assistant-chat-close" aria-label="Close">\u00D7</button></div>'
+        + '<div class="guest-assistant-chat-body" id="c35-assistant-messages">' + intro + renderMessagesHtml() + '</div>'
+        + '<div class="guest-assistant-chat-compose"><input type="text" id="c35-assistant-input" placeholder="' + escHtml(cfg.chatPlaceholder) + '" autocomplete="off"/>'
+        + '<button type="button" class="guest-assistant-send" id="c35-assistant-send">Send</button></div></div>';
+      document.body.appendChild(chatPanel);
+      chatPanel.querySelector('.guest-assistant-chat-scrim').addEventListener('click', function () { api.closeChat(); });
+      chatPanel.querySelector('.guest-assistant-chat-close').addEventListener('click', function () { api.closeChat(); });
+      const input = chatPanel.querySelector('#c35-assistant-input');
+      const send = chatPanel.querySelector('#c35-assistant-send');
+      send.addEventListener('click', function () { api.sendChat(input.value); });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') api.sendChat(input.value);
+      });
+      input.focus();
+      scrollMessages();
+    }
+
+    function scrollMessages() {
+      const el = document.getElementById('c35-assistant-messages');
+      if (el) el.scrollTop = el.scrollHeight;
+    }
+
+    function appendMessage(role, text) {
+      messages.push({ role: role, text: text });
+      const el = document.getElementById('c35-assistant-messages');
+      if (!el) return;
+      const intro = el.querySelector('.guest-assistant-intro');
+      const node = document.createElement('div');
+      node.className = 'guest-assistant-msg guest-assistant-msg--' + role;
+      node.textContent = text;
+      el.appendChild(node);
+      scrollMessages();
+    }
+
+    function updateAssistantBubble(text) {
+      const el = document.getElementById('c35-assistant-messages');
+      if (!el) return;
+      let bubble = el.querySelector('.guest-assistant-msg--assistant-stream');
+      if (!bubble) {
+        bubble = document.createElement('div');
+        bubble.className = 'guest-assistant-msg guest-assistant-msg--assistant guest-assistant-msg--assistant-stream';
+        el.appendChild(bubble);
+      }
+      bubble.textContent = text;
+      scrollMessages();
+    }
+
+    function finalizeAssistantStream() {
+      const el = document.getElementById('c35-assistant-messages');
+      if (!el) return;
+      const bubble = el.querySelector('.guest-assistant-msg--assistant-stream');
+      if (!bubble) return;
+      const text = bubble.textContent || '';
+      bubble.classList.remove('guest-assistant-msg--assistant-stream');
+      if (text) messages.push({ role: 'assistant', text: text });
+    }
+
+    async function consumeChatStream(resp) {
+      const ctype = (resp.headers.get('content-type') || '').toLowerCase();
+      if (ctype.indexOf('text/event-stream') >= 0 && resp.body) {
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let acc = '';
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          buf += decoder.decode(chunk.value, { stream: true });
+          const parts = buf.split('\n');
+          buf = parts.pop() || '';
+          for (const line of parts) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            const payload = trimmed.slice(5).trim();
+            if (payload === '[DONE]') continue;
+            try {
+              const data = JSON.parse(payload);
+              const delta = data.text || data.delta || data.content || '';
+              if (delta) {
+                acc += delta;
+                updateAssistantBubble(acc);
+              }
+            } catch (e) {
+              if (payload) {
+                acc += payload;
+                updateAssistantBubble(acc);
+              }
+            }
+          }
+        }
+        finalizeAssistantStream();
+        return acc;
+      }
+      const text = await resp.text();
+      try {
+        const data = JSON.parse(text);
+        const reply = data.text || data.reply || data.message || '';
+        if (reply) appendMessage('assistant', reply);
+        return reply;
+      } catch (e) {
+        if (text) appendMessage('assistant', text);
+        return text;
+      }
+    }
+
+    function formatCallElapsed(ms) {
+      const s = Math.floor(ms / 1000);
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
+    }
+
+    function removeCallOverlay() {
+      if (callTimerId) {
+        clearInterval(callTimerId);
+        callTimerId = null;
+      }
+      if (callOverlay && callOverlay.parentNode) callOverlay.parentNode.removeChild(callOverlay);
+      callOverlay = null;
+      callActive = false;
+      document.body.classList.remove('guest-assistant-call-open');
+    }
+
+    function renderCallOverlay() {
+      removeCallOverlay();
+      const cfg = readAssistantConfig();
+      callActive = true;
+      callStartedAt = Date.now();
+      document.body.classList.add('guest-assistant-call-open');
+      callOverlay = document.createElement('div');
+      callOverlay.className = 'guest-assistant-call-root';
+      callOverlay.setAttribute('data-guest-assistant', 'call');
+      const intro = cfg.callIntro ? '<p class="guest-assistant-call-intro">' + escHtml(cfg.callIntro) + '</p>' : '';
+      callOverlay.innerHTML = '<div class="guest-assistant-call-card"><div class="guest-assistant-call-icon" aria-hidden="true">\uD83D\uDD0A</div>'
+        + '<div class="guest-assistant-call-title">Alien AI Call</div>' + intro
+        + '<div class="guest-assistant-call-timer" id="c35-assistant-call-timer">00:00</div>'
+        + '<p class="guest-assistant-call-hint">Speakerphone · live session placeholder</p>'
+        + '<button type="button" class="guest-assistant-call-end" id="c35-assistant-call-end">End call</button></div>';
+      document.body.appendChild(callOverlay);
+      callOverlay.querySelector('#c35-assistant-call-end').addEventListener('click', function () { api.endCall(); });
+      callTimerId = setInterval(function () {
+        const el = document.getElementById('c35-assistant-call-timer');
+        if (el) el.textContent = formatCallElapsed(Date.now() - callStartedAt);
+      }, 1000);
+    }
+
+    const api = {
+      init() {
+        renderChrome();
+      },
+      syncCartLayout,
+      openChat() {
+        if (!readAssistantConfig().chatEnabled) return;
+        renderChatPanel();
+      },
+      closeChat() {
+        removeChatPanel();
+      },
+      async sendChat(text) {
+        const msg = String(text || '').trim();
+        if (!msg || streaming) return;
+        const input = document.getElementById('c35-assistant-input');
+        if (input) input.value = '';
+        appendMessage('user', msg);
+        streaming = true;
+        try {
+          const payload = {
+            site_iid: siteIid(),
+            visitor_id: visitorId(),
+            message: msg,
+            cart: cartSessionPayload(),
+          };
+          const resp = await fetch(assistantApiBase() + '/v1/site/guest-assistant/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) {
+            const errText = await resp.text();
+            throw new Error(errText || 'Chat failed');
+          }
+          await consumeChatStream(resp);
+        } catch (err) {
+          appendMessage('assistant', (err && err.message) ? err.message : String(err));
+        } finally {
+          streaming = false;
+        }
+      },
+      startCall() {
+        if (!readAssistantConfig().callEnabled) return;
+        renderCallOverlay();
+      },
+      endCall() {
+        removeCallOverlay();
+      },
+      readAssistantConfig,
+      visitorId,
+    };
+    return api;
+  })();
+
   window.c35GuestOrders = window.c35GuestOrders || {
     refreshChip() {
       const g = window.__SITE_GUEST__ || {};
@@ -1592,17 +2136,17 @@
     },
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      window.c35GuestCatalogUi.init();
-      window.c35GuestReserve.init();
-      window.c35GuestPost.init();
-      window.c35GuestOrders.refreshChip();
-    });
-  } else {
+  function guestSiteInit() {
     window.c35GuestCatalogUi.init();
     window.c35GuestReserve.init();
     window.c35GuestPost.init();
     window.c35GuestOrders.refreshChip();
+    if (window.c35GuestAssistant) window.c35GuestAssistant.init();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', guestSiteInit);
+  } else {
+    guestSiteInit();
   }
 })();

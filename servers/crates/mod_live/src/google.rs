@@ -45,11 +45,15 @@ pub async fn live_google_proxy_run(
     mut client: WebSocket,
 ) {
     let started = Instant::now();
+    let setup_started = Instant::now();
     let sid = ticket.req_id.clone();
     let owner_iid = ticket.owner_iid;
     let req_id = ticket.req_id.clone();
     let billing_row = ticket.billing_row.clone();
     let offer = ticket.offer.clone();
+    let hydrate = ticket.hydrate.clone();
+    let bundle_wait_ms = hydrate.as_ref().map(|h| h.bundle_wait_ms).unwrap_or(0);
+    let session_cache_hit = hydrate.as_ref().map(|h| h.session_cache_hit).unwrap_or(false);
 
     if offer.provider != "google" {
         let _ = client
@@ -74,19 +78,31 @@ pub async fn live_google_proxy_run(
 
     let http_client = c35_mod_chat::tools::http_client(std::time::Duration::from_secs(30));
 
-    // Discover paired remote devices for the caller
-    let device_rows = sqlx::query_as::<_, (i64, String, String, Value)>(
-        r#"
-        SELECT id, name, type, COALESCE(meta, '{}'::jsonb)
-        FROM ai.identity
-        WHERE owner_iid = $1 AND kind = 'remote' AND deleted_ts IS NULL
-        ORDER BY id ASC
-        "#,
-    )
-    .bind(owner_iid)
-    .fetch_all(&pool)
-    .await
-    .unwrap_or_default();
+    let model = format!("models/{}", offer.provider_model.trim());
+    let url = format!("{GEMINI_LIVE_WS}?key={}", urlencoding::encode(&key));
+    let url_for_connect = url.clone();
+    let gemini_connect = tokio::spawn(async move { connect_async(&url_for_connect).await });
+
+    let inst_id = offer.inst_id.clone();
+    let devices_started = Instant::now();
+    let (device_rows, inst_text) = tokio::join!(
+        async {
+            sqlx::query_as::<_, (i64, String, String, Value)>(
+                r#"
+                SELECT id, name, type, COALESCE(meta, '{}'::jsonb)
+                FROM ai.identity
+                WHERE owner_iid = $1 AND kind = 'remote' AND deleted_ts IS NULL
+                ORDER BY id ASC
+                "#,
+            )
+            .bind(owner_iid)
+            .fetch_all(&pool)
+            .await
+            .unwrap_or_default()
+        },
+        live_inst_text(&pool, &inst_id),
+    );
+    let devices_ms = devices_started.elapsed().as_millis() as i64;
     let device_iids: Vec<i64> = device_rows.iter().map(|(id, ..)| *id).collect();
 
     let mut device_lines = Vec::new();
@@ -120,19 +136,23 @@ pub async fn live_google_proxy_run(
             mention_label = first.clone();
         }
     }
-    let mut mention_ctx = live_mention_context(&pool, owner_iid, &active_mention_ids, &device_iids).await;
-    let site_inst_block = c35_mod_chat::mention_context_sites_block(&mention_ctx);
-
-    // User prompt context (timezone, location, locale)
-    let user_ctx = c35_mod_chat::prompt::user_context::user_prompt_context_get(&pool, owner_iid).await;
+    let mention_started = Instant::now();
+    let user_ctx = match &hydrate {
+        Some(h) => h.user_ctx.clone(),
+        None => c35_mod_chat::prompt::user_context::user_prompt_context_get(&pool, owner_iid).await,
+    };
     let tz = c35_mod_chat::prompt::time::time_timezone_resolve(&user_ctx.tz, &user_ctx.locale, "");
     let time_block = c35_mod_chat::prompt::time::time_prompt_block(&tz);
+
+    let mut mention_ctx = live_mention_context(&pool, owner_iid, &active_mention_ids, &device_iids).await;
+    let mention_ms = mention_started.elapsed().as_millis() as i64;
+    let site_inst_block = c35_mod_chat::mention_context_sites_block(&mention_ctx);
 
     let chat_id_opt = ticket.chat_id;
     let history_rows = live_recent_msgs(&pool, chat_id_opt).await;
     let has_mention = !active_mention_ids.is_empty();
     let full_system = live_voice_system(
-        &live_inst_text(&pool, &offer.inst_id).await,
+        &inst_text,
         &time_block,
         &user_ctx.location_city,
         &device_inst_block,
@@ -140,8 +160,12 @@ pub async fn live_google_proxy_run(
         &mention_label,
     );
 
-    let staff_view = c35_mod_admin::staff_view_load(&pool, owner_iid).await;
-    let caps = c35_mod_chat::site_capability_view_for_mention(&pool, &mention_ctx).await;
+    let tools_started = Instant::now();
+    let (staff_view, caps) = tokio::join!(
+        c35_mod_admin::staff_view_load(&pool, owner_iid),
+        c35_mod_chat::site_capability_view_for_mention(&pool, &mention_ctx),
+    );
+    let tools_ms = tools_started.elapsed().as_millis() as i64;
     let all_tools = c35_mod_chat::tools::cluster_tools();
     let mut eligible_tools = crate::live_tool_select(&all_tools, &offer.tool_topics, &mention_ctx, &staff_view, &caps, has_mention);
     tracing::info!(decls = eligible_tools.len(), offer = %offer.id, "live: tool decls");
@@ -153,12 +177,11 @@ pub async fn live_google_proxy_run(
     };
 
     let mut resume = crate::LiveResume::default();
-    let model = format!("models/{}", offer.provider_model.trim());
-    let url = format!("{GEMINI_LIVE_WS}?key={}", urlencoding::encode(&key));
 
-    let google = match connect_async(&url).await {
-        Ok((s, _)) => s,
-        Err(e) => {
+    let connect_started = Instant::now();
+    let google = match gemini_connect.await {
+        Ok(Ok((s, _))) => s,
+        Ok(Err(e)) => {
             warn!(?e, "live: google ws connect failed");
             let _ = client
                 .send(Message::Text(
@@ -168,7 +191,13 @@ pub async fn live_google_proxy_run(
             let _ = live_billing_abort(&pool, &req_id).await;
             return;
         }
+        Err(e) => {
+            warn!(?e, "live: google connect task failed");
+            let _ = live_billing_abort(&pool, &req_id).await;
+            return;
+        }
     };
+    let gemini_connect_ms = connect_started.elapsed().as_millis() as i64;
 
     let (mut g_tx, mut g_rx) = google.split();
     let voice_name = std::env::var("GEMINI_LIVE_VOICE").unwrap_or_else(|_| "Callirrhoe".into());
@@ -204,6 +233,29 @@ pub async fn live_google_proxy_run(
         let _ = live_billing_abort(&pool, &req_id).await;
         return;
     }
+
+    let setup_duration_ms = setup_started.elapsed().as_millis() as i64;
+    crate::trace::live_setup_trace_put(
+        &pool,
+        nats.as_ref(),
+        owner_iid,
+        &req_id,
+        setup_duration_ms,
+        json!({
+            "session_cache_hit": session_cache_hit,
+            "bundle_wait_ms": bundle_wait_ms,
+            "stages": [
+                {"id": "bundle_wait", "ms": bundle_wait_ms},
+                {"id": "devices", "ms": devices_ms},
+                {"id": "mention", "ms": mention_ms},
+                {"id": "tools", "ms": tools_ms},
+                {"id": "gemini_connect", "ms": gemini_connect_ms},
+            ],
+            "provider": "google",
+            "offer_id": offer.id,
+        }),
+    )
+    .await;
 
     let mut video_tracker = crate::billing::VideoActivityTracker::new();
     let mut quota_interval = tokio::time::interval(std::time::Duration::from_secs(30));
@@ -1017,6 +1069,7 @@ async fn live_handle_tool_call(
             owner_iid,
             chat_id,
             mention_ctx.default_site_iid,
+            None,
             mention_ctx.clone(),
             vec![],
             user_text,

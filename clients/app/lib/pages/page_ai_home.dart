@@ -1655,7 +1655,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   String _activeChatTitle() {
     final chat = _activeChat;
     if (chat == null) return '';
-    return chatTitleDisplay(chat.title, mentions: _store.mentionCatalog.mentions);
+    return chatTitleDisplay(
+      chat.title,
+      mentions: _store.mentionCatalog.mentions,
+      stickyMentionIds: chat.stickyMentionIds,
+    );
   }
 
   Widget _threadContextMenu(BuildContext ctx, SelectableRegionState state) {

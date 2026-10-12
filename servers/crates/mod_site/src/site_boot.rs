@@ -14,6 +14,7 @@ use crate::site_config::site_capabilities_get;
 use crate::site_link::site_link_boot_rows;
 use crate::product_design::product_design_from_site_meta;
 use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json};
+use crate::site_assistant::site_assistant_boot_extras;
 use crate::site_post::{post_boot_summary_json, site_post_boot_summaries};
 
 fn avatar_url(pic: &str) -> String {
@@ -63,8 +64,11 @@ pub fn site_boot_json_assemble(
     let theme = doc_json.get("theme").cloned().unwrap_or_else(|| json!({}));
     let design = GuestDesign::from_value(&theme).to_value();
     let meta = doc_json.get("meta").cloned().unwrap_or_else(|| json!({}));
+    let knowledge = meta.get("knowledge").cloned().unwrap_or_else(|| json!([]));
+    let ai_assistant = meta.get("ai_assistant").cloned().unwrap_or_else(|| json!({}));
     let product_design = product_design_from_site_meta(&meta).unwrap_or_else(|| json!({}));
     let pages = doc_json.get("pages").cloned().unwrap_or_else(|| json!([]));
+    let guest_ai = site_assistant_boot_extras(&meta);
     json!({
         "site_id": site_iid,
         "site_iid": site_iid,
@@ -73,6 +77,10 @@ pub fn site_boot_json_assemble(
         "avatar_url": avatar_url(pic),
         "mode": mode_label(mode),
         "meta": meta,
+        "ai_assistant": guest_ai.get("ai_assistant").cloned().unwrap_or_else(|| json!({})),
+        "knowledge": guest_ai.get("knowledge").cloned().unwrap_or_else(|| json!([])),
+        "knowledge": knowledge,
+        "ai_assistant": ai_assistant,
         "product_design": product_design,
         "theme": theme,
         "pages": pages,
@@ -232,6 +240,9 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
     );
     let boot = if let Some(obj) = boot.as_object() {
         let mut m = obj.clone();
+        for (k, v) in site_assistant_boot_extras(&meta) {
+            m.insert(k, v);
+        }
         m.insert("commerce_boot".into(), commerce_boot);
         m.insert("order_progress_steps".into(), order_progress_steps_json());
         Value::Object(m)

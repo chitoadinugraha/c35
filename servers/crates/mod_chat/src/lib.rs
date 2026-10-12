@@ -53,6 +53,8 @@ mod stock_report_render;
 mod stock_report_run;
 mod commerce_tx_followup;
 mod site_commerce_compose;
+mod site_guest_cart;
+mod site_guest_turn;
 mod tx_browse_render;
 mod site_query_export;
 mod site_query_present;
@@ -128,6 +130,11 @@ pub use device_context::{
 };
 pub use bot_session::{bot_session_billing_snapshot, bot_session_on_turn, bot_prompt_runtime};
 pub use channel_prompt_turn::channel_prompt_turn;
+pub use site_guest_cart::guest_cart_patch;
+pub use site_guest_turn::{
+    guest_chat_enabled, knowledge_prompt_block, site_guest_tool_catalog, site_guest_turn,
+    site_guest_turn_with_hooks, SiteGuestTurnResult,
+};
 pub use inbox::{chat_msg_list, inbox_list};
 pub use log_list::log_list;
 pub use inst_admin::{
@@ -199,9 +206,10 @@ pub use prompt_prepare_cache::{
 };
 pub use owner_session::{
     chat_cache_append_turn, chat_cache_wait_ready, chat_cache_warm, chat_cache_warm_state,
-    owner_session_apply_billing_cached, owner_session_attach_for_prompt, owner_session_bind_ws,
-    owner_session_bundle_ready, owner_session_ensure_owner_warm, owner_session_get,
-    owner_session_prepare_prompt_turn,
+    owner_session_apply_billing_cached, owner_session_attach_for_live, owner_session_attach_for_prompt,
+    owner_session_bind_ws, owner_session_bundle_ready, owner_session_ensure_owner_warm,
+    owner_session_get, owner_session_prepare_for_live, owner_session_prepare_prompt_turn,
+    LiveOwnerHydrate,
     owner_session_register_warmup_for_session, owner_session_supersede, owner_session_teardown,
     owner_session_warm_owner_bundle, session_billing_snapshot, session_focus_chat,
     OwnerPromptSession, OwnerSessionConnection, TurnContinuity, WarmState,

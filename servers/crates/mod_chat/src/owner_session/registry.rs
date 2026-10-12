@@ -113,6 +113,38 @@ pub fn owner_session_get(owner_iid: i64) -> Option<Arc<OwnerPromptSession>> {
         })
 }
 
+/// Reuse active WS / headless session, or insert a live-only headless session without superseding.
+pub fn owner_session_attach_for_live(owner_iid: i64) -> (Arc<OwnerPromptSession>, bool) {
+    if let Some(session) = owner_session_get(owner_iid) {
+        return (session, false);
+    }
+    let registry = owner_session_registry();
+    if let Some(entry) = registry.by_owner.get(&owner_iid) {
+        if entry.session.is_superseded() {
+            if let Some((_, old)) = registry.by_owner.remove(&owner_iid) {
+                registry.conn_owner.remove(&old.conn_id);
+            }
+        }
+    }
+    let conn_id = format!("headless-live-{owner_iid}");
+    let session = Arc::new(OwnerPromptSession::new(owner_iid, conn_id.clone()));
+    ensure_chat_lru_cap(&session);
+    let entry = SessionEntry {
+        conn_id: conn_id.clone(),
+        session: session.clone(),
+        warmups: Mutex::new(Vec::new()),
+        ws_tx: Mutex::new(None),
+    };
+    match registry.by_owner.entry(owner_iid) {
+        dashmap::mapref::entry::Entry::Occupied(o) => (o.get().session.clone(), false),
+        dashmap::mapref::entry::Entry::Vacant(v) => {
+            v.insert(entry);
+            registry.conn_owner.insert(conn_id, owner_iid);
+            (session, true)
+        }
+    }
+}
+
 /// Active app WS session when this pod has one; otherwise a headless session for prompt/MCP on this pod.
 /// Never replaces an existing live session (app wins over MCP-only attach).
 pub fn owner_session_attach_for_prompt(owner_iid: i64) -> (Arc<OwnerPromptSession>, bool) {

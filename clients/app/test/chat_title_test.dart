@@ -16,6 +16,30 @@ void main() {
     expect(chatTitleDisplay('hello world'), 'Hello world');
   });
 
+  test('chatTitleDisplay prepends sticky site label when title omitted mention', () {
+    const siteId = 'iid:12345';
+    const mentions = [
+      CatalogMention(
+        id: siteId,
+        topicId: 'web.builder',
+        icon: '',
+        color: '',
+        labelKey: '',
+        captionKey: '',
+        label: 'Gucicha',
+        kind: 'identity',
+      ),
+    ];
+    expect(
+      chatTitleDisplay(
+        'apa barang yang paling untung hari ini?',
+        mentions: mentions,
+        stickyMentionIds: [siteId],
+      ),
+      'Gucicha apa barang yang paling untung hari ini?',
+    );
+  });
+
   test('chatTitleDisplay resolves device bracket to label', () {
     const deviceId = 'iid:98063412749627392';
     const mentions = [

@@ -14,12 +14,44 @@ pub fn reservation_windows_overlap(
     existing_start < requested_end && existing_end > requested_start
 }
 
-pub fn units_left(linked_objects: i64, overlapping_qty: i64) -> i64 {
-    if linked_objects <= 0 {
+pub fn units_left(pool_size: i64, overlapping_qty: i64) -> i64 {
+    if pool_size <= 0 {
         0
     } else {
-        (linked_objects - overlapping_qty).max(0)
+        (pool_size - overlapping_qty).max(0)
     }
+}
+
+/// When linked `site.object` rows exist, pool size is their count. Otherwise `capacity` mode uses
+/// `reservation_capacity`; `objects` mode with no rows yields zero availability.
+pub fn reservation_pool_size(linked_object_count: i64, inventory_mode: &str, capacity: i64) -> i64 {
+    if linked_object_count > 0 {
+        return linked_object_count;
+    }
+    if inventory_mode.trim().eq_ignore_ascii_case("objects") {
+        return 0;
+    }
+    capacity.max(1)
+}
+
+/// Whether an unpaid guest hold still blocks availability (mirrored in `overlapping_reservation_load` SQL).
+#[allow(dead_code)]
+pub fn hold_blocks_availability(tx_state: &str, is_paid: bool, age_secs: i64, ttl_secs: i64) -> bool {
+    if is_paid {
+        return true;
+    }
+    let state = tx_state.trim().to_ascii_lowercase();
+    if state == "cancelled" {
+        return false;
+    }
+    if state == "ok" {
+        return true;
+    }
+    if matches!(state.as_str(), "waiting_payment" | "pending" | "draft") {
+        let ttl = ttl_secs.max(1);
+        return age_secs <= ttl;
+    }
+    true
 }
 
 pub fn availability_ok(units_available: i64, units: i64, start_ts_ms: i64, end_ts_ms: i64) -> bool {
@@ -74,6 +106,23 @@ pub async fn guest_reservation_availability(
         });
     }
 
+    let product_json: String = sqlx::query_scalar(
+        r#"
+        SELECT COALESCE(product_json::text, '{}')
+        FROM site.product
+        WHERE site_iid = $1 AND product_id = $2 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(site_iid)
+    .bind(product_id)
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or_else(|| "{}".to_string());
+
+    let (inventory_mode, capacity) =
+        crate::guest_product::reservation_inventory_from_product_json(&product_json);
+    let hold_ttl = crate::guest_product::reservation_hold_ttl_from_product_json(&product_json);
+
     let objects = sqlx::query(
         r#"
         SELECT id, name, code, pic
@@ -92,9 +141,17 @@ pub async fn guest_reservation_availability(
     .await?;
 
     let linked = objects.len() as i64;
-    let (overlapping_qty, busy) =
-        overlapping_reservation_load(pool, site_iid, product_id, start_ts_ms, end_ts_ms).await?;
-    let units_available = units_left(linked, overlapping_qty);
+    let pool_size = reservation_pool_size(linked, &inventory_mode, capacity);
+    let (overlapping_qty, busy) = overlapping_reservation_load(
+        pool,
+        site_iid,
+        product_id,
+        start_ts_ms,
+        end_ts_ms,
+        hold_ttl,
+    )
+    .await?;
+    let units_available = units_left(pool_size, overlapping_qty);
     let free_objects = objects
         .iter()
         .filter(|r| {
@@ -127,6 +184,7 @@ async fn overlapping_reservation_load(
     product_id: i64,
     start_ts_ms: i64,
     end_ts_ms: i64,
+    hold_ttl_seconds: i64,
 ) -> Result<(i64, HashSet<i64>)> {
     let (Some(start), Some(end)) = (
         DateTime::<Utc>::from_timestamp_millis(start_ts_ms),
@@ -147,6 +205,11 @@ async fn overlapping_reservation_load(
           AND r.deleted_ts IS NULL
           AND t.deleted_ts IS NULL
           AND t.state <> 'cancelled'
+          AND (
+            t.is_paid = TRUE
+            OR t.state NOT IN ('waiting_payment', 'pending', 'draft')
+            OR EXTRACT(EPOCH FROM (NOW() - t.created_ts)) <= $5
+          )
           AND (i.item_id IS NULL OR i.deleted_ts IS NULL)
           AND (r.product_id = $2 OR (r.product_id = 0 AND i.product_id = $2))
           AND r.start_ts < $4
@@ -157,6 +220,7 @@ async fn overlapping_reservation_load(
     .bind(product_id)
     .bind(start)
     .bind(end)
+    .bind(hold_ttl_seconds.max(1) as f64)
     .fetch_all(pool)
     .await?;
 
@@ -190,12 +254,29 @@ mod tests {
     }
 
     #[test]
-    fn units_left_floors_and_zero_linked_objects_are_unavailable() {
+    fn units_left_floors_and_zero_pool_is_unavailable() {
         assert_eq!(units_left(0, 0), 0);
         assert_eq!(units_left(0, 4), 0);
         assert_eq!(units_left(3, 1), 2);
         assert_eq!(units_left(3, 5), 0);
         assert_eq!(units_left(3, 0), 3);
+    }
+
+    #[test]
+    fn reservation_pool_size_prefers_linked_objects() {
+        assert_eq!(reservation_pool_size(4, "capacity", 10), 4);
+        assert_eq!(reservation_pool_size(0, "capacity", 12), 12);
+        assert_eq!(reservation_pool_size(0, "objects", 12), 0);
+        assert_eq!(reservation_pool_size(0, "capacity", 0), 1);
+    }
+
+    #[test]
+    fn hold_blocks_availability_respects_ttl_for_unpaid_holds() {
+        assert!(hold_blocks_availability("waiting_payment", false, 100, 3600));
+        assert!(!hold_blocks_availability("waiting_payment", false, 4000, 3600));
+        assert!(hold_blocks_availability("waiting_payment", true, 4000, 3600));
+        assert!(hold_blocks_availability("ok", false, 4000, 3600));
+        assert!(!hold_blocks_availability("cancelled", false, 0, 3600));
     }
 
     #[test]

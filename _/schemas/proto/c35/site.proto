@@ -37,6 +37,7 @@ message SiteConfig {
   string presence_policy_json = 7;
   string capabilities_json = 8;
   int64 alien_id_changed_ts_ms = 9;
+  int64 assistant_bot_iid = 10;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
@@ -519,6 +520,35 @@ message ReqSiteBootGet {
 
 message ResSiteBootGet {
   string boot_json = 1;
+}
+
+// ================================= Site AI assistant (editor — channels bot per site)
+
+message SiteAssistantChannelSummary {
+  string id = 1;
+  string platform = 2;
+  string provider = 3;
+  string status = 4;
+  string bot_username = 5;
+  string phone = 6;
+  string error_message = 7;
+}
+
+message ReqSiteAssistantGet {
+  int64 site_iid = 1;
+}
+
+message ResSiteAssistantGet {
+  int64 assistant_bot_iid = 1;
+  repeated SiteAssistantChannelSummary channels = 2;
+}
+
+message ReqSiteAssistantEnsure {
+  int64 site_iid = 1;
+}
+
+message ResSiteAssistantEnsure {
+  int64 assistant_bot_iid = 1;
 }
 
 // ================================= Query catalog (site.query.run)

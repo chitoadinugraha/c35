@@ -644,7 +644,8 @@ async fn dispatch(
         Some(ws_req::Body::LiveStart(r)) => WsRes {
             req_id,
             body: Some(ws_res::Body::LiveStart(
-                c35_mod_live::live_start_rpc(&state.pool, ctx.caller_iid, r).await,
+                c35_mod_live::live_start_rpc(&state.pool, state.nats.as_ref(), ctx.caller_iid, r)
+                    .await,
             )),
         },
         Some(ws_req::Body::MemoryList(r)) => match c35_mod_chat::memory_list_rpc(&state.pool, ctx.caller_iid, r).await {
@@ -1512,6 +1513,24 @@ async fn dispatch(
                     body: Some(ws_res::Body::SiteBootGet(body)),
                 },
                 Err(e) => err_res(req_id, WireErr::client("site_boot_get_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteAssistantGet(r)) => {
+            match c35_mod_site::site_assistant_get(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteAssistantGet(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_assistant_get_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteAssistantEnsure(r)) => {
+            match c35_mod_site::site_assistant_ensure(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteAssistantEnsure(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_assistant_ensure_failed", e.to_string())),
             }
         }
         Some(ws_req::Body::SiteGrantList(r)) => {

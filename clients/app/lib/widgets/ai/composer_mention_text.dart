@@ -398,7 +398,7 @@ class _ComposerMentionSpecial extends SpecialText {
       deleteAll: true,
       alignment: ui.PlaceholderAlignment.middle,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 1),
+        padding: const EdgeInsets.fromLTRB(1, 0, 7, 0),
         child: _ComposerMentionChipInline(mention: mention, fallbackLabel: label),
       ),
     );

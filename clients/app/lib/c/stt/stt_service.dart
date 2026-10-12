@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:alienai_c35/c/audio/mic_stream_candidates.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/tts/speech_lang.dart';
@@ -686,14 +687,12 @@ class SttService {
 
       // Try streaming PCM first (low latency, continuous interim snapshots, no file locks)
       // On Windows Media Foundation, bitRate MUST match sampleRate * numChannels * 16 bits.
-      final candidates = [
-        (sampleRate: 48000, numChannels: 2, bitRate: 1536000),
-        (sampleRate: 48000, numChannels: 1, bitRate: 768000),
-        (sampleRate: 44100, numChannels: 2, bitRate: 1411200),
-        (sampleRate: 44100, numChannels: 1, bitRate: 705600),
-        (sampleRate: 16000, numChannels: 1, bitRate: 256000),
-        (sampleRate: 16000, numChannels: 2, bitRate: 512000),
-      ];
+      final isMobile = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
+      var candidates = List<MicStreamCandidate>.from(micStreamCandidates(isMobile: isMobile, isWeb: kIsWeb));
+      if (!isMobile && !kIsWeb) {
+        candidates.add((sampleRate: 16000, numChannels: 2, bitRate: 512000));
+      }
       // Try the config that worked last time first (skips failing candidates on every start).
       final cachedCand = _workingStreamConfig;
       if (cachedCand != null) {

@@ -467,6 +467,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       'ai' => UiSiteAiEditor(
           api: widget.api,
           siteIid: _siteIid,
+          siteName: _row.name,
           masterDetail: masterDetail,
           pane: _nav.aiPane,
           onPaneChanged: _scheduleAiPane,

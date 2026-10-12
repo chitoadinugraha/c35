@@ -4,6 +4,7 @@ mod billing;
 mod bundle_wait;
 mod chat_cache;
 mod continuity;
+mod live_hydrate;
 mod registry;
 mod state;
 mod trace;
@@ -20,8 +21,13 @@ pub use chat_cache::{
     ChatFocusCache, ChatLru,
 };
 pub use continuity::{TurnContinuity, TURN_CONTINUITY_INITIAL};
+pub use live_hydrate::{
+    live_hydrate_from_session, owner_session_prepare_for_live, session_live_bundle_wait_ms,
+    LiveOwnerHydrate,
+};
 pub use registry::{
-    owner_session_attach_for_prompt, owner_session_bind_ws, owner_session_get,
+    owner_session_attach_for_live, owner_session_attach_for_prompt, owner_session_bind_ws,
+    owner_session_get,
     owner_session_register_warmup_for_session, owner_session_supersede, owner_session_teardown,
     session_max_memory_items, OwnerSessionConnection, OwnerSessionRegistry,
 };

@@ -6,6 +6,7 @@ pub mod openai;
 mod resume;
 mod rpc;
 mod session;
+mod trace;
 mod tool_select;
 mod ws_audio;
 pub mod smoke;

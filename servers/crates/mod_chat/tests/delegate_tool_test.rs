@@ -15,6 +15,7 @@ fn test_tool_ctx(pool: PgPool, req_id: &str) -> ToolContext {
         42,
         99,
         None,
+        None,
         MentionContext::empty(),
         vec![],
         "",

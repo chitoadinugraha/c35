@@ -6,6 +6,8 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
+use c35_mod_chat::LiveOwnerHydrate;
+
 use crate::catalog::LiveOfferRow;
 
 #[derive(Clone)]
@@ -17,6 +19,7 @@ pub struct LiveSessionTicket {
     pub billing_row: BillingRow,
     pub chat_id: Option<i64>,
     pub mention_ids: Vec<String>,
+    pub hydrate: Option<LiveOwnerHydrate>,
     pub created: Instant,
 }
 
@@ -85,6 +88,7 @@ pub fn live_session_register(
     billing_row: BillingRow,
     chat_id: Option<i64>,
     mention_ids: Vec<String>,
+    hydrate: Option<LiveOwnerHydrate>,
 ) -> String {
     let exp = chrono::Utc::now().timestamp() + 600;
     let claims = LiveTicketClaims {
@@ -107,6 +111,7 @@ pub fn live_session_register(
             billing_row,
             chat_id,
             mention_ids,
+            hydrate,
             created: Instant::now(),
         },
     );
@@ -167,6 +172,7 @@ pub async fn live_session_take(
         billing_row,
         chat_id: claims.chat_id,
         mention_ids: claims.mention_ids,
+        hydrate: None,
         created: Instant::now(),
     })
 }

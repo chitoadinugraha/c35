@@ -22,21 +22,53 @@ Future<bool> sttMicPermissionGranted() async {
   }
 }
 
-String sttMicErrorMessage({Object? cause}) {
+@visibleForTesting
+String sttMicErrorMessageForPlatform({
+  required bool isWeb,
+  required bool isWindows,
+  required bool isAndroid,
+  required bool isIOS,
+  required bool isMacOS,
+  Object? cause,
+}) {
   final raw = cause?.toString().trim() ?? '';
   if (raw.isNotEmpty && !raw.toLowerCase().contains('permission')) return raw;
-  if (!kIsWeb && Platform.isWindows) {
+  if (!isWeb && isWindows) {
     return 'Microphone access is blocked or unavailable. Open Settings → Privacy & security → Microphone, '
         'turn on "Microphone access", and ensure a microphone is connected.';
   }
-  if (!kIsWeb && Platform.isAndroid) {
+  if (!isWeb && isAndroid) {
     return 'Microphone permission required. Allow microphone access for Alien AI in app settings.';
   }
-  if (!kIsWeb && Platform.isIOS) {
+  if (!isWeb && isIOS) {
     return 'Microphone permission required. Enable Microphone for Alien AI in Settings.';
   }
-  if (!kIsWeb && Platform.isMacOS) {
+  if (!isWeb && isMacOS) {
     return 'Microphone permission required. Enable Microphone for Alien AI in System Settings → Privacy & Security.';
   }
+  if (isWeb) {
+    return 'Microphone blocked or unavailable. Open site settings in the browser address bar, allow microphone access for this site, then try again.';
+  }
   return 'Microphone permission required for voice input.';
+}
+
+String sttMicErrorMessage({Object? cause}) {
+  if (kIsWeb) {
+    return sttMicErrorMessageForPlatform(
+      isWeb: true,
+      isWindows: false,
+      isAndroid: false,
+      isIOS: false,
+      isMacOS: false,
+      cause: cause,
+    );
+  }
+  return sttMicErrorMessageForPlatform(
+    isWeb: false,
+    isWindows: Platform.isWindows,
+    isAndroid: Platform.isAndroid,
+    isIOS: Platform.isIOS,
+    isMacOS: Platform.isMacOS,
+    cause: cause,
+  );
 }

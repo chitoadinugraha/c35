@@ -26,6 +26,7 @@ import 'package:alienai_c35/widgets/ai/ui_live_offer_icon.dart';
 import 'package:alienai_c35/widgets/ai/ui_mention_chip.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_plan_sheet.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -177,6 +178,9 @@ class _PageLiveCallState extends State<PageLiveCall> {
         setState(() => _error = sttMicErrorMessage());
         return;
       }
+
+      await _session.unlockWebAudioPlayback();
+      if (!mounted || !_busy) return;
 
       final res = await widget.conn.liveStart(
         offerId: widget.offer.id,
@@ -1164,7 +1168,10 @@ class _PageLiveCallState extends State<PageLiveCall> {
         final mime = mimeForFilename(name);
         _session.sendMediaAttachment(name: name, mimeType: mime, bytes: bytes);
       } else if (choice == 'file') {
-        final result = await FilePicker.platform.pickFiles(withData: false);
+        final result = await FilePicker.platform.pickFiles(
+          withData: kIsWeb,
+          lockParentWindow: !kIsWeb,
+        );
         if (result == null || result.files.isEmpty || !mounted) return;
         final pf = result.files.first;
         final bytes = await platformFileBytes(pf);

@@ -18,6 +18,11 @@ pub struct ProductRow {
     pub duration_value: i64,
     pub duration_unit: String,
     pub reservation_unit_selection: String,
+    /// `capacity` (default) or `objects` from `product_json.reservation_inventory_mode`.
+    pub reservation_inventory_mode: String,
+    /// Pool size when inventory mode is `capacity` (minimum 1).
+    pub reservation_capacity: i64,
+    pub reservation_hold_ttl_seconds: i64,
     pub icon: String,
     /// From `product_json.stock_show_to_customer`. Absent or non-true stays false.
     pub stock_show_to_customer: bool,
@@ -51,6 +56,9 @@ pub fn product_row_json(p: &ProductRow) -> Value {
         "duration_value": p.duration_value,
         "duration_unit": p.duration_unit,
         "reservation_unit_selection": p.reservation_unit_selection,
+        "reservation_inventory_mode": p.reservation_inventory_mode,
+        "reservation_capacity": p.reservation_capacity,
+        "reservation_hold_ttl_seconds": p.reservation_hold_ttl_seconds,
     })
 }
 
@@ -93,6 +101,50 @@ fn reservation_field_defaults() -> (i64, String, String) {
     (1, "day".to_string(), "system".to_string())
 }
 
+/// Default unpaid guest-order hold window (CSA parity).
+pub const DEFAULT_RESERVATION_HOLD_TTL_SECONDS: i64 = 3600;
+
+/// `reservation_inventory_mode` + `reservation_capacity` from `product_json`.
+pub fn reservation_inventory_from_product_json(raw: &str) -> (String, i64) {
+    let parsed = serde_json::from_str::<Value>(raw).ok();
+    reservation_inventory_from_json_value(parsed.as_ref().unwrap_or(&Value::Null))
+}
+
+fn reservation_inventory_from_json_value(v: &Value) -> (String, i64) {
+    let map = v.as_object();
+    let Some(map) = map else {
+        return ("capacity".to_string(), 1);
+    };
+    let mode_raw = map
+        .get("reservation_inventory_mode")
+        .map(json_trim_string)
+        .unwrap_or_default();
+    let mode = if mode_raw.eq_ignore_ascii_case("objects") {
+        "objects"
+    } else {
+        "capacity"
+    };
+    let cap = map
+        .get("reservation_capacity")
+        .and_then(json_num_to_int)
+        .filter(|n| *n > 0)
+        .unwrap_or(1);
+    (mode.to_string(), cap)
+}
+
+pub fn reservation_hold_ttl_from_product_json(raw: &str) -> i64 {
+    let parsed = serde_json::from_str::<Value>(raw).ok();
+    reservation_hold_ttl_from_json_value(parsed.as_ref().unwrap_or(&Value::Null))
+}
+
+pub fn reservation_hold_ttl_from_json_value(v: &Value) -> i64 {
+    v.as_object()
+        .and_then(|m| m.get("reservation_hold_ttl_seconds"))
+        .and_then(json_num_to_int)
+        .filter(|n| *n > 0)
+        .unwrap_or(DEFAULT_RESERVATION_HOLD_TTL_SECONDS)
+}
+
 fn json_num_to_int(v: &Value) -> Option<i64> {
     match v {
         Value::Number(n) => n
@@ -125,6 +177,9 @@ fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
     let product_json: Value = r.get("product_json");
     let (duration_value, duration_unit, reservation_unit_selection) =
         reservation_fields_from_json_value(&product_json);
+    let (reservation_inventory_mode, reservation_capacity) =
+        reservation_inventory_from_json_value(&product_json);
+    let reservation_hold_ttl_seconds = reservation_hold_ttl_from_json_value(&product_json);
     let stock_qty: i32 = r.get("stock_qty");
     ProductRow {
         product_id: r.get("product_id"),
@@ -138,6 +193,9 @@ fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
         duration_value,
         duration_unit,
         reservation_unit_selection,
+        reservation_inventory_mode,
+        reservation_capacity,
+        reservation_hold_ttl_seconds,
         icon: String::new(),
         stock_show_to_customer: stock_show_to_customer_from_product_json(&product_json),
         stock_qty: Some(i64::from(stock_qty)),
@@ -457,6 +515,47 @@ mod tests {
         assert_eq!(duration, 1);
         assert_eq!(unit, "day");
         assert_eq!(selection, "system");
+    }
+
+    #[test]
+    fn product_json_reservation_inventory_fields() {
+        use super::reservation_inventory_from_product_json;
+
+        let (mode, cap) = reservation_inventory_from_product_json(
+            r#"{"reservation_inventory_mode":"objects","reservation_capacity":5}"#,
+        );
+        assert_eq!(mode, "objects");
+        assert_eq!(cap, 5);
+
+        let (mode, cap) = reservation_inventory_from_product_json(
+            r#"{"reservation_inventory_mode":"capacity","reservation_capacity":12}"#,
+        );
+        assert_eq!(mode, "capacity");
+        assert_eq!(cap, 12);
+
+        let (mode, cap) = reservation_inventory_from_product_json("{}");
+        assert_eq!(mode, "capacity");
+        assert_eq!(cap, 1);
+
+        let (mode, cap) = reservation_inventory_from_product_json("not-json");
+        assert_eq!(mode, "capacity");
+        assert_eq!(cap, 1);
+
+        let (mode, cap) =
+            reservation_inventory_from_product_json(r#"{"reservation_capacity":0}"#);
+        assert_eq!(mode, "capacity");
+        assert_eq!(cap, 1);
+    }
+
+    #[test]
+    fn product_json_hold_ttl_defaults() {
+        use super::reservation_hold_ttl_from_product_json;
+
+        assert_eq!(
+            reservation_hold_ttl_from_product_json(r#"{"reservation_hold_ttl_seconds":7200}"#),
+            7200
+        );
+        assert_eq!(reservation_hold_ttl_from_product_json("{}"), 3600);
     }
 
     #[test]

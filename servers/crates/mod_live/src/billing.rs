@@ -189,7 +189,20 @@ pub async fn live_billing_gate_nats(
     req_id: &str,
     offer: &LiveOfferRow,
 ) -> Result<BillingRow> {
-    let row = if let Some(cached) = c35_mod_billing::billing_cache_get(nats, owner_iid).await {
+    live_billing_gate_nats_cached(pool, nats, owner_iid, req_id, offer, None).await
+}
+
+pub async fn live_billing_gate_nats_cached(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+    req_id: &str,
+    offer: &LiveOfferRow,
+    session_billing: Option<&c35_mod_billing::BillingGateCached>,
+) -> Result<BillingRow> {
+    let row = if let Some(cached) = session_billing {
+        c35_mod_billing::cached_to_billing_row(cached)
+    } else if let Some(cached) = c35_mod_billing::billing_cache_get(nats, owner_iid).await {
         c35_mod_billing::cached_to_billing_row(&cached)
     } else {
         let r = billing_account_ensure(pool, owner_iid).await?;

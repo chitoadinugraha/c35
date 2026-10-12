@@ -4,6 +4,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:alienai_c35/c/audio/mic_stream_candidates.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -93,6 +94,20 @@ class LiveCallSession {
   Timer? _videoFrameTimer;
   void Function(Map<String, dynamic> committed)? onTurnCommitted;
 
+  /// Browsers block playback until audio runs inside a user gesture (Connect tap).
+  Future<void> unlockWebAudioPlayback() async {
+    if (!kIsWeb) return;
+    try {
+      await initAudioContext();
+      final silence = Uint8List(1600);
+      final wav = SttService.pcmToWav(silence, sampleRate: 16000, channels: 1);
+      await _playerA.play(BytesSource(wav), volume: 0.01);
+      await _playerA.stop();
+    } catch (e) {
+      debugPrint('[LiveCallSession] unlockWebAudioPlayback: $e');
+    }
+  }
+
   Future<void> initAudioContext() async {
     try {
       final audioCtx = AudioContext(
@@ -145,6 +160,7 @@ class LiveCallSession {
       await Helper.switchCamera(videoTracks.first);
     } catch (e) {
       debugPrint('[LiveCallSession] switchCamera error: $e');
+      if (kIsWeb) return;
     }
   }
 
@@ -628,7 +644,10 @@ class LiveCallSession {
         flush = false;
       }
     } catch (e) {
-      if (!_disposed) error.value = 'Audio playback failed: $e';
+      if (!_disposed) {
+        final hint = kIsWeb ? ' (check browser tab mute / autoplay settings)' : '';
+        error.value = 'Audio playback failed: $e$hint';
+      }
     } finally {
       if (_playbackEpoch == epoch) {
         _playBusy = false;
@@ -760,19 +779,7 @@ class LiveCallSession {
     final bool isMobile = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
 
-    final candidates = isMobile
-        ? [
-            (sampleRate: 16000, numChannels: 1, bitRate: 256000),
-            (sampleRate: 44100, numChannels: 1, bitRate: 705600),
-            (sampleRate: 48000, numChannels: 1, bitRate: 768000),
-          ]
-        : [
-            (sampleRate: 48000, numChannels: 2, bitRate: 1536000),
-            (sampleRate: 48000, numChannels: 1, bitRate: 768000),
-            (sampleRate: 44100, numChannels: 2, bitRate: 1411200),
-            (sampleRate: 44100, numChannels: 1, bitRate: 705600),
-            (sampleRate: 16000, numChannels: 1, bitRate: 256000),
-          ];
+    final candidates = micStreamCandidates(isMobile: isMobile, isWeb: kIsWeb);
 
     Stream<Uint8List>? stream;
     int streamRate = 16000;

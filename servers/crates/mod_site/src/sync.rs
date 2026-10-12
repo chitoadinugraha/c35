@@ -7,6 +7,7 @@ use sqlx::{PgPool, Row};
 
 use crate::doc::site_doc_from_json;
 use crate::rows::{col_i32_smallint, col_text, domain_from_row};
+use crate::site_assistant::site_config_assistant_bot_iid_from_row;
 use crate::site_ids::site_ids_for_caller;
 use crate::ts::{ts_ms, ts_ms_opt};
 
@@ -95,7 +96,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
             r#"
             SELECT site_iid, owner_iid, published_version_id, inventory_costing_method, tz,
                    payroll_policy_json, presence_policy_json, capabilities_json,
-                   alien_id_changed_ts, created_ts, updated_ts, deleted_ts
+                   assistant_bot_iid, alien_id_changed_ts, created_ts, updated_ts, deleted_ts
             FROM site.config
             WHERE site_iid = ANY($1::bigint[])
               AND updated_ts > to_timestamp($2::double precision / 1000.0)
@@ -127,6 +128,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
                 payroll_policy_json: r.get::<serde_json::Value, _>("payroll_policy_json").to_string(),
                 presence_policy_json: r.get::<serde_json::Value, _>("presence_policy_json").to_string(),
                 capabilities_json: r.get::<serde_json::Value, _>("capabilities_json").to_string(),
+                assistant_bot_iid: site_config_assistant_bot_iid_from_row(r),
                 alien_id_changed_ts_ms: ts_ms(r.get("alien_id_changed_ts")),
                 created_ts_ms: ts_ms(r.get("created_ts")),
                 updated_ts_ms: updated,

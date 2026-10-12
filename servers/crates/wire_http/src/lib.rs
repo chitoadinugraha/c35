@@ -11,6 +11,7 @@ mod guest_reservation;
 mod site_order_push;
 mod guest_product;
 mod guest_queue;
+mod site_guest_assistant;
 mod geo;
 mod invoke;
 mod locale;
@@ -92,6 +93,7 @@ pub fn router(state: AppState) -> Router {
         .merge(guest_contact::guest_contact_router())
         .merge(guest_product::guest_product_router())
         .merge(guest_queue::guest_queue_router())
+        .merge(site_guest_assistant::site_guest_assistant_router())
         .merge(geo::geo_router())
         .merge(presentation::presentation_router())
         .with_state(state)

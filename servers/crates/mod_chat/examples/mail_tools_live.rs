@@ -54,6 +54,7 @@ fn tool_ctx(pool: sqlx::PgPool, owner: i64) -> ToolContext {
         owner,
         0,
         None,
+        None,
         MentionContext::empty(),
         vec![],
         "",

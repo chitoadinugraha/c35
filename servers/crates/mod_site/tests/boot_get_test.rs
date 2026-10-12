@@ -45,3 +45,31 @@ fn site_boot_json_assemble_includes_pages_and_capabilities() {
     assert!(boot["product_preload"].is_object());
     assert!(boot["links"].as_array().unwrap().is_empty());
 }
+
+#[test]
+fn site_boot_json_assemble_guest_ai_from_meta() {
+    let doc = json!({
+        "pages": [],
+        "theme": {},
+        "meta": {
+            "ai_assistant": { "chat_enabled": true },
+            "knowledge": [{ "id": "a", "title": "FAQ", "content": "Answer" }]
+        }
+    });
+    let boot = site_boot_json_assemble(
+        1,
+        "S",
+        "s",
+        "",
+        SiteBootMode::Draft,
+        &doc,
+        &json!({}),
+        serde_json::Map::new(),
+        serde_json::Map::new(),
+        &[],
+        &[],
+        &[],
+    );
+    assert_eq!(boot["knowledge"].as_array().unwrap().len(), 1);
+    assert_eq!(boot["ai_assistant"]["chat_enabled"], true);
+}

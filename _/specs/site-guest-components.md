@@ -80,6 +80,8 @@ Flutter and preview use the same payload shape (v1 string `boot_json`).
 | `commerceBoot` | `commerce_boot` | products map, payment methods |
 | `design` / theme | `design` + `theme` | layout from HTML/CSS + tokens |
 | `orderProgressSteps` | `order_progress_steps` | optional; preview poll is label-only |
+| `SiteAiAssistantDraft` / editor | `ai_assistant` | `c35GuestAssistant` FABs + chat/call UI |
+| `meta.knowledge[]` (published) | `knowledge` | server-trimmed title+content rows for guest assistant context |
 
 Fields:
 
@@ -90,11 +92,22 @@ Fields:
 | `pages` | Block tree (`id`, `type`, `props`) |
 | `capabilities` | From `site.config.capabilities_json` |
 | `product_preload` | Map block id -> product rows for each `product_grid` |
-| `commerce_boot.products[]` | `can_reserve`, `duration_value` (default 1), `duration_unit` (default `day`), `reservation_unit_selection` (`guest_picks` or `system`) from `site.product.product_json` |
+| `commerce_boot.products[]` | `can_reserve`, `duration_value` (default 1), `duration_unit` (default `day`), `reservation_unit_selection` (`guest_picks` or `system`), `reservation_inventory_mode` (`capacity` or `objects`), `reservation_capacity`, `reservation_hold_ttl_seconds` (default 3600) from `site.product.product_json` |
 | `commerce_boot.objects[]` | Reservable `site.object` rows `{id, name, code, pic, kind, product_id}` when `booking` is on; `[]` when booking is off |
 | `commerce_boot.payment_methods` | From `doc_json.payment_accounts` |
 | `effects[]` | Boot rows `{ presetId, params, active }`. `params` is an object. Web loads the effects script only when one row has `active !== false` and a known preset id |
 | `mode` | `draft` \| `published` |
+| `ai_assistant` | Guest Alien AI chrome: `chat_enabled`, `call_enabled`, `chat_intro`, `chat_placeholder`, `call_intro`, legacy `floating_bubble` → chat |
+| `knowledge` | Published knowledge rows `{title, content}` (capped in `mod_site::site_assistant`) |
+
+## Alien AI assistant (guest chrome)
+
+| Concern | Web | Boot / DOM |
+|---------|-----|------------|
+| Chat FAB + panel | `c35GuestAssistant.openChat` / `sendChat` | `ai_assistant.chat_enabled`; `data-guest-assistant` on `#c35-guest-assistant-root` and chat sheet |
+| Call overlay | `c35GuestAssistant.startCall` / `endCall` | `ai_assistant.call_enabled`; `data-guest-assistant="call"` |
+| Cart dock | Chat FAB docks left of **Pesan** when `#c35-guest-cart-row` visible | `.guest-cart-row--assistant` + `#c35-guest-cart-trailing` |
+| Chat API | `POST https://api.alienai.id/v1/site/guest-assistant/chat` (SSE or JSON) | `visitor_id` in `localStorage`; optional `cart` payload from `c35GuestCart.checkoutLines()` |
 
 ## Reservation sheet
 
@@ -108,6 +121,10 @@ Same behavior on the Flutter preview and the published page (`window.c35Reservat
 Billable quantity is units times duration slices on a half-open window `[start, end)`. The line total is that quantity times the product price per duration unit.
 
 `guest_picks` lets the guest tap a unit. The chosen id is `site_object_id` on `tx.items[].reservations` (`0` means the system assigns any free unit). `POST /v1/site/guest-reservation/availability` fills “units left” and which tiles are free. `guest-order/put` runs the same check again and rejects a double book. Cancelled transactions do not count. The unpaid order is the hold.
+
+**Merchant setup (Home):** seed inst `inst.site.reservation` in [`_/schemas/inst.sql`](../schemas/inst.sql) — enable `booking`, set reservation fields in `product_json`, add units via `site.object_put`. Live cluster needs `inst_put` after deploy.
+
+**CSA parity (in progress):** per-seat picks when `units > 1`, `reservation_inventory_mode` / `reservation_capacity` availability, and `reservation_hold_ttl_seconds` on overlap — see [`plans/2026-10-12-site-reservation-csa-gaps-multitask.md`](plans/2026-10-12-site-reservation-csa-gaps-multitask.md).
 
 ## Capability gates
 

@@ -265,7 +265,11 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
     return _ChatTile(
       title: c.title.trim().isEmpty || c.title == 'New chat'
           ? c.title
-          : chatTitleDisplay(c.title, mentions: widget.store.mentionCatalog.mentions),
+          : chatTitleDisplay(
+              c.title,
+              mentions: widget.store.mentionCatalog.mentions,
+              stickyMentionIds: c.stickyMentionIds,
+            ),
       subtitle: subtitle,
       boundDevice: c.boundDeviceIid > 0,
       selected: selected,

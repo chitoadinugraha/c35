@@ -194,6 +194,18 @@ cargo run -p c35_mod_live --bin live_device_tool_smoke
 
 Composer family drives **primary label**; **`live_offer`** drives menu rows (see `_/specs/plans/2026-10-05-live-call-multitask.md`).
 
+## Owner session L1 (faster start)
+
+Live Call shares the same in-process **owner prompt session** as Home WS when both hit the same `server_ai` pod ([chat.md](chat.md) Owner session). On `ReqLiveStart`, the server:
+
+- Reuses an existing session via `owner_session_get` (never `owner_session_supersede` from Live).
+- Otherwise attaches a headless session (`headless-live-{owner_iid}`).
+- Waits up to **`C35_LIVE_BUNDLE_WAIT_MS`** (default **5000**) for billing/memory/scope/user context, logged as **`trace_session_bundle_wait`** (not prompt `trace_stages`).
+- Uses the L1 billing snapshot for the live billing gate when present; frontier hold logic is unchanged.
+- Emits **`trace_live_setup`** with per-stage ms (devices, mention, tools, `gemini_connect`, etc.) when the Google path sends Gemini setup.
+
+OpenAI and Grok reuse hydrated `user_ctx` from the ticket when available.
+
 ## RPC
 
 - `ReqLiveStart` / `ResLiveStart` on app WS (`live_start = 179`).
@@ -248,6 +260,16 @@ Talk Mode and Live Call share voice UI elements, but operate on two distinct exe
    - Real-time bidirectional streaming (Gemini Multimodal Live API, ChatGPT Realtime, Grok Voice).
    - Server-side tool execution, live camera frames, screen perception, and hot handover support.
 
+## Supported clients
+
+| Client | Live Call |
+|--------|-----------|
+| Flutter Android / iOS | Supported (primary) |
+| Flutter Windows / macOS / Linux | Supported |
+| Flutter web (`https://alienai.id/app/`) | Supported — Chrome/Edge desktop recommended; Safari / mobile browsers best-effort |
+| Remote WebRTC viewer (Devices) | **Not** on web — see [remote.md](remote.md) |
+
+Web requirements: **HTTPS** (or `localhost`); user must allow **microphone** in the browser. Connect unlocks assistant playback inside the user gesture. Mic uplink uses **16 kHz mono** PCM when possible (`mic_stream_candidates.dart`).
 
 ## Ops
 

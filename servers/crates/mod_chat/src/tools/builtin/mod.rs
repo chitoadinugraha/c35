@@ -21,6 +21,7 @@ mod notify;
 mod presentation_export;
 mod referral;
 mod site;
+mod site_guest;
 mod site_pic;
 mod site_query;
 mod site_tx;
@@ -78,6 +79,7 @@ pub use presentation_export::{
 pub use referral::{
     ReferralCodeDeleteTool, ReferralCodeListTool, ReferralCodePutTool, ReferralTreeGetTool,
 };
+pub use site_guest::{SiteGuestCartGetTool, SiteGuestCartPatchTool};
 pub use site::{
     SiteConfigPutTool, SiteContactDeleteTool, SiteContactPutTool, SiteCreateTool,
     SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool, SiteDraftPutTool,

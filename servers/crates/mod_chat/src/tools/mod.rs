@@ -57,7 +57,8 @@ use builtin::{
     ReferralCodePutTool, ReferralCommissionSimulateTool, ReferralTreeGetTool,
     ReferralUserStatsStaffTool, ShellRunTool, SiteConfigPutTool, SiteContactDeleteTool,
     SiteContactPutTool, SiteCreateTool, SiteDomainPutTool, SiteDomainVerifyTool, SiteDraftGetTool,
-    SiteDraftPutTool, SiteGrantDeleteTool, SiteGrantPutTool, SiteHandleUpdateTool,
+    SiteDraftPutTool, SiteGrantDeleteTool, SiteGrantPutTool, SiteGuestCartGetTool,
+    SiteGuestCartPatchTool, SiteHandleUpdateTool,
     SiteLinkDeleteTool, SiteLinkPutTool, SiteListTool, SiteObjectDeleteTool, SiteObjectPutTool,
     SiteOrderStatusTool, SitePatchTool, SitePicGenerateTool, SiteProductDeleteTool,
     SiteProductEmbedPutTool, SiteProductPatchTool, SiteProductPutTool, SitePublishTool,
@@ -126,6 +127,7 @@ pub struct TurnCtx<'a> {
     pub owner_iid: i64,
     pub chat_id: i64,
     pub site_iid: Option<i64>,
+    pub guest_visitor_id: Option<&'a str>,
     pub mention: MentionContext,
     pub mention_ids: &'a [String],
     pub user_text: &'a str,
@@ -195,6 +197,8 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(DeviceFsReadTool));
     dispatcher.register(Arc::new(DeviceInputTool));
     dispatcher.register(Arc::new(DeviceScreenshotTool));
+    dispatcher.register(Arc::new(SiteGuestCartGetTool));
+    dispatcher.register(Arc::new(SiteGuestCartPatchTool));
     dispatcher.register(Arc::new(SiteCreateTool));
     dispatcher.register(Arc::new(SitePatchTool));
     dispatcher.register(Arc::new(SiteHandleUpdateTool));
@@ -351,6 +355,7 @@ fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
         turn.owner_iid,
         turn.chat_id,
         turn.site_iid,
+        turn.guest_visitor_id.map(|s| s.to_string()),
         turn.mention.clone(),
         turn.mention_ids.to_vec(),
         turn.user_text,
@@ -388,6 +393,7 @@ pub async fn cluster_tool_exec(
             None,
             0,
             0,
+            None,
             None,
             MentionContext::empty(),
             vec![],

@@ -1061,6 +1061,60 @@ Call site.config.put with commerce, booking, queue, and/or attendance booleans, 
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: site reservation / booking setup — live cluster needs inst_put after edit
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.reservation',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder'],
+    '[SITE.RESERVATION] User wants to set up or change booking/reservations on a site (rooms, tables, reservable products, duration, guest unit picks). \
+For a simple booking on/off toggle only, prefer site.config.put via SITE.CAPABILITIES. \
+ENABLE BOOKING: site.config.put with booking true. One site_iid per call — default when exactly one site in [SITE CONTEXTS]. \
+PRODUCTS: site.product.patch with can_reserve true/false on an existing row (lookup by name or product_id). \
+Reservation timing and inventory live in product_json — pass on site.product_put (include product_id when updating; merge into the full JSON object so other keys are not wiped): \
+duration_value (integer, default 1), duration_unit (hour, day, night, week, month), \
+reservation_unit_selection (guest_picks or system), \
+reservation_inventory_mode (capacity or objects — capacity counts parallel bookings without named units; objects uses site.object rows), \
+reservation_capacity (integer when mode is capacity), \
+reservation_hold_ttl_seconds (unpaid hold TTL seconds; default 3600). \
+UNITS (rooms/tables): site.object_put with name, product_id, can_be_reserved true, optional kind/code/pic. \
+Many objects are faster in the Sites editor Objects tab (UITable batch). \
+Do not call web.search. Reply briefly in the user language after writes.',
+    ARRAY[
+        'reservasi', 'booking', 'atur reservasi', 'setup booking', 'setup reservasi',
+        'aktifkan reservasi', 'enable reservasi',
+        'kamar', 'meja', 'room', 'table', 'ruangan',
+        'can reserve', 'bisa reservasi', 'produk reservasi', 'reservable',
+        'duration', 'durasi', 'guest picks', 'tamu pilih unit', 'unit reservasi',
+        'reservation capacity', 'hold ttl', 'kapasitas reservasi'
+    ],
+    ARRAY[
+        'tool_include:site.config.put',
+        'tool_include:site.product_put',
+        'tool_include:site.product.patch',
+        'tool_include:site.object_put',
+        'tool_exclude:web.search',
+        'tool_exclude:web.visit'
+    ],
+    ARRAY['site.config.put', 'site.product_put', 'site.product.patch', 'site.object_put'],
+    ARRAY['web.search', 'web.visit'],
+    124,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: hub link tree (site.link rows)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, topics, inst, phrases, triggers, priority, def_hash, updated_ts
@@ -2792,3 +2846,34 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+
+-- Seed: published site guest storefront assistant (role:site_guest)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.guest.chat',
+    'role:site_guest',
+    'trigger',
+    'site.guest',
+    'You are the Alien AI assistant on a published storefront site. Answer from [SITE KNOWLEDGE] and [SITE CONTEXT] only; do not invent policies, prices, or stock. Match the visitor language. Keep replies short and helpful. For cart changes use site.guest.cart.get and site.guest.cart.patch. Do not call web.search or web.visit. Never claim you searched the web.',
+    ARRAY[
+        'harga', 'price', 'berapa', 'stok', 'stock', 'jam buka', 'hours', 'alamat', 'address',
+        'pesan', 'order', 'keranjang', 'cart', 'checkout', 'produk', 'product', 'menu'
+    ],
+    ARRAY['always'],
+    ARRAY['site.guest.cart.get', 'site.guest.cart.patch'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    180,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();

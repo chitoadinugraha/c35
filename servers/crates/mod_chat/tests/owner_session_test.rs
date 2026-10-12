@@ -3,9 +3,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use c35_mod_chat::owner_session::{
-    owner_session_attach_for_prompt, owner_session_get, owner_session_register_warmup_for_session,
-    owner_session_supersede, owner_session_teardown, ChatLru, OwnerPromptSession, TurnContinuity,
-    TURN_CONTINUITY_INITIAL,
+    owner_session_attach_for_live, owner_session_attach_for_prompt, owner_session_get,
+    owner_session_register_warmup_for_session, owner_session_supersede, owner_session_teardown,
+    ChatLru, OwnerPromptSession, TurnContinuity, TURN_CONTINUITY_INITIAL,
 };
 
 #[test]
@@ -79,4 +79,16 @@ fn attach_for_prompt_reuses_live_ws_session() {
     assert_eq!(attached.revision(), rev);
     assert!(Arc::ptr_eq(&app, &attached));
     owner_session_teardown("app-conn-mcp-test");
+}
+
+#[test]
+fn attach_for_live_reuses_app_ws_session() {
+    let owner = 98_765_432_102_i64;
+    let app = owner_session_supersede(owner, "app-conn-live-test".into());
+    let rev = app.revision();
+    let (attached, new_headless) = owner_session_attach_for_live(owner);
+    assert!(!new_headless);
+    assert_eq!(attached.revision(), rev);
+    assert!(Arc::ptr_eq(&app, &attached));
+    owner_session_teardown("app-conn-live-test");
 }

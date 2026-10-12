@@ -1,8 +1,10 @@
+use async_nats::Client;
+use c35_mod_chat::owner_session_prepare_for_live;
 use c35_proto::{ReqLiveStart, ResLiveStart};
 use c35_store::snowflake_id;
 use sqlx::PgPool;
 
-use crate::billing::{live_billing_gate, live_req_id};
+use crate::billing::{live_billing_gate_nats_cached, live_req_id};
 use crate::catalog::live_offer_resolve;
 use crate::session::live_session_register;
 
@@ -18,7 +20,12 @@ fn live_enabled() -> bool {
     }
 }
 
-pub async fn live_start_rpc(pool: &PgPool, owner_iid: i64, req: ReqLiveStart) -> ResLiveStart {
+pub async fn live_start_rpc(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    req: ReqLiveStart,
+) -> ResLiveStart {
     let offer_id = req.offer_id.trim();
     if offer_id.is_empty() {
         return ResLiveStart {
@@ -46,7 +53,18 @@ pub async fn live_start_rpc(pool: &PgPool, owner_iid: i64, req: ReqLiveStart) ->
     }
     let sid = snowflake_id().to_string();
     let req_id = live_req_id(&req.req_id, &sid);
-    let billing_row = match live_billing_gate(pool, owner_iid, &req_id, &offer).await {
+    let (_session, hydrate) =
+        owner_session_prepare_for_live(pool, nats, owner_iid, &req_id).await;
+    let billing_row = match live_billing_gate_nats_cached(
+        pool,
+        nats,
+        owner_iid,
+        &req_id,
+        &offer,
+        hydrate.billing.as_ref(),
+    )
+    .await
+    {
         Ok(r) => r,
         Err(e) => {
             return ResLiveStart {
@@ -57,7 +75,16 @@ pub async fn live_start_rpc(pool: &PgPool, owner_iid: i64, req: ReqLiveStart) ->
     };
     let chat_id = (req.chat_id > 0).then_some(req.chat_id);
     let mention_ids = live_mention_ids_resolve(pool, owner_iid, chat_id, &req.mention_ids).await;
-    let token = live_session_register(&sid, owner_iid, offer, req_id, billing_row, chat_id, mention_ids);
+    let token = live_session_register(
+        &sid,
+        owner_iid,
+        offer,
+        req_id,
+        billing_row,
+        chat_id,
+        mention_ids,
+        Some(hydrate),
+    );
     ResLiveStart {
         live_session_id: sid.clone(),
         ws_path: format!("/v1/live/ws?sid={sid}&token={token}"),

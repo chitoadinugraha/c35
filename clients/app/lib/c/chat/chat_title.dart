@@ -9,17 +9,37 @@ String chatTitleFromText(String text, {int maxLen = 48}) {
   return cut[0].toUpperCase() + cut.substring(1);
 }
 
-String chatTitleDisplay(String title, {List<CatalogMention> mentions = const []}) {
+/// When the stored title dropped a sticky site/device mention, put its label back for display.
+String chatTitlePrependPrimarySticky(String title, List<String> stickyMentionIds, List<CatalogMention> mentions) {
+  final t = title.trim();
+  if (t.isEmpty || stickyMentionIds.isEmpty || mentions.isEmpty) return t;
+  for (final raw in stickyMentionIds) {
+    final id = raw.trim();
+    if (id.isEmpty || id == 'image' || id == 'image_high') continue;
+    final label = composerMentionLookup(mentions, id)?.displayLabel.trim() ?? '';
+    if (label.isEmpty) continue;
+    if (t.toLowerCase().contains(label.toLowerCase())) return t;
+    return '$label $t';
+  }
+  return t;
+}
+
+String chatTitleDisplay(
+  String title, {
+  List<CatalogMention> mentions = const [],
+  List<String> stickyMentionIds = const [],
+}) {
   final t = title.trim();
   if (t.isEmpty || t == 'New chat') return '';
   final hasMentionWire = composerMentionTextHasTokens(t);
-  final resolved = hasMentionWire
+  var resolved = hasMentionWire
       ? composerMentionTextForPrompt(
           composerMentionBracketFixupNesting(t),
           mentions,
           mentionIds: composerMentionIdsCollect(t),
         )
       : t;
+  resolved = chatTitlePrependPrimarySticky(resolved, stickyMentionIds, mentions);
   return chatTitleFromText(resolved, maxLen: resolved.length);
 }
 

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS site.config (
     payroll_policy_json         JSONB NOT NULL DEFAULT '{}',
     presence_policy_json        JSONB NOT NULL DEFAULT '{}',
     capabilities_json           JSONB NOT NULL DEFAULT '{}',    -- commerce, booking, queue, …
+    assistant_bot_iid           BIGINT REFERENCES ai.identity(id), -- site-scoped channel bot (meta.parent_site_iid)
 
     alien_id_changed_ts         TIMESTAMPTZ,
 

@@ -279,6 +279,7 @@ pub async fn channel_prompt_turn(
         owner_iid,
         chat_id,
         site_iid: None,
+        guest_visitor_id: None,
         mention,
         mention_ids: &[],
         user_text: &prompt_text,

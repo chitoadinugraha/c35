@@ -21,6 +21,7 @@ pub struct InstRow {
 pub const SCOPE_GLOBAL: &str = "global";
 pub const SCOPE_ROLE_PERSONAL_ASSISTANT: &str = "role:personal_assistant";
 pub const SCOPE_ROLE_BOT: &str = "role:bot";
+pub const SCOPE_ROLE_SITE_GUEST: &str = "role:site_guest";
 
 pub fn inst_scopes_home() -> Vec<String> {
     vec![SCOPE_GLOBAL.into(), SCOPE_ROLE_PERSONAL_ASSISTANT.into()]
@@ -37,6 +38,10 @@ pub fn inst_mention_ids(mention_ids: &[String], talk: bool) -> Vec<String> {
 
 pub fn inst_scopes_channel() -> Vec<String> {
     vec![SCOPE_ROLE_BOT.into()]
+}
+
+pub fn inst_scopes_site_guest() -> Vec<String> {
+    vec![SCOPE_ROLE_SITE_GUEST.into()]
 }
 
 /// Compose `extra_signals` entries; match `ai.inst` triggers (e.g. `model:alienai`).

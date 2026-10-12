@@ -11,6 +11,7 @@ import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_ai_channels.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
 import 'package:alienai_c35/widgets/ui/ui_empty_state.dart';
@@ -34,6 +35,7 @@ class UiSiteAiEditor extends StatefulWidget {
     super.key,
     required this.api,
     required this.siteIid,
+    required this.siteName,
     required this.masterDetail,
     this.pane = SiteAiPane.list,
     this.onPaneChanged,
@@ -44,6 +46,7 @@ class UiSiteAiEditor extends StatefulWidget {
 
   final SiteApi api;
   final int siteIid;
+  final String siteName;
   final bool masterDetail;
   final SiteAiPane pane;
   final ValueChanged<SiteAiPane>? onPaneChanged;
@@ -71,6 +74,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
   var _suppressAi = false;
   final _items = <SiteKnowledgeDraft>[];
   var _aiAssistant = SiteAiAssistantDraft.legacyDefaults;
+  var _connectChannelNonce = 0;
 
   @override
   void initState() {
@@ -290,6 +294,13 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     );
   }
 
+  Widget _listSectionHeader(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+        child: Text(title, style: const TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.4)),
+      );
+
+  void _requestConnectChannel() => setState(() => _connectChannelNonce++);
+
   Widget _listPane({required String? selectedId}) {
     final items = _filtered;
     final searching = _search.trim().isNotEmpty;
@@ -300,59 +311,93 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
           searchController: _searchCtrl,
           hintText: 'Search knowledge',
           onSearchChanged: (v) => setState(() => _search = v),
-          onAdd: _add,
-          addTooltip: 'Add knowledge',
+          extraActions: [
+            PopupMenuButton<String>(
+              tooltip: 'Add',
+              icon: const Icon(Icons.add, size: 20, color: _muted),
+              onSelected: (v) {
+                if (v == 'knowledge') _add();
+                if (v == 'channel') _requestConnectChannel();
+              },
+              itemBuilder: (ctx) => const [
+                PopupMenuItem(value: 'knowledge', child: Text('Add knowledge')),
+                PopupMenuItem(value: 'channel', child: Text('Connect channel')),
+              ],
+            ),
+          ],
         ),
         Expanded(
-          child: items.isEmpty
-              ? UiEmptyState(
-                  icon: Icons.lightbulb_outline,
-                  title: searching ? 'No matching facts' : 'No knowledge yet',
-                  subtitle: searching ? 'Try a different search.' : 'Add facts the site can keep on the draft.',
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              _listSectionHeader('Knowledge'),
+              if (items.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: UiEmptyState(
+                    icon: Icons.lightbulb_outline,
+                    title: searching ? 'No matching facts' : 'No knowledge yet',
+                    subtitle: searching ? 'Try a different search.' : 'Add facts the site can keep on the draft.',
+                  ),
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-                  itemCount: items.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 6),
-                  itemBuilder: (context, i) {
-                    final k = items[i];
-                    final selected = k.id == selectedId;
-                    final title = k.title.trim().isEmpty ? 'Untitled' : k.title.trim();
-                    return Material(
-                      color: selected ? const Color(0xFF34D399).withValues(alpha: 0.12) : const Color(0xFF18181B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: selected ? const Color(0xFF34D399).withValues(alpha: 0.35) : const Color(0xFF27272A)),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => _select(k.id),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(title, style: const TextStyle(color: _text, fontWeight: FontWeight.w600, fontSize: 13)),
-                              if (k.content.trim().isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    k.content.trim(),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: _muted, fontSize: 12),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
+              else
+                ...[
+                  for (var i = 0; i < items.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 6),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: _knowledgeRow(items[i], selectedId),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                ],
+              _listSectionHeader('Channels'),
+              UiSiteAiChannelsSection(
+                api: widget.api,
+                siteIid: widget.siteIid,
+                siteName: widget.siteName,
+                connectRequestNonce: _connectChannelNonce,
+              ),
+            ],
+          ),
         ),
         _aiFeatureFooter(),
       ],
+    );
+  }
+
+  Widget _knowledgeRow(SiteKnowledgeDraft k, String? selectedId) {
+    final selected = k.id == selectedId;
+    final title = k.title.trim().isEmpty ? 'Untitled' : k.title.trim();
+    return Material(
+      color: selected ? const Color(0xFF34D399).withValues(alpha: 0.12) : const Color(0xFF18181B),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: selected ? const Color(0xFF34D399).withValues(alpha: 0.35) : const Color(0xFF27272A)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _select(k.id),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: _text, fontWeight: FontWeight.w600, fontSize: 13)),
+              if (k.content.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    k.content.trim(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: _muted, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -510,42 +555,51 @@ class _AiFeatureRow extends StatelessWidget {
         side: BorderSide(color: siteEditorFieldBorder.withValues(alpha: 0.85)),
       ),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onOpenSettings,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: alienIcon ? Colors.black : siteEditorFieldFill,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: siteEditorFieldBorder),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 4, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                onTap: onOpenSettings,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: alienIcon ? Colors.black : siteEditorFieldFill,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: siteEditorFieldBorder),
+                        ),
+                        child: alienIcon
+                            ? Padding(
+                                padding: const EdgeInsets.all(5),
+                                child: SvgPicture.string(alienIconSvg, fit: BoxFit.contain),
+                              )
+                            : Icon(icon, size: 16, color: _accent),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(title, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600)),
+                            Text(subtitle, style: const TextStyle(color: _muted, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right, size: 18, color: _muted),
+                    ],
+                  ),
                 ),
-                child: alienIcon
-                    ? Padding(
-                        padding: const EdgeInsets.all(5),
-                        child: SvgPicture.string(alienIconSvg, fit: BoxFit.contain),
-                      )
-                    : Icon(icon, size: 16, color: _accent),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600)),
-                    Text(subtitle, style: const TextStyle(color: _muted, fontSize: 11)),
-                  ],
-                ),
-              ),
-              UiSiteCatalogActiveSwitch(value: enabled, onChanged: onEnabledChanged),
-              const Text('Manage', style: TextStyle(color: _accent, fontSize: 12, fontWeight: FontWeight.w600)),
-              const Icon(Icons.chevron_right, size: 18, color: _muted),
-            ],
-          ),
+            ),
+            UiSiteCatalogActiveSwitch(value: enabled, onChanged: onEnabledChanged),
+          ],
         ),
       ),
     );

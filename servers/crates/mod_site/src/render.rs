@@ -4,6 +4,7 @@ use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
 use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
+use crate::site_assistant::site_assistant_boot_extras;
 use crate::doc::site_doc_from_json;
 use crate::product_design::{
     product_card_price_style, product_card_subtitle_style, product_card_title_style,
@@ -1287,16 +1288,7 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
 .embed iframe{{display:block;border-radius:8px}}
 .md{{line-height:1.6}}
 </style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
-<div id="c35-guest-cart-bar" data-guest="cart" class="guest-cart" style="display:none;">
-  <div class="guest-cart-meta">
-    <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
-    <div class="guest-cart-count" id="c35-cart-count">0 item</div>
-  </div>
-  <button type="button" class="guest-cart-btn" onclick="c35GuestCart.pesan()">Pesan</button>
-</div>
-<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" aria-hidden="true"></div>
-<div id="c35-guest-toast" class="guest-toast" style="display:none;"></div>
-<button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
+{chrome}
 {client_js}</body></html>"#,
         esc(&doc_title),
         favicon = favicon_tags,
@@ -1304,6 +1296,7 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
         bd = design.backdrop_id,
         image = image,
         body = body,
+        chrome = guest_storefront_chrome_html(),
         client_js = guest_client_script_tags(pool, site_iid, &theme_effects(&doc.theme_json)).await
     ))
 }
@@ -1330,17 +1323,38 @@ fn theme_effects(theme_json: &str) -> Value {
     theme.get("effects").cloned().unwrap_or_else(|| json!([]))
 }
 
+/// Sticky cart row + assistant host (parity with Flutter `GuestSiteShell` chrome).
+pub fn guest_storefront_chrome_html() -> &'static str {
+    r#"<div id="c35-guest-cart-row" class="guest-cart-row" style="display:none;">
+  <div id="c35-guest-cart-bar" data-guest="cart" class="guest-cart">
+    <div class="guest-cart-meta">
+      <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
+      <div class="guest-cart-count" id="c35-cart-count">0 item</div>
+    </div>
+    <button type="button" class="guest-cart-btn guest-cart-btn--in-bar" onclick="c35GuestCart.pesan()">Pesan</button>
+  </div>
+  <div id="c35-guest-cart-trailing" class="guest-cart-trailing" hidden></div>
+</div>
+<div id="c35-guest-assistant-root" data-guest-assistant hidden></div>
+<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" aria-hidden="true"></div>
+<div id="c35-guest-toast" class="guest-toast" style="display:none;"></div>
+<button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>"#
+}
+
 async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value) -> String {
     let meta = site_published_meta_json(pool, site_iid).await;
     let commerce = commerce_boot_build(pool, site_iid, &meta)
         .await
         .unwrap_or_else(|_| serde_json::json!({}));
+    let assistant = site_assistant_boot_extras(&meta);
     let guest = serde_json::json!({
         "site_iid": site_iid,
         "site_id": site_iid,
         "api_base": "",
         "commerce_boot": commerce,
         "order_progress_steps": order_progress_steps_json(),
+        "ai_assistant": assistant.get("ai_assistant").cloned().unwrap_or(Value::Null),
+        "knowledge": assistant.get("knowledge").cloned().unwrap_or_else(|| json!([])),
     });
     let raw = serde_json::to_string(&guest).unwrap_or_else(|_| "{}".into());
     guest_client_script_markup(&raw, effects)
@@ -1585,16 +1599,7 @@ async fn guest_storefront_page_html(
 body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
 .wrap{{max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
 </style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
-<div id="c35-guest-cart-bar" data-guest="cart" class="guest-cart" style="display:none;">
-  <div class="guest-cart-meta">
-    <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
-    <div class="guest-cart-count" id="c35-cart-count">0 item</div>
-  </div>
-  <button type="button" class="guest-cart-btn" onclick="c35GuestCart.pesan()">Pesan</button>
-</div>
-<div id="c35-guest-modal" class="guest-modal-backdrop" style="display:none;" aria-hidden="true"></div>
-<div id="c35-guest-toast" class="guest-toast" style="display:none;"></div>
-<button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>
+{chrome}
 {client_js}</body></html>"#,
         esc(document_title),
         favicon = favicon_tags,
@@ -1603,6 +1608,7 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
         bd = design.backdrop_id,
         image = image,
         body = body,
+        chrome = guest_storefront_chrome_html(),
         client_js = client_js,
     ))
 }

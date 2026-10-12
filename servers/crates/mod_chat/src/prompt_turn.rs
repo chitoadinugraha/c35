@@ -159,20 +159,35 @@ pub async fn chat_title_from_prompt(
             ids.push(token);
         }
     }
+    let mut resolved_labels: Vec<String> = Vec::new();
     for id in &ids {
-        let bracket = mention_bracket_for_id(id);
-        if !plain.contains(&bracket) {
-            continue;
-        }
         let label = mention_resolve_one(pool, owner_iid, id)
             .await
             .map(|r| r.item.label.trim().to_string())
             .filter(|s| !s.is_empty());
         if let Some(label) = label {
-            plain = plain.replace(&bracket, &label);
+            let bracket = mention_bracket_for_id(id);
+            if plain.contains(&bracket) {
+                plain = plain.replace(&bracket, &label);
+            }
+            if !resolved_labels.iter().any(|l| l == &label) {
+                resolved_labels.push(label);
+            }
         }
     }
-    chat_title_from_text(&mention_plain_for_title(&plain))
+    let mut title_body = mention_plain_for_title(&plain);
+    for label in &resolved_labels {
+        if title_body.to_lowercase().contains(&label.to_lowercase()) {
+            break;
+        }
+        if title_body.is_empty() {
+            title_body = label.clone();
+        } else {
+            title_body = format!("{label} {title_body}");
+        }
+        break;
+    }
+    chat_title_from_text(&title_body)
 }
 
 fn mention_ids_in_brackets(text: &str) -> Vec<String> {
@@ -1134,6 +1149,7 @@ where
         owner_iid,
         chat_id,
         site_iid,
+        guest_visitor_id: None,
         mention: mention_ctx,
         mention_ids: &mention_ids,
         user_text: &req.text,

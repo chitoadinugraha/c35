@@ -147,6 +147,7 @@ pub async fn mcp_tool_exec(
         owner_iid,
         0,
         None,
+        None,
         MentionContext::empty(),
         vec![],
         "",

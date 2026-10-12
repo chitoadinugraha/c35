@@ -7,6 +7,9 @@ use sqlx::{PgPool, Row};
 use tokio::sync::mpsc;
 
 use crate::grant::site_grant_check;
+use crate::site_assistant::{
+    site_assistant_capabilities_merge, site_config_assistant_bot_iid_from_row,
+};
 use crate::sync_push::site_sync_push;
 use c35_proto::WsRes;
 
@@ -15,15 +18,28 @@ pub fn site_capability_enabled(caps: &serde_json::Value, key: &str) -> bool {
 }
 
 pub async fn site_capabilities_get(pool: &PgPool, site_iid: i64) -> serde_json::Value {
-    sqlx::query_scalar::<_, serde_json::Value>(
-        "SELECT capabilities_json FROM site.config WHERE site_iid = $1 AND deleted_ts IS NULL",
+    let row = sqlx::query(
+        r#"
+        SELECT capabilities_json, assistant_bot_iid
+        FROM site.config
+        WHERE site_iid = $1 AND deleted_ts IS NULL
+        "#,
     )
     .bind(site_iid)
     .fetch_optional(pool)
     .await
     .ok()
-    .flatten()
-    .unwrap_or_else(|| serde_json::json!({}))
+    .flatten();
+    let (caps, bot_iid) = match row {
+        Some(r) => (
+            r.try_get::<serde_json::Value, _>("capabilities_json")
+                .ok()
+                .unwrap_or_else(|| serde_json::json!({})),
+            site_config_assistant_bot_iid_from_row(&r),
+        ),
+        None => (serde_json::json!({}), 0),
+    };
+    site_assistant_capabilities_merge(&caps, bot_iid)
 }
 
 pub async fn site_capability_check(pool: &PgPool, site_iid: i64, capability: &str) -> bool {
@@ -74,7 +90,7 @@ pub async fn site_config_put(
         r#"
         SELECT site_iid, owner_iid, published_version_id, inventory_costing_method, tz,
                payroll_policy_json, presence_policy_json, capabilities_json,
-               alien_id_changed_ts, created_ts, updated_ts, deleted_ts
+               assistant_bot_iid, alien_id_changed_ts, created_ts, updated_ts, deleted_ts
         FROM site.config WHERE site_iid = $1 AND deleted_ts IS NULL
         "#,
     )
@@ -97,6 +113,7 @@ pub async fn site_config_put(
             .get::<serde_json::Value, _>("presence_policy_json")
             .to_string(),
         capabilities_json: row.get::<serde_json::Value, _>("capabilities_json").to_string(),
+        assistant_bot_iid: site_config_assistant_bot_iid_from_row(&row),
         alien_id_changed_ts_ms: ts_ms(row.get("alien_id_changed_ts")),
         created_ts_ms: ts_ms(Some(row.get("created_ts"))),
         updated_ts_ms: ts_ms(Some(row.get("updated_ts"))),

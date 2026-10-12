@@ -43,6 +43,36 @@ IconData guestPaymentMethodIcon(String type) => switch (type.trim().toLowerCase(
       _ => Icons.payment_outlined,
     };
 
+class GuestReservationAssignment {
+  const GuestReservationAssignment({this.siteObjectId = 0, this.objectName = ''});
+
+  final int siteObjectId;
+  final String objectName;
+
+  bool get isAuto => siteObjectId <= 0;
+
+  Map<String, dynamic> toStoredJson() => {
+        'site_object_id': siteObjectId,
+        'object_name': objectName,
+      };
+
+  static GuestReservationAssignment? fromStoredJson(Object? raw) {
+    if (raw == null) return null;
+    if (raw is! Map) return null;
+    return GuestReservationAssignment(
+      siteObjectId: (raw['site_object_id'] as num?)?.toInt() ?? 0,
+      objectName: raw['object_name']?.toString() ?? '',
+    );
+  }
+}
+
+List<GuestReservationAssignment?> guestReservationAssignmentsFit(List<GuestReservationAssignment?> src, int units) {
+  if (units <= 0) return const [];
+  if (src.length == units) return List<GuestReservationAssignment?>.of(src);
+  if (src.length > units) return src.take(units).toList();
+  return [...src, for (var i = src.length; i < units; i++) null];
+}
+
 class GuestReservationSlot {
   const GuestReservationSlot({
     required this.start,
@@ -51,6 +81,7 @@ class GuestReservationSlot {
     required this.durationQty,
     this.siteObjectId = 0,
     this.objectName = '',
+    this.assignments = const [],
   });
 
   final DateTime start;
@@ -59,28 +90,88 @@ class GuestReservationSlot {
   final int durationQty;
   final int siteObjectId;
   final String objectName;
+  /// Per-unit picks when guest chooses units; length equals [units] when set.
+  final List<GuestReservationAssignment?> assignments;
 
-  Map<String, dynamic> toStoredJson() => {
-        'start_ts_ms': start.millisecondsSinceEpoch,
-        'end_ts_ms': end.millisecondsSinceEpoch,
-        'units': units,
+  bool get expandsPerUnitReservations => units > 1 && assignments.isNotEmpty;
+
+  Map<String, dynamic> toStoredJson() {
+    final fit = guestReservationAssignmentsFit(assignments, units);
+    return {
+      'start_ts_ms': start.millisecondsSinceEpoch,
+      'end_ts_ms': end.millisecondsSinceEpoch,
+      'units': units,
+      'duration_qty': durationQty,
+      'site_object_id': siteObjectId,
+      'object_name': objectName,
+      if (fit.isNotEmpty)
+        'assignments': [
+          for (final a in fit) a?.toStoredJson(),
+        ],
+    };
+  }
+
+  List<Map<String, dynamic>> reservationMaps(int productId) {
+    final durationQty = this.durationQty < 1 ? 1 : this.durationQty;
+    final startMs = start.millisecondsSinceEpoch;
+    final endMs = end.millisecondsSinceEpoch;
+    if (expandsPerUnitReservations) {
+      final fit = guestReservationAssignmentsFit(assignments, units);
+      return [
+        for (var i = 0; i < units; i++)
+          {
+            'product_id': productId,
+            'qty': 1,
+            'duration_qty': durationQty,
+            'start_ts_ms': startMs,
+            'end_ts_ms': endMs,
+            'site_object_id': fit[i]?.siteObjectId ?? 0,
+            'state': 'pending',
+          },
+      ];
+    }
+    final fit = guestReservationAssignmentsFit(assignments, units);
+    final objId = fit.isNotEmpty && fit.first != null && !fit.first!.isAuto
+        ? fit.first!.siteObjectId
+        : siteObjectId;
+    return [
+      {
+        'product_id': productId,
+        'qty': units,
         'duration_qty': durationQty,
-        'site_object_id': siteObjectId,
-        'object_name': objectName,
-      };
+        'start_ts_ms': startMs,
+        'end_ts_ms': endMs,
+        'site_object_id': objId,
+        'state': 'pending',
+      },
+    ];
+  }
 
   static GuestReservationSlot? fromStoredJson(Object? raw) {
     if (raw is! Map) return null;
     final startMs = (raw['start_ts_ms'] as num?)?.toInt();
     final endMs = (raw['end_ts_ms'] as num?)?.toInt();
     if (startMs == null || endMs == null) return null;
+    final units = (raw['units'] as num?)?.toInt() ?? 1;
+    final siteObjectId = (raw['site_object_id'] as num?)?.toInt() ?? 0;
+    final objectName = raw['object_name']?.toString() ?? '';
+    final assignments = <GuestReservationAssignment?>[];
+    final rawAssign = raw['assignments'];
+    if (rawAssign is List) {
+      for (final row in rawAssign) {
+        assignments.add(GuestReservationAssignment.fromStoredJson(row));
+      }
+    } else if (siteObjectId > 0) {
+      assignments.add(GuestReservationAssignment(siteObjectId: siteObjectId, objectName: objectName));
+    }
     return GuestReservationSlot(
       start: DateTime.fromMillisecondsSinceEpoch(startMs),
       end: DateTime.fromMillisecondsSinceEpoch(endMs),
-      units: (raw['units'] as num?)?.toInt() ?? 1,
+      units: units,
       durationQty: (raw['duration_qty'] as num?)?.toInt() ?? 1,
-      siteObjectId: (raw['site_object_id'] as num?)?.toInt() ?? 0,
-      objectName: raw['object_name']?.toString() ?? '',
+      siteObjectId: siteObjectId,
+      objectName: objectName,
+      assignments: guestReservationAssignmentsFit(assignments, units),
     );
   }
 }
@@ -116,16 +207,7 @@ class GuestSiteCartLine {
   int get lineTotal => price * qty;
 
   List<Map<String, dynamic>> reservationJson() => [
-        for (final slot in slots)
-          {
-            'product_id': productId,
-            'qty': slot.units,
-            'duration_qty': slot.durationQty < 1 ? 1 : slot.durationQty,
-            'start_ts_ms': slot.start.millisecondsSinceEpoch,
-            'end_ts_ms': slot.end.millisecondsSinceEpoch,
-            'site_object_id': slot.siteObjectId,
-            'state': 'pending',
-          },
+        for (final slot in slots) ...slot.reservationMaps(productId),
       ];
 
   Map<String, dynamic> orderItemJson() => {

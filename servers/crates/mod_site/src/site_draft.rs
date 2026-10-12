@@ -169,7 +169,7 @@ pub async fn site_draft_get(
         r#"
         SELECT site_iid, owner_iid, published_version_id, inventory_costing_method, tz,
                payroll_policy_json, presence_policy_json, capabilities_json,
-               alien_id_changed_ts, created_ts, updated_ts, deleted_ts
+               assistant_bot_iid, alien_id_changed_ts, created_ts, updated_ts, deleted_ts
         FROM site.config WHERE site_iid = $1 AND deleted_ts IS NULL
         "#,
     )
@@ -192,6 +192,7 @@ pub async fn site_draft_get(
                 .get::<serde_json::Value, _>("presence_policy_json")
                 .to_string(),
             capabilities_json: r.get::<serde_json::Value, _>("capabilities_json").to_string(),
+            assistant_bot_iid: crate::site_assistant::site_config_assistant_bot_iid_from_row(&r),
             alien_id_changed_ts_ms: ts_ms(r.get("alien_id_changed_ts")),
             created_ts_ms: ts_ms(Some(r.get("created_ts"))),
             updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
