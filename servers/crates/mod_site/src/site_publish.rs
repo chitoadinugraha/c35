@@ -3,6 +3,8 @@ use blake3;
 use c35_proto::{ReqSitePublish, ResSitePublish, SitePublish, sync_push};
 use chrono::Utc;
 use sqlx::{PgPool, Row};
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
 use tokio::sync::mpsc;
 
 use crate::doc::site_doc_from_json;
@@ -43,25 +45,42 @@ pub async fn site_draft_render_hash(
     Ok(render_bundle_hash(&pages))
 }
 
-/// Stable fingerprint for draft vs published doc comparison (avoids full HTML render on draft get).
+static DRAFT_RENDER_HASH_CACHE: LazyLock<Mutex<HashMap<(i64, i64), String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+const DRAFT_RENDER_HASH_CACHE_MAX: usize = 256;
+
+async fn site_draft_render_hash_cached(
+    pool: &PgPool,
+    site_iid: i64,
+    doc_json: &serde_json::Value,
+    draft_updated_ts_ms: i64,
+) -> Result<String> {
+    if draft_updated_ts_ms > 0 {
+        if let Some(hit) = DRAFT_RENDER_HASH_CACHE
+            .lock()
+            .ok()
+            .and_then(|c| c.get(&(site_iid, draft_updated_ts_ms)).cloned())
+        {
+            return Ok(hit);
+        }
+    }
+    let hash = site_draft_render_hash(pool, site_iid, doc_json).await?;
+    if draft_updated_ts_ms > 0 {
+        if let Ok(mut cache) = DRAFT_RENDER_HASH_CACHE.lock() {
+            if cache.len() >= DRAFT_RENDER_HASH_CACHE_MAX {
+                cache.clear();
+            }
+            cache.insert((site_iid, draft_updated_ts_ms), hash.clone());
+        }
+    }
+    Ok(hash)
+}
+
+/// Stable fingerprint for draft doc JSON (used in unit tests; publish pending uses render hashes).
+#[allow(dead_code)]
 pub fn doc_json_fingerprint(doc_json: &serde_json::Value) -> String {
     let canonical = serde_json::to_string(doc_json).unwrap_or_default();
     blake3::hash(canonical.as_bytes()).to_hex().to_string()
-}
-
-async fn active_publish_doc_json(pool: &PgPool, site_iid: i64) -> Result<Option<serde_json::Value>> {
-    let row = sqlx::query(
-        r#"
-        SELECT doc_json FROM site.publish
-        WHERE site_iid = $1 AND is_active = TRUE AND deleted_ts IS NULL
-        ORDER BY published_ts DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(site_iid)
-    .fetch_optional(pool)
-    .await?;
-    Ok(row.map(|r| r.get("doc_json")))
 }
 
 pub async fn active_publish_render_hash(pool: &PgPool, site_iid: i64) -> Result<String> {
@@ -80,21 +99,20 @@ pub async fn active_publish_render_hash(pool: &PgPool, site_iid: i64) -> Result<
         .unwrap_or_default())
 }
 
-/// Read-only publish status for the editor (`publish_pending` only needs doc equality).
+/// Read-only publish status for the editor (draft render bundle vs active publish).
 pub async fn site_publish_pending_for_draft(
     pool: &PgPool,
     site_iid: i64,
     doc_json: &serde_json::Value,
+    draft_updated_ts_ms: i64,
 ) -> Result<(bool, String, String)> {
     let published_render_hash = active_publish_render_hash(pool, site_iid).await?;
-    let draft_render_hash = doc_json_fingerprint(doc_json);
+    let draft_render_hash =
+        site_draft_render_hash_cached(pool, site_iid, doc_json, draft_updated_ts_ms).await?;
     let publish_pending = if published_render_hash.is_empty() {
         true
     } else {
-        match active_publish_doc_json(pool, site_iid).await? {
-            None => true,
-            Some(pub_doc) => draft_render_hash != doc_json_fingerprint(&pub_doc),
-        }
+        draft_render_hash != published_render_hash
     };
     Ok((publish_pending, draft_render_hash, published_render_hash))
 }

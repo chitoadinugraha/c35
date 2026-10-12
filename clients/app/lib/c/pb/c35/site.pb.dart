@@ -1598,6 +1598,7 @@ class SiteLink extends $pb.GeneratedMessage {
     $core.String? icon,
     $core.bool? isPinned,
     $core.bool? active,
+    $core.String? display,
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
@@ -1611,6 +1612,7 @@ class SiteLink extends $pb.GeneratedMessage {
     if (icon != null) result.icon = icon;
     if (isPinned != null) result.isPinned = isPinned;
     if (active != null) result.active = active;
+    if (display != null) result.display = display;
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
@@ -1638,6 +1640,7 @@ class SiteLink extends $pb.GeneratedMessage {
     ..aOS(6, _omitFieldNames ? '' : 'icon')
     ..aOB(7, _omitFieldNames ? '' : 'isPinned')
     ..aOB(8, _omitFieldNames ? '' : 'active')
+    ..aOS(9, _omitFieldNames ? '' : 'display')
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
@@ -1735,30 +1738,40 @@ class SiteLink extends $pb.GeneratedMessage {
   @$pb.TagNumber(8)
   void clearActive() => $_clearField(8);
 
+  /// Guest storefront row: list | icon | card
+  @$pb.TagNumber(9)
+  $core.String get display => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set display($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasDisplay() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearDisplay() => $_clearField(9);
+
   @$pb.TagNumber(20)
-  $fixnum.Int64 get createdTsMs => $_getI64(8);
+  $fixnum.Int64 get createdTsMs => $_getI64(9);
   @$pb.TagNumber(20)
-  set createdTsMs($fixnum.Int64 value) => $_setInt64(8, value);
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(9, value);
   @$pb.TagNumber(20)
-  $core.bool hasCreatedTsMs() => $_has(8);
+  $core.bool hasCreatedTsMs() => $_has(9);
   @$pb.TagNumber(20)
   void clearCreatedTsMs() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $fixnum.Int64 get updatedTsMs => $_getI64(9);
+  $fixnum.Int64 get updatedTsMs => $_getI64(10);
   @$pb.TagNumber(21)
-  set updatedTsMs($fixnum.Int64 value) => $_setInt64(9, value);
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(10, value);
   @$pb.TagNumber(21)
-  $core.bool hasUpdatedTsMs() => $_has(9);
+  $core.bool hasUpdatedTsMs() => $_has(10);
   @$pb.TagNumber(21)
   void clearUpdatedTsMs() => $_clearField(21);
 
   @$pb.TagNumber(22)
-  $fixnum.Int64 get deletedTsMs => $_getI64(10);
+  $fixnum.Int64 get deletedTsMs => $_getI64(11);
   @$pb.TagNumber(22)
-  set deletedTsMs($fixnum.Int64 value) => $_setInt64(10, value);
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(11, value);
   @$pb.TagNumber(22)
-  $core.bool hasDeletedTsMs() => $_has(10);
+  $core.bool hasDeletedTsMs() => $_has(11);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
 }

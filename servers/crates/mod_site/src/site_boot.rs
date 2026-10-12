@@ -3,7 +3,8 @@ use c35_proto::{ReqSiteBootGet, ResSiteBootGet, SiteBootMode, SiteLink};
 use serde_json::{json, Map, Value};
 use sqlx::{PgPool, Row};
 
-use crate::doc::site_doc_from_json;
+use crate::doc::{site_doc_from_json, site_doc_to_json};
+use crate::site_draft::site_draft_prepare_commerce_grid_doc;
 use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign};
 use crate::grant::site_grant_check;
 use crate::guest_product::{
@@ -40,6 +41,7 @@ fn link_boot_json(link: &SiteLink) -> Value {
         "label": link.label,
         "url": link.url,
         "icon": link.icon,
+        "display": link.display,
         "is_pinned": link.is_pinned,
     })
 }
@@ -197,6 +199,13 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
     let name: String = id_row.get("name");
     let pic: String = id_row.get::<Option<String>, _>("pic").unwrap_or_default();
     let doc_json = load_doc_json(pool, req.site_iid, mode).await?;
+    let doc_json = if matches!(mode, SiteBootMode::Draft | SiteBootMode::Unspecified) {
+        let mut doc = site_doc_from_json(&doc_json);
+        site_draft_prepare_commerce_grid_doc(pool, req.site_iid, &mut doc).await;
+        site_doc_to_json(&doc)?
+    } else {
+        doc_json
+    };
     let capabilities = site_capabilities_get(pool, req.site_iid).await;
     let product_preload = product_preload_for_doc(pool, req.site_iid, &doc_json).await?;
     let product_preload_meta =

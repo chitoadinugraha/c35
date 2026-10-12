@@ -71,6 +71,11 @@ pub fn link_from_row(r: &sqlx::postgres::PgRow) -> SiteLink {
         icon: r.get("icon"),
         is_pinned: r.get("is_pinned"),
         active: r.get("active"),
+        display: r
+            .try_get::<Option<String>, _>("display")
+            .ok()
+            .flatten()
+            .unwrap_or_default(),
         created_ts_ms: ts_ms(Some(r.get("created_ts"))),
         updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),

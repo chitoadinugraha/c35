@@ -8,6 +8,7 @@ use subtle::ConstantTimeEq;
 use crate::doc::site_doc_from_json;
 use crate::grant::site_grant_check;
 use crate::render::{page_html_render, render_etag};
+use crate::site_draft::site_draft_prepare_commerce_grid_doc;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -96,7 +97,8 @@ pub async fn site_published_html_render(
         .await?
         .map(|r| r.get::<String, _>("name"))
         .unwrap_or_else(|| "Site".into());
-    let doc = site_doc_from_json(&doc_json);
+    let mut doc = site_doc_from_json(&doc_json);
+    site_draft_prepare_commerce_grid_doc(pool, site_iid, &mut doc).await;
     let path = if page_path.is_empty() { "/" } else { page_path };
     let html = page_html_render(pool, site_iid, &doc, path, &site_name).await?;
     let etag = render_etag(&html);
@@ -126,7 +128,8 @@ pub async fn site_draft_html_render(
     let site_name = name_row
         .map(|r| r.get::<String, _>("name"))
         .unwrap_or_else(|| "Site".into());
-    let doc = site_doc_from_json(&doc_json);
+    let mut doc = site_doc_from_json(&doc_json);
+    site_draft_prepare_commerce_grid_doc(pool, site_iid, &mut doc).await;
     let path = if page_path.is_empty() { "/" } else { page_path };
     let html = page_html_render(pool, site_iid, &doc, path, &site_name).await?;
     let etag = render_etag(&html);

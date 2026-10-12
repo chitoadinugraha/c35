@@ -300,7 +300,7 @@ fn site_doc_ensure_catalog_display_default(doc: &mut SiteDoc) -> bool {
     if !set {
         return false;
     }
-    obj.insert("catalog_display".into(), json!("grid"));
+    obj.insert("catalog_display".into(), json!("list"));
     doc.meta_json = meta.to_string();
     true
 }
@@ -367,7 +367,7 @@ mod ensure_product_grid_tests {
         assert!(site_doc_ensure_product_grid(&mut doc));
         assert!(site_doc_has_product_grid(&doc));
         let meta: Value = serde_json::from_str(&doc.meta_json).expect("meta json");
-        assert_eq!(meta.get("catalog_display").and_then(|x| x.as_str()), Some("grid"));
+        assert_eq!(meta.get("catalog_display").and_then(|x| x.as_str()), Some("list"));
     }
 
     #[test]

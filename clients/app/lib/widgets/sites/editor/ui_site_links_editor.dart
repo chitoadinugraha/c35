@@ -22,6 +22,7 @@ class UiSiteLinksEditor extends StatefulWidget {
     required this.masterDetail,
     this.detailId,
     this.onDetailIdChanged,
+    this.onPublishStateMayHaveChanged,
   });
 
   final SiteApi api;
@@ -29,6 +30,7 @@ class UiSiteLinksEditor extends StatefulWidget {
   final bool masterDetail;
   final String? detailId;
   final ValueChanged<String?>? onDetailIdChanged;
+  final VoidCallback? onPublishStateMayHaveChanged;
 
   @override
   State<UiSiteLinksEditor> createState() => _UiSiteLinksEditorState();
@@ -154,6 +156,7 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
       final id = '${saved.linkId}';
       _byId[id] = saved;
       editorCatalog?.upsertLink(saved);
+      widget.onPublishStateMayHaveChanged?.call();
       _searchCtrl.clear();
       setState(() => _search = '');
       _select(id);
@@ -187,6 +190,7 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
         _error = null;
       });
       editorCatalog?.upsertLink(saved);
+      widget.onPublishStateMayHaveChanged?.call();
       if (!widget.masterDetail && widget.detailId == id && widget.detailId != savedId) {
         widget.onDetailIdChanged?.call(savedId);
       }
@@ -217,6 +221,7 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
       _byId.remove(id);
       editorCatalog?.removeLink(linkId);
       siteEditorPreviewPatch(context, (boot) => siteEditorPreviewRemoveLink(boot, linkId));
+      widget.onPublishStateMayHaveChanged?.call();
       _pickDefault();
       if (widget.masterDetail) {
         if (mounted) setState(() => _error = null);
@@ -249,6 +254,7 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
       if (mounted) {
         editorCatalog?.setLinks(_ordered);
         siteEditorPreviewPatch(context, (boot) => siteEditorPreviewSetLinks(boot, _ordered));
+        if (saves.isNotEmpty) widget.onPublishStateMayHaveChanged?.call();
         setState(() => _error = null);
       }
     } catch (e) {

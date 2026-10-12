@@ -18,8 +18,8 @@ void main() {
   });
 
   group('productGridDisplay', () {
-    test('defaults to grid', () {
-      expect(productGridDisplay({}), 'grid');
+    test('defaults to list', () {
+      expect(productGridDisplay({}), 'list');
     });
 
     test('block prop list', () {

@@ -17,6 +17,7 @@ mod guest_reservation;
 mod product_design;
 mod product_icon;
 mod product_icon_svg;
+mod link_display;
 mod link_platform_icon;
 pub mod render;
 mod rows;

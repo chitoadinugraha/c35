@@ -235,6 +235,7 @@ Map<String, dynamic> siteEditorPreviewLinkRow(SiteLink link) => {
       'label': link.label,
       'url': link.url,
       'icon': link.icon,
+      'display': link.display,
       'is_pinned': link.isPinned,
     };
 

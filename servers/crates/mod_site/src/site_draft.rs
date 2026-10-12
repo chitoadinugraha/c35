@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use c35_proto::{
-    ReqSiteDraftGet, ReqSiteDraftPut, ResSiteDraftGet, ResSiteDraftPut, SiteConfig, SiteDraft,
-    sync_push,
+    ReqSiteDraftGet, ReqSiteDraftPut, ResSiteDraftGet, ResSiteDraftPut, SiteConfig, SiteDoc,
+    SiteDraft, sync_push,
 };
 use chrono::Utc;
 use sqlx::{PgPool, Row};
@@ -16,6 +16,22 @@ use c35_proto::WsRes;
 
 fn ts_ms(t: Option<chrono::DateTime<Utc>>) -> i64 {
     t.map(|x| x.timestamp_millis()).unwrap_or(0)
+}
+
+/// In-memory only: home `product_grid` when commerce is on and sellable products exist.
+/// Matches editor preview (`siteEditorPreviewSyncCommerceCatalog`) without persisting draft.
+pub async fn site_draft_prepare_commerce_grid_doc(pool: &PgPool, site_iid: i64, doc: &mut SiteDoc) {
+    let caps = site_capabilities_get(pool, site_iid).await;
+    if !site_capability_enabled(&caps, "commerce") {
+        return;
+    }
+    if !site_has_sellable_products(pool, site_iid)
+        .await
+        .unwrap_or(false)
+    {
+        return;
+    }
+    site_doc_ensure_product_grid(doc);
 }
 
 async fn site_has_sellable_products(pool: &PgPool, site_iid: i64) -> Result<bool> {
@@ -142,8 +158,13 @@ pub async fn site_draft_get(
         };
         (doc_json, draft)
     };
-    let (publish_pending, draft_render_hash, published_render_hash) =
-        site_publish_pending_for_draft(pool, req.site_iid, &draft_doc_json).await?;
+    let (publish_pending, draft_render_hash, published_render_hash) = site_publish_pending_for_draft(
+        pool,
+        req.site_iid,
+        &draft_doc_json,
+        draft.updated_ts_ms,
+    )
+    .await?;
     let config_row = sqlx::query(
         r#"
         SELECT site_iid, owner_iid, published_version_id, inventory_costing_method, tz,

@@ -11,7 +11,8 @@ import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/site/site_editor_save_bus.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
-import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/c/ui/ui_error_snackbar.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_chrome.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_menu.dart';
@@ -106,7 +107,20 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     unawaited(_loadCaps());
     unawaited(_refreshPublishPending());
     _catalogCache.addListener(_syncCatalogToPreview);
+    _catalogCache.addListener(_onEditorGateProgress);
+    _previewCache.addListener(_onEditorGateProgress);
     unawaited(_catalogCache.warm());
+    unawaited(_previewCache.ensureLoaded());
+  }
+
+  bool get _editorGateOpen {
+    final catalogReady = _catalogCache.warmDone || _catalogCache.warmError != null;
+    final previewReady = _previewCache.boot != null || _previewCache.error != null;
+    return catalogReady && previewReady;
+  }
+
+  void _onEditorGateProgress() {
+    if (mounted) setState(() {});
   }
 
   void _syncCatalogToPreview() {
@@ -124,12 +138,15 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       oldCatalog.removeListener(_syncCatalogToPreview);
       _catalogCache = SiteEditorCatalogCache(api: widget.api, siteIid: _siteIid);
       _catalogCache.addListener(_syncCatalogToPreview);
+      _catalogCache.addListener(_onEditorGateProgress);
+      _previewCache.addListener(_onEditorGateProgress);
       _previewCache.resetForSite(_row);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         oldCatalog.dispose();
       });
       unawaited(_refreshPublishPending());
       unawaited(_catalogCache.warm());
+      unawaited(_previewCache.ensureLoaded());
     } else if (oldWidget.row != widget.row) {
       _row = widget.row.clone();
       _previewCache.updateRow(_row);
@@ -139,6 +156,8 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   @override
   void dispose() {
     _catalogCache.removeListener(_syncCatalogToPreview);
+    _catalogCache.removeListener(_onEditorGateProgress);
+    _previewCache.removeListener(_onEditorGateProgress);
     unawaited(_flush.flush());
     _previewCache.dispose();
     _catalogCache.dispose();
@@ -159,8 +178,15 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
   Future<void> _refreshPublishPending() async {
     try {
-      final pending = await widget.api.draftPublishPending(_siteIid);
-      if (mounted) setState(() => _publishPending = pending);
+      final res = await widget.api.draftGetWithPublishStatus(_siteIid);
+      if (!mounted) return;
+      setState(() {
+        _publishPending = res.publishPending;
+        final vid = res.config.publishedVersionId;
+        if (vid.isNotEmpty) {
+          _row.publishedVersionId = vid;
+        }
+      });
     } catch (_) {
       if (mounted) setState(() => _publishPending = true);
     }
@@ -216,7 +242,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+        uiShowErrorSnackBar(context, e);
       }
     } finally {
       if (mounted) setState(() => _publishing = false);
@@ -380,16 +406,17 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     await _exitEditor();
   }
 
-  bool get _showPublishedLabel => !_publishPending && _row.publishedVersionId.isNotEmpty;
+  bool get _showPublishedLabel => !_publishPending;
 
   List<Widget> _chromeActions({required bool showPreviewToggle}) => [
         UiConnWifi(conn: widget.api.conn),
+        const SizedBox(width: 8),
         OutlinedButton.icon(
           onPressed: (_publishing || !_publishPending) ? null : _confirmPublish,
           icon: _publishing
               ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
               : Icon(_publishPending ? Icons.publish_outlined : Icons.check_circle_outline, size: 16),
-          label: Text(_publishing ? 'Publishing…' : (_publishPending ? 'Publish' : (_row.publishedVersionId.isEmpty ? 'Publish' : 'Published'))),
+          label: Text(_publishing ? 'Publishing…' : (_publishPending ? 'Publish' : 'Published')),
           style: ButtonStyle(
             visualDensity: VisualDensity.compact,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -428,6 +455,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           masterDetail: masterDetail,
           detailId: _nav.catalogDetailId,
           onDetailIdChanged: (id) => _scheduleCatalogDetailId(id, section: shown),
+          onPublishStateMayHaveChanged: _refreshPublishPending,
         ),
       'posts' => UiSitePostsEditor(
           api: widget.api,
@@ -596,7 +624,31 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           if (mounted) setState(() {});
         },
         child: Builder(
-        builder: (context) {
+          builder: (context) {
+            final body = _siteEditorBody(context, wide: wide, active: active, onMenu: onMenu);
+            if (!_editorGateOpen) {
+              return Stack(
+                children: [
+                  body,
+                  const Positioned.fill(
+                    child: ColoredBox(
+                      color: Color(0xFF08080A),
+                      child: UILoading(message: 'Loading site editor'),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return body;
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _siteEditorBody(BuildContext context, {required bool wide, required String active, required bool onMenu}) {
+    return Builder(
+      builder: (context) {
           if (!wide && _mobilePreviewOpen) {
             return PopScope(
               canPop: false,
@@ -680,9 +732,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
               Expanded(child: _buildWide(context, section)),
             ],
           );
-        },
-        ),
-      ),
+      },
     );
   }
 }

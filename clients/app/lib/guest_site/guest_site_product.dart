@@ -19,7 +19,8 @@ String productGridDisplay(Map<String, dynamic> props, {Map<String, dynamic>? met
   if (raw == 'grid' || raw == 'card') return 'grid';
   final metaRaw = meta?['catalog_display']?.toString().trim().toLowerCase() ?? '';
   if (metaRaw == 'list') return 'list';
-  return 'grid';
+  if (metaRaw == 'grid' || metaRaw == 'card') return 'grid';
+  return 'list';
 }
 
 String _picHashOnly(String pic) {

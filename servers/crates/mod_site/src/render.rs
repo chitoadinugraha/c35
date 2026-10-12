@@ -10,6 +10,7 @@ use crate::product_design::{
     product_design_from_site_meta,
 };
 use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign, ProfileDesign};
+use crate::link_display::site_link_display_normalize;
 use crate::link_platform_icon::link_platform_icon_html;
 use crate::guest_product::{
     guest_product_get, guest_product_list, guest_product_sell_ids, product_grid_page_size,
@@ -21,6 +22,7 @@ use crate::guest_product_display::{
 use crate::product_icon_svg::product_icon_svg;
 use crate::site_link::site_link_boot_rows;
 use crate::site_post::{site_post_boot_summaries, site_post_get_storefront};
+use crate::site_draft::site_draft_prepare_commerce_grid_doc;
 
 pub use crate::guest_product::{product_row_json, ProductRow};
 
@@ -345,26 +347,54 @@ fn link_row_html(
     icon_id: &str,
     design: &GuestDesign,
     link_id: Option<i64>,
+    display: &str,
 ) -> String {
-    if label.is_empty() {
+    if label.is_empty() && url.trim().is_empty() {
+        return String::new();
+    }
+    let display = site_link_display_normalize(display);
+    let display_label = if label.is_empty() { url } else { label };
+    if display_label.is_empty() {
         return String::new();
     }
     let href = if url.trim().is_empty() { "#" } else { url };
     let icon = link_platform_icon_html(icon_id);
-    let (card_open, card_close) = design.card_wrap("link");
     let link_id_attr = link_id
         .filter(|id| *id > 0)
         .map(|id| format!(r#" data-link-id="{id}""#))
         .unwrap_or_default();
-    format!(
-        r#"<li class="guest-link-row" data-guest="link"{link_id_attr}>{card_open}<a class="guest-link-list" href="{href}" rel="noopener noreferrer">{icon}<span class="guest-link-label">{label}</span></a>{card_close}</li>"#,
-        link_id_attr = link_id_attr,
-        card_open = card_open,
-        href = esc(href),
-        icon = icon,
-        label = esc(label),
-        card_close = card_close,
-    )
+    let row_class = format!("guest-link-row guest-link-row--{display}");
+    match display {
+        "icon" => format!(
+            r#"<li class="{row_class}" data-guest="link" data-link-display="icon"{link_id_attr}><a class="guest-link-icon" href="{href}" rel="noopener noreferrer" title="{title}">{icon}</a></li>"#,
+            row_class = row_class,
+            link_id_attr = link_id_attr,
+            href = esc(href),
+            title = esc(display_label),
+            icon = icon,
+        ),
+        "card" => {
+            let (card_open, card_close) = design.card_wrap("link");
+            format!(
+                r#"<li class="{row_class}" data-guest="link" data-link-display="card"{link_id_attr}>{card_open}<a class="guest-link-list guest-link-card" href="{href}" rel="noopener noreferrer">{icon}<span class="guest-link-label">{label}</span></a>{card_close}</li>"#,
+                row_class = row_class,
+                link_id_attr = link_id_attr,
+                card_open = card_open,
+                href = esc(href),
+                icon = icon,
+                label = esc(display_label),
+                card_close = card_close,
+            )
+        }
+        _ => format!(
+            r#"<li class="{row_class}" data-guest="link" data-link-display="list"{link_id_attr}><a class="guest-link-list" href="{href}" rel="noopener noreferrer">{icon}<span class="guest-link-label">{label}</span></a></li>"#,
+            row_class = row_class,
+            link_id_attr = link_id_attr,
+            href = esc(href),
+            icon = icon,
+            label = esc(display_label),
+        ),
+    }
 }
 
 fn link_item_html(item: &Value, design: &GuestDesign) -> String {
@@ -378,7 +408,11 @@ fn link_item_html(item: &Value, design: &GuestDesign) -> String {
         .or_else(|| item.get("href"))
         .and_then(|x| x.as_str())
         .unwrap_or("");
-    link_row_html(label, url, link_icon_id(item), design, None)
+    let display = item
+        .get("display")
+        .and_then(|x| x.as_str())
+        .unwrap_or("list");
+    link_row_html(label, url, link_icon_id(item), design, None, display)
 }
 
 fn post_feed_card_html(post: &SitePost) -> String {
@@ -415,13 +449,13 @@ fn link_hub_html(link: &SiteLink, design: &GuestDesign) -> String {
     if label.is_empty() && url.is_empty() {
         return String::new();
     }
-    let display = if label.is_empty() { url } else { label };
+    let display_label = if label.is_empty() { url } else { label };
     let icon = if link.icon.trim().is_empty() {
         "website"
     } else {
         link.icon.trim()
     };
-    link_row_html(display, url, icon, design, Some(link.link_id))
+    link_row_html(display_label, url, icon, design, Some(link.link_id), &link.display)
 }
 
 fn contact_field_html(field: &Value) -> String {
@@ -766,9 +800,10 @@ pub fn block_html_render(
 ) -> String {
     match block_type {
         "hero" => {
+            // Match Flutter `GuestSiteHeroBlock` — compact hub strip, not legacy full-bleed `.hero` banner.
             let inner = guest_hub_hero_inner_html(props, &flutter_hero_profile(), design, site_meta);
             format!(
-                r#"<section class="block hero" data-guest="hero"><div class="guest-hub-hero hub-profile">{inner}</div></section>"#,
+                r#"<section class="block hub-profile" data-guest="hero"><div class="guest-hub-hero">{inner}</div></section>"#,
                 inner = inner,
             )
         }
@@ -1014,7 +1049,7 @@ pub fn block_html_render(
                 String::new()
             };
             format!(
-                r#"<section class="block hub-profile" data-guest="profile"><div class="guest-hub-hero hub-profile">{inner}</div>{location_html}{hours_html}</section>"#,
+                r#"<section class="block hub-profile" data-guest="profile"><div class="guest-hub-hero">{inner}</div>{location_html}{hours_html}</section>"#,
                 inner = inner,
                 location_html = location_html,
                 hours_html = hours_html
@@ -1239,7 +1274,7 @@ body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);
 .map a{{color:var(--accent)}}
 .queue{{padding:16px;background:#fff;border-radius:8px}}
 .guest-queue-btn,.guest-order-poll-btn{{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;margin-top:8px}}
-.hub-profile{{text-align:center;padding:24px 16px}}
+.block.hub-profile{{margin:0 0 12px;padding:0}}
 .hub-avatar{{width:96px;height:96px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block}}
 .hub-chips{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}}
 .hub-chip{{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #e5e5e5;font-size:12px;color:#333;text-decoration:none}}
@@ -1615,7 +1650,8 @@ pub async fn publish_doc_render(
     doc_json: &Value,
     site_name: &str,
 ) -> Result<Vec<(String, String)>> {
-    let doc = site_doc_from_json(doc_json);
+    let mut doc = site_doc_from_json(doc_json);
+    site_draft_prepare_commerce_grid_doc(pool, site_iid, &mut doc).await;
     let mut out = Vec::new();
     for page in &doc.pages {
         let key = crate::doc::render_key_for_page(&page.path);

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/ui_site_preview.dart';
 import 'package:flutter/foundation.dart';
 
@@ -106,7 +107,7 @@ class SiteEditorPreviewCache extends ChangeNotifier {
       siteEditorPreviewSyncCommerceCatalog(decoded);
       _error = null;
     } catch (e) {
-      _error = '$e';
+      _error = uiFriendlyError(e);
     } finally {
       if (!_disposed) {
         _loading = false;

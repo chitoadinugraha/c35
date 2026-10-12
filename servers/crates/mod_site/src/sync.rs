@@ -307,7 +307,7 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
     if wants(&collections, "site_link") {
         let rows = sqlx::query(
             r#"
-            SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active,
+            SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active, display,
                    created_ts, updated_ts, deleted_ts
             FROM site.link
             WHERE site_iid = ANY($1::bigint[])
@@ -336,6 +336,11 @@ pub async fn sync_pull(pool: &PgPool, caller_iid: i64, req: ReqSync) -> ResSync 
                 icon: r.get("icon"),
                 is_pinned: r.get("is_pinned"),
                 active: r.get("active"),
+                display: r
+                    .try_get::<Option<String>, _>("display")
+                    .ok()
+                    .flatten()
+                    .unwrap_or_default(),
                 created_ts_ms: ts_ms(r.get("created_ts")),
                 updated_ts_ms: updated,
                 deleted_ts_ms: ts_ms_opt(r.get("deleted_ts")),

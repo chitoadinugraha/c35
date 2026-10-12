@@ -20,7 +20,7 @@ pub async fn site_link_list(
     let _ = site_grant_check(pool, caller_iid, req.site_iid, false).await?;
     let rows = sqlx::query(
         r#"
-        SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active,
+        SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active, display,
                created_ts, updated_ts, deleted_ts
         FROM site.link
         WHERE site_iid = $1 AND deleted_ts IS NULL
@@ -48,11 +48,12 @@ pub async fn site_link_upsert(
         r#"
         INSERT INTO site.link (
             site_iid, link_id, owner_iid, sort_order, label, url, icon,
-            is_pinned, active, created_ts, updated_ts
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+            is_pinned, active, display, created_ts, updated_ts
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
         ON CONFLICT (site_iid, link_id) DO UPDATE SET
           sort_order = EXCLUDED.sort_order, label = EXCLUDED.label, url = EXCLUDED.url,
           icon = EXCLUDED.icon, is_pinned = EXCLUDED.is_pinned, active = EXCLUDED.active,
+          display = EXCLUDED.display,
           updated_ts = NOW(), deleted_ts = NULL
         "#,
     )
@@ -65,6 +66,7 @@ pub async fn site_link_upsert(
     .bind(&link.icon)
     .bind(link.is_pinned)
     .bind(link.active)
+    .bind(&link.display)
     .execute(&mut *tx)
     .await?;
     tx.commit().await?;
@@ -111,7 +113,7 @@ pub async fn site_link_delete(
         UPDATE site.link
         SET deleted_ts = NOW(), updated_ts = NOW()
         WHERE site_iid = $1 AND link_id = $2 AND deleted_ts IS NULL
-        RETURNING site_iid, link_id, sort_order, label, url, icon, is_pinned, active,
+        RETURNING site_iid, link_id, sort_order, label, url, icon, is_pinned, active, display,
                   created_ts, updated_ts, deleted_ts
         "#,
     )
@@ -130,7 +132,7 @@ pub async fn site_link_delete(
 pub async fn site_link_boot_rows(pool: &PgPool, site_iid: i64) -> Result<Vec<SiteLink>> {
     let rows = sqlx::query(
         r#"
-        SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active,
+        SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active, display,
                created_ts, updated_ts, deleted_ts
         FROM site.link
         WHERE site_iid = $1 AND deleted_ts IS NULL AND active = TRUE

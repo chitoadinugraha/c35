@@ -27,7 +27,7 @@ pub fn site_editor_warm_product_limit(product_limit: i32) -> i32 {
 async fn link_rows(pool: &PgPool, site_iid: i64) -> Result<Vec<SiteLink>> {
     let rows = sqlx::query(
         r#"
-        SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active,
+        SELECT site_iid, link_id, sort_order, label, url, icon, is_pinned, active, display,
                created_ts, updated_ts, deleted_ts
         FROM site.link
         WHERE site_iid = $1 AND deleted_ts IS NULL
@@ -154,7 +154,10 @@ pub async fn site_editor_warm(
 
     let products_res = products_res?;
     if !products_res.products.is_empty() {
-        let _ = site_draft_ensure_product_grid(pool, caller_iid, site_iid).await;
+        let pool_bg = pool.clone();
+        tokio::spawn(async move {
+            let _ = site_draft_ensure_product_grid(&pool_bg, caller_iid, site_iid).await;
+        });
     }
     Ok(ResSiteEditorWarm {
         links: links?,

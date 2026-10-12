@@ -17,6 +17,7 @@ import 'package:alienai_c35/c/site/design/site_design_resolve.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/site/guest_contact_api.dart';
 import 'package:alienai_c35/c/site/guest_order_api.dart';
+import 'package:alienai_c35/c/site/site_link_display.dart';
 import 'package:alienai_c35/c/site/site_preview_external_url.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
@@ -657,7 +658,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     final rows = _rows.isNotEmpty
         ? _rows
         : List.generate(3, (i) => {'name': 'Item ${i + 1}', 'pic': '', 'price': 0});
-    final display = productGridDisplay(widget.props, meta: widget.catalogMeta);
+    final catalogDisplay = productGridDisplay(widget.props, meta: widget.catalogMeta);
 
     final sectionFg = widget.foreground ?? _guestTextPrimary;
     return Container(
@@ -677,25 +678,35 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
             ),
           ),
           const SizedBox(height: 10),
-          if (display == 'grid')
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 0.56,
-              ),
-              itemCount: rows.length,
-              itemBuilder: (_, i) => _productCard(widget.accent, widget.productDesign, rows[i]),
-            )
-          else
-            for (final p in rows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _productListRow(widget.accent, widget.productDesign, p),
-              ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Phone site preview (~400px): list rows read better than tall 2-col cards (CSA parity).
+              final useList = catalogDisplay == 'list' || constraints.maxWidth < 520;
+              if (useList) {
+                return Column(
+                  children: [
+                    for (final p in rows)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _productListRow(widget.accent, widget.productDesign, p),
+                      ),
+                  ],
+                );
+              }
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.72,
+                ),
+                itemCount: rows.length,
+                itemBuilder: (_, i) => _productCard(widget.accent, widget.productDesign, rows[i]),
+              );
+            },
+          ),
           if (_nextCursor != null && widget.siteIid > 0) ...[
             const SizedBox(height: 12),
             Align(
@@ -774,7 +785,6 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                         width: 56,
                         fit: BoxFit.cover,
                         error: _brokenPicPlaceholder(accent),
-                        onTap: () => unawaited(showGuestSitePicViewer(context, pic)),
                       )
                     : _productThumbPlaceholder(accent, p['icon']?.toString() ?? ''),
               ),
@@ -885,7 +895,6 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                     pic: pic,
                     fit: BoxFit.cover,
                     error: _brokenPicPlaceholder(accent),
-                    onTap: () => unawaited(showGuestSitePicViewer(context, pic)),
                   )
                 else
                   _productThumbPlaceholder(accent, p['icon']?.toString() ?? '', size: double.infinity),
@@ -1159,29 +1168,69 @@ class GuestSiteLinksBlock extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
-          for (final item in items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _linkChrome(
-                bare: bare,
-                child: Row(
-                  children: [
-                    UiSitePlatformIcon(
-                      id: (item['icon']?.toString().trim().isNotEmpty ?? false) ? item['icon']!.toString() : 'website',
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        item['label']?.toString() ?? item['title']?.toString() ?? 'Link',
-                        style: TextStyle(color: fg, fontSize: 14, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final item in items)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _guestLinkTile(item, fg: fg, bare: bare),
                 ),
-              ),
-            ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _guestLinkTile(Map<String, dynamic> item, {required Color fg, required bool bare}) {
+    final mode = siteLinkDisplayNormalize(item['display']?.toString() ?? '');
+    final iconId = (item['icon']?.toString().trim().isNotEmpty ?? false) ? item['icon']!.toString() : 'website';
+    final label = item['label']?.toString() ?? item['title']?.toString() ?? 'Link';
+    final icon = UiSitePlatformIcon(id: iconId, size: mode == siteLinkDisplayIcon ? 24 : 20);
+
+    if (mode == siteLinkDisplayIcon) {
+      return Container(
+        width: 52,
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _guestBorder),
+          color: fg.withValues(alpha: 0.04),
+        ),
+        child: icon,
+      );
+    }
+
+    final row = Row(
+      children: [
+        icon,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(color: fg, fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+
+    if (mode == siteLinkDisplayCard) {
+      return SizedBox(
+        width: double.infinity,
+        child: _linkChrome(bare: bare, child: row),
+      );
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: _guestBorder.withValues(alpha: 0.65))),
+        ),
+        child: row,
       ),
     );
   }

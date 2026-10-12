@@ -345,6 +345,7 @@ const SiteLink$json = {
     {'1': 'icon', '3': 6, '4': 1, '5': 9, '10': 'icon'},
     {'1': 'is_pinned', '3': 7, '4': 1, '5': 8, '10': 'isPinned'},
     {'1': 'active', '3': 8, '4': 1, '5': 8, '10': 'active'},
+    {'1': 'display', '3': 9, '4': 1, '5': 9, '10': 'display'},
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -356,9 +357,10 @@ final $typed_data.Uint8List siteLinkDescriptor = $convert.base64Decode(
     'CghTaXRlTGluaxIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIXCgdsaW5rX2lkGAIgASgDUg'
     'ZsaW5rSWQSHQoKc29ydF9vcmRlchgDIAEoBVIJc29ydE9yZGVyEhQKBWxhYmVsGAQgASgJUgVs'
     'YWJlbBIQCgN1cmwYBSABKAlSA3VybBISCgRpY29uGAYgASgJUgRpY29uEhsKCWlzX3Bpbm5lZB'
-    'gHIAEoCFIIaXNQaW5uZWQSFgoGYWN0aXZlGAggASgIUgZhY3RpdmUSIgoNY3JlYXRlZF90c19t'
-    'cxgUIAEoA1ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1ILdXBkYXRlZFRzTX'
-    'MSIgoNZGVsZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXM=');
+    'gHIAEoCFIIaXNQaW5uZWQSFgoGYWN0aXZlGAggASgIUgZhY3RpdmUSGAoHZGlzcGxheRgJIAEo'
+    'CVIHZGlzcGxheRIiCg1jcmVhdGVkX3RzX21zGBQgASgDUgtjcmVhdGVkVHNNcxIiCg11cGRhdG'
+    'VkX3RzX21zGBUgASgDUgt1cGRhdGVkVHNNcxIiCg1kZWxldGVkX3RzX21zGBYgASgDUgtkZWxl'
+    'dGVkVHNNcw==');
 
 @$core.Deprecated('Use sitePostDescriptor instead')
 const SitePost$json = {

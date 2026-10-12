@@ -804,7 +804,9 @@
     function renderOrderSheetHtml() {
       const p = orderProduct;
       const picUrl = picUrlDisplay(p.pic || '');
-      const pic = picUrl ? '<img class="guest-order-pic" src="' + escHtml(picUrl) + '" alt=""/>' : '<div class="guest-order-pic guest-order-pic-empty">\uD83D\uDECD\uFE0F</div>';
+      const pic = picUrl
+        ? '<img class="guest-order-pic guest-pic-preview" src="' + escHtml(picUrl) + '" alt="" data-pic-display="' + escHtml(picUrl) + '" role="button" tabindex="0"/>'
+        : '<div class="guest-order-pic guest-order-pic-empty">\uD83D\uDECD\uFE0F</div>';
       const desc = p.description ? '<p class="guest-product-desc">' + escHtml(p.description) + '</p>' : '';
       const stock = orderStockMax != null ? '<p class="guest-stock">Stok: ' + orderStockMax + '</p>' : '';
       const err = orderError ? '<p class="guest-error">' + escHtml(orderError) + '</p>' : '';
@@ -1120,15 +1122,6 @@
         document.head.appendChild(st);
       }
       document.addEventListener('click', function (e) {
-        const img = e.target && e.target.closest ? e.target.closest('img.guest-pic-thumb') : null;
-        if (img) {
-          const url = img.getAttribute('data-pic-display') || img.getAttribute('src') || '';
-          if (url) {
-            e.preventDefault();
-            openPicLightbox(url);
-          }
-          return;
-        }
         const infoBtn = e.target && e.target.closest ? e.target.closest('.guest-product-info-btn') : null;
         if (infoBtn) {
           e.preventDefault();
@@ -1137,37 +1130,59 @@
           if (pid) window.location.href = 'products/' + pid;
           return;
         }
-        const tile = e.target && e.target.closest ? e.target.closest('.guest-product-tile') : null;
-        if (!tile || !window.c35GuestCart) return;
-        const pid = parseInt(tile.getAttribute('data-pid') || '0', 10);
-        if (!pid) return;
-        const found = bootProducts().find(function (p) { return Number(p.product_id) === pid; });
-        const price = found ? Math.round(found.price || 0) : parseInt(attrOf(tile, 'data-price') || '0', 10) || 0;
-        const name = found ? (found.name || 'Produk') : (attrOf(tile, 'data-name') || 'Produk');
-        const pic = found ? (found.pic || '') : (attrOf(tile, 'data-pic') || '');
-        const canReserve = found
-          ? (found.can_reserve === true || found.can_reserve === 1)
-          : tile.getAttribute('data-can-reserve') === '1';
-        if (canReserve) {
-          e.preventDefault();
-          const product = found || {
-            product_id: pid,
-            name,
-            price,
-            pic,
-            can_reserve: true,
-            duration_value: parseInt(attrOf(tile, 'data-duration-value') || '1', 10) || 1,
-            duration_unit: attrOf(tile, 'data-duration-unit') || 'day',
-            reservation_unit_selection: attrOf(tile, 'data-unit-selection') || 'system',
-          };
-          if (window.c35GuestReserve) window.c35GuestReserve.open(product);
+        const orderPic = e.target && e.target.closest ? e.target.closest('img.guest-order-pic') : null;
+        if (orderPic) {
+          const url = orderPic.getAttribute('data-pic-display') || orderPic.getAttribute('src') || '';
+          if (url) {
+            e.preventDefault();
+            e.stopPropagation();
+            openPicLightbox(url);
+          }
           return;
         }
-        if (!guestProductCanAddToCart(price)) return;
-        e.preventDefault();
-        const nameJs = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        const picJs = String(pic || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        window.c35GuestCart.add(pid, nameJs, price, picJs);
+        const tile = e.target && e.target.closest ? e.target.closest('.guest-product-tile') : null;
+        if (tile && window.c35GuestCart) {
+          const pid = parseInt(tile.getAttribute('data-pid') || '0', 10);
+          if (!pid) return;
+          const found = bootProducts().find(function (p) { return Number(p.product_id) === pid; });
+          const price = found ? Math.round(found.price || 0) : parseInt(attrOf(tile, 'data-price') || '0', 10) || 0;
+          const name = found ? (found.name || 'Produk') : (attrOf(tile, 'data-name') || 'Produk');
+          const pic = found ? (found.pic || '') : (attrOf(tile, 'data-pic') || '');
+          const canReserve = found
+            ? (found.can_reserve === true || found.can_reserve === 1)
+            : tile.getAttribute('data-can-reserve') === '1';
+          if (canReserve) {
+            e.preventDefault();
+            const product = found || {
+              product_id: pid,
+              name,
+              price,
+              pic,
+              can_reserve: true,
+              duration_value: parseInt(attrOf(tile, 'data-duration-value') || '1', 10) || 1,
+              duration_unit: attrOf(tile, 'data-duration-unit') || 'day',
+              reservation_unit_selection: attrOf(tile, 'data-unit-selection') || 'system',
+            };
+            if (window.c35GuestReserve) window.c35GuestReserve.open(product);
+            return;
+          }
+          if (!guestProductCanAddToCart(price)) return;
+          e.preventDefault();
+          if (!found) {
+            window.c35GuestCart.add(pid, name, price, pic);
+          } else {
+            window.c35GuestCart.openOrder(pid);
+          }
+          return;
+        }
+        const img = e.target && e.target.closest ? e.target.closest('img.guest-pic-thumb') : null;
+        if (img) {
+          const url = img.getAttribute('data-pic-display') || img.getAttribute('src') || '';
+          if (url) {
+            e.preventDefault();
+            openPicLightbox(url);
+          }
+        }
       });
     },
   };

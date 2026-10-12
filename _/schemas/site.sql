@@ -324,6 +324,7 @@ CREATE TABLE IF NOT EXISTS site.link (
     label               TEXT NOT NULL DEFAULT '',
     url                 TEXT NOT NULL DEFAULT '',
     icon                TEXT NOT NULL DEFAULT '',
+    display             TEXT NOT NULL DEFAULT 'list',
     is_pinned           BOOLEAN NOT NULL DEFAULT FALSE,
     active              BOOLEAN NOT NULL DEFAULT TRUE,
 

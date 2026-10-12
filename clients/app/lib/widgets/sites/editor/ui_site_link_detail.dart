@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/site_link_display.dart';
 import 'package:alienai_c35/c/site/site_link_platform.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
@@ -49,7 +50,8 @@ class _UiSiteLinkDetailState extends State<UiSiteLinkDetail> {
     if ('${oldWidget.link.linkId}' != '${widget.link.linkId}' ||
         oldWidget.link.url != widget.link.url ||
         oldWidget.link.icon != widget.link.icon ||
-        oldWidget.link.label != widget.link.label) {
+        oldWidget.link.label != widget.link.label ||
+        oldWidget.link.display != widget.link.display) {
       _syncFromLink();
     }
   }
@@ -169,6 +171,21 @@ class _UiSiteLinkDetailState extends State<UiSiteLinkDetail> {
             ),
           ],
         ),
+        Text(
+          'Display on site',
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: siteEditorFormText,
+              ),
+        ),
+        const SizedBox(height: 8),
+        _SiteLinkDisplayPicker(
+          value: siteLinkDisplayNormalize(link.display),
+          onSelected: widget.busy
+              ? null
+              : (id) => widget.onPatch(_id, (l) => l.display = siteLinkDisplayNormalize(id)),
+        ),
+        const SizedBox(height: 16),
         UiSiteEditorSwitchRow(
           label: 'Pinned',
           value: link.isPinned,
@@ -176,5 +193,107 @@ class _UiSiteLinkDetailState extends State<UiSiteLinkDetail> {
         ),
       ],
     );
+  }
+}
+
+class _SiteLinkDisplayPicker extends StatelessWidget {
+  const _SiteLinkDisplayPicker({required this.value, this.onSelected});
+
+  final String value;
+  final ValueChanged<String>? onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final mode = siteLinkDisplayNormalize(value);
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        for (final (id, label) in siteLinkDisplayOptions)
+          SizedBox(
+            width: 104,
+            child: Material(
+              color: mode == id ? cs.primaryContainer.withValues(alpha: 0.45) : cs.surfaceContainerHighest.withValues(alpha: 0.55),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: mode == id ? cs.primary.withValues(alpha: 0.55) : cs.outlineVariant.withValues(alpha: 0.4),
+                  width: mode == id ? 1.5 : 1,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onSelected == null ? null : () => onSelected!(id),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _SiteLinkDisplaySketch(mode: id, color: cs.onSurface),
+                      const SizedBox(height: 8),
+                      Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              fontWeight: mode == id ? FontWeight.w700 : FontWeight.w500,
+                              color: mode == id ? cs.primary : cs.onSurface,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SiteLinkDisplaySketch extends StatelessWidget {
+  const _SiteLinkDisplaySketch({required this.mode, required this.color});
+
+  final String mode;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = color.withValues(alpha: 0.35);
+    final icon = Container(
+      width: 18,
+      height: 18,
+      decoration: BoxDecoration(color: muted, borderRadius: BorderRadius.circular(4)),
+    );
+    final line = Container(
+      height: 4,
+      margin: const EdgeInsets.only(left: 6),
+      decoration: BoxDecoration(color: muted, borderRadius: BorderRadius.circular(2)),
+    );
+    if (mode == siteLinkDisplayIcon) {
+      return Center(
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            border: Border.all(color: muted),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: icon,
+        ),
+      );
+    }
+    if (mode == siteLinkDisplayCard) {
+      return Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          border: Border.all(color: muted),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(children: [icon, Expanded(child: line)]),
+      );
+    }
+    return Row(children: [icon, Expanded(child: line)]);
   }
 }

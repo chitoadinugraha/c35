@@ -170,7 +170,8 @@ fn block_hero_renders_title_cta() {
         &json!({}),
         None,
     );
-    assert!(html.contains("class=\"block hero\""));
+    assert!(html.contains("class=\"block hub-profile\""));
+    assert!(!html.contains("class=\"block hero\""));
     assert!(html.contains("data-guest=\"hero\""));
     assert!(html.contains("guest-hub-hero"));
     assert!(html.contains("guest-hub-title"));
@@ -403,6 +404,38 @@ fn block_links_renders_items() {
     assert!(html.contains("data-guest=\"link\""));
     assert!(html.contains("Home"));
     assert!(html.contains("https://example.com"));
+}
+
+#[test]
+fn block_links_renders_display_modes() {
+    let list = render_block(
+        "links",
+        &json!({"links": [{"label": "Shop", "url": "https://example.com", "display": "list"}]}),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(list.contains("guest-link-row--list"));
+
+    let icon = render_block(
+        "links",
+        &json!({"links": [{"label": "IG", "url": "https://instagram.com/x", "icon": "instagram", "display": "icon"}]}),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(icon.contains("guest-link-row--icon"));
+    assert!(icon.contains("guest-link-icon"));
+
+    let card = render_block(
+        "links",
+        &json!({"links": [{"label": "Order", "url": "https://example.com/o", "display": "card"}]}),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(card.contains("guest-link-row--card"));
+    assert!(card.contains("guest-link-card"));
 }
 
 #[test]

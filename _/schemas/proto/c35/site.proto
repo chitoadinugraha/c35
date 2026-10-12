@@ -151,6 +151,8 @@ message SiteLink {
   string icon = 6;
   bool is_pinned = 7;
   bool active = 8;
+  // Guest storefront row: list | icon | card
+  string display = 9;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;

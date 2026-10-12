@@ -12,6 +12,7 @@ import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/site/site_commerce_cache.dart';
 import 'package:alienai_c35/c/site/site_commerce_media_prefetch.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/site_link_display.dart';
 import 'package:alienai_c35/c/site/site_link_platform.dart';
 import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:fixnum/fixnum.dart';
@@ -131,7 +132,7 @@ SiteDraft siteCreateDraft({
   final meta = <String, dynamic>{
     if (tagline.isNotEmpty) 'tagline': tagline,
     if (tagline.isNotEmpty) 'seo_desc': tagline,
-    if (commerce) 'catalog_display': 'grid',
+    if (commerce) 'catalog_display': 'list',
   };
   if (commerce) {
     blocks.add(SiteBlock(id: 'product_grid1', type: 'product_grid', propsJson: jsonEncode(const {'filter': 'all'})));
@@ -148,6 +149,15 @@ class SiteApi {
   SiteApi(this.conn);
 
   final ChatConn conn;
+  final _draftGetInflight = <int, Future<ResSiteDraftGet>>{};
+
+  Future<ResSiteDraftGet> _siteDraftGetCoalesced(int siteIid) {
+    final existing = _draftGetInflight[siteIid];
+    if (existing != null) return existing;
+    final fut = conn.siteDraftGet(siteIid);
+    _draftGetInflight[siteIid] = fut;
+    return fut.whenComplete(() => _draftGetInflight.remove(siteIid));
+  }
 
   Future<List<SiteRow>> list({bool archived = false}) => siteListFetch(conn, archived: archived);
 
@@ -238,16 +248,16 @@ class SiteApi {
   }
 
   Future<SiteDraft> draftGet(int siteIid) async {
-    final res = await conn.siteDraftGet(siteIid);
+    final res = await _siteDraftGetCoalesced(siteIid);
     if (!res.hasDraft()) throw 'site draft not found';
     return res.draft;
   }
 
   /// Draft row plus publish status (render_hash parity with server publish).
-  Future<ResSiteDraftGet> draftGetWithPublishStatus(int siteIid) => conn.siteDraftGet(siteIid);
+  Future<ResSiteDraftGet> draftGetWithPublishStatus(int siteIid) => _siteDraftGetCoalesced(siteIid);
 
   Future<bool> draftPublishPending(int siteIid) async {
-    final res = await conn.siteDraftGet(siteIid);
+    final res = await _siteDraftGetCoalesced(siteIid);
     return res.publishPending;
   }
 
@@ -559,7 +569,14 @@ class SiteApi {
   SiteObject objectNew(int siteIid) => SiteObject(siteIid: Int64(siteIid), name: 'New object', isActive: true);
 
   SiteLink linkNew(int siteIid) =>
-      SiteLink(siteIid: Int64(siteIid), label: siteLinkDefaultTitle('website'), icon: 'website', url: '', active: true);
+      SiteLink(
+        siteIid: Int64(siteIid),
+        label: siteLinkDefaultTitle('website'),
+        icon: 'website',
+        url: '',
+        display: siteLinkDisplayList,
+        active: true,
+      );
 
   SiteDomain domainNew(int siteIid) => SiteDomain(siteIid: Int64(siteIid), hostname: 'example.com');
 

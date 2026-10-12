@@ -15,7 +15,9 @@ import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/pos_shortcut_install.dart';
 import 'package:alienai_c35/c/site/site_info_sync.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
+import 'package:alienai_c35/c/ui/ui_error_snackbar.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/io/in_geo_point.dart';
 import 'package:alienai_c35/widgets/io/in_site_schedule.dart';
 import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
@@ -121,7 +123,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
       });
       _pic = widget.row.pic;
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
+      if (mounted) uiShowErrorSnackBar(context, e);
     } finally {
       if (mounted) {
         setState(() => _loading = false);
@@ -385,22 +387,10 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
         suffixIcon: suffixIcon,
       );
 
-  Widget _skeletonField() => Container(
-        height: 48,
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(color: _border.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(8)),
-      );
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return UiSiteEditorFormScroll(
-        children: [
-          const Text('Site info', style: TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 20),
-          for (var i = 0; i < 5; i++) _skeletonField(),
-        ],
-      );
+      return const Center(child: UILoading(message: 'Loading site info'));
     }
     final handle = widget.row.alienId.trim();
     final platformHome = isPlatformSiteAlienId(handle);

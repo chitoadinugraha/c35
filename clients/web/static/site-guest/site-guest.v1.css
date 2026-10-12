@@ -31,7 +31,7 @@ main.wrap.guest-page-main {
 
 .guest-hub-hero {
   text-align: center;
-  padding: 22px 18px;
+  padding: 16px 18px 14px;
   border-bottom: 1px solid color-mix(in srgb, var(--fg, #f4f4f5) 9%, transparent);
   background: linear-gradient(
     180deg,
@@ -133,6 +133,52 @@ main.wrap.guest-page-main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.guest-links-list:has(.guest-link-row--icon) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.guest-link-row--icon {
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.guest-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, var(--muted, #a1a1aa) 22%, transparent);
+  background: color-mix(in srgb, var(--fg, #f4f4f5) 6%, transparent);
+}
+
+.guest-link-icon .guest-link-platform-icon {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.guest-link-row--list .guest-link-list {
+  border: 0;
+  background: transparent;
+  padding: 10px 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted, #a1a1aa) 18%, transparent);
+  border-radius: 0;
+}
+
+.guest-link-row--list:last-child .guest-link-list {
+  border-bottom: 0;
+}
+
+.guest-link-row--card > .card {
+  width: 100%;
 }
 
 .hub-location-label {
@@ -478,6 +524,14 @@ main.wrap.guest-page-main {
   align-items: center;
   justify-content: center;
   font-size: 22px;
+}
+
+img.guest-order-pic.guest-pic-preview {
+  cursor: zoom-in;
+}
+
+.guest-product-tile .guest-pic-thumb {
+  cursor: pointer;
 }
 .guest-order-info {
   flex: 1;

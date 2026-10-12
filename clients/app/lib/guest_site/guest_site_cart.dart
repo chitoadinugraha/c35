@@ -234,6 +234,29 @@ class GuestSiteCartController extends ChangeNotifier {
     } else if (!_paymentMethods.any((m) => m['id']?.toString() == _paymentId)) {
       _paymentId = _paymentMethods.first['id']?.toString() ?? 'cash';
     }
+    _enrichLinesFromCatalog();
+  }
+
+  void _enrichLinesFromCatalog() {
+    if (_catalog.isEmpty) return;
+    for (final entry in _lines.entries.toList()) {
+      final row = _catalog[entry.key];
+      if (row == null) continue;
+      final line = entry.value;
+      final catalogName = row['name']?.toString().trim() ?? '';
+      final catalogPrice = (row['price'] as num?)?.toInt() ?? 0;
+      final staleName = catalogName.isNotEmpty &&
+          (line.name.isEmpty || line.name == 'Product ${line.productId}' || line.name.startsWith('Product '));
+      if (!staleName && (catalogPrice <= 0 || line.price > 0)) continue;
+      _lines[entry.key] = GuestSiteCartLine(
+        productId: line.productId,
+        name: catalogName.isNotEmpty ? catalogName : line.name,
+        price: catalogPrice > 0 ? catalogPrice : line.price,
+        qty: line.qty,
+        note: line.note,
+        slots: line.slots,
+      );
+    }
   }
 
   void setPaymentId(String id) {
@@ -258,6 +281,7 @@ class GuestSiteCartController extends ChangeNotifier {
       _lines
         ..clear()
         ..addAll(guestCartLinesFromJsonMap(map));
+      _enrichLinesFromCatalog();
       notifyListeners();
     } catch (_) {}
   }
@@ -374,6 +398,7 @@ class GuestSiteCartController extends ChangeNotifier {
 
   void pesan() {
     if (count == 0) return;
+    _enrichLinesFromCatalog();
     checkoutError = null;
     _checkoutStep = GuestCheckoutStep.confirm;
     _sheet = GuestSiteCartSheet.checkout;
@@ -672,7 +697,7 @@ class GuestSiteOrderSheet extends StatelessWidget {
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
-                          _orderPic(draft.pic, accent),
+                          _orderPic(context, draft.pic, accent),
                           if (draft.qty > 0)
                             Positioned(
                               top: -6,
@@ -742,12 +767,60 @@ class GuestSiteOrderSheet extends StatelessWidget {
     );
   }
 
-  Widget _orderPic(String pic, Color accent) {
+  Widget _orderPic(BuildContext context, String pic, Color accent) {
     if (pic.isNotEmpty) {
-      return ClipRRect(borderRadius: BorderRadius.circular(14), child: GuestSitePic(pic: pic, width: 52, height: 52, fit: BoxFit.cover));
+      return GestureDetector(
+        onTap: () => unawaited(showGuestSitePicViewer(context, pic)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: GuestSitePic(pic: pic, width: 52, height: 52, fit: BoxFit.cover),
+        ),
+      );
     }
     return Container(width: 52, height: 52, alignment: Alignment.center, decoration: BoxDecoration(color: accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)), child: const Text('\u{1F6CD}', style: TextStyle(fontSize: 22)));
   }
+}
+
+/// CSA `guest-field` — label above bordered input (site-guest.v1.css).
+Widget guestSiteFormField({
+  required String label,
+  required Color labelColor,
+  required Color fg,
+  required Color borderColor,
+  required Widget child,
+}) {
+  return Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(label, style: TextStyle(color: labelColor, fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        child,
+      ],
+    ),
+  );
+}
+
+InputDecoration guestSiteFieldDecoration({
+  required Color fg,
+  required Color fillColor,
+  required Color borderColor,
+  required Color focusColor,
+  String? hintText,
+}) {
+  final radius = BorderRadius.circular(10);
+  return InputDecoration(
+    hintText: hintText,
+    hintStyle: TextStyle(color: borderColor.withValues(alpha: 0.85)),
+    isDense: true,
+    filled: true,
+    fillColor: fillColor,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+    border: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide(color: borderColor)),
+    enabledBorder: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide(color: borderColor)),
+    focusedBorder: OutlineInputBorder(borderRadius: radius, borderSide: BorderSide(color: focusColor, width: 1.5)),
+  );
 }
 
 class GuestSiteCheckoutSheet extends StatefulWidget {
@@ -864,25 +937,61 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
         _checkoutRow('Subtotal', moneyFmtIdr(c.subtotal), muted: true),
         if (c.taxTotal > 0) _checkoutRow('Pajak', moneyFmtIdr(c.taxTotal), muted: true),
         _checkoutRow('Total', moneyFmtIdr(c.total), bold: true),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _name,
-          onChanged: (_) => _syncCheckoutFields(),
-          style: const TextStyle(color: _fg),
-          decoration: const InputDecoration(labelText: 'Nama', labelStyle: TextStyle(color: _muted)),
+        const SizedBox(height: 4),
+        guestSiteFormField(
+          label: 'Nama',
+          labelColor: _muted,
+          fg: _fg,
+          borderColor: _muted.withValues(alpha: 0.45),
+          child: TextField(
+            controller: _name,
+            onChanged: (_) => _syncCheckoutFields(),
+            style: TextStyle(color: _fg, fontSize: 14),
+            decoration: guestSiteFieldDecoration(
+              fg: _fg,
+              fillColor: _fg.withValues(alpha: 0.06),
+              borderColor: _muted.withValues(alpha: 0.45),
+              focusColor: widget.accent,
+              hintText: 'Nama Anda',
+            ),
+          ),
         ),
-        TextField(
-          controller: _phone,
-          onChanged: (_) => _syncCheckoutFields(),
-          style: const TextStyle(color: _fg),
-          decoration: const InputDecoration(labelText: 'HP / WhatsApp', labelStyle: TextStyle(color: _muted)),
+        guestSiteFormField(
+          label: 'HP / WhatsApp',
+          labelColor: _muted,
+          fg: _fg,
+          borderColor: _muted.withValues(alpha: 0.45),
+          child: TextField(
+            controller: _phone,
+            onChanged: (_) => _syncCheckoutFields(),
+            keyboardType: TextInputType.phone,
+            style: TextStyle(color: _fg, fontSize: 14),
+            decoration: guestSiteFieldDecoration(
+              fg: _fg,
+              fillColor: _fg.withValues(alpha: 0.06),
+              borderColor: _muted.withValues(alpha: 0.45),
+              focusColor: widget.accent,
+              hintText: '08...',
+            ),
+          ),
         ),
-        TextField(
-          controller: _note,
-          onChanged: (_) => _syncCheckoutFields(),
-          style: const TextStyle(color: _fg),
-          maxLines: 2,
-          decoration: const InputDecoration(labelText: 'Catatan pesanan', labelStyle: TextStyle(color: _muted)),
+        guestSiteFormField(
+          label: 'Catatan pesanan',
+          labelColor: _muted,
+          fg: _fg,
+          borderColor: _muted.withValues(alpha: 0.45),
+          child: TextField(
+            controller: _note,
+            onChanged: (_) => _syncCheckoutFields(),
+            style: TextStyle(color: _fg, fontSize: 14),
+            maxLines: 2,
+            decoration: guestSiteFieldDecoration(
+              fg: _fg,
+              fillColor: _fg.withValues(alpha: 0.06),
+              borderColor: _muted.withValues(alpha: 0.45),
+              focusColor: widget.accent,
+            ),
+          ),
         ),
         if (c.paymentMethods.isEmpty)
           const Padding(

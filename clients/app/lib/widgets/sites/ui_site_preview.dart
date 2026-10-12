@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/guest_site/guest_site_preview_app.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/guest_site/site_preview_mode.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -172,11 +173,11 @@ class _UiSitePreviewState extends State<UiSitePreview> {
         );
       }
       if (cache?.loading == true && cache?.boot == null) {
-        return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
+        return const Center(child: UILoadingIndicator(size: 28, strokeWidth: 2, color: _muted));
       }
       final boot = _bootFromEditorCache();
       if (boot == null) {
-        return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
+        return const Center(child: UILoadingIndicator(size: 28, strokeWidth: 2, color: _muted));
       }
       final guest = _guestPreviewWidget(boot);
       if (widget.embedded) return _embeddedPreview(child: guest);
@@ -195,7 +196,7 @@ class _UiSitePreviewState extends State<UiSitePreview> {
       );
     }
     if (_loading) {
-      return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
+      return const Center(child: UILoadingIndicator(size: 28, strokeWidth: 2, color: _muted));
     }
     final boot = _boot;
     if (boot == null) {
