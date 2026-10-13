@@ -14,6 +14,8 @@ use crate::prompt_run::{
     prompt_run_insert, prompt_run_job_publish, prompt_run_kind_normalize, prompt_run_summary,
     prompt_run_wait_terminal, PromptRunRow,
 };
+use crate::mention_registry::mention_ref_iid;
+use crate::mention_context::{device_iid_resolve, json_device_iid_field};
 use crate::tool;
 use crate::tools::ToolContext;
 
@@ -44,7 +46,13 @@ pub fn delegate_child_row(
         topic_id: topic_id.to_string(),
         device_iid,
         text: goal.to_string(),
-        mention_ids_json: Json(json!([])),
+        mention_ids_json: Json(if device_iid > 0 {
+            json!([mention_ref_iid(device_iid)])
+        } else if !ctx.mention_ids.is_empty() {
+            json!(ctx.mention_ids.clone())
+        } else {
+            json!([])
+        }),
         tool_mode: "agent".to_string(),
         model: String::new(),
         attachments_json: ctx.attachments_json.clone(),
@@ -98,7 +106,15 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
     let kind_raw = args["kind"].as_str().map(str::trim).unwrap_or("");
     let kind = prompt_run_kind_normalize(kind_raw, topic_id);
     let label = args["label"].as_str().unwrap_or_default().trim();
-    let device_iid = args["device_iid"].as_u64().unwrap_or(0) as i64;
+    let direct = json_device_iid_field(args, "device_iid");
+    let device_iid = if direct > 0
+        || !ctx.mention.devices.is_empty()
+        || ctx.mention_ids.iter().any(|m| m.starts_with("iid:"))
+    {
+        device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct)?
+    } else {
+        0
+    };
 
     let hold_usd = if kind == "computer_use" {
         COMPUTER_USE_HOLD_USD
@@ -148,7 +164,8 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
 }
 
 pub async fn computer_use_delegate_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
-    let device_iid = args["device_iid"].as_i64().unwrap_or(0);
+    let direct = json_device_iid_field(args, "device_iid");
+    let device_iid = device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct)?;
     if device_iid <= 0 {
         bail!("device_iid is required for computer_use.delegate");
     }

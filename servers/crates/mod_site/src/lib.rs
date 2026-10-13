@@ -10,7 +10,7 @@ pub mod grant;
 mod http;
 mod commerce_boot;
 pub mod guest_design;
-mod guest_theme_modernize;
+pub mod guest_theme_modernize;
 mod guest_schedule;
 mod guest_product;
 mod guest_product_display;
@@ -160,6 +160,9 @@ pub use guest_reservation::{
     Availability, FreeObject,
 };
 pub use guest_design::{featured_contacts_load, FeaturedContact, GuestDesign, ProfileDesign};
+pub use guest_theme_modernize::{
+    default_modern_hub_theme, modernize_theme_for_render, GUEST_THEME_RENDER_STYLE_VERSION,
+};
 pub use render::{
     block_html_render, guest_client_script_markup, guest_shell_html, product_card_html,
     ProductGridCtx,

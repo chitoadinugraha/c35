@@ -15,6 +15,7 @@ import 'package:alienai_c35/c/site/design/site_design_models.dart';
 import 'package:alienai_c35/c/site/design/site_design_resolve.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/site/design/site_theme.dart';
+import 'package:alienai_c35/c/site/design/site_theme_modernize.dart';
 import 'package:alienai_c35/widgets/sites/editor/design/in_backdrop.dart';
 import 'package:alienai_c35/widgets/sites/editor/design/in_card_style.dart';
 import 'package:alienai_c35/widgets/sites/editor/design/in_color.dart';
@@ -464,6 +465,14 @@ class _DesignThemeDetail extends StatelessWidget {
           onChanged: onSearch,
         ),
         const SizedBox(height: 10),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton(
+            onPressed: () => draft.modernStorefrontPresetApply(),
+            child: const Text('Modern storefront'),
+          ),
+        ),
+        const SizedBox(height: 12),
         SegmentedButton<bool>(
           segments: [
             ButtonSegment(
@@ -565,6 +574,14 @@ class _DesignCardsDetail extends StatelessWidget {
   Widget build(BuildContext context) => ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              onPressed: () => draft.modernStorefrontPresetApply(),
+              child: const Text('Modern storefront'),
+            ),
+          ),
+          const SizedBox(height: 12),
           Text(
             'site.design.cardsHint'.tr(),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),

@@ -16,6 +16,7 @@ import 'package:alienai_c35/widgets/ai/composer_attachment_history.dart';
 import 'package:alienai_c35/widgets/ai/composer_stage_host.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
+import 'package:alienai_c35/widgets/ai/composer_text_navigation.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_audio_waveform.dart';
 import 'package:alienai_c35/widgets/ai/ui_speak_indicator.dart';
@@ -610,6 +611,20 @@ class _InComposerState extends State<InComposer> {
 
   void _composerMarkTextEdit() => _composerLastEditAttachments = false;
 
+  bool _composerLineNavigationShortcut(KeyDownEvent event) {
+    if (!composerTextLineNavigationKey(event)) return false;
+    final extend = HardwareKeyboard.instance.isShiftPressed;
+    final toLineStart = event.logicalKey == LogicalKeyboardKey.home;
+    final next = composerTextSelectionAfterHorizontalLineMove(
+      selection: _controller.selection,
+      text: _controller.text,
+      toLineStart: toLineStart,
+      extend: extend,
+    );
+    _controller.selection = next;
+    return true;
+  }
+
   bool _composerEditShortcut(KeyDownEvent event) {
     final mod = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
     if (!mod) return false;
@@ -664,6 +679,7 @@ class _InComposerState extends State<InComposer> {
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     if (_composerEditShortcut(event)) return KeyEventResult.handled;
+    if (_composerLineNavigationShortcut(event)) return KeyEventResult.handled;
 
     if (widget.compact) {
       if (event.logicalKey == LogicalKeyboardKey.enter && !HardwareKeyboard.instance.isShiftPressed && _canSubmit) {

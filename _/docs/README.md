@@ -18,6 +18,7 @@ The home page Docs button lists these. A page is added here when the steps are w
 
 | Guide | How |
 |---|---|
+| Refresh your site look | Chat or screen |
 | Create a bot | Ask in chat |
 | Connect WhatsApp or Telegram | On the screen |
 | Edit a product | Chat or screen |

@@ -119,6 +119,14 @@ Web upload does **not** require `DEPLOY_AUTH_TOKEN` (S3 only). Version publish s
 
 Play credentials resolution order: `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` → `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH` → default file above.
 
+### Android R8 (release)
+
+Release builds use **minify + shrinkResources** (`clients/app/android/app/build.gradle.kts`). Do not disable R8 to silence Play **DEX optimization** warnings.
+
+After `flutter build appbundle --release`, upload the deobfuscation file with the same version code:
+
+`clients/app/build/app/outputs/mapping/release/mapping.txt`
+
 **Store listing copy** lives in [`_/deployments/play-store/`](../../_/deployments/play-store/README.md). Push with `dart run deploy_app/play_store_listing_sync.dart` (optional locale arg, default `en-US`).
 
 ---

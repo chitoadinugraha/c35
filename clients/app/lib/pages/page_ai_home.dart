@@ -2150,10 +2150,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     return parts.join('\n\n');
   }
 
-  SlideDeckData? _presentationDeckBeforeMsgIndex(int index, int chatId) {
+  List<SlideDeckData?> _presentationDecksBefore(List<MsgRow> msgs, int chatId) {
+    final out = List<SlideDeckData?>.filled(msgs.length, null, growable: false);
     SlideDeckData? deck;
-    for (var j = 0; j < index; j++) {
-      final row = _store.activeMsgs[j];
+    final themeOverride = SlideDeckThemePrefs.instance.themeFor(chatId);
+    for (var j = 0; j < msgs.length; j++) {
+      out[j] = deck;
+      final row = msgs[j];
       if (row.role != 'assistant') continue;
       for (final b in ChatBlock.decodeList(row.blocksJson)) {
         switch (b.kind) {
@@ -2161,19 +2164,21 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           case 'slide.deck':
           case 'presentation':
             deck = SlideDeckData.fromBlockBody(b.body, deck);
-            if (deck != null) {
-              final themeOverride = SlideDeckThemePrefs.instance.themeFor(chatId);
-              if (themeOverride != null) deck.theme = themeOverride;
-            }
+            if (themeOverride != null) deck.theme = themeOverride;
         }
       }
     }
-    return deck;
+    return out;
   }
 
-  Widget _msgTile(MsgRow m, {required int i, required int count}) {
+  Widget _msgTile(
+    MsgRow m, {
+    required int i,
+    required int count,
+    required int lastAssistantIdx,
+    SlideDeckData? presentationDeckPrior,
+  }) {
     final isUser = m.role == 'user';
-    final lastAssistantIdx = _store.activeMsgs.lastIndexWhere((x) => x.role == 'assistant');
     final liveReqId = _store.promptLiveReqId ?? _store.pendingPromptReqId ?? '';
     final promptingThis = !isUser && _store.promptBusyFor(m.chatId) && m.reqId.isNotEmpty && m.reqId == liveReqId;
     final usageStreaming = !isUser && msgUsageStreaming(busy: _store.promptBusyFor(m.chatId), msgReqId: m.reqId, liveReqId: liveReqId);
@@ -2279,7 +2284,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               msgId: m.id,
               blocks: blocks,
               chatId: m.chatId,
-              presentationDeckPrior: _presentationDeckBeforeMsgIndex(i, m.chatId),
+              presentationDeckPrior: presentationDeckPrior,
               chatConn: _conn,
               consumptionApi: _consumptionApi,
               expenseApi: _expenseApi,
@@ -2444,6 +2449,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           final cid = _store.activeChatId;
           final showThinkingTail = cid != null && _store.promptBusyFor(cid) && !_store.threadPromptLiveVisible(cid);
           final itemCount = msgs.length + (showThinkingTail ? 1 : 0);
+          final lastAssistantIdx = msgs.lastIndexWhere((x) => x.role == 'assistant');
+          final decksBefore = cid == null ? const <SlideDeckData?>[] : _presentationDecksBefore(msgs, cid);
           return Stack(
             children: [
               Positioned.fill(
@@ -2463,7 +2470,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                         onPointerDown: (_) => _menuMsgIndex = i,
                         child: KeyedSubtree(
                           key: ValueKey(msgTileKey(m)),
-                          child: _msgTile(m, i: i, count: msgs.length),
+                          child: _msgTile(
+                            m,
+                            i: i,
+                            count: msgs.length,
+                            lastAssistantIdx: lastAssistantIdx,
+                            presentationDeckPrior: i < decksBefore.length ? decksBefore[i] : null,
+                          ),
                         ),
                       );
                     },

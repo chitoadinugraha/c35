@@ -352,7 +352,10 @@ fn parity_shell_cart_inset_in_css() {
     let css = fs::read_to_string(css_path).expect("site-guest.v1.css");
     assert!(css.contains(".guest-page-main"));
     assert!(css.contains("padding: 0 16px 88px"));
-    assert!(css.contains("max-width: 720px"));
+    assert!(
+        css.contains("max-width: 720px") || css.contains("var(--guest-page-max"),
+        "cart/main width should use guest layout tokens"
+    );
 }
 
 #[test]

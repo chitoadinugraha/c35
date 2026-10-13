@@ -14,6 +14,9 @@ use super::web_grounding::{
     pick_visit_url_for_query, reply_looks_like_web_deferral, reply_looks_like_web_placeholder,
     search_payload, web_grounding_append_user_context,
 };
+use super::computer_use::{
+    reply_looks_like_computer_use_handoff, COMPUTER_USE_CONTINUE_HINT,
+};
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_query_arms_web, catalog_web_after_stock, CatalogWebPhase};
 use crate::chat_title_set;
@@ -698,6 +701,23 @@ pub async fn prompt_cluster_turn(
                 req.force_web_tool_call && reply_looks_like_web_placeholder(&out.text);
             let reject_deferral =
                 req.force_web_tool_call && web_grounded && reply_looks_like_web_deferral(&out.text);
+            let reject_cu_handoff = run_kind == "computer_use"
+                && !wrap
+                && reply_looks_like_computer_use_handoff(&out.text);
+            if reject_cu_handoff {
+                contents.push(json!({
+                    "role": "model",
+                    "parts": [{ "text": out.text }]
+                }));
+                contents.push(json!({
+                    "role": "user",
+                    "parts": [{ "text": COMPUTER_USE_CONTINUE_HINT }]
+                }));
+                if let Some(buf) = delta_buf.as_mut() {
+                    buf.clear();
+                }
+                continue;
+            }
             if !reject_ungrounded && !reject_placeholder && !reject_deferral {
                 if let Some(buf) = delta_buf.as_mut() {
                     for (thought, s) in buf.iter() {

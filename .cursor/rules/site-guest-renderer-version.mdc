@@ -37,7 +37,7 @@ Guest public HTML is cached in `site.render`. **Compiler generation** is tracked
 
 | Field | Location | Meaning |
 |-------|----------|---------|
-| Cluster target | `ai.config` `site.guest_renderer_version` + `GUEST_RENDERER_VERSION` (max) | Current compiler generation (now **1**) |
+| Cluster target | `ai.config` `site.guest_renderer_version` + `GUEST_RENDERER_VERSION` (max) | Current compiler generation (now **4**) |
 | Per site | `site.config.guest_render_version` (**0** default) | Last compile generation for that site |
 
 Published guest HTTP: if `guest_render_version <` cluster target, **first visit** recompiles from active `site.publish.doc_json` (advisory lock per site), upserts `site.render`, sets per-site version. Idle sites stay stale until visited.
@@ -48,5 +48,6 @@ Published guest HTTP: if `guest_render_version <` cluster target, **first visit*
 2. Optionally update `INSERT` seed in `_/schemas/migrations/site_guest_renderer_v1.sql` comment / new migration if ops run SQL manually.
 3. After cluster rollout: `.\_\scripts\deploy\publish_site_guest_renderer_version.ps1` (sets `ai.config` to code constant).
 4. `.\_\scripts\dev\check_site_guest_renderer_version.ps1 -Changed` before merge when guest renderer paths changed.
+5. Optional batch warm after bump: `.\_\scripts\dev\site_guest_render_batch_refresh.ps1 -Ping` (lists stale published sites; HTTP GET triggers lazy `site_guest_render_ensure_current`).
 
 Spec: [`_/specs/site.md`](../../_/specs/site.md) (Publish pipeline).

@@ -316,15 +316,24 @@ pub async fn chat_mention_context_commit(
     Ok(())
 }
 
+/// `ReqPrompt.device_iids` (e.g. computer_use delegate child) must appear in `mention_ids` so compose injects [MENTION TARGETS].
+pub fn sync_device_iids_into_mention_ids(req: &mut ReqPrompt) {
+    for iid in req.device_iids.iter().filter(|i| **i > 0) {
+        let r = mention_ref_iid(*iid);
+        if !req.mention_ids.iter().any(|m| m == &r) {
+            req.mention_ids.push(r);
+        }
+    }
+}
+
 /// When the user has exactly one paired remote device, inject it like a bound chat (no @mention needed).
 pub async fn prompt_single_paired_device_inject(
     pool: &PgPool,
     owner_iid: i64,
     req: &mut ReqPrompt,
 ) -> Result<()> {
-    if !mention_device_iids_from_req(&req.mention_ids).is_empty()
-        || req.device_iids.iter().any(|i| *i > 0)
-    {
+    sync_device_iids_into_mention_ids(req);
+    if !mention_device_iids_from_req(&req.mention_ids).is_empty() {
         return Ok(());
     }
     let ids: Vec<i64> = sqlx::query_scalar(
@@ -397,6 +406,7 @@ pub async fn bound_device_prompt_prepare(
     if !req.device_iids.iter().any(|i| *i == bound) {
         req.device_iids.push(bound);
     }
+    sync_device_iids_into_mention_ids(req);
     Ok(())
 }
 

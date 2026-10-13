@@ -4,6 +4,31 @@ use serde_json::{json, Map, Value};
 
 pub const GUEST_THEME_RENDER_STYLE_VERSION: i32 = 2;
 
+/// Default hub storefront theme for new sites (`site.create` and editor seeds).
+pub fn default_modern_hub_theme(accent: &str) -> Value {
+    json!({
+        "accent": accent,
+        "layout": "hub",
+        "renderStyleVersion": GUEST_THEME_RENDER_STYLE_VERSION,
+        "card": {
+            "id": "elevated",
+            "params": {
+                "radius": 16.0,
+                "shadow": 2.0,
+                "borderWidth": 0.0,
+                "padding": 12.0
+            }
+        },
+        "profile": {
+            "avatarSize": 88.0,
+            "titleFontSize": 22.0,
+            "bioFontSize": 14.0,
+            "titleFontFamily": "Inter"
+        },
+        "product": { "titleTransform": "none" }
+    })
+}
+
 /// Bump visual tokens for legacy mono/light themes so published HTML matches modern guest CSS.
 pub fn modernize_theme_for_render(theme: &Value) -> Value {
     if !theme.is_object() {
@@ -152,6 +177,20 @@ fn bump_f64(map: &mut Map<String, Value>, key: &str, target: f64, legacy_cap: f6
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn default_modern_hub_theme_matches_render_style_version() {
+        let theme = default_modern_hub_theme("#3366FF");
+        assert_eq!(
+            theme.get("renderStyleVersion").and_then(|v| v.as_i64()),
+            Some(2)
+        );
+        assert_eq!(theme.get("accent").and_then(|v| v.as_str()), Some("#3366FF"));
+        assert_eq!(
+            theme.pointer("/card/params/radius").and_then(|v| v.as_f64()),
+            Some(16.0)
+        );
+    }
 
     #[test]
     fn modernize_light_bumps_radius_and_version() {

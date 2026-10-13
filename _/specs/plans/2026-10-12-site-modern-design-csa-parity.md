@@ -18,15 +18,15 @@
 
 Bring `clients/web/index.html` to direct parity with `D:\csa_site_published\public\index.html`.
 
-- [ ] **Track L1: Typography & Starry Backdrop**
+- [x] **Track L1: Typography & Starry Backdrop**
   - Import `Outfit:wght@300;400;600;700` into `clients/web/index.html`.
   - Connect full-bleed 2D canvas stars (`starry-night.js`).
-- [ ] **Track L2: Main Glassmorphic Card & Floating Hero Logo**
+- [x] **Track L2: Main Glassmorphic Card & Floating Hero Logo**
   - Implement `.card` with `background: rgba(20, 21, 28, 0.45)`, `backdrop-filter: blur(20px)`, and `border: 1px solid rgba(255, 255, 255, 0.08)`.
   - Add floating keyframe animation for Alien logo (`float 6s ease-in-out infinite`).
-- [ ] **Track L3: Custom Release & Version Selector Dropdown**
+- [x] **Track L3: Custom Release & Version Selector Dropdown**
   - Implement `#custom-dropdown` with chevron rotation, smooth popover, and option selection matching CSA `index.html`.
-- [ ] **Track L4: Platform Cards Grid (Windows, Android, Web)**
+- [x] **Track L4: Platform Cards Grid (Windows, Android, Web)**
   - Implement responsive 3-column `.platform-grid` with `.card-win`, `.card-android`, and `.card-web`.
   - Add platform-specific glow hovers (`--glow-win`, `--glow-android`, `--glow-web`).
 
@@ -51,10 +51,10 @@ Make product cards, links, and profile headers look modern and identical across 
 
 ## 4. Phase 3 — Sticky Cart & Checkout Bar Polish
 
-- [ ] **Track C1: Modern Floating Cart Summary Bar**
+- [x] **Track C1: Modern Floating Cart Summary Bar**
   - **Flutter (`guest_site_cart.dart` - `GuestSiteCartChrome`)**: Update `guest-cart-bar` with floating elevation, `surfaceContainerHigh` or `#18181B` backdrop, tabular price text, item pill badge, and accent CTA button.
   - **Web (`site-guest.v1.css`)**: Style `.guest-cart-row` and `.guest-cart` with matching padding, rounded pill geometry (`16px`), glass shadow (`0 8px 28px rgba(0,0,0,0.25)`), and smooth slide-up animation.
-- [ ] **Track C2: Order & Reservation Sheets**
+- [x] **Track C2: Order & Reservation Sheets**
   - Ensure slide-in sheets (order note input, quantity counters, slot pickers) have matching rounded corners (`24px` top radius), scrim backdrop blur, and dark surfaces.
 
 ---

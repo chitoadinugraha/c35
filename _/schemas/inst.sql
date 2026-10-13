@@ -205,7 +205,7 @@ Use device_iid from [MENTION TARGETS] (match the device the user named). If seve
 Normal directory paths (e.g. C:\\Users, Desktop) → device.fs.list. Recycle Bin listing (what files are in the bin) → device.fs.list with path recycle bin or Shell:RecycleBinFolder — never shell.run for listing. Empty/clean bin only when the user explicitly asks → shell.run (Clear-RecycleBin -Force). Other Shell: virtual folders → device.fs.list when path matches; else shell.run with quoted -Path. \
 Screen layout, visible UI, or "what is on screen" → device.screenshot. \
 If a tool returns ok=false or empty output, say so plainly — do not invent contents. \
-Multi-step UI automation (click/type flows) is computer_use / delegate — not this topic unless the user explicitly asks to operate the machine.',
+Multi-step UI automation (click/type flows) → follow inst.device.operate (execute on the device); this row is for read-only facts, paths, and single shell launches unless the user only asked to open a URL.',
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
     ARRAY['device.screenshot', 'shell.run', 'device.fs.list', 'device.fs.read'],
@@ -217,6 +217,79 @@ Multi-step UI automation (click/type flows) is computer_use / delegate — not t
     inst = EXCLUDED.inst,
     kind = EXCLUDED.kind,
     topic_id = EXCLUDED.topic_id,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: @device UI operate — click/type/create on the mentioned PC (not handoffs to the user)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.operate',
+    'global',
+    'task',
+    'device',
+    ARRAY['device']::TEXT[],
+    '[DEVICE OPERATE] The user @mentioned a remote desktop and wants you to act on that machine — not read instructions back to them. \
+Use device_iid from [MENTION TARGETS]. If several devices are listed, ask which one before tools. \
+Hop 1 — observe: device.screenshot with som=true, or computer_use.delegate with the full user goal (preferred for multi-step UI such as forms, installers, settings wizards). \
+Act — device.input (clicks, shortcuts, type_text; screenshot_after=true on clicks) or keep delegating until the goal is done. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. \
+Never tell the user to click through the UI themselves unless a tool failed, consent is required, or inst.browser.2fa-style human step applies. \
+When computer_use.delegate returns, report what was accomplished on the device; if the child summary asks the user to click or finish UI steps, do not echo those steps — say automation did not complete the goal yet. \
+Say plainly what you did on the device when finished.',
+    ARRAY[
+        'click',
+        'double-click',
+        'right-click',
+        'fill in',
+        'fill out',
+        'type in',
+        'type text',
+        'drag',
+        'select ',
+        'add field',
+        'with field',
+        'add fields',
+        'rename the',
+        'rename form',
+        'create new form',
+        'create a form',
+        'google form',
+        'buat form',
+        'isi form',
+        'buka dan',
+        'open and create',
+        'install ',
+        'uninstall',
+        'sign in to',
+        'log in to',
+        'settings',
+        'close the window',
+        'minimize',
+        'maximize'
+    ],
+    ARRAY[
+        'tool_include:device.screenshot',
+        'tool_include:device.input',
+        'tool_include:computer_use.delegate',
+        'tool_include:shell.run',
+        'tool_exclude:web.search',
+        'tool_exclude:web.visit',
+        'tool_exclude:web.research'
+    ],
+    ARRAY['device.screenshot', 'device.input', 'computer_use.delegate', 'shell.run'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    155,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
     include_tools = EXCLUDED.include_tools,
     exclude_tools = EXCLUDED.exclude_tools,
     priority = EXCLUDED.priority,
@@ -555,11 +628,12 @@ INSERT INTO ai.inst (
     'global',
     'topic',
     'computer_use',
-    '[COMPUTER USE] Autonomous desktop automation on the target paired device (device_iid). \
-1. Observe first: call device.screenshot with device_iid and som=true. Inspect returned accessibility tree (axtree_text) and numbered element badges to locate UI controls accurately — do not guess coordinates when UI elements are tagged. \
-2. Act stepwise: call device.input with event_type (mouse_click, shortcut, type_text), normalized coords (x, y), and screenshot_after=true on clicks. Prefer keyboard shortcuts (Win+R, Alt+F4, Tab, Enter) to clear blockers and navigate efficiently. \
-3. Verify action: check follow-up screenshot and red marker indicating click location. If the target did not activate or the marker was off-target, recalibrate coords and re-click. \
-4. Goal complete: conclude once the objective is met with a concise confirmation.',
+    '[COMPUTER USE] Autonomous desktop automation on the target paired device (device_iid). The human is not at the keyboard — never ask them to click, tap, type, or finish UI steps. \
+1. Observe first: device.screenshot with som=true; use axtree_text and numbered badges — do not guess coords when elements are tagged. \
+2. Act stepwise: device.input (mouse_click, shortcut, type_text; screenshot_after=true on clicks). shell.run only launches apps/URLs — all editor UI (forms, dialogs, settings) is device.input. \
+3. Verify: follow-up screenshot and click marker; if UI unchanged, retry coords or keyboard (Tab, Enter, Space). \
+4. Finish only when the full goal is done (e.g. form created, title set, every field added). Forbidden final replies: "please click", "you can manually", "once you open", "using the sidebar", or numbered steps for the user. \
+5. Brief confirmation of what you completed on the device.',
     ARRAY[]::TEXT[],
     ARRAY[
         'tool_include:device.screenshot',

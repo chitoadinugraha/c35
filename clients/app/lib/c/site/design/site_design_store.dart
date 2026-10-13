@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/site/design/site_card_style.dart';
 import 'package:alienai_c35/c/site/design/site_color.dart';
 import 'package:alienai_c35/c/site/design/site_design_models.dart';
 import 'package:alienai_c35/c/site/design/site_theme.dart';
+import 'package:alienai_c35/c/site/design/site_theme_modernize.dart';
 
 /// Live design document for the site designer. Persisted inside `theme_json`.
 class SiteDesignStore extends ChangeNotifier {
@@ -23,6 +24,7 @@ class SiteDesignStore extends ChangeNotifier {
     SiteFeaturedStripDraft? clientsDisplay,
     SiteProfileDesignDraft? profileDesign,
     SiteProductDesignDraft? productDesign,
+    this.renderStyleVersion,
   })  : backdrop = backdrop ?? const SiteBackdropDraft(),
         cardStyle = cardStyle ?? const SiteCardStyleDraft(),
         blockDesigns = List.of(blockDesigns ?? const []),
@@ -44,11 +46,24 @@ class SiteDesignStore extends ChangeNotifier {
   SiteProfileDesignDraft profileDesign;
   SiteProductDesignDraft productDesign;
   List<SiteOverlayEffectDraft> overlayEffects;
+  int? renderStyleVersion;
 
   var _themeTouched = false;
 
   void loadTheme(String themeJson, {SiteProductDesignDraft? productFallback}) {
-    final map = _map(themeJson);
+    final map = modernizeThemeForRender(_map(themeJson));
+    _applyThemeFields(map, productFallback: productFallback);
+    _themeTouched = false;
+  }
+
+  void modernStorefrontPresetApply() {
+    final map = Map<String, dynamic>.from(toThemeMap());
+    map.remove('renderStyleVersion');
+    loadTheme(jsonEncode(modernizeThemeForRender(map)), productFallback: productDesign);
+    notifyListeners();
+  }
+
+  void _applyThemeFields(Map<String, dynamic> map, {SiteProductDesignDraft? productFallback}) {
     themeBaseId = (map['base']?.toString().trim().isNotEmpty ?? false) ? map['base'].toString() : 'monochrome';
     themeDark = map['dark'] == true;
     accent = map['accent']?.toString() ?? '';
@@ -62,7 +77,8 @@ class SiteDesignStore extends ChangeNotifier {
     final product = _productFrom(map['product']);
     productDesign = product ?? productFallback ?? const SiteProductDesignDraft();
     overlayEffects = _effectsFrom(map['effects']);
-    _themeTouched = false;
+    final rsv = map['renderStyleVersion'];
+    renderStyleVersion = rsv is num ? rsv.toInt() : null;
   }
 
   Map<String, dynamic> toThemeMap() {
@@ -130,6 +146,7 @@ class SiteDesignStore extends ChangeNotifier {
         for (final e in overlayEffects)
           {'id': e.id, 'presetId': e.presetId, 'params': e.params, 'active': e.active},
       ],
+      if (renderStyleVersion != null) 'renderStyleVersion': renderStyleVersion,
     };
   }
 

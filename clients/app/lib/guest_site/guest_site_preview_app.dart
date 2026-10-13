@@ -5,8 +5,9 @@ import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:flutter/material.dart';
 
 ThemeData _guestSitePreviewTheme(GuestSiteBoot boot) {
-  if (boot.design != null) {
-    return siteThemeMaterial(siteDesignResolve(boot.design!).theme);
+  final renderDesign = boot.designForRender();
+  if (renderDesign != null) {
+    return siteThemeMaterial(siteDesignResolve(renderDesign).theme);
   }
   return siteThemeMaterial(siteThemeResolve('zinc', true).tokens);
 }

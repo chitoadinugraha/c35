@@ -526,7 +526,19 @@ class ChatStore extends ChangeNotifier {
   }
 
   Timer? _msgPersistDebounce;
+  Timer? _notifyDebounce;
   final Set<int> _dirtyMsgChatIds = {};
+
+  void _notifyListenersNow() {
+    _notifyDebounce?.cancel();
+    _notifyDebounce = null;
+    notifyListeners();
+  }
+
+  void _notifyListenersDebounced() {
+    if (_notifyDebounce?.isActive ?? false) return;
+    _notifyDebounce = Timer(const Duration(milliseconds: 64), _notifyListenersNow);
+  }
 
   void _debouncePersistMsgs(int chatId) {
     if (chatId <= 0) return;
@@ -567,11 +579,12 @@ class ChatStore extends ChangeNotifier {
     _msgsSortChat(chatId);
     if (debounce) {
       _debouncePersistMsgs(chatId);
+      _notifyListenersDebounced();
     } else {
       _dirtyMsgChatIds.remove(chatId);
       unawaited(_persistMsgs(chatId));
+      _notifyListenersNow();
     }
-    notifyListeners();
   }
 
   void msgBlockCollapsedPut({required int msgId, required int blockIndex, required bool collapsed}) {

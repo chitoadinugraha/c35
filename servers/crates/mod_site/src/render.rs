@@ -713,13 +713,30 @@ pub fn guest_root_css(design: &GuestDesign) -> String {
         .get("borderOpacity")
         .copied()
         .unwrap_or(0.4);
+    let glass = design.card_id == "glass";
+    let card_padding = design.card_params.get("padding").copied().unwrap_or(12.0);
+    let card_blur = if glass {
+        design.card_params.get("blur").copied().unwrap_or(14.0)
+    } else {
+        design.card_params.get("blur").copied().unwrap_or(0.0)
+    };
+    let card_opacity = if glass {
+        design.card_params.get("opacity").copied().unwrap_or(0.52)
+    } else {
+        design.card_params.get("opacity").copied().unwrap_or(1.0)
+    };
+    let card_tint = design
+        .card_params
+        .get("tintStrength")
+        .copied()
+        .unwrap_or(0.0);
     let font_stack = if design.dark {
         "Outfit, Inter, system-ui, sans-serif"
     } else {
         "Inter, system-ui, sans-serif"
     };
     format!(
-        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};--card-shadow:{card_shadow};--card-border-width:{border_w}px;--card-border-opacity:{border_op};--guest-font:{font_stack};--hub-title-size:{hub_title};--hub-bio-size:{hub_bio};--hub-avatar-size:{hub_avatar};--product-title-size:{product_title};--product-subtitle-size:{product_subtitle};--product-price-size:{product_price};--product-title-transform:{title_transform};}}",
+        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};--card-shadow:{card_shadow};--card-border-width:{border_w}px;--card-border-opacity:{border_op};--card-padding:{card_padding};--card-blur:{card_blur};--card-opacity:{card_opacity};--card-tint-strength:{card_tint};--guest-font:{font_stack};--hub-title-size:{hub_title};--hub-bio-size:{hub_bio};--hub-avatar-size:{hub_avatar};--product-title-size:{product_title};--product-subtitle-size:{product_subtitle};--product-price-size:{product_price};--product-title-transform:{title_transform};}}",
         accent = design.accent,
         page_bg = design.page_bg,
         fg = design.fg,
@@ -730,6 +747,10 @@ pub fn guest_root_css(design: &GuestDesign) -> String {
         card_shadow = card_shadow_css(shadow_level),
         border_w = border_w,
         border_op = border_op,
+        card_padding = css_px(card_padding),
+        card_blur = css_px(card_blur),
+        card_opacity = card_opacity,
+        card_tint = card_tint,
         font_stack = font_stack,
         hub_title = css_px(p.title_font_size),
         hub_bio = css_px(p.bio_font_size),
@@ -774,6 +795,26 @@ fn css_px(n: f64) -> String {
     } else {
         format!("{n}px")
     }
+}
+
+fn guest_card_surface_class(design: &GuestDesign) -> &'static str {
+    if design.card_id == "glass" {
+        " guest-card-glass"
+    } else {
+        ""
+    }
+}
+
+fn links_block_heading(title: &str) -> String {
+    let t = title.trim();
+    if t.is_empty() {
+        return String::new();
+    }
+    let lower = t.to_ascii_lowercase();
+    if lower == "link" || lower == "links" || lower == "tautan" {
+        return String::new();
+    }
+    format!(r#"<h2 class="links-block-title">{}</h2>"#, esc(t))
 }
 
 fn css_align(raw: &str, fallback: &str) -> String {
@@ -1136,11 +1177,7 @@ pub fn block_html_render(
             if lis.is_empty() {
                 return String::new();
             }
-            let heading = if title.is_empty() {
-                String::new()
-            } else {
-                format!(r#"<h2 class="links-block-title">{}</h2>"#, esc(title))
-            };
+            let heading = links_block_heading(title);
             format!(
                 r#"<section class="block links-block" data-guest="link">{heading}<ul class="guest-links-list">{lis}</ul></section>"#,
                 heading = heading,
@@ -1440,6 +1477,7 @@ pub async fn page_html_render(
     } else {
         " guest-tone-light"
     };
+    let card_class = guest_card_surface_class(&design);
     Ok(format!(
         r#"<!DOCTYPE html><html lang="{html_lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}{fonts}<style>
 {root}
@@ -1503,7 +1541,7 @@ body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-fea
 .product-reserve-placeholder{{margin-top:16px;padding:14px;background:var(--card-bg,#fff);border-radius:12px;color:var(--muted,#71717a);font-size:14px;border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent))}}
 .embed iframe{{display:block;border-radius:12px}}
 .md{{line-height:1.6}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}">{image}<main class="wrap guest-page-main">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}{card_class}">{image}<main class="wrap guest-page-main">{body}</main>
 {chrome}
 {client_js}</body></html>"#,
         esc(&doc_title),
@@ -1514,6 +1552,7 @@ body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-fea
         layout_root = layout_root,
         layout = layout,
         tone_class = tone_class,
+        card_class = card_class,
         bd = design.backdrop_id,
         image = image,
         body = body,
@@ -1824,29 +1863,51 @@ async fn guest_storefront_page_html(
     let theme_json = theme_modern.to_string();
     let design = GuestDesign::from_theme_json(&theme_json);
     let root = guest_root_css(&design);
-    let image = page_bg_image_html(&design);
-    let effects = theme_effects(&doc.theme_json);
-    let client_js = guest_client_script_tags(pool, site_iid, &effects).await;
     let site_meta: Value = if doc.meta_json.is_empty() {
         Value::Object(Default::default())
     } else {
         serde_json::from_str(&doc.meta_json).unwrap_or(Value::Object(Default::default()))
     };
+    let i18n = GuestI18n::from_meta(&site_meta);
+    let layout = guest_layout_mode(&site_meta, 0);
+    let page_max = guest_layout_page_max_css(layout);
+    let grid_min = guest_layout_grid_min_css(layout);
+    let layout_root = format!(
+        ":root{{--guest-page-max:{page_max};--guest-grid-min:{grid_min};}}",
+        page_max = page_max,
+        grid_min = grid_min,
+    );
+    let image = page_bg_image_html(&design);
+    let effects = theme_effects(&doc.theme_json);
+    let client_js = guest_client_script_tags(pool, site_iid, &effects).await;
     let identity_pic = site_identity_pic(pool, site_iid).await;
     let favicon_tags = guest_favicon_head_markup(&guest_site_favicon_url(&site_meta, doc, &identity_pic));
+    let tone_class = if design.dark {
+        " guest-tone-dark"
+    } else {
+        " guest-tone-light"
+    };
+    let card_class = guest_card_surface_class(&design);
     Ok(format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}<style>
+        r#"<!DOCTYPE html><html lang="{html_lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}{fonts}<style>
 {root}
+{layout_root}
 {extra}
-body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
-.wrap{{max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
+body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-feature-settings:"liga" 1,"calt" 1;-webkit-font-smoothing:antialiased;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
+.wrap{{max-width:var(--guest-page-max,720px);margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}{card_class}">{image}<main class="wrap guest-page-main">{body}</main>
 {chrome}
 {client_js}</body></html>"#,
         esc(document_title),
+        html_lang = i18n.html_lang(),
         favicon = favicon_tags,
+        fonts = guest_fonts_head_markup(design.dark),
         root = root,
+        layout_root = layout_root,
         extra = GUEST_STOREFRONT_EXTRA_CSS,
+        layout = layout,
+        tone_class = tone_class,
+        card_class = card_class,
         bd = design.backdrop_id,
         image = image,
         body = body,

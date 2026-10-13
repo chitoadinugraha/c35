@@ -39,6 +39,7 @@
   "hero.downloadApp": "Download App",
   "hero.appDesc": "Your main interactive workspace for AI chat, daily routines, and smart bot management.",
   "hero.versionLabel": "Version:",
+  "hero.altDownloads": "More download options",
   "hero.downloadAgent": "Remote Control",
   "hero.agentDesc": "Background node for automated clicks, keyboard input, WebRTC screen streaming, and virtual cloud drive.",
   "hero.winRemoteControl": "Windows",

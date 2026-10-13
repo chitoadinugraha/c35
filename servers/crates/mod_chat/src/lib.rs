@@ -146,6 +146,7 @@ pub use inst_admin::{
 pub use device_som::{mcp_device_som, som_command_invoked, som_command_parse, SOM_SLASH_CMD};
 pub use mcp_agent::{
     mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run,
+    mcp_resolve_chat_id,
     mcp_tool_exec, DEFAULT_DEBUG_OWNER_IID, DEFAULT_TEST_OWNER_IID,
 };
 pub use object_admin::{

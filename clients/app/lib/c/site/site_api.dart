@@ -15,6 +15,7 @@ import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/site/site_link_display.dart';
 import 'package:alienai_c35/c/site/site_link_platform.dart';
 import 'package:alienai_c35/c/site/site_product_json.dart';
+import 'package:alienai_c35/c/site/design/site_theme_modernize.dart';
 import 'package:fixnum/fixnum.dart';
 
 SiteRow siteRowFromIdentity(IdentityListRow row) {
@@ -148,7 +149,7 @@ SiteDraft siteCreateDraft({
   }
   final doc = SiteDoc(
     pages: [SitePage(path: '/', title: name, blocks: blocks)],
-    themeJson: '{"accent":"#2563eb"}',
+    themeJson: siteCreateDefaultThemeJson(),
     metaJson: jsonEncode(meta),
   );
   return SiteDraft(siteIid: siteIid, doc: doc);

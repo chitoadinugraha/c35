@@ -1,8 +1,8 @@
 use anyhow::{anyhow, bail, Result};
 use c35_mod_site::{
-    product_icon_ensure, site_capabilities_get, site_config_put, site_contact_upsert,
-    site_grant_delete, site_grant_put, site_granted_iids, site_grantee_resolve, site_handle_put,
-    site_link_delete, site_link_upsert, site_object_upsert, site_preview_token_issue,
+    default_modern_hub_theme, product_icon_ensure, site_capabilities_get, site_config_put,
+    site_contact_upsert, site_grant_delete, site_grant_put, site_granted_iids, site_grantee_resolve,
+    site_handle_put, site_link_delete, site_link_upsert, site_object_upsert, site_preview_token_issue,
     site_publish_from_draft, site_slug_ensure_unique, site_slug_generate,
 };
 use c35_proto::{
@@ -1799,7 +1799,7 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
                 "id": "links1",
                 "type": "links",
                 "props": {
-                    "title": "Link",
+                    "title": "",
                     "links": []
                 }
             },
@@ -1829,10 +1829,7 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
                 "blocks": blocks
             }
         ],
-        "theme": {
-            "accent": accent_color,
-            "layout": if template.eq_ignore_ascii_case("landing") { "clean" } else { "hub" }
-        },
+        "theme": default_modern_hub_theme(&accent_color),
         "meta": {
             "seo_title": name,
             "seo_desc": tagline

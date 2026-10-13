@@ -11,7 +11,7 @@ use crate::render::{publish_doc_render, render_etag};
 use crate::site_publish::render_bundle_hash;
 
 /// Cluster target generation. Increment by 1 when guest renderer assets change; deploy syncs `ai.config`.
-pub const GUEST_RENDERER_VERSION: i32 = 3;
+pub const GUEST_RENDERER_VERSION: i32 = 4;
 
 pub const GUEST_RENDERER_CONFIG_KEY: &str = "site.guest_renderer_version";
 

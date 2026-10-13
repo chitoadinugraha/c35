@@ -545,7 +545,33 @@ async fn process_prompt_job(
                 let is_cancel = cancel.is_cancelled() || e.to_string().contains("aborted");
                 let err_msg = e.to_string();
                 let (status, fail_class, fail_reason) = if is_cancel {
-                    ("cancelled", "cancel", "user abort".to_string())
+                    let auto_reason = prompt_run_get(&pool, &req_id)
+                        .await
+                        .ok()
+                        .flatten()
+                        .and_then(|row| {
+                            row.checkpoint_json
+                                .0
+                                .get("fail_class")
+                                .and_then(|v| v.as_str())
+                                .filter(|s| s.starts_with("fatal_"))
+                                .map(|fc| {
+                                    row.checkpoint_json
+                                        .0
+                                        .get("fail_reason")
+                                        .and_then(|v| v.as_str())
+                                        .filter(|s| !s.is_empty())
+                                        .map(|s| s.to_string())
+                                        .unwrap_or_else(|| format!("automation stopped ({fc})"))
+                                })
+                        });
+                    if let Some(reason) = auto_reason {
+                        ("failed", "fatal_tool", reason)
+                    } else if prompt_run_is_cancelled(&pool, &req_id).await.unwrap_or(false) {
+                        ("cancelled", "cancel", "user abort".to_string())
+                    } else {
+                        ("cancelled", "cancel", "automation aborted".to_string())
+                    }
                 } else {
                     ("failed", "transient", err_msg)
                 };

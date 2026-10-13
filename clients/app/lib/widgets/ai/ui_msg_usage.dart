@@ -168,9 +168,15 @@ class _UiMsgUsageWithTraceState extends State<UiMsgUsageWithTrace> {
   MsgRow? _enriched;
   StreamSubscription<String>? _traceSub;
 
+  bool _traceBackfillWanted() {
+    if (widget.alwaysShow) return true;
+    return PromptUsagePrefs.instance.showUsageStats;
+  }
+
   @override
   void initState() {
     super.initState();
+    if (!_traceBackfillWanted()) return;
     _traceSub = widget.conn.onTraceCachePut.listen((reqId) {
       if (reqId == widget.msg.reqId.trim()) _applyFromCache();
     });
@@ -180,6 +186,7 @@ class _UiMsgUsageWithTraceState extends State<UiMsgUsageWithTrace> {
   @override
   void didUpdateWidget(covariant UiMsgUsageWithTrace oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!_traceBackfillWanted()) return;
     if (oldWidget.msg.id != widget.msg.id || oldWidget.msg.reqId != widget.msg.reqId) {
       _enriched = null;
       unawaited(_loadTrace());
@@ -211,6 +218,7 @@ class _UiMsgUsageWithTraceState extends State<UiMsgUsageWithTrace> {
       );
 
   Future<void> _loadTrace() async {
+    if (!_traceBackfillWanted()) return;
     final m = widget.msg;
     if (m.reqId.trim().isEmpty || m.role != 'assistant') return;
     final stats = msgUsageStats(m);

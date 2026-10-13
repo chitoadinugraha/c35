@@ -96,14 +96,19 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
       };
 
   void _syncPoll() {
-    final needsPoll = widget.live || _view == null || _partEmpty(_view!);
+    if (!widget.live) {
+      _poll?.cancel();
+      _poll = null;
+      return;
+    }
+    final needsPoll = _view == null || _partEmpty(_view!);
     if (!needsPoll) {
       _poll?.cancel();
       _poll = null;
       return;
     }
     if (_poll != null) return;
-    if (widget.live) _idlePollTicks = 0;
+    _idlePollTicks = 0;
     _poll = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (!widget.live) _idlePollTicks++;
       unawaited(_load());
@@ -114,13 +119,19 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
     });
   }
 
+  bool _prefetchEnabled() {
+    if (widget.live) return true;
+    if (widget.part == MsgTracePart.citations) return false;
+    return PromptUsagePrefs.instance.showUsageStats;
+  }
+
   Future<void> _load() async {
     final reqId = widget.reqId.trim();
     if (reqId.isEmpty) return;
     var view = msgTraceViewForReq(widget.conn, reqId: reqId);
     final cacheEmpty = view.isEmpty;
     final partMissing = _partEmpty(view);
-    final needsFetch = cacheEmpty || (widget.live && partMissing);
+    final needsFetch = _prefetchEnabled() && (cacheEmpty || (widget.live && partMissing));
     if (needsFetch) {
       if (mounted && !_loading) setState(() => _loading = true);
       await widget.conn.tracePrefetch(reqId, force: cacheEmpty);

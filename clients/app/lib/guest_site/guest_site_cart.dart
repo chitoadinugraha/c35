@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:alienai_c35/c/site/guest_order_api.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
@@ -662,6 +663,109 @@ class GuestSiteCartScope extends InheritedNotifier<GuestSiteCartController> {
       context.dependOnInheritedWidgetOfExactType<GuestSiteCartScope>()?.notifier;
 }
 
+Color _guestCartBarFill(BuildContext context) {
+  final scheme = Theme.of(context).colorScheme;
+  return Theme.of(context).brightness == Brightness.dark ? const Color(0xFF18181B) : scheme.surfaceContainerHigh;
+}
+
+/// CSA guest sheet — blurred scrim + slide-up panel (site-guest.v1.css).
+Widget _guestCartBarInner({
+  required BuildContext context,
+  required Color onBar,
+  required Color mutedOnBar,
+  required Color accent,
+  required GuestSiteCartController controller,
+}) {
+  final content = Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    child: Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                moneyFmtIdr(controller.total),
+                style: TextStyle(
+                  color: onBar,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              const SizedBox(height: 2),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${controller.count} item',
+                  style: TextStyle(
+                    color: mutedOnBar,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        FilledButton(
+          key: const Key('guest-cart-pesan'),
+          style: FilledButton.styleFrom(
+            backgroundColor: accent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: controller.pesan,
+          child: const Text('Pesan', style: TextStyle(fontWeight: FontWeight.w700)),
+        ),
+      ],
+    ),
+  );
+  if (Theme.of(context).brightness == Brightness.dark) {
+    return BackdropFilter(filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14), child: content);
+  }
+  return content;
+}
+
+class GuestSiteCommerceSheetHost extends StatelessWidget {
+  const GuestSiteCommerceSheetHost({super.key, required this.panel});
+
+  final Widget panel;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Colors.transparent,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: const ColoredBox(color: Color(0x73000000)),
+              ),
+            ),
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 1, end: 0),
+              duration: const Duration(milliseconds: 340),
+              curve: Curves.easeOutCubic,
+              builder: (context, slide, child) => Transform.translate(
+                offset: Offset(0, 20 * slide),
+                child: Opacity(opacity: 1 - slide * 0.25, child: child),
+              ),
+              child: Align(alignment: Alignment.bottomCenter, child: panel),
+            ),
+          ],
+        ),
+      );
+}
+
 class GuestSiteCartChrome extends StatelessWidget {
   const GuestSiteCartChrome({super.key, required this.controller, required this.accent, required this.child});
 
@@ -670,7 +774,12 @@ class GuestSiteCartChrome extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
+  Widget build(BuildContext context) {
+    final barFill = _guestCartBarFill(context);
+    final onBar = Theme.of(context).brightness == Brightness.dark ? const Color(0xFFF4F4F5) : Theme.of(context).colorScheme.onSurface;
+    final mutedOnBar = Theme.of(context).brightness == Brightness.dark ? const Color(0xFFA1A1AA) : Theme.of(context).colorScheme.onSurfaceVariant;
+
+    return ListenableBuilder(
         listenable: controller,
         builder: (context, _) => Stack(
           children: [
@@ -681,56 +790,33 @@ class GuestSiteCartChrome extends StatelessWidget {
                 left: 12,
                 right: 12,
                 bottom: 12,
-                child: Material(
-                  key: const Key('guest-cart-bar'),
-                  color: const Color(0xFF18181B),
-                  elevation: 8,
-                  shadowColor: Colors.black.withValues(alpha: 0.35),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey<int>(controller.count),
+                  tween: Tween(begin: 1, end: 0),
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, slide, child) => Transform.translate(
+                    offset: Offset(0, 18 * slide),
+                    child: Opacity(opacity: 1 - slide * 0.2, child: child),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                moneyFmtIdr(controller.total),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 16,
-                                  fontFeatures: [FontFeature.tabularFigures()],
-                                ),
-                              ),
-                              Text(
-                                '${controller.count} item',
-                                style: const TextStyle(
-                                  color: Color(0xFFA1A1AA),
-                                  fontSize: 12,
-                                  fontFeatures: [FontFeature.tabularFigures()],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        FilledButton(
-                          key: const Key('guest-cart-pesan'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: accent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: controller.pesan,
-                          child: const Text('Pesan', style: TextStyle(fontWeight: FontWeight.w700)),
-                        ),
-                      ],
+                  child: Material(
+                    key: const Key('guest-cart-bar'),
+                    color: barFill.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.92 : 1),
+                    elevation: 8,
+                    shadowColor: Colors.black.withValues(alpha: 0.28),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: onBar.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.08 : 0.12),
+                      ),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _guestCartBarInner(
+                      context: context,
+                      onBar: onBar,
+                      mutedOnBar: mutedOnBar,
+                      accent: accent,
+                      controller: controller,
                     ),
                   ),
                 ),
@@ -748,6 +834,7 @@ class GuestSiteCartChrome extends StatelessWidget {
           ],
         ),
       );
+  }
 }
 
 class GuestSiteOrderSheet extends StatelessWidget {
@@ -774,22 +861,19 @@ class GuestSiteOrderSheet extends StatelessWidget {
     if (draft == null) return const SizedBox.shrink();
     final lineTotal = draft.price * draft.qty;
     final primary = draft.qty > 0 ? 'Pesan ${draft.qty} item · Rp $lineTotal' : 'Batalkan';
-    return Material(
-      color: Colors.black54,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 480),
-          decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2))),
+    return GuestSiteCommerceSheetHost(
+      panel: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 480),
+        decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2))),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -873,7 +957,6 @@ class GuestSiteOrderSheet extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -1149,7 +1232,14 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
               ],
             ),
           ),
-          Text(moneyFmtIdr(l.lineTotal), style: const TextStyle(color: _fg, fontWeight: FontWeight.w700)),
+          Text(
+            moneyFmtIdr(l.lineTotal),
+            style: const TextStyle(
+              color: _fg,
+              fontWeight: FontWeight.w700,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
         ],
       ),
     );
@@ -1161,7 +1251,14 @@ class _GuestSiteCheckoutSheetState extends State<GuestSiteCheckoutSheet> {
       child: Row(
         children: [
           Expanded(child: Text(label, style: TextStyle(color: muted ? _muted : _fg, fontWeight: bold ? FontWeight.w800 : FontWeight.w500))),
-          Text(value, style: TextStyle(color: _fg, fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
+          Text(
+            value,
+            style: TextStyle(
+              color: _fg,
+              fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
         ],
       ),
     );
@@ -1295,50 +1392,46 @@ class GuestSiteCheckoutSheetPanel extends StatelessWidget {
   final VoidCallback onClose;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: Colors.black54,
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxWidth: 480, maxHeight: 560),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
-                    ),
-                    Row(
-                      children: [
-                        SizedBox(
-                          width: 40,
-                          child: onBack != null
-                              ? IconButton(onPressed: onBack, icon: Icon(Icons.arrow_back, color: fg))
-                              : const SizedBox.shrink(),
-                        ),
-                        Expanded(
-                          child: Text(title, textAlign: TextAlign.center, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 17)),
-                        ),
-                        IconButton(onPressed: onClose, icon: Icon(Icons.close, color: muted)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(child: SingleChildScrollView(child: body)),
-                    const SizedBox(height: 12),
-                    footer,
-                  ],
-                ),
+  Widget build(BuildContext context) => GuestSiteCommerceSheetHost(
+        panel: Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 560),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
+                  ),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 40,
+                        child: onBack != null
+                            ? IconButton(onPressed: onBack, icon: Icon(Icons.arrow_back, color: fg))
+                            : const SizedBox.shrink(),
+                      ),
+                      Expanded(
+                        child: Text(title, textAlign: TextAlign.center, style: TextStyle(color: fg, fontWeight: FontWeight.w800, fontSize: 17)),
+                      ),
+                      IconButton(onPressed: onClose, icon: Icon(Icons.close, color: muted)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(child: SingleChildScrollView(child: body)),
+                  const SizedBox(height: 12),
+                  footer,
+                ],
               ),
             ),
           ),

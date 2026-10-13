@@ -384,10 +384,10 @@ site.draft.doc_json
 
 | Store | Key / column | Role |
 |-------|----------------|------|
-| Cluster | `ai.config` `site.guest_renderer_version` `{"version":N}` | Target compile generation (`GUEST_RENDERER_VERSION` in code, now **1**) |
+| Cluster | `ai.config` `site.guest_renderer_version` `{"version":N}` | Target compile generation (`GUEST_RENDERER_VERSION` in code, now **4**) |
 | Per site | `site.config.guest_render_version` (**0** default) | Generation used for last `site.render` compile |
 
-Bump **`GUEST_RENDERER_VERSION` by +1** only when guest HTML/JS compile output changes (`mod_site` render/boot, `clients/web/static/site-guest/*`). After cluster deploy: `.\_\scripts\deploy\publish_site_guest_renderer_version.ps1`. Sites with `guest_render_version < N` **recompile on first published guest visit** (lazy; advisory lock per site). Owner **Publish** sets per-site version to the current cluster target.
+Bump **`GUEST_RENDERER_VERSION` by +1** only when guest HTML/JS compile output changes (`mod_site` render/boot, `clients/web/static/site-guest/*`). After cluster deploy: `.\_\scripts\deploy\publish_site_guest_renderer_version.ps1`. Sites with `guest_render_version < N` **recompile on first published guest visit** (lazy; advisory lock per site). Owner **Publish** sets per-site version to the current cluster target. Ops can list or warm many sites: `.\_\scripts\dev\site_guest_render_batch_refresh.ps1` (`-ListOnly`, `-Ping`).
 
 Cursor rule: [`.cursor/rules/site-guest-renderer-version.mdc`](../.cursor/rules/site-guest-renderer-version.mdc).
 

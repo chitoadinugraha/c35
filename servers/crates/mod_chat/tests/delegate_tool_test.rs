@@ -80,6 +80,26 @@ async fn delegate_child_row_links_parent_and_budget() {
 }
 
 #[test]
+fn delegate_child_row_sets_mention_for_device_iid() {
+    let pool = PgPool::connect_lazy("postgres://unused").expect("lazy pool");
+    let ctx = test_tool_ctx(pool, "parent-req-1");
+    let row = delegate_child_row(
+        "child-req-2",
+        "parent-req-1",
+        &ctx,
+        "computer_use",
+        "Open Chrome",
+        "computer_use",
+        "Chrome",
+        98063412749627392,
+    );
+    assert_eq!(row.device_iid, 98063412749627392);
+    let mentions = row.mention_ids_json.0.as_array().expect("mention array");
+    assert_eq!(mentions.len(), 1);
+    assert_eq!(mentions[0].as_str(), Some("iid:98063412749627392"));
+}
+
+#[test]
 fn delegate_result_json_shape() {
     let child = PromptRunRow {
         req_id: "child-1".into(),

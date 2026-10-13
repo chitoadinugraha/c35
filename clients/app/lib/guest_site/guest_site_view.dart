@@ -173,7 +173,8 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
       );
     }
 
-    final resolved = boot.design == null ? null : siteDesignResolve(boot.design!);
+    final renderDesign = boot.designForRender();
+    final resolved = renderDesign == null ? null : siteDesignResolve(renderDesign);
     // Minimal theme JSON (accent only) still uses a light storefront canvas on web.
     final fg = resolved?.fg ?? const Color(0xFF18181B);
     final muted = resolved?.muted ?? const Color(0xFF71717A);
@@ -195,7 +196,7 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
             openHours: openHours,
             suppressHoursBlock: hubShowsHours,
             siteAvatar: boot.avatarUrl,
-            design: boot.design,
+            design: renderDesign,
             featuredContacts: boot.featuredContacts,
             catalogMeta: boot.meta,
             foreground: fg,

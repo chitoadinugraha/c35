@@ -107,6 +107,15 @@ class GuestSiteBoot {
     );
   }
 
+  /// Theme-only boots: synthesize a design store from modernized `theme` (parity with web render).
+  SiteDesignStore? designForRender() {
+    if (design != null) return design;
+    if (theme.isEmpty) return null;
+    final store = SiteDesignStore();
+    store.loadTheme(jsonEncode(theme), productFallback: productDesign);
+    return store;
+  }
+
   bool get commerceEnabled {
     if (capabilities['commerce'] != true) return false;
     return commerceBoot.enabled;

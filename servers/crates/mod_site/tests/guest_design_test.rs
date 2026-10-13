@@ -81,8 +81,8 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
         }),
     );
     assert!(
-        profile.contains("guest-hub-hours-chip"),
-        "hub hours chip from meta.open_hours: {profile}"
+        profile.contains("guest-hub-hours-primary") || profile.contains("guest-hub-hours-chip"),
+        "hub hours CTA from meta.open_hours: {profile}"
     );
     let links = block_html_render(
         "links",
@@ -212,6 +212,10 @@ fn guest_root_css_includes_typography_tokens() {
     assert!(css.contains("--product-price-size:"));
     assert!(css.contains("--card-shadow:"));
     assert!(css.contains("--product-title-transform:"));
+    assert!(css.contains("--card-padding:"));
+    assert!(css.contains("--card-blur:"));
+    assert!(css.contains("--card-opacity:"));
+    assert!(css.contains("--card-tint-strength:"));
 }
 
 #[test]
@@ -263,7 +267,11 @@ fn guest_design_boot_json_fields() {
     assert_eq!(boot["design"]["base"], "rosegold");
     assert_eq!(boot["design"]["page_bg"], "#111111");
     assert_eq!(boot["design"]["backdrop_id"], "glow");
-    assert_eq!(boot["design"]["card"]["id"], "solid");
+    assert_eq!(boot["design"]["card"]["id"], "glass");
+    assert_eq!(
+        boot["theme"].get("renderStyleVersion").and_then(|v| v.as_i64()),
+        Some(2)
+    );
     assert_eq!(boot["design"]["profile"]["showAvatar"], false);
     assert_eq!(boot["design"]["profile"]["showTitle"], true);
     assert_eq!(boot["design"]["product"]["titleFontSize"].as_f64(), Some(22.0));

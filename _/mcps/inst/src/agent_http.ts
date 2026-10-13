@@ -63,9 +63,16 @@ export const registerAgentTools = (server: McpServer) => {
     "prompt_run",
     {
       description:
-        "Run full prompt turn via server_ai. Returns assistant text, blocks, and full ai.log trace.",
+        "Run full prompt turn via server_ai. Returns assistant text, blocks, and full ai.log trace. Omit chat_id to continue the app-focused or most recent thread (avoids duplicate sidebar chats).",
       inputSchema: {
         text: z.string().describe("User prompt text"),
+        chat_id: z
+          .number()
+          .int()
+          .optional()
+          .describe(
+            "Existing prompt chat id. Omit to reuse focused/recent thread; response includes chat_id for the next turn.",
+          ),
         locale: z.string().optional().describe("Locale (default id-ID or en-US)"),
         mention_ids: z
           .array(z.string())
@@ -74,12 +81,18 @@ export const registerAgentTools = (server: McpServer) => {
         ...ownerSchema,
       },
     },
-    async ({ text, locale, mention_ids, owner_iid, uid }) => {
+    async ({ text, chat_id, locale, mention_ids, owner_iid, uid }) => {
       const prompt = text.trim();
       if (!prompt) throw new Error("text required");
+      const body: Record<string, unknown> = {
+        text: prompt,
+        locale: locale ?? "en-US",
+        mention_ids: mention_ids ?? [],
+      };
+      if (chat_id != null && chat_id > 0) body.chat_id = chat_id;
       const result = await agentPost(
         "prompt_run",
-        { text: prompt, locale: locale ?? "en-US", mention_ids: mention_ids ?? [] },
+        body,
         resolveOwnerIid(owner_iid, uid),
       );
       if (result.ok === false && (result.status === 404 || String(result.error ?? "").includes("not found"))) {

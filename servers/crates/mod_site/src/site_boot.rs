@@ -62,7 +62,8 @@ pub fn site_boot_json_assemble(
     posts_preload: &[Value],
     featured_contacts: &[FeaturedContact],
 ) -> Value {
-    let theme = doc_json.get("theme").cloned().unwrap_or_else(|| json!({}));
+    let theme_raw = doc_json.get("theme").cloned().unwrap_or_else(|| json!({}));
+    let theme = crate::guest_theme_modernize::modernize_theme_for_render(&theme_raw);
     let design = GuestDesign::from_value(&theme).to_value();
     let meta = doc_json.get("meta").cloned().unwrap_or_else(|| json!({}));
     let knowledge = meta.get("knowledge").cloned().unwrap_or_else(|| json!([]));

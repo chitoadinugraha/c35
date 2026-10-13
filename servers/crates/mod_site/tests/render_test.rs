@@ -413,6 +413,30 @@ fn block_links_renders_items() {
     assert!(html.contains("data-guest=\"link\""));
     assert!(html.contains("Home"));
     assert!(html.contains("https://example.com"));
+    assert!(!html.contains("links-block-title"));
+}
+
+#[test]
+fn block_links_omits_generic_title_heading() {
+    for title in ["Link", "links", "TAUTAN", ""] {
+        let html = render_block(
+            "links",
+            &json!({"links": [{"label": "X", "url": "https://example.com"}], "title": title}),
+            &[],
+            &json!({}),
+            None,
+        );
+        assert!(!html.contains("links-block-title"));
+    }
+    let custom = render_block(
+        "links",
+        &json!({"links": [{"label": "X", "url": "https://example.com"}], "title": "Follow"}),
+        &[],
+        &json!({}),
+        None,
+    );
+    assert!(custom.contains("links-block-title"));
+    assert!(custom.contains("Follow"));
 }
 
 #[test]

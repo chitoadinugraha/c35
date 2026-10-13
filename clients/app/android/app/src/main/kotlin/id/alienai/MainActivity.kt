@@ -3,6 +3,7 @@ package id.alienai
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.net.Uri
@@ -161,19 +162,78 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun shortcutIcon(iconPath: String?, iconPng: ByteArray?): Icon {
+        val maxPx = maxShortcutIconPx()
         if (!iconPath.isNullOrEmpty()) {
-            val fromFile = BitmapFactory.decodeFile(iconPath)
+            val fromFile = decodeSampledBitmapFile(iconPath, maxPx)
             if (fromFile != null) {
                 return Icon.createWithBitmap(fromFile)
             }
         }
         if (iconPng != null && iconPng.isNotEmpty()) {
-            val bmp = BitmapFactory.decodeByteArray(iconPng, 0, iconPng.size)
+            val bmp = decodeSampledBitmap(iconPng, maxPx)
             if (bmp != null) {
                 return Icon.createWithBitmap(bmp)
             }
         }
         return Icon.createWithResource(this, R.mipmap.ic_launcher)
+    }
+
+    private fun maxShortcutIconPx(): Int {
+        val dm = resources.displayMetrics
+        return (108f * dm.density).toInt().coerceAtLeast(96)
+    }
+
+    private fun decodeSampledBitmap(bytes: ByteArray, maxPx: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = calculateInSampleSize(bounds, maxPx, maxPx)
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)?.let {
+            scaleDownIfNeeded(it, maxPx)
+        }
+    }
+
+    private fun decodeSampledBitmapFile(path: String, maxPx: Int): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val opts = BitmapFactory.Options().apply {
+            inSampleSize = calculateInSampleSize(bounds, maxPx, maxPx)
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return BitmapFactory.decodeFile(path, opts)?.let { scaleDownIfNeeded(it, maxPx) }
+    }
+
+    private fun calculateInSampleSize(
+        options: BitmapFactory.Options,
+        reqWidth: Int,
+        reqHeight: Int,
+    ): Int {
+        val height = options.outHeight
+        val width = options.outWidth
+        var inSampleSize = 1
+        if (height > reqHeight || width > reqWidth) {
+            var halfHeight = height / 2
+            var halfWidth = width / 2
+            while (halfHeight / inSampleSize >= reqHeight && halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize.coerceAtLeast(1)
+    }
+
+    private fun scaleDownIfNeeded(source: Bitmap, maxPx: Int): Bitmap {
+        val maxEdge = maxOf(source.width, source.height)
+        if (maxEdge <= maxPx) return source
+        val scale = maxPx.toFloat() / maxEdge
+        val w = (source.width * scale).toInt().coerceAtLeast(1)
+        val h = (source.height * scale).toInt().coerceAtLeast(1)
+        val scaled = Bitmap.createScaledBitmap(source, w, h, true)
+        if (scaled != source) source.recycle()
+        return scaled
     }
 
     /** Flutter may send [Uint8List] as [ByteArray] or as [List] of ints (0-255). */

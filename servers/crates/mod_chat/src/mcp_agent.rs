@@ -18,12 +18,13 @@ use crate::mention_context::{mention_context_build, MentionContext};
 use crate::mention_registry::{
     mention_active_topics, mention_ref_parse, mention_resolve_all, MentionRef,
 };
+use anyhow::Result;
 use crate::mention_tool_registry::mention_force_tools;
 use crate::prompt::time::user_asks_time;
 use crate::prompt::tool_loop::user_wants_search;
 use crate::prompt_run::prompt_run_concurrency_acquire;
 use crate::owner_session::{
-    owner_session_prepare_prompt_turn, owner_session_wait_owner_bundle_traced,
+    owner_session_get, owner_session_prepare_prompt_turn, owner_session_wait_owner_bundle_traced,
     session_owner_bundle_wait_mcp_ms,
 };
 use crate::prompt_turn::{prompt_turn, PromptTurnHooks};
@@ -290,6 +291,119 @@ async fn mcp_compose_for_mentions(
     (composed, active_topics)
 }
 
+fn mcp_device_iids_from_mentions(mention_ids: &[String]) -> Vec<i64> {
+    let mut out = Vec::new();
+    for raw in mention_ids {
+        if let Some(MentionRef::Iid(iid)) = mention_ref_parse(raw) {
+            out.push(iid);
+        }
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+async fn mcp_chat_owned(pool: &PgPool, owner_iid: i64, chat_id: i64) -> bool {
+    if chat_id <= 0 {
+        return false;
+    }
+    sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT id FROM ai.chat
+        WHERE id = $1 AND owner_iid = $2 AND kind = 'prompt' AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(chat_id)
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .is_some()
+}
+
+async fn mcp_recent_chat_for_device(pool: &PgPool, owner_iid: i64, device_iid: i64) -> Option<i64> {
+    sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT c.id
+        FROM ai.chat c
+        WHERE c.owner_iid = $1
+          AND c.kind = 'prompt'
+          AND c.deleted_ts IS NULL
+          AND (
+            c.bound_device_iid = $2
+            OR COALESCE((c.meta->>'bound_device_iid')::bigint, 0) = $2
+          )
+          AND EXISTS (
+            SELECT 1 FROM ai.chat_msg m
+            WHERE m.chat_id = c.id AND m.deleted_ts IS NULL AND m.role = 'user'
+          )
+        ORDER BY c.last_msg_ts DESC NULLS LAST, c.updated_ts DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .bind(device_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+}
+
+async fn mcp_recent_home_chat(pool: &PgPool, owner_iid: i64) -> Option<i64> {
+    sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT c.id
+        FROM ai.chat c
+        WHERE c.owner_iid = $1
+          AND c.kind = 'prompt'
+          AND c.deleted_ts IS NULL
+          AND EXISTS (
+            SELECT 1 FROM ai.chat_msg m
+            WHERE m.chat_id = c.id AND m.deleted_ts IS NULL AND m.role = 'user'
+          )
+        ORDER BY c.last_msg_ts DESC NULLS LAST, c.updated_ts DESC
+        LIMIT 1
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+}
+
+/// When MCP omits `chat_id`, continue the focused or most recent thread instead of creating a new chat every turn.
+pub async fn mcp_resolve_chat_id(
+    pool: &PgPool,
+    owner_iid: i64,
+    chat_id: i64,
+    mention_ids: &[String],
+) -> Result<i64> {
+    if chat_id > 0 {
+        if mcp_chat_owned(pool, owner_iid, chat_id).await {
+            return Ok(chat_id);
+        }
+        anyhow::bail!("chat_id not found for owner");
+    }
+    if let Some(session) = owner_session_get(owner_iid) {
+        let focused = session.read_state().focused_chat_id;
+        if focused > 0 && mcp_chat_owned(pool, owner_iid, focused).await {
+            return Ok(focused);
+        }
+    }
+    let devices = mcp_device_iids_from_mentions(mention_ids);
+    if devices.len() == 1 {
+        if let Some(id) = mcp_recent_chat_for_device(pool, owner_iid, devices[0]).await {
+            return Ok(id);
+        }
+    }
+    if let Some(id) = mcp_recent_home_chat(pool, owner_iid).await {
+        return Ok(id);
+    }
+    Ok(0)
+}
+
 pub async fn mcp_prompt_run(
     pool: &PgPool,
     nats: Option<&async_nats::Client>,
@@ -303,9 +417,19 @@ pub async fn mcp_prompt_run(
     if !mcp_agent_owner_allowed(owner_iid) {
         return mcp_agent_owner_denied(owner_iid, req_id);
     }
+    let resolved_chat_id = match mcp_resolve_chat_id(pool, owner_iid, chat_id, mention_ids).await {
+        Ok(id) => id,
+        Err(e) => {
+            return json!({
+                "ok": false,
+                "error": e.to_string(),
+                "req_id": req_id,
+            });
+        }
+    };
     let req = ReqPrompt {
         replace_last_turn: false,
-        chat_id,
+        chat_id: resolved_chat_id,
         model: String::new(),
         text: text.to_string(),
         attachments_json: String::new(),
@@ -317,7 +441,8 @@ pub async fn mcp_prompt_run(
         talk: false,
     };
     let cancel = CancellationToken::new();
-    let owner_session = owner_session_prepare_prompt_turn(pool, nats, owner_iid, chat_id).await;
+    let owner_session =
+        owner_session_prepare_prompt_turn(pool, nats, owner_iid, resolved_chat_id).await;
     let bundle_wait_ms = owner_session_wait_owner_bundle_traced(
         pool,
         nats,
@@ -364,6 +489,8 @@ pub async fn mcp_prompt_run(
                 "owner_iid": owner_iid,
                 "session_bundle_wait_ms": bundle_wait_ms,
                 "chat_id": turn.chat_id,
+                "chat_id_requested": chat_id,
+                "chat_id_resolved": resolved_chat_id,
                 "user_msg_id": turn.user_msg_id,
                 "assistant_msg_id": turn.assistant_msg_id,
                 "text": turn.text,
@@ -406,5 +533,15 @@ mod tests {
         assert!(mcp_agent_owner_allowed(DEFAULT_TEST_OWNER_IID));
         assert!(mcp_agent_owner_allowed(DEFAULT_DEBUG_OWNER_IID));
         assert!(!mcp_agent_owner_allowed(12345));
+    }
+
+    #[test]
+    fn mcp_device_iids_from_mentions_collects_iid_refs() {
+        let ids = mcp_device_iids_from_mentions(&[
+            "iid:42".into(),
+            "catalog:vm1".into(),
+            "device:42".into(),
+        ]);
+        assert_eq!(ids, vec![42]);
     }
 }
