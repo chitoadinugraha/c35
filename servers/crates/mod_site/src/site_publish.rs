@@ -9,6 +9,7 @@ use tokio::sync::mpsc;
 
 use crate::doc::site_doc_from_json;
 use crate::grant::site_grant_check;
+use crate::guest_renderer::guest_renderer_version_effective;
 use crate::render::{publish_doc_render, render_etag};
 
 pub fn render_bundle_hash(pages: &[(String, String)]) -> String {
@@ -148,6 +149,7 @@ pub async fn site_publish_from_draft(
     let version_id = format!("v{}", snowflake_id());
     let pages = publish_doc_render(pool, site_iid, &doc_json, &site_name).await?;
     let bundle_hash = render_bundle_hash(&pages);
+    let guest_render_version = guest_renderer_version_effective(pool).await?;
     let published_ts = Utc::now();
     let mut tx = pool.begin().await?;
     sqlx::query(
@@ -177,16 +179,18 @@ pub async fn site_publish_from_draft(
     .await?;
     sqlx::query(
         r#"
-        INSERT INTO site.config (site_iid, owner_iid, published_version_id, created_ts, updated_ts)
-        VALUES ($1, $2, $3, NOW(), NOW())
+        INSERT INTO site.config (site_iid, owner_iid, published_version_id, guest_render_version, created_ts, updated_ts)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
         ON CONFLICT (site_iid) DO UPDATE SET
           published_version_id = EXCLUDED.published_version_id,
+          guest_render_version = EXCLUDED.guest_render_version,
           updated_ts = NOW()
         "#,
     )
     .bind(site_iid)
     .bind(owner_iid)
     .bind(&version_id)
+    .bind(guest_render_version)
     .execute(&mut *tx)
     .await?;
     for (render_key, html) in &pages {

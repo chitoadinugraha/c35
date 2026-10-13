@@ -193,6 +193,8 @@ Staff can open two bottom sheets from the POS register (wired separately from th
 
 Both sheets use `showPosQueueSheet` (`DraggableScrollableSheet`) with `UiPosQueuePanel`. **Maximize** pushes `PagePosQueueDesk` (full-screen scaffold) for a dedicated payment or kitchen display. Count badges use `PosQueueStore.refreshCounts()` over `TxApi.listSales(openOnly: true)` filtered client-side (`tx_queue_helpers`).
 
+**Capability gating:** Payment verification requires **`commerce`**. The **Kitchen orders** sheet (`PosQueueMode.orders`), POS toolbar button, and guest `order_progress_steps` **`pending`** step require **`order_fulfillment`** on the site ([`site.md`](site.md)). When `order_fulfillment` is off, staff **Confirm payment** sets state **`ok`** (paid) instead of **`pending`**; server `tx_put` coerces stray `pending` sales to **`ok`** for the same sites.
+
 ### 4. Timestamp Semantics (`time_ts_ms` & `ts_ms`)
 To maintain strict audit accuracy:
 * **Transaction Date (`time_ts_ms`)**:

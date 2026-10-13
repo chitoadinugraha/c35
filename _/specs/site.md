@@ -151,7 +151,15 @@ Stored in `site.draft.doc_json` (v1). Prompt + publish tools edit this JSON. Opt
 | `spacer` | Layout rhythm |
 | `custom_html` | Sandboxed escape hatch |
 
-Capabilities in `site.config.capabilities_json` gate backend features (`commerce`, `booking`, `queue`).
+Capabilities in `site.config.capabilities_json` gate backend features (`commerce`, `booking`, `queue`, `attendance`, `order_fulfillment`).
+
+| Key | Meaning |
+|-----|---------|
+| `commerce` | Products, POS, guest checkout, payment verification queue |
+| `order_fulfillment` | Kitchen / in-house processing (`pending` queue, guest “Diproses” step). **Not** guest waiting-room `queue` blocks. When off, paid sales complete at **`ok`** without a processing stop. Absent key on legacy rows defaults to **`commerce`** until set explicitly. |
+| `queue` | Guest ticket / waiting-room blocks |
+| `booking` | Reservable objects |
+| `attendance` | Team face enroll |
 
 ### Block catalog rules
 
@@ -371,6 +379,17 @@ site.draft.doc_json
   → site.render[html:/, …]   (+ blake3 etag)
   → guest HTTP serve (CF cache)
 ```
+
+**Guest renderer version** (independent of server `/version/server`):
+
+| Store | Key / column | Role |
+|-------|----------------|------|
+| Cluster | `ai.config` `site.guest_renderer_version` `{"version":N}` | Target compile generation (`GUEST_RENDERER_VERSION` in code, now **1**) |
+| Per site | `site.config.guest_render_version` (**0** default) | Generation used for last `site.render` compile |
+
+Bump **`GUEST_RENDERER_VERSION` by +1** only when guest HTML/JS compile output changes (`mod_site` render/boot, `clients/web/static/site-guest/*`). After cluster deploy: `.\_\scripts\deploy\publish_site_guest_renderer_version.ps1`. Sites with `guest_render_version < N` **recompile on first published guest visit** (lazy; advisory lock per site). Owner **Publish** sets per-site version to the current cluster target.
+
+Cursor rule: [`.cursor/rules/site-guest-renderer-version.mdc`](../.cursor/rules/site-guest-renderer-version.mdc).
 
 Port compile/serve from `csa_site_published` `mod_site` (`publish_render`, `site_render_router`).
 

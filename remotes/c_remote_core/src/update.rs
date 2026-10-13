@@ -145,6 +145,22 @@ pub fn release_requires_update(agent_build: i64, rel: &ReleaseRes) -> bool {
     agent_build < rel.min || rel.version > agent_build
 }
 
+/// Unified `c_remote_windows` must OTA against `remote-windows`, not chrome-extension metadata.
+fn is_windows_desktop_agent_exe() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(exe) = std::env::current_exe() {
+            let name = exe.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name.eq_ignore_ascii_case("alienai_remote_windows.exe")
+                || name.eq_ignore_ascii_case("c_remote_windows.exe")
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 pub fn current_platform() -> &'static str {
     if let Ok(p) = std::env::var("C35_RELEASE_PLATFORM") {
         match p.trim() {
@@ -154,9 +170,10 @@ pub fn current_platform() -> &'static str {
             _ => {}
         }
     }
-    if std::env::var("C35_BROWSER_ENGINE")
-        .map(|v| v.eq_ignore_ascii_case("extension"))
-        .unwrap_or(false)
+    if !is_windows_desktop_agent_exe()
+        && std::env::var("C35_BROWSER_ENGINE")
+            .map(|v| v.eq_ignore_ascii_case("extension"))
+            .unwrap_or(false)
     {
         return "chrome-extension";
     }
@@ -312,10 +329,17 @@ pub(crate) fn extract_zip(zip_path: &Path, out_dir: &Path) -> Result<(), anyhow:
     for i in 0..archive.len() {
         let mut f = archive.by_index(i)?;
         let name = f.name().replace('\\', "/");
-        if name.ends_with('/') {
+        if name.ends_with('/') || name.is_empty() {
             continue;
         }
-        let out = out_dir.join(Path::new(&name).file_name().unwrap_or(std::path::Component::CurDir.as_os_str()));
+        let rel = Path::new(&name);
+        if rel
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+        {
+            anyhow::bail!("zip entry escapes staging: {name}");
+        }
+        let out = out_dir.join(rel);
         if let Some(parent) = out.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -348,6 +372,9 @@ pub fn update_staged_version() -> Option<i64> {
 
 /// Chrome extension install must not self-replace via browser/desktop OTA staging.
 pub fn ota_apply_skipped() -> bool {
+    if is_windows_desktop_agent_exe() {
+        return false;
+    }
     if std::env::var("C35_SKIP_OTA").as_deref() == Ok("1") {
         return true;
     }
@@ -457,6 +484,12 @@ try {{
 $winfsp = Join-Path $staging '{winfsp_dll}'
 if (Test-Path $winfsp) {{
   Copy-Item -LiteralPath $winfsp -Destination (Join-Path $install '{winfsp_dll}') -Force
+}}
+$extSrc = Join-Path $staging 'chrome_extension'
+if (Test-Path $extSrc) {{
+  $extDest = Join-Path $install 'chrome_extension'
+  New-Item -ItemType Directory -Path $extDest -Force | Out-Null
+  Copy-Item -LiteralPath $extSrc -Destination $extDest -Recurse -Force
 }}
 if (Test-Path $legacyExe) {{ Remove-Item $legacyExe -Force -ErrorAction SilentlyContinue }}
 Start-Process -FilePath $destExe -WorkingDirectory $install

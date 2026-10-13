@@ -228,6 +228,22 @@ impl WebrtcHub {
             }
         }
 
+        if raw_cmd.starts_with("__c35_browser__:") {
+            let res_body = ResRemoteCommand {
+                ok: false,
+                error: "browser RPC on a non-browser remote agent — pair Chrome Remote (type=browser) on this PC or @mention that browser device".into(),
+                exit_code: 1,
+                stdout: String::new(),
+                stderr: String::new(),
+            };
+            let res = WsRes {
+                req_id,
+                body: Some(ws_res::Body::ResRemoteCommand(res_body)),
+            };
+            let _ = self.out_tx.send(pb_encode(&res));
+            return;
+        }
+
         let cmd = command_prepare_shell(raw_cmd);
         let res_body = if cmd.is_empty() {
             ResRemoteCommand {

@@ -15,7 +15,7 @@ use super::inst_macro::{
     InstMatchCtx, InstRow,
 };
 use super::mention::MentionRow;
-use super::tool_index::{tool_find_vector, tool_index_ready, ToolFindResult};
+use super::tool_index::{tool_find_vector_with_precomputed, tool_index_ready, ToolFindResult};
 use super::tool_rag::{
     tool_find_lexical, tool_select as rag_tool_select, tool_trim_ranked, ToolCandidate,
     DEFAULT_TOOL_SIM_GAP, DEFAULT_TOOL_SIM_THRESHOLD, DEFAULT_TOOL_TOP_K, LEXICAL_SIM_THRESHOLD,
@@ -56,6 +56,7 @@ pub struct ComposeTurnOpts<'a> {
     pub bot_web_search: bool,
     pub attachments_json: &'a str,
     pub skip_tool_rag: bool,
+    pub precomputed_query_embed: Option<&'a [f32]>,
 }
 
 impl<'a> Default for ComposeTurnOpts<'a> {
@@ -68,6 +69,7 @@ impl<'a> Default for ComposeTurnOpts<'a> {
             bot_web_search: false,
             attachments_json: "[]",
             skip_tool_rag: false,
+            precomputed_query_embed: None,
         }
     }
 }
@@ -106,6 +108,16 @@ pub fn compose_force_web_tool_call(
 pub fn compose_force_presentation_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
     matched_ids.iter().any(|id| id == "inst.presentation")
         && tools.iter().any(|t| t.name == "presentation.create")
+}
+
+/// First LLM hop must call viz.chart when chart inst matched.
+pub fn compose_force_viz_chart_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.viz.chart")
+        && tools.iter().any(|t| t.name == "viz.chart")
+}
+
+pub fn compose_suppress_general_web_when_viz_chart(matched_ids: &[String]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.viz.chart")
 }
 
 /// First LLM hop must call consumption.today when nutrition coach inst matched.
@@ -150,6 +162,10 @@ pub fn compose_force_account_tool_call(matched_ids: &[String], tools: &[ToolDef]
                 || tools_has(tools, "client.list")
         }
         "inst.device.pair" => tools_has(tools, "device.pair"),
+        "inst.device.rename" => tools_has(tools, "device.rename"),
+        "inst.device.pin" => tools_has(tools, "device.pin"),
+        "inst.device.archive" => tools_has(tools, "device.archive"),
+        "inst.device.unpair" => tools_has(tools, "device.unpair"),
         _ => false,
     })
 }
@@ -227,14 +243,22 @@ pub fn compose_force_site_query_tool_call(matched_ids: &[String], tools: &[ToolD
         && tools.iter().any(|t| t.name == "site.query.run")
 }
 
+/// First LLM hop must call browser.ensure when extension setup inst matched.
+pub fn compose_force_browser_ensure_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.browser.ensure")
+        && tools.iter().any(|t| t.name == "browser.ensure")
+}
+
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
     compose_force_web_tool_call(matched_ids, tools, "", &[])
         || compose_force_presentation_tool_call(matched_ids, tools)
+        || compose_force_viz_chart_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
         || compose_force_storage_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)
         || compose_force_catalog_menu_tool_call(matched_ids, tools)
         || compose_force_site_query_tool_call(matched_ids, tools)
+        || compose_force_browser_ensure_tool_call(matched_ids, tools)
 }
 
 pub fn compose_force_tool_call_with_text(
@@ -244,12 +268,14 @@ pub fn compose_force_tool_call_with_text(
 ) -> bool {
     compose_force_web_tool_call(matched_ids, tools, user_text, &[])
         || compose_force_presentation_tool_call(matched_ids, tools)
+        || compose_force_viz_chart_tool_call(matched_ids, tools)
         || compose_force_consumption_coach_tool_call(matched_ids, tools)
         || compose_force_storage_tool_call(matched_ids, tools)
         || compose_force_account_tool_call(matched_ids, tools)
         || compose_force_catalog_menu_tool_call(matched_ids, tools)
         || compose_force_site_query_tool_call(matched_ids, tools)
         || compose_force_site_builder_tool_call(matched_ids, tools, user_text)
+        || compose_force_browser_ensure_tool_call(matched_ids, tools)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -523,7 +549,9 @@ fn compose_prepare_scoped(
         .filter(|t| tool_staff_eligible(t, staff))
         .filter(|t| !ask_mode || t.readonly)
         .collect();
-    if !crate::site_commerce_compose::site_commerce_suppress_general_web(text, &matched_ids) {
+    if !crate::site_commerce_compose::site_commerce_suppress_general_web(text, &matched_ids)
+        && !compose_suppress_general_web_when_viz_chart(&matched_ids)
+    {
         compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
     }
     if opts.bot_web_search && primary_topic == "bot" {
@@ -728,7 +756,7 @@ pub async fn compose_tools_and_inst_async(
             if rag_skipped || opts.skip_tool_rag || !tool_index_ready() {
                 None
             } else {
-                Some(tool_find_vector(pool, http, text, &eligible).await)
+                Some(tool_find_vector_with_precomputed(pool, http, text, &eligible, opts.precomputed_query_embed).await)
             }
         }
     );

@@ -10,22 +10,25 @@ Coordinated Flutter app releases for **Android (Play + sideload APK)**, **Window
 
 Run from `_/scripts/deploy` after `dart pub get`. Set env vars (see below) or use repo-root `.env.local`.
 
-| Script | Builds | Uploads | Publishes `/version` | Bumps pubspec |
-|--------|--------|---------|----------------------|---------------|
-| **`deploy_app_release.dart`** *(default prod)* | AAB + APK + Windows ZIP + **web** | Play production + CAS + **S3** | `android` + `windows` + **`web`** | **Once** at end |
-| `deploy_app_release.dart --tester` | AAB only | Play internal | **No** | Once at end |
-| `deploy_app_release.dart --android-only` | AAB + APK | Play prod + CAS | `android` | Once at end |
-| `deploy_app_release.dart --windows-only` | Windows ZIP | CAS | `windows` | Once at end |
-| `deploy_app_release.dart --web-only` | Flutter web | S3 | **`web`** | Once at end |
-| `push_web.dart` | Flutter web | S3 | **`web`** | **No** |
-| `play_store_upload_tester.dart` | AAB only | Play internal | **No** | Once |
-| `play_store_upload_prod.dart` | AAB + APK | Play prod + CAS | `android` | Once |
-| `play_store_upload_promote_prod.dart` | AAB (+ APK on full run) | internal → prod | `android` | Once |
-| `play_store_upload_promote_prod.dart --finish-cas-only N` | *(existing APK)* | S3/CAS + `/version` | `android` | Unless skipped |
-| `play_store_listing_sync.dart` | *(text only)* | Play listing fields | **No** | **No** |
-| `windows_upload_prod.dart` | Windows ZIP | CAS | `windows` | Once |
+| Script | Builds | Uploads | Publishes `/version` | NATS wake | Bumps pubspec |
+|--------|--------|---------|----------------------|-----------|---------------|
+| **`deploy_app_release.dart`** *(default prod)* | AAB + APK + Windows ZIP + **web** | Play production + CAS + **S3** | `android` + `windows` + **`web`** | `c35.release.windows` on Windows publish | **Once** at end |
+| `deploy_app_release.dart --tester` | AAB only | Play internal | **No** | — | Once at end |
+| `deploy_app_release.dart --android-only` | AAB + APK | Play prod + CAS | `android` | — | Once at end |
+| `deploy_app_release.dart --windows-only` | Windows ZIP | CAS | `windows` | `c35.release.windows` | Once at end |
+| `deploy_app_release.dart --web-only` | Flutter web | S3 | **`web`** | — | Once at end |
+| `push_web.dart` | Flutter web | S3 | **`web`** | — | **No** |
+| `play_store_upload_tester.dart` | AAB only | Play internal | **No** | — | Once |
+| `play_store_upload_prod.dart` | AAB + APK | Play prod + CAS | `android` | — | Once |
+| `play_store_upload_promote_prod.dart` | AAB (+ APK on full run) | internal → prod | `android` | — | Once |
+| `apk_upload_prod.dart` | **APK only** (upload keystore) | CAS | `android` | — | Once |
+| `play_store_upload_promote_prod.dart --finish-cas-only N` | *(existing APK)* | S3/CAS + `/version` | `android` | — | Unless skipped |
+| `play_store_listing_sync.dart` | *(text only)* | Play listing fields | **No** | — | **No** |
+| `windows_upload_prod.dart` | Windows ZIP | CAS | `windows` | `c35.release.windows` | Once |
 
-**PowerShell:** `.\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote` (same as promote script row).
+**NATS (Windows OTA wake):** After `ai.config` publish, orchestrators call `deploy_app/nats_broadcast_windows_app_release.ps1` (kubectl + `c35-server-env` NATS creds, same pattern as remote agent). Skip with `C35_SKIP_NATS_BROADCAST=1` or Dart `--skip-nats` on Windows publish entrypoints. Standalone: `.\deploy_app\nats_broadcast_windows_app_release.ps1 -Version N -VersionName M.N.0 -Hash <blake3> -Size <bytes>`.
+
+**PowerShell:** `.\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote` (same as promote script row). **`publish_server_apk_web.ps1`** / Cursor **`/publish-server-apk-web`**: cluster server + `apk_upload_prod.dart` + `windows_upload_prod.dart` + web — **no Play upload or promote** (use when production promote would reset the review queue).
 
 **Full stack (server + app):** `.\_\scripts\deploy\publish_all.ps1` runs `publish_server.ps1` and default `publish_app_release.ps1` **in parallel** (Buildkit server build vs Flutter/Play/CAS). App platforms inside the Dart orchestrator remain sequential. Optional `-RemoteAgent` runs after both finish; `-SkipServer` / `-SkipApp` skip one side.
 
@@ -33,7 +36,8 @@ Run from `_/scripts/deploy` after `dart pub get`. Set env vars (see below) or us
 
 **Rules**
 
-- Never publish `/version/android` for internal/tester builds — prod clients would sideload-update to an unreleased build.
+- Never publish `/version/android` for internal/tester builds — prod clients on the **APK update channel** would OTA to an unreleased build.
+- APK-channel clients use `apkUrl` / `apkHash` from prod `/version/android` only (see [`auto-update.md`](auto-update.md) § Android APK update channel). Play channel users are unaffected.
 - Running `play_store_upload_prod.dart` then `windows_upload_prod.dart` **double-bumps** pubspec. Prefer `deploy_app_release.dart` for coordinated releases.
 - Orchestrator sets `DEPLOY_SKIP_VERSION_BUMP=1` on child steps and bumps **once** at the end.
 
@@ -70,6 +74,7 @@ Standalone scripts bump once each. Set `DEPLOY_SKIP_VERSION_BUMP=1` to skip (orc
 | `PLAY_STORE_PACKAGE_NAME` | No | `id.alienai` |
 | `DEPLOY_SKIP_VERSION_BUMP` | No | `1` skips pubspec bump |
 | `PLATFORM_APP_VERSION_PUBLISH` | No | `0` skips `/version` publish (debug) |
+| `C35_SKIP_NATS_BROADCAST` | No | `1` skips `c35.release.windows` kubectl broadcast (config + CAS still run) |
 | `S3_ENDPOINT` | Web upload + server read | OCI S3 endpoint (same bucket as CAS via `mod_file`) |
 | `S3_BUCKET` | Web upload + server read | Bucket name |
 | `S3_ACCESS_KEY` | Web upload + server read | Access key |

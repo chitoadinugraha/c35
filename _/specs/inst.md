@@ -131,7 +131,11 @@ Steering detail: [site-ai.md](site-ai.md).
 
 ### Bot draft (`inst.bot.draft`)
 
-Home chat phrase match (`buat bot`, `bikin bot`, `create a bot`, a Google Sheet / Doc / Slide URL, or turning a draft on). Forces `bot.draft` and drops `web.search` / `web.visit` on that turn. The tool writes the inactive bot and the sheet access mode. The model replies with the tool `summary`.
+Home chat phrase match (`buat bot`, `bikin bot`, `create a bot`, a Google Sheet / Doc / Slide URL). Forces `bot.draft` and drops `web.search` / `web.visit` on that turn. The tool writes the inactive bot and the sheet access mode. The model replies with the tool `summary`.
+
+### Bot manage (`inst.bot.manage`)
+
+Turn on/off, rename, or change instruction on an **existing** bot. Forces `bot.put` (and `bot.list` when needed). Create/sheet attach stays on `inst.bot.draft`.
 
 ### Device topic (`topic_id=device`)
 

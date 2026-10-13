@@ -9,11 +9,13 @@ class PosQueueStore extends ChangeNotifier {
   PosQueueStore({
     required this.txApi,
     required this.siteIid,
+    this.orderFulfillmentEnabled = true,
     PosQueueMode initialMode = PosQueueMode.paymentVerification,
   }) : mode = initialMode;
 
   final TxApi txApi;
   final int siteIid;
+  final bool orderFulfillmentEnabled;
 
   PosQueueMode mode;
 
@@ -91,12 +93,18 @@ class PosQueueStore extends ChangeNotifier {
     busy = true;
     notifyListeners();
     try {
-      final tx = await txApi.updateState(
-        siteIid,
-        base,
-        TxState.TX_STATE_PENDING,
-        isPaid: true,
-      );
+      final target = txQueueStateAfterPaymentConfirm(orderFulfillment: orderFulfillmentEnabled);
+      final Tx tx;
+      if (target == TxState.TX_STATE_OK) {
+        tx = await txApi.completePaidSale(siteIid, base);
+      } else {
+        tx = await txApi.updateState(
+          siteIid,
+          base,
+          target,
+          isPaid: true,
+        );
+      }
       await _afterMutation(txId, tx);
       return tx;
     } catch (e) {

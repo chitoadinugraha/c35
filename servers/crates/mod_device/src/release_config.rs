@@ -11,6 +11,17 @@ pub fn meta_browser_engine(meta: &Value) -> &str {
         .unwrap_or("playwright")
 }
 
+/// `true` when the unified desktop agent reports extension IPC + NM healthy (U2).
+pub fn meta_browser_ready(meta: &Value) -> bool {
+    meta.get("browser_ready")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+}
+
+pub fn device_type_is_unified_desktop(typ: &str) -> bool {
+    typ.eq_ignore_ascii_case("windows") || typ.eq_ignore_ascii_case("linux")
+}
+
 pub fn device_release_platform_key(device_type: &str, meta: &Value) -> &'static str {
     if device_type.eq_ignore_ascii_case("browser") {
         if meta_browser_engine(meta).eq_ignore_ascii_case("extension") {
@@ -53,6 +64,18 @@ pub fn release_summary(rel: &Value) -> (i64, String, i64) {
         .unwrap_or("")
         .to_string();
     (version, name, min)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn meta_browser_ready_parses_bool() {
+        assert!(!meta_browser_ready(&json!({})));
+        assert!(meta_browser_ready(&json!({"browser_ready": true})));
+    }
 }
 
 pub fn client_platform_release_key(platform: i32) -> Option<&'static str> {

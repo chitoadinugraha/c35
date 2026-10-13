@@ -17,6 +17,15 @@ pub fn site_capability_enabled(caps: &serde_json::Value, key: &str) -> bool {
     caps.get(key).and_then(|v| v.as_bool()).unwrap_or(true)
 }
 
+/// In-house kitchen / order processing (POS open-order queue, guest `pending` step).
+/// When the key is absent, defaults to **commerce** so existing F&B sites keep current behavior.
+pub fn site_order_fulfillment_enabled(caps: &serde_json::Value) -> bool {
+    caps
+        .get("order_fulfillment")
+        .and_then(|v| v.as_bool())
+        .unwrap_or_else(|| site_capability_enabled(caps, "commerce"))
+}
+
 pub async fn site_capabilities_get(pool: &PgPool, site_iid: i64) -> serde_json::Value {
     let row = sqlx::query(
         r#"

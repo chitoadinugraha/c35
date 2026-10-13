@@ -13,8 +13,8 @@ import 'package:alienai_c35/c/parts/windows_taskbar.dart';
 import 'package:alienai_c35/c/settings/settings_bootstrap.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
-import 'package:alienai_c35/c/update/app_release.dart';
 import 'package:alienai_c35/c/update/app_update_host.dart';
+import 'package:alienai_c35/c/update/app_update_busy.dart';
 import 'package:alienai_c35/c/update/app_update_service.dart';
 import 'package:alienai_c35/pages/auth/page_sign_in.dart';
 import 'package:alienai_c35/pages/auth/ui_session_lock_gate.dart';
@@ -24,7 +24,6 @@ import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_update_banner.dart';
-import 'package:alienai_c35/widgets/ui/ui_update_countdown_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_windows_title_sync.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -101,9 +100,6 @@ class _C35AppState extends State<C35App> {
     sessionTick.addListener(_onSessionTick);
     unawaited(voucherLinkBind());
     unawaited(posLinkBind());
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-      AppUpdateService.instance.registerAutoUpdatePrompt(_autoUpdatePrompt);
-    }
     _boot();
   }
 
@@ -111,6 +107,7 @@ class _C35AppState extends State<C35App> {
     _bootError = error;
     _bootReady.value = true;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows && error.isEmpty) {
+      AppUpdateService.instance.registerBusyCheck(appUpdateUserBusy);
       AppUpdateService.instance.start();
     }
     if (_desktop) {
@@ -143,7 +140,6 @@ class _C35AppState extends State<C35App> {
   void dispose() {
     _bootReady.dispose();
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
-      AppUpdateService.instance.registerAutoUpdatePrompt(null);
       AppUpdateService.instance.dispose();
     }
     _auth.removeListener(_onAuth);
@@ -153,23 +149,6 @@ class _C35AppState extends State<C35App> {
 
   void _onSessionTick() {
     if (mounted) setState(() {});
-  }
-
-  void _autoUpdatePrompt(AppRelease release) {
-    final ctx = c35NavigatorKey.currentContext;
-    if (ctx == null || !ctx.mounted) {
-      AppUpdateService.instance.countdownDismissed();
-      return;
-    }
-    showDialog<void>(
-      context: ctx,
-      barrierDismissible: false,
-      builder: (_) => UiUpdateCountdownDialog(
-        version: release.label,
-        onConfirm: () => AppUpdateService.instance.installNow(),
-        onCancel: () => AppUpdateService.instance.postponeAutoUpdate(),
-      ),
-    ).then((_) => AppUpdateService.instance.countdownDismissed());
   }
 
   void _onAuth() {

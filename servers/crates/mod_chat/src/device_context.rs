@@ -402,6 +402,7 @@ pub async fn bound_device_prompt_prepare(
 
 pub const DEVICE_SIGNAL_ANDROID: &str = "device:type:android";
 pub const DEVICE_SIGNAL_WINDOWS: &str = "device:type:windows";
+pub const DEVICE_SIGNAL_BROWSER: &str = "device:type:browser";
 
 /// Remote device `ai.identity.type` values in the current prompt scope (lowercase).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -431,6 +432,10 @@ impl DevicePlatformScope {
 
     pub fn has_windows(&self) -> bool {
         self.types.iter().any(|t| t == "windows")
+    }
+
+    pub fn has_browser(&self) -> bool {
+        self.types.iter().any(|t| t == "browser")
     }
 
     pub fn shell_eligible(&self) -> bool {
@@ -507,6 +512,9 @@ pub fn device_platform_compose_signals(scope: &DevicePlatformScope) -> Vec<Strin
     if scope.has_windows() {
         out.push(DEVICE_SIGNAL_WINDOWS.into());
     }
+    if scope.has_browser() {
+        out.push(DEVICE_SIGNAL_BROWSER.into());
+    }
     out
 }
 
@@ -549,6 +557,60 @@ pub const BROWSER_DEVICE_TOOL_EXCLUDE: &[&str] = &[
     "device.fs.list",
     "device.fs.read",
 ];
+
+/// When every device in scope is windows/linux without `browser_ready`, hide `browser.*` tools.
+pub async fn tool_exclude_browser_on_unready_desktop(
+    pool: &PgPool,
+    owner_iid: i64,
+    mention_device_iids: &[i64],
+    bound_device_iid: i64,
+) -> Vec<String> {
+    let ids = scope_device_iids(mention_device_iids, bound_device_iid);
+    if ids.is_empty() {
+        return Vec::new();
+    }
+    let rows = sqlx::query_as::<_, (String, Value)>(
+        r#"
+        SELECT type, COALESCE(meta, '{}'::jsonb)
+        FROM ai.identity
+        WHERE id = ANY($1::bigint[])
+          AND owner_iid = $2
+          AND kind = 'remote'
+          AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(&ids)
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    if rows.is_empty() || rows.len() != ids.len() {
+        return Vec::new();
+    }
+    let mut any_browser_capable = false;
+    let mut all_unready_desktop = true;
+    for (typ, meta) in &rows {
+        if typ.eq_ignore_ascii_case("browser")
+            || (c35_mod_device::device_type_is_unified_desktop(typ)
+                && c35_mod_device::meta_browser_ready(meta))
+        {
+            any_browser_capable = true;
+            all_unready_desktop = false;
+            break;
+        }
+        if !c35_mod_device::device_type_is_unified_desktop(typ) {
+            all_unready_desktop = false;
+        }
+    }
+    if any_browser_capable || !all_unready_desktop {
+        return Vec::new();
+    }
+    cluster_tools()
+        .into_iter()
+        .filter(|t| t.name.starts_with("browser."))
+        .map(|t| t.name)
+        .collect()
+}
 
 /// When every device in scope is `type=browser`, exclude desktop remote tools from compose.
 pub async fn tool_exclude_browser_devices(
@@ -605,8 +667,20 @@ pub async fn device_prompt_tool_exclude(
 ) -> Vec<String> {
     let browser = tool_exclude_browser_devices(pool, owner_iid, mention_device_iids, bound_device_iid)
         .await;
+    let unready_desktop = tool_exclude_browser_on_unready_desktop(
+        pool,
+        owner_iid,
+        mention_device_iids,
+        bound_device_iid,
+    )
+    .await;
     let shell = tool_exclude_non_shell_platforms(scope);
     let mut out = browser;
+    for name in unready_desktop {
+        if !out.iter().any(|x| x == &name) {
+            out.push(name);
+        }
+    }
     for name in shell {
         if !out.iter().any(|x| x == &name) {
             out.push(name);
@@ -695,6 +769,14 @@ mod platform_tests {
     fn macos_scope_excludes_shell_run() {
         let scope = DevicePlatformScope::from_types(&["macos".into()]);
         assert_eq!(tool_exclude_non_shell_platforms(&scope), vec!["shell.run".to_string()]);
+    }
+
+    #[test]
+    fn browser_scope_sets_signal() {
+        let scope = DevicePlatformScope::from_types(&["browser".into()]);
+        assert!(scope.has_browser());
+        let signals = device_platform_compose_signals(&scope);
+        assert!(signals.iter().any(|s| s == DEVICE_SIGNAL_BROWSER));
     }
 
     #[test]

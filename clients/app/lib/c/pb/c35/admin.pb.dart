@@ -245,6 +245,490 @@ class ResAdminUserSearch extends $pb.GeneratedMessage {
   $pb.PbList<AdminUserHit> get users => $_getList(0);
 }
 
+class AdminUserReferrerBrief extends $pb.GeneratedMessage {
+  factory AdminUserReferrerBrief({
+    $fixnum.Int64? identityId,
+    $core.String? name,
+    $core.String? alienId,
+  }) {
+    final result = AdminUserReferrerBrief._();
+    if (identityId != null) result.identityId = identityId;
+    if (name != null) result.name = name;
+    if (alienId != null) result.alienId = alienId;
+    return result;
+  }
+
+  AdminUserReferrerBrief._();
+
+  factory AdminUserReferrerBrief.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminUserReferrerBrief()..mergeFromBuffer(data, registry);
+  factory AdminUserReferrerBrief.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminUserReferrerBrief()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AdminUserReferrerBrief',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: AdminUserReferrerBrief.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'identityId')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'alienId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminUserReferrerBrief clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminUserReferrerBrief copyWith(
+          void Function(AdminUserReferrerBrief) updates) =>
+      super.copyWith((message) => updates(message as AdminUserReferrerBrief))
+          as AdminUserReferrerBrief;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use AdminUserReferrerBrief() / AdminUserReferrerBrief.new instead')
+  static AdminUserReferrerBrief create() => AdminUserReferrerBrief._();
+  static $pb.GeneratedMessage $_createMessage() => AdminUserReferrerBrief._();
+  @$core.override
+  AdminUserReferrerBrief createEmptyInstance() => AdminUserReferrerBrief._();
+  @$core.pragma('dart2js:noInline')
+  static AdminUserReferrerBrief getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AdminUserReferrerBrief>(
+          AdminUserReferrerBrief.$_createMessage);
+  static AdminUserReferrerBrief? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get identityId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set identityId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIdentityId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIdentityId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get alienId => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set alienId($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAlienId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAlienId() => $_clearField(3);
+}
+
+class AdminUserRegistrationRow extends $pb.GeneratedMessage {
+  factory AdminUserRegistrationRow({
+    $fixnum.Int64? identityId,
+    $core.String? name,
+    $core.String? handle,
+    $core.String? email,
+    $fixnum.Int64? registeredTsMs,
+    AdminUserReferrerBrief? referredBy,
+  }) {
+    final result = AdminUserRegistrationRow._();
+    if (identityId != null) result.identityId = identityId;
+    if (name != null) result.name = name;
+    if (handle != null) result.handle = handle;
+    if (email != null) result.email = email;
+    if (registeredTsMs != null) result.registeredTsMs = registeredTsMs;
+    if (referredBy != null) result.referredBy = referredBy;
+    return result;
+  }
+
+  AdminUserRegistrationRow._();
+
+  factory AdminUserRegistrationRow.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminUserRegistrationRow()..mergeFromBuffer(data, registry);
+  factory AdminUserRegistrationRow.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AdminUserRegistrationRow()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AdminUserRegistrationRow',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: AdminUserRegistrationRow.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'identityId')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'handle')
+    ..aOS(4, _omitFieldNames ? '' : 'email')
+    ..aInt64(5, _omitFieldNames ? '' : 'registeredTsMs')
+    ..aOM<AdminUserReferrerBrief>(6, _omitFieldNames ? '' : 'referredBy',
+        subBuilder: AdminUserReferrerBrief.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminUserRegistrationRow clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AdminUserRegistrationRow copyWith(
+          void Function(AdminUserRegistrationRow) updates) =>
+      super.copyWith((message) => updates(message as AdminUserRegistrationRow))
+          as AdminUserRegistrationRow;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use AdminUserRegistrationRow() / AdminUserRegistrationRow.new instead')
+  static AdminUserRegistrationRow create() => AdminUserRegistrationRow._();
+  static $pb.GeneratedMessage $_createMessage() => AdminUserRegistrationRow._();
+  @$core.override
+  AdminUserRegistrationRow createEmptyInstance() =>
+      AdminUserRegistrationRow._();
+  @$core.pragma('dart2js:noInline')
+  static AdminUserRegistrationRow getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<AdminUserRegistrationRow>(
+          AdminUserRegistrationRow.$_createMessage);
+  static AdminUserRegistrationRow? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get identityId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set identityId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIdentityId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIdentityId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get handle => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set handle($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasHandle() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearHandle() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get email => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set email($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasEmail() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearEmail() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get registeredTsMs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set registeredTsMs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasRegisteredTsMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearRegisteredTsMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  AdminUserReferrerBrief get referredBy => $_getN(5);
+  @$pb.TagNumber(6)
+  set referredBy(AdminUserReferrerBrief value) => $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasReferredBy() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearReferredBy() => $_clearField(6);
+  @$pb.TagNumber(6)
+  AdminUserReferrerBrief ensureReferredBy() => $_ensure(5);
+}
+
+class ReqAdminUserRegistrationsList extends $pb.GeneratedMessage {
+  factory ReqAdminUserRegistrationsList({
+    $core.String? preset,
+    $core.String? since,
+    $core.String? until,
+    $core.bool? countOnly,
+    $core.int? limit,
+    $fixnum.Int64? afterRegisteredTsMs,
+    $fixnum.Int64? afterIdentityId,
+    $fixnum.Int64? referredByUid,
+    $core.String? timezone,
+  }) {
+    final result = ReqAdminUserRegistrationsList._();
+    if (preset != null) result.preset = preset;
+    if (since != null) result.since = since;
+    if (until != null) result.until = until;
+    if (countOnly != null) result.countOnly = countOnly;
+    if (limit != null) result.limit = limit;
+    if (afterRegisteredTsMs != null)
+      result.afterRegisteredTsMs = afterRegisteredTsMs;
+    if (afterIdentityId != null) result.afterIdentityId = afterIdentityId;
+    if (referredByUid != null) result.referredByUid = referredByUid;
+    if (timezone != null) result.timezone = timezone;
+    return result;
+  }
+
+  ReqAdminUserRegistrationsList._();
+
+  factory ReqAdminUserRegistrationsList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminUserRegistrationsList()..mergeFromBuffer(data, registry);
+  factory ReqAdminUserRegistrationsList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqAdminUserRegistrationsList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqAdminUserRegistrationsList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqAdminUserRegistrationsList.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'preset')
+    ..aOS(2, _omitFieldNames ? '' : 'since')
+    ..aOS(3, _omitFieldNames ? '' : 'until')
+    ..aOB(4, _omitFieldNames ? '' : 'countOnly')
+    ..aI(5, _omitFieldNames ? '' : 'limit')
+    ..aInt64(6, _omitFieldNames ? '' : 'afterRegisteredTsMs')
+    ..aInt64(7, _omitFieldNames ? '' : 'afterIdentityId')
+    ..aInt64(8, _omitFieldNames ? '' : 'referredByUid')
+    ..aOS(9, _omitFieldNames ? '' : 'timezone')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminUserRegistrationsList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqAdminUserRegistrationsList copyWith(
+          void Function(ReqAdminUserRegistrationsList) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqAdminUserRegistrationsList))
+          as ReqAdminUserRegistrationsList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqAdminUserRegistrationsList() / ReqAdminUserRegistrationsList.new instead')
+  static ReqAdminUserRegistrationsList create() =>
+      ReqAdminUserRegistrationsList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqAdminUserRegistrationsList._();
+  @$core.override
+  ReqAdminUserRegistrationsList createEmptyInstance() =>
+      ReqAdminUserRegistrationsList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqAdminUserRegistrationsList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqAdminUserRegistrationsList>(
+          ReqAdminUserRegistrationsList.$_createMessage);
+  static ReqAdminUserRegistrationsList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get preset => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set preset($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPreset() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPreset() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get since => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set since($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSince() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSince() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get until => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set until($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasUntil() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearUntil() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get countOnly => $_getBF(3);
+  @$pb.TagNumber(4)
+  set countOnly($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCountOnly() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCountOnly() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get limit => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set limit($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasLimit() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearLimit() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get afterRegisteredTsMs => $_getI64(5);
+  @$pb.TagNumber(6)
+  set afterRegisteredTsMs($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAfterRegisteredTsMs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAfterRegisteredTsMs() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get afterIdentityId => $_getI64(6);
+  @$pb.TagNumber(7)
+  set afterIdentityId($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasAfterIdentityId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearAfterIdentityId() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get referredByUid => $_getI64(7);
+  @$pb.TagNumber(8)
+  set referredByUid($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasReferredByUid() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearReferredByUid() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get timezone => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set timezone($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasTimezone() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearTimezone() => $_clearField(9);
+}
+
+class ResAdminUserRegistrationsList extends $pb.GeneratedMessage {
+  factory ResAdminUserRegistrationsList({
+    $fixnum.Int64? count,
+    $core.Iterable<AdminUserRegistrationRow>? users,
+    $core.String? timezoneUsed,
+    $fixnum.Int64? windowStartMs,
+    $fixnum.Int64? windowEndMs,
+    $core.bool? hasMore,
+  }) {
+    final result = ResAdminUserRegistrationsList._();
+    if (count != null) result.count = count;
+    if (users != null) result.users.addAll(users);
+    if (timezoneUsed != null) result.timezoneUsed = timezoneUsed;
+    if (windowStartMs != null) result.windowStartMs = windowStartMs;
+    if (windowEndMs != null) result.windowEndMs = windowEndMs;
+    if (hasMore != null) result.hasMore = hasMore;
+    return result;
+  }
+
+  ResAdminUserRegistrationsList._();
+
+  factory ResAdminUserRegistrationsList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminUserRegistrationsList()..mergeFromBuffer(data, registry);
+  factory ResAdminUserRegistrationsList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResAdminUserRegistrationsList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResAdminUserRegistrationsList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResAdminUserRegistrationsList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'count')
+    ..pPM<AdminUserRegistrationRow>(2, _omitFieldNames ? '' : 'users',
+        subBuilder: AdminUserRegistrationRow.$_createMessage)
+    ..aOS(3, _omitFieldNames ? '' : 'timezoneUsed')
+    ..aInt64(4, _omitFieldNames ? '' : 'windowStartMs')
+    ..aInt64(5, _omitFieldNames ? '' : 'windowEndMs')
+    ..aOB(6, _omitFieldNames ? '' : 'hasMore')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminUserRegistrationsList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResAdminUserRegistrationsList copyWith(
+          void Function(ResAdminUserRegistrationsList) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResAdminUserRegistrationsList))
+          as ResAdminUserRegistrationsList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResAdminUserRegistrationsList() / ResAdminUserRegistrationsList.new instead')
+  static ResAdminUserRegistrationsList create() =>
+      ResAdminUserRegistrationsList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResAdminUserRegistrationsList._();
+  @$core.override
+  ResAdminUserRegistrationsList createEmptyInstance() =>
+      ResAdminUserRegistrationsList._();
+  @$core.pragma('dart2js:noInline')
+  static ResAdminUserRegistrationsList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResAdminUserRegistrationsList>(
+          ResAdminUserRegistrationsList.$_createMessage);
+  static ResAdminUserRegistrationsList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get count => $_getI64(0);
+  @$pb.TagNumber(1)
+  set count($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCount() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<AdminUserRegistrationRow> get users => $_getList(1);
+
+  @$pb.TagNumber(3)
+  $core.String get timezoneUsed => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set timezoneUsed($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTimezoneUsed() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTimezoneUsed() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get windowStartMs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set windowStartMs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasWindowStartMs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearWindowStartMs() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get windowEndMs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set windowEndMs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasWindowEndMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearWindowEndMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.bool get hasMore => $_getBF(5);
+  @$pb.TagNumber(6)
+  set hasMore($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasHasMore() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearHasMore() => $_clearField(6);
+}
+
 class AdminGlobalRolesPatch extends $pb.GeneratedMessage {
   factory AdminGlobalRolesPatch({
     $core.Iterable<$core.String>? roles,

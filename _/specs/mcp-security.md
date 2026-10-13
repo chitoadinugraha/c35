@@ -93,7 +93,7 @@ Cursor rule: `.cursor/rules/device-control-chito.mdc`.
 | **33000** | Yes — tester fixtures only |
 | **Other** | **No** — server returns 403 on `/v1/mcp/agent`; agents must not target other users’ devices unless the user explicitly names another owner in chat |
 
-MCP helpers (see [`plans/2026-09-26-remote-streaming-mcp-debug.md`](plans/2026-09-26-remote-streaming-mcp-debug.md)): `device_list`, `device_get`, `device_log_tail`, `device_screenshot`, `device_command`, `device_input`, `device_list_http`, `device_get_http`. Rebuild: `cd _/mcps/inst && npm run build`.
+MCP helpers (see [`plans/2026-09-26-remote-streaming-mcp-debug.md`](plans/2026-09-26-remote-streaming-mcp-debug.md)): `device_list`, `device_get`, `device_log_tail`, `device_screenshot`, `device_som`, `device_command`, `device_input`, `device_list_http`, `device_get_http`. Rebuild: `cd _/mcps/inst && npm run build`.
 
 ---
 

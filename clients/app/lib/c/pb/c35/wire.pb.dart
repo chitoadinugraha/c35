@@ -113,6 +113,7 @@ enum InvokeReq_Body {
   adminPlatformUserMetrics,
   deviceEgressLease,
   adminDiskClean,
+  adminUserRegistrationsList,
   notSet
 }
 
@@ -187,6 +188,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     $3.ReqAdminPlatformUserMetrics? adminPlatformUserMetrics,
     $13.ReqDeviceEgressLease? deviceEgressLease,
     $12.ReqAdminDiskClean? adminDiskClean,
+    $3.ReqAdminUserRegistrationsList? adminUserRegistrationsList,
   }) {
     final result = InvokeReq._();
     if (reqId != null) result.reqId = reqId;
@@ -289,6 +291,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       result.adminPlatformUserMetrics = adminPlatformUserMetrics;
     if (deviceEgressLease != null) result.deviceEgressLease = deviceEgressLease;
     if (adminDiskClean != null) result.adminDiskClean = adminDiskClean;
+    if (adminUserRegistrationsList != null)
+      result.adminUserRegistrationsList = adminUserRegistrationsList;
     return result;
   }
 
@@ -368,6 +372,7 @@ class InvokeReq extends $pb.GeneratedMessage {
     143: InvokeReq_Body.adminPlatformUserMetrics,
     144: InvokeReq_Body.deviceEgressLease,
     145: InvokeReq_Body.adminDiskClean,
+    146: InvokeReq_Body.adminUserRegistrationsList,
     0: InvokeReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -440,7 +445,8 @@ class InvokeReq extends $pb.GeneratedMessage {
       142,
       143,
       144,
-      145
+      145,
+      146
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aInt64(2, _omitFieldNames ? '' : 'callerIid')
@@ -615,6 +621,9 @@ class InvokeReq extends $pb.GeneratedMessage {
         subBuilder: $13.ReqDeviceEgressLease.$_createMessage)
     ..aOM<$12.ReqAdminDiskClean>(145, _omitFieldNames ? '' : 'adminDiskClean',
         subBuilder: $12.ReqAdminDiskClean.$_createMessage)
+    ..aOM<$3.ReqAdminUserRegistrationsList>(
+        146, _omitFieldNames ? '' : 'adminUserRegistrationsList',
+        subBuilder: $3.ReqAdminUserRegistrationsList.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -703,6 +712,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
   @$pb.TagNumber(145)
+  @$pb.TagNumber(146)
   InvokeReq_Body whichBody() => _InvokeReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -770,6 +780,7 @@ class InvokeReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
   @$pb.TagNumber(145)
+  @$pb.TagNumber(146)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -1557,6 +1568,19 @@ class InvokeReq extends $pb.GeneratedMessage {
   void clearAdminDiskClean() => $_clearField(145);
   @$pb.TagNumber(145)
   $12.ReqAdminDiskClean ensureAdminDiskClean() => $_ensure(67);
+
+  @$pb.TagNumber(146)
+  $3.ReqAdminUserRegistrationsList get adminUserRegistrationsList => $_getN(68);
+  @$pb.TagNumber(146)
+  set adminUserRegistrationsList($3.ReqAdminUserRegistrationsList value) =>
+      $_setField(146, value);
+  @$pb.TagNumber(146)
+  $core.bool hasAdminUserRegistrationsList() => $_has(68);
+  @$pb.TagNumber(146)
+  void clearAdminUserRegistrationsList() => $_clearField(146);
+  @$pb.TagNumber(146)
+  $3.ReqAdminUserRegistrationsList ensureAdminUserRegistrationsList() =>
+      $_ensure(68);
 }
 
 enum InvokeRes_Body {
@@ -1625,6 +1649,7 @@ enum InvokeRes_Body {
   adminPlatformUserMetrics,
   deviceEgressLease,
   adminDiskClean,
+  adminUserRegistrationsList,
   notSet
 }
 
@@ -1698,6 +1723,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     $3.ResAdminPlatformUserMetrics? adminPlatformUserMetrics,
     $13.ResDeviceEgressLease? deviceEgressLease,
     $12.ResAdminDiskClean? adminDiskClean,
+    $3.ResAdminUserRegistrationsList? adminUserRegistrationsList,
   }) {
     final result = InvokeRes._();
     if (reqId != null) result.reqId = reqId;
@@ -1799,6 +1825,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       result.adminPlatformUserMetrics = adminPlatformUserMetrics;
     if (deviceEgressLease != null) result.deviceEgressLease = deviceEgressLease;
     if (adminDiskClean != null) result.adminDiskClean = adminDiskClean;
+    if (adminUserRegistrationsList != null)
+      result.adminUserRegistrationsList = adminUserRegistrationsList;
     return result;
   }
 
@@ -1877,6 +1905,7 @@ class InvokeRes extends $pb.GeneratedMessage {
     143: InvokeRes_Body.adminPlatformUserMetrics,
     144: InvokeRes_Body.deviceEgressLease,
     145: InvokeRes_Body.adminDiskClean,
+    146: InvokeRes_Body.adminUserRegistrationsList,
     0: InvokeRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -1948,7 +1977,8 @@ class InvokeRes extends $pb.GeneratedMessage {
       142,
       143,
       144,
-      145
+      145,
+      146
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aI(2, _omitFieldNames ? '' : 'statusCode')
@@ -2121,6 +2151,9 @@ class InvokeRes extends $pb.GeneratedMessage {
         subBuilder: $13.ResDeviceEgressLease.$_createMessage)
     ..aOM<$12.ResAdminDiskClean>(145, _omitFieldNames ? '' : 'adminDiskClean',
         subBuilder: $12.ResAdminDiskClean.$_createMessage)
+    ..aOM<$3.ResAdminUserRegistrationsList>(
+        146, _omitFieldNames ? '' : 'adminUserRegistrationsList',
+        subBuilder: $3.ResAdminUserRegistrationsList.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2208,6 +2241,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
   @$pb.TagNumber(145)
+  @$pb.TagNumber(146)
   InvokeRes_Body whichBody() => _InvokeRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(10)
   @$pb.TagNumber(11)
@@ -2274,6 +2308,7 @@ class InvokeRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(143)
   @$pb.TagNumber(144)
   @$pb.TagNumber(145)
+  @$pb.TagNumber(146)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -3058,6 +3093,19 @@ class InvokeRes extends $pb.GeneratedMessage {
   void clearAdminDiskClean() => $_clearField(145);
   @$pb.TagNumber(145)
   $12.ResAdminDiskClean ensureAdminDiskClean() => $_ensure(67);
+
+  @$pb.TagNumber(146)
+  $3.ResAdminUserRegistrationsList get adminUserRegistrationsList => $_getN(68);
+  @$pb.TagNumber(146)
+  set adminUserRegistrationsList($3.ResAdminUserRegistrationsList value) =>
+      $_setField(146, value);
+  @$pb.TagNumber(146)
+  $core.bool hasAdminUserRegistrationsList() => $_has(68);
+  @$pb.TagNumber(146)
+  void clearAdminUserRegistrationsList() => $_clearField(146);
+  @$pb.TagNumber(146)
+  $3.ResAdminUserRegistrationsList ensureAdminUserRegistrationsList() =>
+      $_ensure(68);
 }
 
 enum WsReq_Body {
@@ -3222,6 +3270,8 @@ enum WsReq_Body {
   reqDeviceEgressClose,
   rootConsole,
   sessionFocus,
+  siteAssistantGet,
+  siteAssistantEnsure,
   notSet
 }
 
@@ -3390,6 +3440,8 @@ class WsReq extends $pb.GeneratedMessage {
     $13.ReqDeviceEgressClose? reqDeviceEgressClose,
     $12.ReqRootConsole? rootConsole,
     $14.ReqSessionFocus? sessionFocus,
+    $18.ReqSiteAssistantGet? siteAssistantGet,
+    $18.ReqSiteAssistantEnsure? siteAssistantEnsure,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3585,6 +3637,9 @@ class WsReq extends $pb.GeneratedMessage {
       result.reqDeviceEgressClose = reqDeviceEgressClose;
     if (rootConsole != null) result.rootConsole = rootConsole;
     if (sessionFocus != null) result.sessionFocus = sessionFocus;
+    if (siteAssistantGet != null) result.siteAssistantGet = siteAssistantGet;
+    if (siteAssistantEnsure != null)
+      result.siteAssistantEnsure = siteAssistantEnsure;
     return result;
   }
 
@@ -3759,6 +3814,8 @@ class WsReq extends $pb.GeneratedMessage {
     220: WsReq_Body.reqDeviceEgressClose,
     221: WsReq_Body.rootConsole,
     224: WsReq_Body.sessionFocus,
+    225: WsReq_Body.siteAssistantGet,
+    226: WsReq_Body.siteAssistantEnsure,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3926,7 +3983,9 @@ class WsReq extends $pb.GeneratedMessage {
       219,
       220,
       221,
-      224
+      224,
+      225,
+      226
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$14.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -4302,6 +4361,12 @@ class WsReq extends $pb.GeneratedMessage {
         subBuilder: $12.ReqRootConsole.$_createMessage)
     ..aOM<$14.ReqSessionFocus>(224, _omitFieldNames ? '' : 'sessionFocus',
         subBuilder: $14.ReqSessionFocus.$_createMessage)
+    ..aOM<$18.ReqSiteAssistantGet>(
+        225, _omitFieldNames ? '' : 'siteAssistantGet',
+        subBuilder: $18.ReqSiteAssistantGet.$_createMessage)
+    ..aOM<$18.ReqSiteAssistantEnsure>(
+        226, _omitFieldNames ? '' : 'siteAssistantEnsure',
+        subBuilder: $18.ReqSiteAssistantEnsure.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4485,6 +4550,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(220)
   @$pb.TagNumber(221)
   @$pb.TagNumber(224)
+  @$pb.TagNumber(225)
+  @$pb.TagNumber(226)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4647,6 +4714,8 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(220)
   @$pb.TagNumber(221)
   @$pb.TagNumber(224)
+  @$pb.TagNumber(225)
+  @$pb.TagNumber(226)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6475,6 +6544,29 @@ class WsReq extends $pb.GeneratedMessage {
   void clearSessionFocus() => $_clearField(224);
   @$pb.TagNumber(224)
   $14.ReqSessionFocus ensureSessionFocus() => $_ensure(161);
+
+  @$pb.TagNumber(225)
+  $18.ReqSiteAssistantGet get siteAssistantGet => $_getN(162);
+  @$pb.TagNumber(225)
+  set siteAssistantGet($18.ReqSiteAssistantGet value) => $_setField(225, value);
+  @$pb.TagNumber(225)
+  $core.bool hasSiteAssistantGet() => $_has(162);
+  @$pb.TagNumber(225)
+  void clearSiteAssistantGet() => $_clearField(225);
+  @$pb.TagNumber(225)
+  $18.ReqSiteAssistantGet ensureSiteAssistantGet() => $_ensure(162);
+
+  @$pb.TagNumber(226)
+  $18.ReqSiteAssistantEnsure get siteAssistantEnsure => $_getN(163);
+  @$pb.TagNumber(226)
+  set siteAssistantEnsure($18.ReqSiteAssistantEnsure value) =>
+      $_setField(226, value);
+  @$pb.TagNumber(226)
+  $core.bool hasSiteAssistantEnsure() => $_has(163);
+  @$pb.TagNumber(226)
+  void clearSiteAssistantEnsure() => $_clearField(226);
+  @$pb.TagNumber(226)
+  $18.ReqSiteAssistantEnsure ensureSiteAssistantEnsure() => $_ensure(163);
 }
 
 enum WsRes_Body {
@@ -6653,6 +6745,9 @@ enum WsRes_Body {
   rootConsole,
   sessionFocus,
   sessionSuperseded,
+  siteAssistantGet,
+  siteAssistantEnsure,
+  appReleaseNudge,
   notSet
 }
 
@@ -6835,6 +6930,9 @@ class WsRes extends $pb.GeneratedMessage {
     $12.ResRootConsole? rootConsole,
     $14.ResSessionFocus? sessionFocus,
     $14.SessionSuperseded? sessionSuperseded,
+    $18.ResSiteAssistantGet? siteAssistantGet,
+    $18.ResSiteAssistantEnsure? siteAssistantEnsure,
+    AppReleaseNudge? appReleaseNudge,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -7044,6 +7142,10 @@ class WsRes extends $pb.GeneratedMessage {
     if (rootConsole != null) result.rootConsole = rootConsole;
     if (sessionFocus != null) result.sessionFocus = sessionFocus;
     if (sessionSuperseded != null) result.sessionSuperseded = sessionSuperseded;
+    if (siteAssistantGet != null) result.siteAssistantGet = siteAssistantGet;
+    if (siteAssistantEnsure != null)
+      result.siteAssistantEnsure = siteAssistantEnsure;
+    if (appReleaseNudge != null) result.appReleaseNudge = appReleaseNudge;
     return result;
   }
 
@@ -7232,6 +7334,9 @@ class WsRes extends $pb.GeneratedMessage {
     222: WsRes_Body.rootConsole,
     223: WsRes_Body.sessionFocus,
     224: WsRes_Body.sessionSuperseded,
+    225: WsRes_Body.siteAssistantGet,
+    226: WsRes_Body.siteAssistantEnsure,
+    227: WsRes_Body.appReleaseNudge,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -7413,7 +7518,10 @@ class WsRes extends $pb.GeneratedMessage {
       221,
       222,
       223,
-      224
+      224,
+      225,
+      226,
+      227
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -7819,6 +7927,14 @@ class WsRes extends $pb.GeneratedMessage {
     ..aOM<$14.SessionSuperseded>(
         224, _omitFieldNames ? '' : 'sessionSuperseded',
         subBuilder: $14.SessionSuperseded.$_createMessage)
+    ..aOM<$18.ResSiteAssistantGet>(
+        225, _omitFieldNames ? '' : 'siteAssistantGet',
+        subBuilder: $18.ResSiteAssistantGet.$_createMessage)
+    ..aOM<$18.ResSiteAssistantEnsure>(
+        226, _omitFieldNames ? '' : 'siteAssistantEnsure',
+        subBuilder: $18.ResSiteAssistantEnsure.$_createMessage)
+    ..aOM<AppReleaseNudge>(227, _omitFieldNames ? '' : 'appReleaseNudge',
+        subBuilder: AppReleaseNudge.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -8016,6 +8132,9 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(222)
   @$pb.TagNumber(223)
   @$pb.TagNumber(224)
+  @$pb.TagNumber(225)
+  @$pb.TagNumber(226)
+  @$pb.TagNumber(227)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -8192,6 +8311,9 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(222)
   @$pb.TagNumber(223)
   @$pb.TagNumber(224)
+  @$pb.TagNumber(225)
+  @$pb.TagNumber(226)
+  @$pb.TagNumber(227)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -10171,6 +10293,111 @@ class WsRes extends $pb.GeneratedMessage {
   void clearSessionSuperseded() => $_clearField(224);
   @$pb.TagNumber(224)
   $14.SessionSuperseded ensureSessionSuperseded() => $_ensure(175);
+
+  @$pb.TagNumber(225)
+  $18.ResSiteAssistantGet get siteAssistantGet => $_getN(176);
+  @$pb.TagNumber(225)
+  set siteAssistantGet($18.ResSiteAssistantGet value) => $_setField(225, value);
+  @$pb.TagNumber(225)
+  $core.bool hasSiteAssistantGet() => $_has(176);
+  @$pb.TagNumber(225)
+  void clearSiteAssistantGet() => $_clearField(225);
+  @$pb.TagNumber(225)
+  $18.ResSiteAssistantGet ensureSiteAssistantGet() => $_ensure(176);
+
+  @$pb.TagNumber(226)
+  $18.ResSiteAssistantEnsure get siteAssistantEnsure => $_getN(177);
+  @$pb.TagNumber(226)
+  set siteAssistantEnsure($18.ResSiteAssistantEnsure value) =>
+      $_setField(226, value);
+  @$pb.TagNumber(226)
+  $core.bool hasSiteAssistantEnsure() => $_has(177);
+  @$pb.TagNumber(226)
+  void clearSiteAssistantEnsure() => $_clearField(226);
+  @$pb.TagNumber(226)
+  $18.ResSiteAssistantEnsure ensureSiteAssistantEnsure() => $_ensure(177);
+
+  /// Server push: Windows desktop app OTA wake (NATS c35.release.windows).
+  @$pb.TagNumber(227)
+  AppReleaseNudge get appReleaseNudge => $_getN(178);
+  @$pb.TagNumber(227)
+  set appReleaseNudge(AppReleaseNudge value) => $_setField(227, value);
+  @$pb.TagNumber(227)
+  $core.bool hasAppReleaseNudge() => $_has(178);
+  @$pb.TagNumber(227)
+  void clearAppReleaseNudge() => $_clearField(227);
+  @$pb.TagNumber(227)
+  AppReleaseNudge ensureAppReleaseNudge() => $_ensure(178);
+}
+
+/// Instant OTA nudge for connected app WebSockets (Windows desktop).
+class AppReleaseNudge extends $pb.GeneratedMessage {
+  factory AppReleaseNudge({
+    $core.String? platform,
+    $fixnum.Int64? version,
+  }) {
+    final result = AppReleaseNudge._();
+    if (platform != null) result.platform = platform;
+    if (version != null) result.version = version;
+    return result;
+  }
+
+  AppReleaseNudge._();
+
+  factory AppReleaseNudge.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AppReleaseNudge()..mergeFromBuffer(data, registry);
+  factory AppReleaseNudge.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      AppReleaseNudge()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'AppReleaseNudge',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: AppReleaseNudge.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'platform')
+    ..aInt64(2, _omitFieldNames ? '' : 'version')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AppReleaseNudge clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  AppReleaseNudge copyWith(void Function(AppReleaseNudge) updates) =>
+      super.copyWith((message) => updates(message as AppReleaseNudge))
+          as AppReleaseNudge;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use AppReleaseNudge() / AppReleaseNudge.new instead')
+  static AppReleaseNudge create() => AppReleaseNudge._();
+  static $pb.GeneratedMessage $_createMessage() => AppReleaseNudge._();
+  @$core.override
+  AppReleaseNudge createEmptyInstance() => AppReleaseNudge._();
+  @$core.pragma('dart2js:noInline')
+  static AppReleaseNudge getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<AppReleaseNudge>(
+          AppReleaseNudge.$_createMessage);
+  static AppReleaseNudge? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get platform => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set platform($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasPlatform() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearPlatform() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get version => $_getI64(1);
+  @$pb.TagNumber(2)
+  set version($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasVersion() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearVersion() => $_clearField(2);
 }
 
 class NotifyItem extends $pb.GeneratedMessage {

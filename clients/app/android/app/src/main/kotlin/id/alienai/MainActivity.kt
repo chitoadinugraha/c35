@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
+import java.io.File
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -36,6 +37,21 @@ class MainActivity : FlutterActivity() {
                 "disconnect" -> {
                     ThermalBluetoothPrint.disconnect()
                     result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_UPDATE_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "canInstallApk" -> result.success(ApkUpdateInstaller.canInstall(applicationContext))
+                "openInstallPermissionSettings" -> {
+                    ApkUpdateInstaller.openInstallPermissionSettings(this)
+                    result.success(null)
+                }
+                "installApk" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    val ok = ApkUpdateInstaller.install(this, File(path))
+                    result.success(ok)
                 }
                 else -> result.notImplemented()
             }
@@ -175,5 +191,6 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL = "id.alienai/pos_shortcut"
         private const val THERMAL_BT_CHANNEL = "id.alienai/thermal_bluetooth"
+        private const val APP_UPDATE_CHANNEL = "id.alienai/app_update"
     }
 }

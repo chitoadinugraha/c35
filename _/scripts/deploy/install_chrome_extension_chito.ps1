@@ -55,17 +55,14 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy failed ($LASTEXITCODE)" }
 $nmDir = Join-Path $env:LOCALAPPDATA 'AlienAI\chrome_extension\native_host'
 New-Item -ItemType Directory -Force -Path $nmDir | Out-Null
 $nmFile = Join-Path $nmDir "$nmName.json"
-$origins = @('chrome-extension://*/')
-if ($ExtensionId) {
-    $origins = @("chrome-extension://$ExtensionId/")
-}
+$knownId = if ($ExtensionId) { $ExtensionId } else { 'nnijloaplkijpadhmifhleodobafjffi' }
+$origins = @("chrome-extension://$knownId/")
 $nm = @{
     name            = $nmName
     description     = 'Alien AI Remote native host'
     path            = $hostPath
     type            = 'stdio'
     allowed_origins = $origins
-    args            = @('--chrome-native-host')
 } | ConvertTo-Json -Compress
 [System.IO.File]::WriteAllText($nmFile, $nm, [System.Text.UTF8Encoding]::new($false))
 New-Item -Path $nmReg -Force | Out-Null

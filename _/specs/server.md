@@ -134,7 +134,16 @@ cd remotes && cargo build -p c_remote_windows
 
 ## Cache cleanup
 
-`.cache/` is gitignored (see `servers/.cargo/config.toml` → `target-dir`).
+`.cache/` at the **repo root** is gitignored. All local build output, publish perf JSON, agent scratch, and smoke-test WAVs go there — **not** under `servers/` or `remotes/` (`.gitignore` blocks `servers/.cache-*`, `servers/tmp-*`, and similar).
+
+| Path | Use |
+|------|-----|
+| `.cache/server` | Server Cargo target (`servers/.cargo/config.toml`) |
+| `.cache/c_remote` | Remote agent Cargo target |
+| `.cache/publish-perf/` | Publish script timing + OCIR size (`latest.json`) |
+| `.cache/cas/` | Local CAS when `CAS_DIR` unset |
+| `.cache/live-smoke/` | Live audio smoke fixtures |
+| `.cache/subagent/` | Optional Cursor/subagent cargo or notes (anything ad hoc) |
 
 | Script | What it cleans |
 |--------|----------------|

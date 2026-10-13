@@ -13,12 +13,14 @@ pub mod guest_design;
 mod guest_schedule;
 mod guest_product;
 mod guest_product_display;
+mod guest_i18n;
 mod guest_reservation;
 mod product_design;
 mod product_icon;
 mod product_icon_svg;
 mod link_display;
 mod link_platform_icon;
+pub mod guest_renderer;
 pub mod render;
 mod rows;
 mod site_config;
@@ -57,6 +59,7 @@ pub use collection_def::{collection_def_list, collection_def_list_rpc, collectio
 pub use http::{host_is_api, host_is_primary, site_render_router, try_custom_domain_root};
 pub use site_config::{
     site_capability_check, site_capability_enabled, site_capabilities_get, site_config_put,
+    site_order_fulfillment_enabled,
 };
 pub use site_contact::{guest_contact_put, site_contact_list, site_contact_put, site_contact_upsert};
 pub use site_link::{
@@ -129,6 +132,10 @@ pub use site_queue::{
     guest_queue_get, guest_queue_get_json, guest_queue_take, guest_queue_take_json,
     site_queue_advance_serving, site_queue_list, site_queue_put,
 };
+pub use guest_renderer::{
+    guest_renderer_sync_config, guest_renderer_version_effective, site_guest_render_ensure_current,
+    GUEST_RENDERER_CONFIG_KEY, GUEST_RENDERER_VERSION,
+};
 pub use site_publish::{
     active_publish_render_hash, render_bundle_hash, site_draft_render_hash, site_publish,
     site_publish_from_draft, site_publish_pending_for_draft, site_published,
@@ -140,8 +147,12 @@ pub use guest_product::{
     ProductRow,
 };
 pub use guest_product_display::{
-    format_idr, guest_product_can_add_to_cart, guest_product_price_label, pic_url, pic_url_display,
-    pic_url_thumb, product_grid_display, GUEST_PRODUCT_PRICE_CONTACT,
+    format_idr, guest_product_can_add_to_cart, guest_product_price_label,
+    guest_product_price_label_i18n, pic_url, pic_url_display, pic_url_thumb, product_grid_display,
+    GUEST_PRODUCT_PRICE_CONTACT,
+};
+pub use guest_i18n::{
+    guest_layout_grid_min_css, guest_layout_mode, guest_layout_page_max_css, GuestI18n,
 };
 pub use guest_reservation::{
     availability_ok, guest_reservation_availability, reservation_windows_overlap, units_left,

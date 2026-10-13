@@ -138,6 +138,13 @@ const SiteConfig$json = {
       '5': 3,
       '10': 'alienIdChangedTsMs'
     },
+    {
+      '1': 'assistant_bot_iid',
+      '3': 10,
+      '4': 1,
+      '5': 3,
+      '10': 'assistantBotIid'
+    },
     {'1': 'created_ts_ms', '3': 20, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 21, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 22, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -153,8 +160,9 @@ final $typed_data.Uint8List siteConfigDescriptor = $convert.base64Decode(
     'EXBheXJvbGxQb2xpY3lKc29uEjAKFHByZXNlbmNlX3BvbGljeV9qc29uGAcgASgJUhJwcmVzZW'
     '5jZVBvbGljeUpzb24SKwoRY2FwYWJpbGl0aWVzX2pzb24YCCABKAlSEGNhcGFiaWxpdGllc0pz'
     'b24SMgoWYWxpZW5faWRfY2hhbmdlZF90c19tcxgJIAEoA1ISYWxpZW5JZENoYW5nZWRUc01zEi'
-    'IKDWNyZWF0ZWRfdHNfbXMYFCABKANSC2NyZWF0ZWRUc01zEiIKDXVwZGF0ZWRfdHNfbXMYFSAB'
-    'KANSC3VwZGF0ZWRUc01zEiIKDWRlbGV0ZWRfdHNfbXMYFiABKANSC2RlbGV0ZWRUc01z');
+    'oKEWFzc2lzdGFudF9ib3RfaWlkGAogASgDUg9hc3Npc3RhbnRCb3RJaWQSIgoNY3JlYXRlZF90'
+    'c19tcxgUIAEoA1ILY3JlYXRlZFRzTXMSIgoNdXBkYXRlZF90c19tcxgVIAEoA1ILdXBkYXRlZF'
+    'RzTXMSIgoNZGVsZXRlZF90c19tcxgWIAEoA1ILZGVsZXRlZFRzTXM=');
 
 @$core.Deprecated('Use siteDomainDescriptor instead')
 const SiteDomain$json = {
@@ -1503,6 +1511,89 @@ const ResSiteBootGet$json = {
 /// Descriptor for `ResSiteBootGet`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List resSiteBootGetDescriptor = $convert.base64Decode(
     'Cg5SZXNTaXRlQm9vdEdldBIbCglib290X2pzb24YASABKAlSCGJvb3RKc29u');
+
+@$core.Deprecated('Use siteAssistantChannelSummaryDescriptor instead')
+const SiteAssistantChannelSummary$json = {
+  '1': 'SiteAssistantChannelSummary',
+  '2': [
+    {'1': 'id', '3': 1, '4': 1, '5': 9, '10': 'id'},
+    {'1': 'platform', '3': 2, '4': 1, '5': 9, '10': 'platform'},
+    {'1': 'provider', '3': 3, '4': 1, '5': 9, '10': 'provider'},
+    {'1': 'status', '3': 4, '4': 1, '5': 9, '10': 'status'},
+    {'1': 'bot_username', '3': 5, '4': 1, '5': 9, '10': 'botUsername'},
+    {'1': 'phone', '3': 6, '4': 1, '5': 9, '10': 'phone'},
+    {'1': 'error_message', '3': 7, '4': 1, '5': 9, '10': 'errorMessage'},
+  ],
+};
+
+/// Descriptor for `SiteAssistantChannelSummary`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List siteAssistantChannelSummaryDescriptor = $convert.base64Decode(
+    'ChtTaXRlQXNzaXN0YW50Q2hhbm5lbFN1bW1hcnkSDgoCaWQYASABKAlSAmlkEhoKCHBsYXRmb3'
+    'JtGAIgASgJUghwbGF0Zm9ybRIaCghwcm92aWRlchgDIAEoCVIIcHJvdmlkZXISFgoGc3RhdHVz'
+    'GAQgASgJUgZzdGF0dXMSIQoMYm90X3VzZXJuYW1lGAUgASgJUgtib3RVc2VybmFtZRIUCgVwaG'
+    '9uZRgGIAEoCVIFcGhvbmUSIwoNZXJyb3JfbWVzc2FnZRgHIAEoCVIMZXJyb3JNZXNzYWdl');
+
+@$core.Deprecated('Use reqSiteAssistantGetDescriptor instead')
+const ReqSiteAssistantGet$json = {
+  '1': 'ReqSiteAssistantGet',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+  ],
+};
+
+/// Descriptor for `ReqSiteAssistantGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteAssistantGetDescriptor =
+    $convert.base64Decode(
+        'ChNSZXFTaXRlQXNzaXN0YW50R2V0EhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlk');
+
+@$core.Deprecated('Use resSiteAssistantGetDescriptor instead')
+const ResSiteAssistantGet$json = {
+  '1': 'ResSiteAssistantGet',
+  '2': [
+    {'1': 'assistant_bot_iid', '3': 1, '4': 1, '5': 3, '10': 'assistantBotIid'},
+    {
+      '1': 'channels',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteAssistantChannelSummary',
+      '10': 'channels'
+    },
+  ],
+};
+
+/// Descriptor for `ResSiteAssistantGet`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteAssistantGetDescriptor = $convert.base64Decode(
+    'ChNSZXNTaXRlQXNzaXN0YW50R2V0EioKEWFzc2lzdGFudF9ib3RfaWlkGAEgASgDUg9hc3Npc3'
+    'RhbnRCb3RJaWQSPAoIY2hhbm5lbHMYAiADKAsyIC5jMzUuU2l0ZUFzc2lzdGFudENoYW5uZWxT'
+    'dW1tYXJ5UghjaGFubmVscw==');
+
+@$core.Deprecated('Use reqSiteAssistantEnsureDescriptor instead')
+const ReqSiteAssistantEnsure$json = {
+  '1': 'ReqSiteAssistantEnsure',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+  ],
+};
+
+/// Descriptor for `ReqSiteAssistantEnsure`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteAssistantEnsureDescriptor =
+    $convert.base64Decode(
+        'ChZSZXFTaXRlQXNzaXN0YW50RW5zdXJlEhkKCHNpdGVfaWlkGAEgASgDUgdzaXRlSWlk');
+
+@$core.Deprecated('Use resSiteAssistantEnsureDescriptor instead')
+const ResSiteAssistantEnsure$json = {
+  '1': 'ResSiteAssistantEnsure',
+  '2': [
+    {'1': 'assistant_bot_iid', '3': 1, '4': 1, '5': 3, '10': 'assistantBotIid'},
+  ],
+};
+
+/// Descriptor for `ResSiteAssistantEnsure`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteAssistantEnsureDescriptor =
+    $convert.base64Decode(
+        'ChZSZXNTaXRlQXNzaXN0YW50RW5zdXJlEioKEWFzc2lzdGFudF9ib3RfaWlkGAEgASgDUg9hc3'
+        'Npc3RhbnRCb3RJaWQ=');
 
 @$core.Deprecated('Use siteQueryRowDescriptor instead')
 const SiteQueryRow$json = {

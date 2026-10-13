@@ -19,6 +19,7 @@ Future<void> main(List<String> args) async {
     final androidOnly = args.contains('--android-only');
     final windowsOnly = args.contains('--windows-only');
     final webOnly = args.contains('--web-only');
+    final skipNats = args.contains('--skip-nats');
     if (androidOnly && windowsOnly) throw StateError('Cannot use --android-only and --windows-only together');
     if (webOnly && (androidOnly || windowsOnly)) {
       throw StateError('Cannot combine --web-only with --android-only or --windows-only');
@@ -41,7 +42,7 @@ Future<void> main(List<String> args) async {
     if (windowsOnly) {
       final build = buildWindowsRelease();
       await runStep('Upload Windows zip to CAS', () => uploadWindowsReleaseOnly(build));
-      await publishWindowsAppVersion(version: build.version, hash: build.hash, size: build.size);
+      await publishWindowsAppVersion(version: build.version, hash: build.hash, size: build.size, skipNats: skipNats);
       deployAppBumpVersion();
       deployDone(version: 'v${build.version}', detail: 'zip ${formatBytes(build.size)}', target: 'windows-release');
       return;
@@ -83,6 +84,7 @@ Future<void> main(List<String> args) async {
       windowsHash: win?.hash ?? '',
       windowsSize: win?.size ?? 0,
       includeWeb: webDir != null,
+      skipWindowsNats: skipNats,
     );
 
     await maybePruneAppArtifactsAfterPublish();

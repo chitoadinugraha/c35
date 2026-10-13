@@ -67,6 +67,109 @@ final $typed_data.Uint8List resAdminUserSearchDescriptor = $convert.base64Decode
     'ChJSZXNBZG1pblVzZXJTZWFyY2gSJwoFdXNlcnMYASADKAsyES5jMzUuQWRtaW5Vc2VySGl0Ug'
     'V1c2Vycw==');
 
+@$core.Deprecated('Use adminUserReferrerBriefDescriptor instead')
+const AdminUserReferrerBrief$json = {
+  '1': 'AdminUserReferrerBrief',
+  '2': [
+    {'1': 'identity_id', '3': 1, '4': 1, '5': 3, '10': 'identityId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'alien_id', '3': 3, '4': 1, '5': 9, '10': 'alienId'},
+  ],
+};
+
+/// Descriptor for `AdminUserReferrerBrief`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List adminUserReferrerBriefDescriptor =
+    $convert.base64Decode(
+        'ChZBZG1pblVzZXJSZWZlcnJlckJyaWVmEh8KC2lkZW50aXR5X2lkGAEgASgDUgppZGVudGl0eU'
+        'lkEhIKBG5hbWUYAiABKAlSBG5hbWUSGQoIYWxpZW5faWQYAyABKAlSB2FsaWVuSWQ=');
+
+@$core.Deprecated('Use adminUserRegistrationRowDescriptor instead')
+const AdminUserRegistrationRow$json = {
+  '1': 'AdminUserRegistrationRow',
+  '2': [
+    {'1': 'identity_id', '3': 1, '4': 1, '5': 3, '10': 'identityId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'handle', '3': 3, '4': 1, '5': 9, '10': 'handle'},
+    {'1': 'email', '3': 4, '4': 1, '5': 9, '10': 'email'},
+    {'1': 'registered_ts_ms', '3': 5, '4': 1, '5': 3, '10': 'registeredTsMs'},
+    {
+      '1': 'referred_by',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.AdminUserReferrerBrief',
+      '10': 'referredBy'
+    },
+  ],
+};
+
+/// Descriptor for `AdminUserRegistrationRow`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List adminUserRegistrationRowDescriptor = $convert.base64Decode(
+    'ChhBZG1pblVzZXJSZWdpc3RyYXRpb25Sb3cSHwoLaWRlbnRpdHlfaWQYASABKANSCmlkZW50aX'
+    'R5SWQSEgoEbmFtZRgCIAEoCVIEbmFtZRIWCgZoYW5kbGUYAyABKAlSBmhhbmRsZRIUCgVlbWFp'
+    'bBgEIAEoCVIFZW1haWwSKAoQcmVnaXN0ZXJlZF90c19tcxgFIAEoA1IOcmVnaXN0ZXJlZFRzTX'
+    'MSPAoLcmVmZXJyZWRfYnkYBiABKAsyGy5jMzUuQWRtaW5Vc2VyUmVmZXJyZXJCcmllZlIKcmVm'
+    'ZXJyZWRCeQ==');
+
+@$core.Deprecated('Use reqAdminUserRegistrationsListDescriptor instead')
+const ReqAdminUserRegistrationsList$json = {
+  '1': 'ReqAdminUserRegistrationsList',
+  '2': [
+    {'1': 'preset', '3': 1, '4': 1, '5': 9, '10': 'preset'},
+    {'1': 'since', '3': 2, '4': 1, '5': 9, '10': 'since'},
+    {'1': 'until', '3': 3, '4': 1, '5': 9, '10': 'until'},
+    {'1': 'count_only', '3': 4, '4': 1, '5': 8, '10': 'countOnly'},
+    {'1': 'limit', '3': 5, '4': 1, '5': 5, '10': 'limit'},
+    {
+      '1': 'after_registered_ts_ms',
+      '3': 6,
+      '4': 1,
+      '5': 3,
+      '10': 'afterRegisteredTsMs'
+    },
+    {'1': 'after_identity_id', '3': 7, '4': 1, '5': 3, '10': 'afterIdentityId'},
+    {'1': 'referred_by_uid', '3': 8, '4': 1, '5': 3, '10': 'referredByUid'},
+    {'1': 'timezone', '3': 9, '4': 1, '5': 9, '10': 'timezone'},
+  ],
+};
+
+/// Descriptor for `ReqAdminUserRegistrationsList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqAdminUserRegistrationsListDescriptor = $convert.base64Decode(
+    'Ch1SZXFBZG1pblVzZXJSZWdpc3RyYXRpb25zTGlzdBIWCgZwcmVzZXQYASABKAlSBnByZXNldB'
+    'IUCgVzaW5jZRgCIAEoCVIFc2luY2USFAoFdW50aWwYAyABKAlSBXVudGlsEh0KCmNvdW50X29u'
+    'bHkYBCABKAhSCWNvdW50T25seRIUCgVsaW1pdBgFIAEoBVIFbGltaXQSMwoWYWZ0ZXJfcmVnaX'
+    'N0ZXJlZF90c19tcxgGIAEoA1ITYWZ0ZXJSZWdpc3RlcmVkVHNNcxIqChFhZnRlcl9pZGVudGl0'
+    'eV9pZBgHIAEoA1IPYWZ0ZXJJZGVudGl0eUlkEiYKD3JlZmVycmVkX2J5X3VpZBgIIAEoA1INcm'
+    'VmZXJyZWRCeVVpZBIaCgh0aW1lem9uZRgJIAEoCVIIdGltZXpvbmU=');
+
+@$core.Deprecated('Use resAdminUserRegistrationsListDescriptor instead')
+const ResAdminUserRegistrationsList$json = {
+  '1': 'ResAdminUserRegistrationsList',
+  '2': [
+    {'1': 'count', '3': 1, '4': 1, '5': 3, '10': 'count'},
+    {
+      '1': 'users',
+      '3': 2,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.AdminUserRegistrationRow',
+      '10': 'users'
+    },
+    {'1': 'timezone_used', '3': 3, '4': 1, '5': 9, '10': 'timezoneUsed'},
+    {'1': 'window_start_ms', '3': 4, '4': 1, '5': 3, '10': 'windowStartMs'},
+    {'1': 'window_end_ms', '3': 5, '4': 1, '5': 3, '10': 'windowEndMs'},
+    {'1': 'has_more', '3': 6, '4': 1, '5': 8, '10': 'hasMore'},
+  ],
+};
+
+/// Descriptor for `ResAdminUserRegistrationsList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resAdminUserRegistrationsListDescriptor = $convert.base64Decode(
+    'Ch1SZXNBZG1pblVzZXJSZWdpc3RyYXRpb25zTGlzdBIUCgVjb3VudBgBIAEoA1IFY291bnQSMw'
+    'oFdXNlcnMYAiADKAsyHS5jMzUuQWRtaW5Vc2VyUmVnaXN0cmF0aW9uUm93UgV1c2VycxIjCg10'
+    'aW1lem9uZV91c2VkGAMgASgJUgx0aW1lem9uZVVzZWQSJgoPd2luZG93X3N0YXJ0X21zGAQgAS'
+    'gDUg13aW5kb3dTdGFydE1zEiIKDXdpbmRvd19lbmRfbXMYBSABKANSC3dpbmRvd0VuZE1zEhkK'
+    'CGhhc19tb3JlGAYgASgIUgdoYXNNb3Jl');
+
 @$core.Deprecated('Use adminGlobalRolesPatchDescriptor instead')
 const AdminGlobalRolesPatch$json = {
   '1': 'AdminGlobalRolesPatch',

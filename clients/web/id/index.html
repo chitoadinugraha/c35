@@ -88,6 +88,16 @@
   </script>
 
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg-glass: rgba(20, 21, 28, 0.45);
+      --border-glass: rgba(255, 255, 255, 0.08);
+      --glow-win: rgba(59, 130, 246, 0.2);
+      --glow-android: rgba(16, 185, 129, 0.2);
+      --glow-web: rgba(139, 92, 246, 0.25);
+    }
+
     #stars {
       position: fixed;
       inset: 0;
@@ -103,6 +113,43 @@
     .hero-glow {
       background: radial-gradient(circle at 50% 35%, rgba(0, 229, 153, 0.06) 0%, transparent 65%);
     }
+
+    /* Floating logo animation */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .logo-float {
+      animation: float 6s ease-in-out infinite;
+    }
+
+    /* Modern Glass Card */
+    .glass-card {
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-glass);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .platform-card-win:hover {
+      background: rgba(59, 130, 246, 0.04);
+      border-color: rgba(59, 130, 246, 0.3);
+      box-shadow: 0 12px 30px rgba(59, 130, 246, 0.12);
+      transform: translateY(-3px);
+    }
+    .platform-card-android:hover {
+      background: rgba(16, 185, 129, 0.04);
+      border-color: rgba(16, 185, 129, 0.3);
+      box-shadow: 0 12px 30px rgba(16, 185, 129, 0.12);
+      transform: translateY(-3px);
+    }
+    .platform-card-web:hover {
+      background: rgba(139, 92, 246, 0.04);
+      border-color: rgba(139, 92, 246, 0.3);
+      box-shadow: 0 12px 30px rgba(139, 92, 246, 0.12);
+      transform: translateY(-3px);
+    }
   </style>
 </head>
 <body class="bg-dark-bg text-slate-200 font-sans antialiased selection:bg-brand-500 selection:text-black min-h-screen flex flex-col relative">
@@ -117,14 +164,14 @@
       <!-- Brand Logo -->
       <a href="/id/" class="flex items-center gap-3 group z-20">
         <div class="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:border-white/40 transition duration-300">
-          <img src="/alien.svg" alt="Alien AI" class="w-5 h-5">
+          <img src="/alien.svg" alt="Alien AI" class="w-5 h-5 logo-float">
         </div>
-        <span class="text-xl font-bold tracking-tight text-white">Alien<span class="text-white font-black">AI</span></span>
+        <span class="text-xl font-bold tracking-tight text-white font-['Outfit']">Alien<span class="text-white font-black">AI</span></span>
       </a>
 
       <!-- Right controls: Status + Language switcher -->
       <div class="flex items-center gap-3 sm:gap-5 z-20">
-        <a href="/id/docs" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.docs">Panduan</a>
+        <a href="/docs" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.docs">Panduan</a>
         <a href="/id/status" class="text-xs sm:text-sm font-medium text-slate-400 hover:text-white transition duration-200" data-i18n="nav.status">Status</a>
 
         <!-- Multilingual Toggle -->
@@ -159,10 +206,10 @@
         <div id="hero-actions" class="flex flex-col md:flex-row items-stretch justify-center gap-5 max-w-3xl mx-auto mb-6">
           
           <!-- Card 1: Download App (Desktop & Mobile) -->
-          <div class="flex-1 p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
+          <div class="flex-1 p-6 rounded-2xl glass-card hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
             <div>
               <div class="flex items-center gap-3 mb-2 flex-wrap">
-                <h2 class="text-xl sm:text-2xl font-bold text-white leading-tight" data-i18n="hero.downloadApp">Download App</h2>
+                <h2 class="text-xl sm:text-2xl font-bold text-white leading-tight font-['Outfit']" data-i18n="hero.downloadApp">Download App</h2>
                 <span id="heroAppVersion" class="hidden inline-flex items-baseline gap-1 px-2.5 py-1 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] text-[11px] leading-none">
                   <span data-i18n="hero.versionLabel" class="text-slate-400 font-medium leading-none">Versi:</span>
                   <span id="heroAppVersionNum" class="text-emerald-300 font-semibold tabular-nums leading-none"></span>
@@ -231,9 +278,9 @@
           </div>
 
           <!-- Card 2: Remote Control (Background Node) -->
-          <div class="flex-1 p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
+          <div class="flex-1 p-6 rounded-2xl glass-card hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
             <div>
-              <h2 class="text-xl sm:text-2xl font-bold text-white mb-2" data-i18n="hero.downloadAgent">Remote Control</h2>
+              <h2 class="text-xl sm:text-2xl font-bold text-white mb-2 font-['Outfit']" data-i18n="hero.downloadAgent">Remote Control</h2>
               <p class="text-xs text-slate-400 mb-6 leading-relaxed" data-i18n="hero.agentDesc">Node latar belakang untuk otomatisasi klik, ketikan keyboard, streaming layar WebRTC, dan virtual cloud drive.</p>
             </div>
             
@@ -243,6 +290,7 @@
                 <span data-i18n="hero.winRemoteControl">Windows</span>
               </a>
 
+              <!-- Android Remote (APK only for now) -->
               <div class="relative inline-block text-left">
                 <button type="button" onclick="toggleDropdown('androidRemoteDropdown', event)" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition flex items-center gap-2 border border-white/10 shadow-sm">
                   <svg class="w-3.5 h-3.5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M3.609 1.814L13.792 12 3.61 22.186a2.38 2.38 0 0 1-.61-.924V2.738c.15-.36.368-.68.609-.924zm11.24 11.24l2.583 2.584-11.89 6.862 9.307-9.446zm0-2.108L5.542 1.5l11.89 6.863-2.583 2.583zm1.488 1.054l3.963 2.29a1.64 1.64 0 0 1 0 2.82l-3.963 2.29-2.274-2.274 2.274-2.274z"/></svg>
@@ -254,7 +302,7 @@
                     <span class="text-sm">⬇️</span>
                     <div>
                       <div class="font-semibold" data-i18n="dl.app.android.directApk">Download APK</div>
-                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.android.directApkDesc">Instal APK langsung</div>
+                      <div class="text-[10px] text-slate-400" data-i18n="dl.app.android.directApkDesc">Install APK langsung</div>
                     </div>
                   </a>
                 </div>

@@ -330,33 +330,68 @@ pub async fn memory_retrieve(
     .await
 }
 
+#[derive(Clone, Debug)]
+pub struct UnifiedPromptEmbed {
+    pub embed_768: Vec<f32>,
+    pub embed_256: Vec<f32>,
+    pub token_in: i32,
+    pub cached: bool,
+}
+
+static UNIFIED_QUERY_EMBED_CACHE: std::sync::LazyLock<dashmap::DashMap<String, UnifiedPromptEmbed>> =
+    std::sync::LazyLock::new(dashmap::DashMap::new);
+
+/// Unified 768-dim query embedding sliced to MRL 256-dim.
+/// Replaces separate embedding calls for tool RAG (768) and memory/asset RAG (256).
+pub async fn unified_query_embed(
+    pool: &PgPool,
+    http: &Client,
+    query_text: &str,
+) -> Option<UnifiedPromptEmbed> {
+    let q = query_text.trim();
+    if q.is_empty() || is_trivial_query(q) {
+        return None;
+    }
+    if let Some(hit) = UNIFIED_QUERY_EMBED_CACHE.get(q) {
+        return Some(hit.value().clone());
+    }
+    match tokio::time::timeout(
+        MEMORY_EMBED_TIMEOUT,
+        embed_cached(pool, http, q, EMBED_TASK_QUERY, c35_mod_llm::EMBED_DIMENSIONS_DEFAULT),
+    )
+    .await
+    {
+        Ok(Ok(r)) => {
+            let mut sliced = if r.embedding.len() >= EMBED_DIMS as usize {
+                r.embedding[..EMBED_DIMS as usize].to_vec()
+            } else {
+                r.embedding.clone()
+            };
+            l2_normalize_256(&mut sliced);
+            let unified = UnifiedPromptEmbed {
+                embed_768: r.embedding,
+                embed_256: sliced,
+                token_in: r.token_in,
+                cached: r.cached,
+            };
+            if UNIFIED_QUERY_EMBED_CACHE.len() < 512 {
+                UNIFIED_QUERY_EMBED_CACHE.insert(q.to_string(), unified.clone());
+            }
+            Some(unified)
+        }
+        _ => None,
+    }
+}
+
 /// MRL 256-dim query embedding shared by memory retrieve and user-asset RAG (tool RAG stays 768).
 pub async fn retrieval_query_embed(
     pool: &PgPool,
     http: &Client,
     query_text: &str,
 ) -> Option<Vec<f32>> {
-    let q = query_text.trim();
-    if q.is_empty() || is_trivial_query(q) {
-        return None;
-    }
-    if let Some(hit) = QUERY_EMBED_CACHE.get(q) {
-        return Some(hit.value().clone());
-    }
-    match tokio::time::timeout(
-        MEMORY_EMBED_TIMEOUT,
-        embed_cached(pool, http, q, EMBED_TASK_QUERY, EMBED_DIMS),
-    )
-    .await
-    {
-        Ok(Ok(r)) => {
-            if QUERY_EMBED_CACHE.len() < 512 {
-                QUERY_EMBED_CACHE.insert(q.to_string(), r.embedding.clone());
-            }
-            Some(r.embedding)
-        }
-        _ => None,
-    }
+    unified_query_embed(pool, http, query_text)
+        .await
+        .map(|u| u.embed_256)
 }
 
 pub async fn memory_bundle_warmup(

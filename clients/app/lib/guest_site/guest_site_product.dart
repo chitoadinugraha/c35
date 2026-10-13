@@ -1,11 +1,12 @@
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
 
 /// Sentinel stored on `site.product.price` for quote-only items.
 const guestProductPriceContact = -1;
 
-String guestProductPriceLabel(int price) {
-  if (price == guestProductPriceContact) return 'Contact Us';
+String guestProductPriceLabel(int price, {GuestSiteI18n i18n = GuestSiteI18n.english}) {
+  if (price == guestProductPriceContact) return i18n.priceContact;
   if (price <= 0) return '';
   return moneyFmtIdr(price);
 }

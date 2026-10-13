@@ -6,7 +6,7 @@ use serde_json::json;
 
 #[test]
 fn guest_product_price_contact_us() {
-    assert_eq!(guest_product_price_label(GUEST_PRODUCT_PRICE_CONTACT), "Contact Us");
+    assert_eq!(guest_product_price_label(GUEST_PRODUCT_PRICE_CONTACT), "Contact us");
     assert_eq!(guest_product_price_label(0), "");
     assert_eq!(guest_product_price_label(50_000), "Rp 50.000");
     assert!(!guest_product_can_add_to_cart(GUEST_PRODUCT_PRICE_CONTACT));

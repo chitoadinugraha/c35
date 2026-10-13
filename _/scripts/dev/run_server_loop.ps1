@@ -7,7 +7,7 @@ param(
 $ErrorActionPreference = 'Continue'
 $exe = Join-Path $Root ".cache\server\debug\server_ai.exe"
 $stopScript = Join-Path $Root "_\scripts\dev\stop_listen_port.ps1"
-$restartDelaySec = 1
+$restartDelaySec = 2
 
 while ($true) {
     & $stopScript -Port $Port -Quiet
@@ -26,5 +26,6 @@ while ($true) {
     }
     if ($code -eq 0) { Write-Host "==> server exited cleanly"; break }
     Write-Host "==> server exited ($code), restarting in ${restartDelaySec}s..."
+    & $stopScript -Port $Port -Quiet
     Start-Sleep -Seconds $restartDelaySec
 }

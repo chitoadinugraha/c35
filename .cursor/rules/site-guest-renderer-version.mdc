@@ -1,0 +1,52 @@
+---
+description: Guest site HTML renderer version — bump on compile-output changes, not every server deploy
+globs:
+  - servers/crates/mod_site/src/render.rs
+  - servers/crates/mod_site/src/guest_renderer.rs
+  - servers/crates/mod_site/src/site_boot.rs
+  - servers/crates/mod_site/src/commerce_boot.rs
+  - servers/crates/mod_site/src/site_preview.rs
+  - servers/crates/mod_site/src/http.rs
+  - clients/web/static/site-guest/**
+  - servers/crates/overlay_effects/**
+---
+
+# Site guest renderer version
+
+Guest public HTML is cached in `site.render`. **Compiler generation** is tracked separately from **server deploy version** and from **owner Publish** (content snapshot).
+
+## Hard rules
+
+1. **Bump `GUEST_RENDERER_VERSION` in `servers/crates/mod_site/src/guest_renderer.rs` by exactly +1** when a change can alter compiled guest HTML or the inline `__SITE_GUEST__` boot slice for published pages.
+2. **Do not** tie this to `publish_server_version.dart` or `/version/server` — many server deploys do not touch the guest renderer.
+3. After bumping the constant, run cluster config sync (see deploy checklist below). Boot also raises `ai.config` `site.guest_renderer_version` to at least the code constant.
+
+## What requires a bump
+
+- `mod_site` guest render/boot/commerce_boot paths used by `publish_doc_render` / `page_html_render`
+- `clients/web/static/site-guest/` (JS/CSS/effects) when referenced from compiled HTML
+- Guest overlay effects wired into published pages
+
+## What does not require a bump
+
+- Chat, billing, device, unrelated HTTP routes
+- Flutter-only guest preview (`GuestSiteView` / `site.boot_get`) unless you change the **web** compile contract
+- Owner catalog edits (those need **Publish** or lazy regen picks up live catalog on regen)
+
+## Runtime behavior
+
+| Field | Location | Meaning |
+|-------|----------|---------|
+| Cluster target | `ai.config` `site.guest_renderer_version` + `GUEST_RENDERER_VERSION` (max) | Current compiler generation (now **1**) |
+| Per site | `site.config.guest_render_version` (**0** default) | Last compile generation for that site |
+
+Published guest HTTP: if `guest_render_version <` cluster target, **first visit** recompiles from active `site.publish.doc_json` (advisory lock per site), upserts `site.render`, sets per-site version. Idle sites stay stale until visited.
+
+## Deploy checklist (renderer changed)
+
+1. Increment `GUEST_RENDERER_VERSION` in `guest_renderer.rs`.
+2. Optionally update `INSERT` seed in `_/schemas/migrations/site_guest_renderer_v1.sql` comment / new migration if ops run SQL manually.
+3. After cluster rollout: `.\_\scripts\deploy\publish_site_guest_renderer_version.ps1` (sets `ai.config` to code constant).
+4. `.\_\scripts\dev\check_site_guest_renderer_version.ps1 -Changed` before merge when guest renderer paths changed.
+
+Spec: [`_/specs/site.md`](../../_/specs/site.md) (Publish pipeline).

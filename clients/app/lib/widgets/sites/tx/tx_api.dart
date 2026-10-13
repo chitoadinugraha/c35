@@ -70,6 +70,17 @@ class TxApi {
     return put(payload);
   }
 
+  /// Payment verified; cashier-only sites skip the `pending` kitchen stop.
+  Future<Tx> completePaidSale(int siteIid, Tx tx) async {
+    final payload = tx.clone()..siteIid = Int64(siteIid);
+    payload.state = TxState.TX_STATE_OK;
+    payload.isPaid = true;
+    for (final item in payload.items) {
+      item.fulfillmentState = TxItemFulfillmentState.TX_ITEM_FULFILLMENT_DONE;
+    }
+    return put(payload);
+  }
+
   Future<ResTxPreview> preview(Tx tx) => conn.txPreview(tx);
 
   bool get isConnected => conn.status.value == ChatConnStatus.connected;

@@ -42,12 +42,19 @@ Future<List<SiteRow>> siteListFetch(ChatConn conn, {bool archived = false}) asyn
 }
 
 class SiteCreateFeatures {
-  SiteCreateFeatures({this.product = false, this.pos = false, this.attendance = false, this.reservation = false});
+  SiteCreateFeatures({
+    this.product = false,
+    this.pos = false,
+    this.attendance = false,
+    this.reservation = false,
+    this.orderFulfillment = false,
+  });
 
   bool product;
   bool pos;
   bool attendance;
   bool reservation;
+  bool orderFulfillment;
 }
 
 SiteCreateFeatures siteCreateFeaturesNormalize(SiteCreateFeatures f) {
@@ -58,11 +65,13 @@ SiteCreateFeatures siteCreateFeaturesNormalize(SiteCreateFeatures f) {
 
 Map<String, bool> siteCreateFeaturesToCaps(SiteCreateFeatures f) {
   final n = siteCreateFeaturesNormalize(f);
+  final commerce = n.product || n.pos;
   return {
-    'commerce': n.product || n.pos,
+    'commerce': commerce,
     'booking': n.reservation,
     'queue': false,
     'attendance': n.attendance,
+    'order_fulfillment': commerce && n.orderFulfillment,
   };
 }
 

@@ -107,3 +107,26 @@ INSERT INTO ai.mention (
     search_terms = EXCLUDED.search_terms,
     root_only = EXCLUDED.root_only,
     enabled = TRUE;
+
+-- Seed: root QA — /som (Set-of-Mark screenshot, no LLM)
+INSERT INTO ai.mention (
+    id, topic_id, inst_id, icon, color, sort, label_key, caption_key, search_terms, root_only
+) VALUES (
+    'som',
+    NULL,
+    NULL,
+    'iconify://mdi:grid',
+    '#EF4444',
+    4,
+    'mention.som.label',
+    'mention.som.caption',
+    ARRAY['som', 'set of mark', 'screenshot', 'computer use', '/som'],
+    TRUE
+) ON CONFLICT (id) DO UPDATE SET
+    icon = EXCLUDED.icon,
+    sort = EXCLUDED.sort,
+    label_key = EXCLUDED.label_key,
+    caption_key = EXCLUDED.caption_key,
+    search_terms = EXCLUDED.search_terms,
+    root_only = EXCLUDED.root_only,
+    enabled = TRUE;

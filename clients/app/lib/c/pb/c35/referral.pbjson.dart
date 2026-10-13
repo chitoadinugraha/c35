@@ -301,6 +301,7 @@ const ReqReferralUserStats$json = {
       '6': '.c35.ReferralStatPeriod',
       '10': 'colB'
     },
+    {'1': 'subject_handle', '3': 4, '4': 1, '5': 9, '10': 'subjectHandle'},
   ],
 };
 
@@ -308,7 +309,8 @@ const ReqReferralUserStats$json = {
 final $typed_data.Uint8List reqReferralUserStatsDescriptor = $convert.base64Decode(
     'ChRSZXFSZWZlcnJhbFVzZXJTdGF0cxIfCgtzdWJqZWN0X3VpZBgBIAEoA1IKc3ViamVjdFVpZB'
     'IsCgVjb2xfYRgCIAEoCzIXLmMzNS5SZWZlcnJhbFN0YXRQZXJpb2RSBGNvbEESLAoFY29sX2IY'
-    'AyABKAsyFy5jMzUuUmVmZXJyYWxTdGF0UGVyaW9kUgRjb2xC');
+    'AyABKAsyFy5jMzUuUmVmZXJyYWxTdGF0UGVyaW9kUgRjb2xCEiUKDnN1YmplY3RfaGFuZGxlGA'
+    'QgASgJUg1zdWJqZWN0SGFuZGxl');
 
 @$core.Deprecated('Use referralUserWalletSnapshotDescriptor instead')
 const ReferralUserWalletSnapshot$json = {
@@ -342,6 +344,22 @@ final $typed_data.Uint8List referralUserWalletSnapshotDescriptor = $convert.base
     '9hdmFpbGFibGVfdXNkGAQgASgBUhZjb21taXNzaW9uQXZhaWxhYmxlVXNkEikKEGJpbGxpbmdf'
     'Y3VycmVuY3kYBSABKAlSD2JpbGxpbmdDdXJyZW5jeQ==');
 
+@$core.Deprecated('Use referralUserReferrerBriefDescriptor instead')
+const ReferralUserReferrerBrief$json = {
+  '1': 'ReferralUserReferrerBrief',
+  '2': [
+    {'1': 'identity_id', '3': 1, '4': 1, '5': 3, '10': 'identityId'},
+    {'1': 'name', '3': 2, '4': 1, '5': 9, '10': 'name'},
+    {'1': 'alien_id', '3': 3, '4': 1, '5': 9, '10': 'alienId'},
+  ],
+};
+
+/// Descriptor for `ReferralUserReferrerBrief`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List referralUserReferrerBriefDescriptor =
+    $convert.base64Decode(
+        'ChlSZWZlcnJhbFVzZXJSZWZlcnJlckJyaWVmEh8KC2lkZW50aXR5X2lkGAEgASgDUgppZGVudG'
+        'l0eUlkEhIKBG5hbWUYAiABKAlSBG5hbWUSGQoIYWxpZW5faWQYAyABKAlSB2FsaWVuSWQ=');
+
 @$core.Deprecated('Use resReferralUserStatsDescriptor instead')
 const ResReferralUserStats$json = {
   '1': 'ResReferralUserStats',
@@ -372,6 +390,15 @@ const ResReferralUserStats$json = {
     },
     {'1': 'auth_email', '3': 4, '4': 1, '5': 9, '10': 'authEmail'},
     {'1': 'auth_phone', '3': 5, '4': 1, '5': 9, '10': 'authPhone'},
+    {
+      '1': 'referred_by',
+      '3': 6,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReferralUserReferrerBrief',
+      '10': 'referredBy'
+    },
+    {'1': 'registered_ts_ms', '3': 7, '4': 1, '5': 3, '10': 'registeredTsMs'},
   ],
 };
 
@@ -381,7 +408,9 @@ final $typed_data.Uint8List resReferralUserStatsDescriptor = $convert.base64Deco
     'JTdGF0Q29sdW1uUgRjb2xBEjAKBWNvbF9iGAIgASgLMhsuYzM1LlJlZmVycmFsVXNlclN0YXRD'
     'b2x1bW5SBGNvbEISNwoGd2FsbGV0GAMgASgLMh8uYzM1LlJlZmVycmFsVXNlcldhbGxldFNuYX'
     'BzaG90UgZ3YWxsZXQSHQoKYXV0aF9lbWFpbBgEIAEoCVIJYXV0aEVtYWlsEh0KCmF1dGhfcGhv'
-    'bmUYBSABKAlSCWF1dGhQaG9uZQ==');
+    'bmUYBSABKAlSCWF1dGhQaG9uZRI/CgtyZWZlcnJlZF9ieRgGIAEoCzIeLmMzNS5SZWZlcnJhbF'
+    'VzZXJSZWZlcnJlckJyaWVmUgpyZWZlcnJlZEJ5EigKEHJlZ2lzdGVyZWRfdHNfbXMYByABKANS'
+    'DnJlZ2lzdGVyZWRUc01z');
 
 @$core.Deprecated('Use referralCommissionLevelDescriptor instead')
 const ReferralCommissionLevel$json = {

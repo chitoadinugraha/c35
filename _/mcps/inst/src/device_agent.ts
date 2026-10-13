@@ -37,6 +37,39 @@ export const registerDeviceAgentTools = (server: McpServer) => {
   );
 
   server.registerTool(
+    "device_som",
+    {
+      description:
+        "Set-of-Mark (numbered UI overlay) screenshot from a paired device via /v1/mcp/agent device_som. Returns JPEG base64, axtree_text, and artifact URL. Default owner 99000.",
+      inputSchema: {
+        device_iid: z.union([z.string(), z.number()]).describe("Remote device id (string snowflake recommended)"),
+        max_width: z.number().optional(),
+        quality: z.number().optional(),
+        som_mark: z
+          .union([z.number(), z.string()])
+          .optional()
+          .describe("SoM index @N; also accepts mark alias"),
+        mark: z.union([z.number(), z.string()]).optional().describe("Alias for som_mark"),
+        marker_x: z.number().optional().describe("Normalized X 0-1 for red action marker overlay"),
+        marker_y: z.number().optional().describe("Normalized Y 0-1 for red action marker overlay"),
+        ...ownerSchema,
+      },
+    },
+    async ({ device_iid, max_width, quality, som_mark, mark, marker_x, marker_y, owner_iid, uid }) => {
+      const owner = deviceOwner(owner_iid, uid);
+      const args: Record<string, unknown> = { device_iid: deviceIidArg(device_iid) };
+      if (max_width !== undefined) args.max_width = max_width;
+      if (quality !== undefined) args.quality = quality;
+      if (som_mark !== undefined) args.som_mark = som_mark;
+      else if (mark !== undefined) args.mark = mark;
+      if (marker_x !== undefined) args.marker_x = marker_x;
+      if (marker_y !== undefined) args.marker_y = marker_y;
+      const result = await agentPost("device_som", { args_json: args }, owner);
+      return jsonContent(result);
+    },
+  );
+
+  server.registerTool(
     "device_command",
     {
       description: "Run shell/PowerShell on a paired remote device (shell.run). Default owner 99000.",

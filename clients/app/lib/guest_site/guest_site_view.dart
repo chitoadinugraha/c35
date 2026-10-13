@@ -10,6 +10,7 @@ import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
+import 'package:alienai_c35/guest_site/guest_site_layout.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/guest_site/guest_site_preview_handoff.dart';
 import 'package:alienai_c35/guest_site/guest_site_scroll_behavior.dart';
@@ -130,7 +131,7 @@ class _GuestSiteBootLoaderState extends State<GuestSiteBootLoader> {
       );
 }
 
-class _GuestSiteBody extends StatelessWidget {
+class _GuestSiteBody extends StatefulWidget {
   const _GuestSiteBody({
     required this.boot,
     required this.blockKeyAt,
@@ -142,7 +143,15 @@ class _GuestSiteBody extends StatelessWidget {
   final String emptyLabel;
 
   @override
+  State<_GuestSiteBody> createState() => _GuestSiteBodyState();
+}
+
+class _GuestSiteBodyState extends State<_GuestSiteBody> {
+  var _showSticky = false;
+
+  @override
   Widget build(BuildContext context) {
+    final boot = widget.boot;
     final blocks = boot.homeBlocks;
     final accent = boot.accentColor;
     final openHours = boot.openHoursSlots;
@@ -157,7 +166,7 @@ class _GuestSiteBody extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Center(
           child: Text(
-            emptyLabel,
+            widget.emptyLabel,
             style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 13),
           ),
         ),
@@ -171,7 +180,7 @@ class _GuestSiteBody extends StatelessWidget {
     final blockWidgets = <Widget>[
       for (var i = 0; i < blocks.length; i++)
         KeyedSubtree(
-          key: blockKeyAt?.call(i),
+          key: widget.blockKeyAt?.call(i),
           child: guestSiteBlock(
             block: blocks[i],
             accent: accent,
@@ -209,16 +218,110 @@ class _GuestSiteBody extends StatelessWidget {
     final scrollBehavior = SitePreviewViewportHandoff.maybeOf(context) != null
         ? const SitePreviewHandoffScrollBehavior()
         : const GuestSitePreviewScrollBehavior();
+    final productCount = boot.productPreload.values.fold<int>(0, (n, list) => n + list.length);
+    final layout = guestLayoutMode(boot.meta, productCount: productCount);
+    final maxW = guestLayoutMaxWidth(layout);
+
     final scrollBody = ScrollConfiguration(
       behavior: scrollBehavior,
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: blockWidgets,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (n) {
+          if (n is ScrollUpdateNotification || n is ScrollEndNotification) {
+            final next = n.metrics.pixels > 120;
+            if (next != _showSticky) setState(() => _showSticky = next);
+          }
+          return false;
+        },
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: blockWidgets,
+        ),
       ),
     );
 
-    if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: scrollBody);
-    return _GuestSiteCanvas(resolved: resolved, effects: boot.effects, child: scrollBody);
+    final framed = Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxW),
+        child: scrollBody,
+      ),
+    );
+
+    final stacked = Stack(
+      children: [
+        framed,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            ignoring: !_showSticky,
+            child: AnimatedSlide(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              offset: _showSticky ? Offset.zero : const Offset(0, -1),
+              child: _GuestSiteStickyBar(boot: boot, accent: accent, fg: fg),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: stacked);
+    return _GuestSiteCanvas(resolved: resolved, effects: boot.effects, child: stacked);
+  }
+}
+
+class _GuestSiteStickyBar extends StatelessWidget {
+  const _GuestSiteStickyBar({required this.boot, required this.accent, required this.fg});
+
+  final GuestSiteBoot boot;
+  final Color accent;
+  final Color fg;
+
+  @override
+  Widget build(BuildContext context) {
+    final link = boot.links.cast<Map<String, dynamic>?>().firstWhere(
+          (l) => (l?['url'] ?? '').toString().trim().isNotEmpty,
+          orElse: () => null,
+        );
+    return Material(
+      elevation: 2,
+      color: fg.withValues(alpha: 0.06),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              if (boot.avatarUrl.trim().isNotEmpty)
+                CircleAvatar(radius: 16, backgroundImage: NetworkImage(boot.avatarUrl)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  boot.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fg),
+                ),
+              ),
+              if (link != null)
+                TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  ),
+                  child: Text(
+                    link['label']?.toString() ?? link['title']?.toString() ?? 'Hubungi',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

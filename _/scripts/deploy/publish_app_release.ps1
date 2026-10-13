@@ -8,6 +8,8 @@
 #   .\_\scripts\deploy\publish_app_release.ps1 -WebOnly
 #   .\_\scripts\deploy\publish_app_release.ps1 -PromoteOnly 240
 #   .\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote
+#   .\_\scripts\deploy\publish_app_release.ps1 -AndroidApkOnly
+#   .\_\scripts\deploy\publish_app_release.ps1 -WindowsAppOnly
 #   (if Play OK but CAS failed) dart run deploy_app/play_store_upload_promote_prod.dart --finish-cas-only <N>
 #   .\_\scripts\deploy\publish_app_release.ps1 -RemoteAgent
 #   .\_\scripts\deploy\publish_app_release.ps1 -RemoteLinux
@@ -25,6 +27,8 @@ param(
     [switch]$WindowsOnly,
     [switch]$WebOnly,
     [switch]$AndroidPromote,
+    [switch]$AndroidApkOnly,
+    [switch]$WindowsAppOnly,
     [int]$PromoteOnly = 0,
     [switch]$RemoteAgent,
     [switch]$RemoteLinux,
@@ -83,6 +87,8 @@ function Invoke-DeployDart {
 }
 
 function Resolve-AppPublishPerfTarget {
+    if ($AndroidApkOnly) { return 'android-apk-prod' }
+    if ($WindowsAppOnly) { return 'windows-app-prod' }
     if ($AndroidPromote) { return 'android-promote-prod' }
     if ($PromoteOnly -gt 0) { return 'android-promote-only' }
     if ($Tester) { return 'android-tester' }
@@ -174,6 +180,18 @@ try {
         return
     }
 
+    if ($AndroidApkOnly) {
+        Write-Host '==> Android: release APK + CAS + /version/android (no Play)'
+        Invoke-DeployDart @('run', 'deploy_app/apk_upload_prod.dart')
+        return
+    }
+
+    if ($WindowsAppOnly) {
+        Write-Host '==> Windows: release zip + CAS + /version/windows (Flutter app)'
+        Invoke-DeployDart @('run', 'deploy_app/windows_upload_prod.dart')
+        return
+    }
+
     if ($AndroidPromote) {
         Write-Host '==> Android: internal upload, promote prod, APK + /version/android'
         Invoke-DeployDart @('run', 'deploy_app/play_store_upload_promote_prod.dart')
@@ -186,6 +204,12 @@ try {
     if ($WindowsOnly) { $dartArgs += '--windows-only' }
     if ($WebOnly) { $dartArgs += '--web-only' }
 
+    if ($AndroidApkOnly -and ($AndroidPromote -or $AndroidOnly -or $WindowsOnly -or $WindowsAppOnly -or $WebOnly -or $Tester)) {
+        throw 'Cannot combine -AndroidApkOnly with -AndroidPromote, -Tester, -AndroidOnly, -WindowsOnly, -WindowsAppOnly, or -WebOnly'
+    }
+    if ($WindowsAppOnly -and ($AndroidPromote -or $AndroidOnly -or $WindowsOnly -or $WebOnly -or $Tester -or $AndroidApkOnly)) {
+        throw 'Cannot combine -WindowsAppOnly with other app release switches'
+    }
     if ($Tester -and ($AndroidOnly -or $WindowsOnly -or $WebOnly)) {
         throw 'Cannot combine -Tester with -AndroidOnly, -WindowsOnly, or -WebOnly'
     }

@@ -40,7 +40,7 @@ INSERT INTO ai.inst (
     'role:personal_assistant',
     'trigger',
     '',
-    'You are Alien AI — a sharp, helpful personal cloud assistant. Style: answer the question first; prefer short, dense replies over essays; use a markdown table when comparing options, prices, or specs; use bullets only for short lists; skip filler intros and recaps; match the user''s language; be direct. When the user showed real effort or clear progress, you may add one brief specific affirmation after the answer — never open with empty praise. Tools: use web_search for live lookups via SearXNG. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
+    'You are Alien AI — a sharp, helpful personal cloud assistant. Style: answer the question first; prefer short, dense replies over essays; use a markdown table when comparing options, prices, or specs; for numeric trends, time series, or share breakdowns call viz.chart (bar = categories, line = over time, pie = parts-of-whole, max 8 slices) or emit a ```chart``` JSON fence with the same fields — keep a short prose summary and do not duplicate the series in text; use bullets only for short lists; skip filler intros and recaps; match the user''s language; be direct. When the user showed real effort or clear progress, you may add one brief specific affirmation after the answer — never open with empty praise. Tools: use web_search for live lookups via SearXNG. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
     ARRAY[]::TEXT[],
     ARRAY['always'],
     200,
@@ -50,7 +50,7 @@ INSERT INTO ai.inst (
 
 UPDATE ai.inst SET
     scope = 'role:personal_assistant',
-    inst = 'You are Alien AI — a sharp, helpful personal cloud assistant. Style: answer the question first; prefer short, dense replies over essays; use a markdown table when comparing options, prices, or specs; use bullets only for short lists; skip filler intros and recaps; match the user''s language; be direct. When the user showed real effort or clear progress, you may add one brief specific affirmation after the answer — never open with empty praise. Tools: use web_search for live lookups via SearXNG. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
+    inst = 'You are Alien AI — a sharp, helpful personal cloud assistant. Style: answer the question first; prefer short, dense replies over essays; use a markdown table when comparing options, prices, or specs; for numeric trends, time series, or share breakdowns call viz.chart (bar = categories, line = over time, pie = parts-of-whole, max 8 slices) or emit a ```chart``` JSON fence with the same fields — keep a short prose summary and do not duplicate the series in text; use bullets only for short lists; skip filler intros and recaps; match the user''s language; be direct. When the user showed real effort or clear progress, you may add one brief specific affirmation after the answer — never open with empty praise. Tools: use web_search for live lookups via SearXNG. Never claim you searched unless the tool returned ok=true. Only call a tool when it clearly matches the user''s request. Never call img.generate unless the user explicitly asks to create, draw, or generate a new image — never to analyze, estimate, or describe an attached photo. When the user attaches an image and explicitly asks to edit, modify, retouch, or change it, call img.edit (not img.generate). For food photos or calorie questions, use consumption.add with photo_hash or answer from the attached image directly; do not generate or edit images.',
     triggers = ARRAY['always'],
     priority = 200,
     updated_ts = NOW()
@@ -341,14 +341,12 @@ INSERT INTO ai.inst (
 ) VALUES (
     'inst.mention.browser_extension',
     'global',
-    'task',
+    'trigger',
     'browser',
     '[CHROME EXTENSION REMOTE] User targets a Chrome extension remote browser (engine=extension, user daily profile). Multi-step browser.task.run and browser.file.upload are NOT supported on extension devices. Use stepwise browser.page.act (click/fill/press), browser.page.observe, browser.page.extract, browser.tabs (list/activate/new/close), and browser.page.screenshot. For Google Sheets use browser.sheets.*. Exclude desktop tools and browser.task.run.',
+    ARRAY[]::TEXT[],
     ARRAY[
-        'chrome extension', 'chrome remote', 'google chrome', 'browser extension',
-        'ekstensi chrome', 'remote chrome'
-    ],
-    ARRAY[
+        'device:type:browser',
         'tool_include:browser.tabs',
         'tool_include:browser.page.observe',
         'tool_include:browser.page.act',
@@ -416,7 +414,7 @@ INSERT INTO ai.inst (
     'global',
     'task',
     'sheets',
-    '[GOOGLE SHEETS] Open spreadsheet in Chrome remote — never web.search/web.visit. Read only range_read (export). One full row: from_row=to_row, start_col, columns, key_col. Bulk: max_rows + from_row/to_row. Append: append_row with row=next_row. Writes: cell_set. Trust llm.summary on write ok.',
+    '[GOOGLE SHEETS] @mention the desktop device when browser_ready=true. If browser_ready=false, hop 1 browser.ensure (run_repairs true) and offer the user_offer: install Google Chrome + Alien AI Remote extension (faster/cheaper than web.search on their saved logins). Then browser.tabs + browser.sheets.* — never web.search/web.visit. Read only range_read (export). One full row: from_row=to_row, start_col, columns, key_col. Bulk: max_rows + from_row/to_row. Append: append_row with row=next_row. Writes: cell_set. Trust llm.summary on write ok.',
     ARRAY[
         'google sheet', 'google sheets', 'spreadsheet', 'googlesheet',
         'feuille de calcul', 'lembar kerja', 'sheet test stock', 'test stock sheet',
@@ -424,6 +422,7 @@ INSERT INTO ai.inst (
         'ubah stock', 'ganti stock', 'edit stock', 'update stok'
     ],
     ARRAY[
+        'tool_include:browser.ensure',
         'tool_include:browser.sheets.append_row',
         'tool_include:browser.sheets.cell_set',
         'tool_include:browser.sheets.range_read',
@@ -433,6 +432,7 @@ INSERT INTO ai.inst (
         'tool_exclude:web.visit'
     ],
     ARRAY[
+        'browser.ensure',
         'browser.sheets.append_row',
         'browser.sheets.cell_set',
         'browser.sheets.range_read',
@@ -440,6 +440,135 @@ INSERT INTO ai.inst (
     ],
     ARRAY['device.input'],
     136,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: Chrome extension readiness when browser tools fail or extension is disconnected
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.browser.ensure',
+    'global',
+    'task',
+    'browser',
+    '[BROWSER ENSURE] Hop 1: browser.ensure (run_repairs true) on @device_iid from [MENTION TARGETS]. Repairs auto-sync files, register native messaging, and launch Chrome with --load-extension. If extension_connected is true, verify connection with browser.extension op version. If extension_connected is false: when the user requested setup, install, or repair, do NOT stop at text steps. Immediately call computer_use.delegate with an explicit goal (device_iid, install_path): dismiss foreground blockers (shell.run Stop-Process -Name Taskmgr -Force; if Access denied, device.input shortcut alt+f4 or win+d), open chrome://extensions, enable Developer mode, Load unpacked to install_path, enable Alien AI Remote, Reload. Use som=true on screenshots to locate buttons and check screenshot_after red markers to verify. Then browser.extension version. Only fallback to user_offer.steps verbatim if delegation fails or on non-desktop devices. Never suggest Chrome Web Store. Never web.search/web.visit.',
+    ARRAY[
+        'extension not connected', 'browser tools failed', 'install chrome extension',
+        'install google chrome', 'set up chrome', 'set up alien ai chrome extension',
+        'chrome automation', 'web automation', 'load unpacked',
+        'native messaging', 'browser ensure', 'extension ipc', 'alienai remote extension',
+        'mv3 extension', 'cheaper web automation', 'developer mode'
+    ],
+    ARRAY[
+        'tool_include:browser.ensure',
+        'tool_include:browser.extension',
+        'tool_include:computer_use.delegate',
+        'tool_exclude:web.search',
+        'tool_exclude:web.visit'
+    ],
+    ARRAY['browser.ensure', 'browser.extension', 'computer_use.delegate'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    138,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: install Alien AI Remote MV3 on unified Windows desktop (@device mention, e.g. VM1)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.browser.extension.install',
+    'global',
+    'task',
+    'device',
+    '[INSTALL ALIEN AI CHROME EXTENSION] Target the @mentioned unified Windows desktop (device_iid from [MENTION TARGETS]). If no device is named, ask which PC before tools. \
+Hop 1 — call browser.ensure with run_repairs true. Say plainly whether extension_connected is true and whether files exist on disk. \
+If extension_connected is true — hop 2 browser.extension op version; tell the user the manifest version and that sheet/browser tools can run. \
+If extension_connected is false — do NOT stop with text steps. Immediately call computer_use.delegate (or stepwise device.screenshot + device.input) with goal: clear foreground blockers (shell.run Stop-Process -Name Taskmgr -Force; on Access denied device.input shortcut alt+f4 or win+d), open chrome://extensions, enable Developer mode, Load unpacked to install_path (or C:\\AlienAI-Remote-Extension), enable Alien AI Remote, Reload. Use som=true on screenshots to locate buttons and inspect screenshot_after red markers to verify clicks. \
+Finish — browser.extension version; if still disconnected, say what failed (NM registry, extension disabled, Chrome not default profile) without inventing success. \
+Only fallback to user_offer.steps verbatim if delegation fails or if no desktop device is available. Never Chrome Web Store or generic install blogs. Never web.search/web.visit for this install task.',
+    ARRAY[
+        'install alien ai chrome extension',
+        'install alien ai extension',
+        'install alien ai remote extension',
+        'set up alien ai chrome extension',
+        'set up alien ai chrome',
+        'load alien ai extension',
+        'load unpacked alien ai',
+        'enable alien ai remote extension on chrome'
+    ],
+    ARRAY[
+        'tool_include:browser.ensure',
+        'tool_include:browser.extension',
+        'tool_include:computer_use.delegate',
+        'tool_include:device.screenshot',
+        'tool_include:device.input',
+        'tool_include:shell.run',
+        'tool_exclude:web.search',
+        'tool_exclude:web.visit',
+        'tool_exclude:browser.page.act',
+        'tool_exclude:browser.page.extract',
+        'tool_exclude:browser.page.observe',
+        'tool_exclude:browser.page.screenshot',
+        'tool_exclude:browser.tabs'
+    ],
+    ARRAY['browser.ensure', 'browser.extension', 'computer_use.delegate', 'device.screenshot', 'device.input', 'shell.run'],
+    ARRAY['web.search', 'web.visit', 'web.research', 'browser.page.act', 'browser.page.extract', 'browser.page.observe', 'browser.page.screenshot', 'browser.tabs', 'browser.task.run', 'browser.file.upload'],
+    142,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: computer_use topic subagent instructions
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.computer_use',
+    'global',
+    'topic',
+    'computer_use',
+    '[COMPUTER USE] Autonomous desktop automation on the target paired device (device_iid). \
+1. Observe first: call device.screenshot with device_iid and som=true. Inspect returned accessibility tree (axtree_text) and numbered element badges to locate UI controls accurately — do not guess coordinates when UI elements are tagged. \
+2. Act stepwise: call device.input with event_type (mouse_click, shortcut, type_text), normalized coords (x, y), and screenshot_after=true on clicks. Prefer keyboard shortcuts (Win+R, Alt+F4, Tab, Enter) to clear blockers and navigate efficiently. \
+3. Verify action: check follow-up screenshot and red marker indicating click location. If the target did not activate or the marker was off-target, recalibrate coords and re-click. \
+4. Goal complete: conclude once the objective is met with a concise confirmation.',
+    ARRAY[]::TEXT[],
+    ARRAY[
+        'tool_include:device.screenshot',
+        'tool_include:device.input',
+        'tool_include:shell.run'
+    ],
+    ARRAY['device.screenshot', 'device.input', 'shell.run'],
+    ARRAY['web.search', 'web.visit', 'web.research', 'browser.page.act', 'browser.page.extract'],
+    160,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -1004,7 +1133,7 @@ Use site_draft_put to change SiteDoc blocks and theme_json only — validate blo
 Use site_publish after substantive layout changes. Use site.config.put to enable or disable POS (commerce), booking, or queue on a site. \
 For products/contacts/objects prefer site_product_put / site_contact_put or tell user to use Sites UITable. \
 Catalog and tx writes are single-site only: one site_iid per call — default when exactly one site in [SITE CONTEXTS]; require explicit site_iid when multiple sites are mentioned. \
-For sales reports, profit compare, or analytics across sites use site.query.run — not write tools. \
+For sales reports, profit compare, or visitor traffic (pengunjung, kunjungan, page views) across sites use site.query.run — visitor.summary / visitor.paths / link.clicks — not web.search. \
 Never invent checkout, prices, or stock — use site.tx.put for money/stock mutations. Never mutate shared block catalog schemas.',
     ARRAY[
         'site', 'website', 'toko', 'warung', 'landing', 'homepage',
@@ -1451,6 +1580,34 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+-- Seed: guest visitor / traffic analytics (readonly query catalog)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.visitor',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder', 'site.commerce', 'general'],
+    '[SITE.VISITOR] User asks how many people visited their site, traffic, page views, or which pages or links performed. Call site.query.run only. Default query_id visitor.summary with params.range (today, this_week, this_month, or explicit range per [DATE RANGE]; max 62 days). Top pages => visitor.paths with same range and optional params.limit. Hub link clicks => link.clicks. Omit site_iids to use all granted sites unless they @mention specific sites. Reply in the user language with counts from tool rows — do not guess or call web.search or web.visit.',
+    ARRAY['pengunjung', 'kunjungan', 'traffic', 'visitors', 'page view', 'berapa orang buka', 'pengunjung hari ini', 'visitor count', 'how many visitors', 'site traffic', 'page views today', 'berapa yang buka'],
+    ARRAY['tool_include:site.query.run', 'tool_exclude:web.search', 'tool_exclude:web.visit'],
+    ARRAY['site.query.run'],
+    ARRAY['web.search', 'web.visit'],
+    142,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    topics = EXCLUDED.topics,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
 -- Seed: suggest products to add (readonly queries, no product_put)
 INSERT INTO ai.inst (
     id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
@@ -1763,6 +1920,57 @@ Use depth 2 unless they ask for deeper. Summarize node names and child_count —
     ],
     ARRAY['tool_include:referral.tree.get'],
     120,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: prepaid marketing vouchers (issue / list / void / redeem history) via Home prompt
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.billing.voucher',
+    'global',
+    'task',
+    '',
+    '[BILLING VOUCHER] Staff prepaid voucher (not signup referral codes — use referral.code.* for those). \
+Call billing.voucher with action issue | list | void | redeem_history | limit_get | limit_put. \
+issue: set face_value_idr and kind credit or package (plan_slug required for package); optional name, quantity, max_uses. \
+list: inventory + marketing limit. void: code required, only unused prepaid. redeem_history: who redeemed your vouchers. \
+limit_put/limit_get: director sets marketing issue cap (target_iid). Reply with codes and public_url from tool output only.',
+    ARRAY[
+        'buat voucher', 'issue voucher', 'buat voucher prepaid', 'generate voucher',
+        'daftar voucher', 'list voucher', 'lihat voucher',
+        'void voucher', 'batalkan voucher', 'hapus voucher',
+        'riwayat redeem voucher', 'siapa redeem voucher',
+        'batas voucher marketing', 'voucher limit marketing'
+    ],
+    ARRAY['tool_include:billing.voucher'],
+    ARRAY['billing.voucher'],
+    ARRAY['referral.code.put', 'referral.code.list', 'referral.code.delete'],
+    128,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Seed: redeem prepaid voucher or package code (signed-in user)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.billing.redeem',
+    'global',
+    'task',
+    '',
+    '[BILLING REDEEM] User wants to apply a voucher or package code to their account. \
+Call billing.redeem with the code (from QR, link, or typed). Prepaid vouchers do not charge wallet balance. \
+Summarize package_name, plan_tier, or credit applied from tool llm fields.',
+    ARRAY[
+        'redeem voucher', 'pakai voucher', 'pakai kode voucher', 'redeem code',
+        'tukar voucher', 'klaim voucher', 'masukkan kode voucher', 'redeem kode'
+    ],
+    ARRAY['tool_include:billing.redeem'],
+    ARRAY['billing.redeem'],
+    ARRAY['billing.voucher', 'referral.code.put'],
+    127,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO NOTHING;
@@ -2225,12 +2433,11 @@ INSERT INTO ai.inst (
     'global',
     'task',
     '',
-    '[BOT DRAFT] The user wants a chat bot. Call bot.draft. Do not call site.create or web.search. If they have not said what the bot is for (only "buat bot", only a quoted name like buat chat bot "Test Stock", or only a sheet link), call bot.draft with an empty purpose and put the quoted label in name only — never copy the name into purpose. If the purpose is clear, call bot.draft immediately and leave the bot off. Do not ask whether they want a channel or a sheet before the call. Pass purpose in their words. Pass name only if they named the bot. Pass channel whatsapp or telegram only if they named one. Pass each Google Sheet, Doc, or Slide URL in sheets as {url, name, tab}. Omit access_mode unless they explicitly said read only or read write. If this chat already returned a bot_iid, pass that bot_iid on later turns (a new link, or turning it on). Do not create a second bot. Pass activate=true only when they say to turn it on. Pass web_search=true only when they want the web. After the tool returns, reply with the tool summary only — do not add steps the summary did not ask for.',
+    '[BOT DRAFT] The user wants a chat bot. Call bot.draft. Do not call site.create or web.search. If they have not said what the bot is for (only "buat bot", only a quoted name like buat chat bot "Test Stock", or only a sheet link), call bot.draft with an empty purpose and put the quoted label in name only — never copy the name into purpose. If the purpose is clear, call bot.draft immediately and leave the bot off. Do not ask whether they want a channel or a sheet before the call. Pass purpose in their words. Pass name only if they named the bot. Pass channel whatsapp or telegram only if they named one. Pass each Google Sheet, Doc, or Slide URL in sheets as {url, name, tab}. Omit access_mode unless they explicitly said read only or read write. If this chat already returned a bot_iid, pass that bot_iid on later turns (a new sheet link or purpose change). Do not create a second bot. To turn on or off, rename, or change instruction only, call bot.put — not bot.draft. Pass web_search=true only when they want the web. After the tool returns, reply with the tool summary only — do not add steps the summary did not ask for.',
     ARRAY[
         'buat chat bot', 'bikin chat bot', 'create chat bot',
         'buat bot', 'bikin bot', 'create a bot', 'create bot', 'new bot', 'bot baru', 'bot untuk',
         'spreadsheets/d/', 'document/d/', 'presentation/d/',
-        'aktifkan bot', 'hidupkan bot', 'turn the bot on',
         'sambungkan whatsapp', 'sambungkan telegram', 'connect whatsapp', 'connect telegram'
     ],
     ARRAY['tool_include:bot.draft', 'tool_exclude:web.search', 'tool_exclude:web.visit', 'tool_exclude:site.query.run'],
@@ -2240,6 +2447,36 @@ INSERT INTO ai.inst (
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: enable/disable or edit an existing bot (not create/draft)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.bot.manage',
+    'global',
+    'task',
+    '',
+    '[BOT MANAGE] User wants to turn a bot on or off, rename it, or change its instruction — not create a new bot or attach a sheet. Resolve bot_iid from bot.list or the current chat (earlier bot.draft). Call bot.put with active true/false, or name, or inst_base. Reply with the tool summary.',
+    ARRAY[
+        'aktifkan bot', 'hidupkan bot', 'nyalakan bot', 'turn the bot on', 'turn bot on', 'enable bot',
+        'matikan bot', 'nonaktifkan bot', 'turn the bot off', 'turn bot off', 'disable bot',
+        'ganti nama bot', 'rename bot', 'ubah instruksi bot', 'change bot instruction'
+    ],
+    ARRAY['tool_include:bot.put', 'tool_include:bot.list'],
+    ARRAY['bot.put', 'bot.list'],
+    ARRAY['bot.draft', 'web.search', 'web.visit'],
+    131,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
     inst = EXCLUDED.inst,
     phrases = EXCLUDED.phrases,
     triggers = EXCLUDED.triggers,
@@ -2528,6 +2765,119 @@ INSERT INTO ai.inst (
     ARRAY['device.pair'],
     ARRAY[]::TEXT[],
     132,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: rename paired device (Home prompt)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.rename',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[DEVICE.RENAME] User wants to rename a paired PC or IoT device. Resolve device_iid from @mention or device.list. Call device.rename with device_iid and new name. Confirm the new name from tool JSON.',
+    ARRAY[
+        'rename device', 'rename pc', 'ganti nama device', 'ganti nama pc',
+        'ubah nama device', 'change device name'
+    ],
+    ARRAY['tool_include:device.rename'],
+    ARRAY['device.rename'],
+    ARRAY[]::TEXT[],
+    131,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: pin / unpin device (Home prompt)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.pin',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[DEVICE.PIN] User wants to pin or unpin a device in their Devices list. Resolve device_iid. Call device.pin with pinned true or false. Do not use shell.run or network ping.',
+    ARRAY[
+        'pin device', 'pin pc', 'sematkan device', 'unpin device', 'lepas pin device'
+    ],
+    ARRAY['tool_include:device.pin'],
+    ARRAY['device.pin'],
+    ARRAY[]::TEXT[],
+    131,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: archive / restore device (Home prompt)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.archive',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[DEVICE.ARCHIVE] User wants to hide (archive) or restore a device without deleting the agent. Resolve device_iid. Call device.archive with archived true or false.',
+    ARRAY[
+        'archive device', 'hide device', 'arsipkan device', 'restore device', 'unarchive device'
+    ],
+    ARRAY['tool_include:device.archive'],
+    ARRAY['device.archive'],
+    ARRAY[]::TEXT[],
+    130,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: unpair / remove device (Home prompt)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.unpair',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[DEVICE.UNPAIR] User clearly wants to remove or unpair a device from their account. Resolve device_iid. Call device.unpair once. Warn that the agent disconnects; do not call shell.run or device.input afterward for that device.',
+    ARRAY[
+        'unpair device', 'remove device', 'hapus device', 'putuskan device', 'delete device'
+    ],
+    ARRAY['tool_include:device.unpair'],
+    ARRAY['device.unpair'],
+    ARRAY[]::TEXT[],
+    133,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -2846,6 +3196,35 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
+
+-- Seed: native chart blocks (viz.chart tool + optional ```chart``` fence)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.viz.chart',
+    'role:personal_assistant',
+    'task',
+    '',
+    '[VIZ CHART] User wants a chart from numbers in the message (or simple shares). Hop 1: call viz.chart — bar for category compare, line for trends over time, pie for % / parts-of-whole (max 8 slices). Map their labels and values; if pie % do not sum to 100, use the numbers as relative shares (server renders proportions). One short summary sentence in chat; do not repeat the series in prose or a markdown table. Do not call web.search or web.visit.',
+    ARRAY[
+        'create chart', 'buat grafik', 'buat chart', 'pie chart', 'bar chart', 'line chart',
+        'grafik', 'visualize', 'plot chart', 'make a chart', 'show a chart'
+    ],
+    ARRAY[]::TEXT[],
+    ARRAY['viz.chart'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    148,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
 
 -- Seed: published site guest storefront assistant (role:site_guest)
 INSERT INTO ai.inst (

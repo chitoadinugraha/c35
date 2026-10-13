@@ -230,7 +230,7 @@ Attach sheets via app `data_source_put`, the bot wizard, or Home chat `bot.draft
 
 ### Create from chat
 
-Home chat calls **`bot.draft`** when the user asks for a bot (`inst.bot.draft`). The server writes an inactive bot (`meta.active=false`) as soon as the purpose is clear, drafts `inst_base`, and attaches Google Sheet / Doc / Slide URLs. Access is **read only** unless the purpose describes a write (reserve, record, reduce stock). A purpose that both answers and writes is a split: two bindings, or one question. Docs and Slides stay read only. The tool does not connect a channel; the summary points at the Bots page. The bot stays off until the user says to turn it on.
+Home chat calls **`bot.draft`** when the user asks for a bot (`inst.bot.draft`). The server writes an inactive bot (`meta.active=false`) as soon as the purpose is clear, drafts `inst_base`, and attaches Google Sheet / Doc / Slide URLs. Access is **read only** unless the purpose describes a write (reserve, record, reduce stock). A purpose that both answers and writes is a split: two bindings, or one question. Docs and Slides stay read only. The tool does not connect a channel; the summary points at the Bots page. The bot stays off until the user turns it on via **`bot.put`** (`inst.bot.manage`) or the Bots UI.
 
 ## Remote device model
 

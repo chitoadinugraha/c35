@@ -116,6 +116,18 @@ pub async fn handle(mut socket: WebSocket, state: AppState, q: WsQuery, headers:
             c35_mod_channel::channel_pair_nats_fanout(pool, nats, caller_iid, fanout_tx).await;
         });
     }
+    {
+        let app_build = q.build.unwrap_or(0);
+        let app_platform = q.platform.unwrap_or(0);
+        if app_build > 0 && app_platform == 3 {
+            crate::app_release_nudge::attach_windows_release_nudge(
+                state.pool.clone(),
+                state.nats.as_ref(),
+                app_build,
+                out_tx.clone(),
+            );
+        }
+    }
 
     loop {
         tokio::select! {

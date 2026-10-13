@@ -33,7 +33,7 @@ use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::{inst_pool_signal, inst_scopes_home};
 use crate::compose::ComposePreload;
 use crate::memory::{
-    memory_prompt_merge, memory_retrieve_with_nats, memory_skip_site_scoped, retrieval_query_embed,
+    memory_prompt_merge, memory_retrieve_with_nats, memory_skip_site_scoped,
     MemoryRetrieveResult,
 };
 
@@ -558,7 +558,7 @@ where
     let nats_persist = nats.cloned();
     let req_id_persist = req_id.to_string();
     let persist_st = Instant::now();
-    let persist_handle = tokio::spawn(async move {
+    let mut persist_handle = tokio::spawn(async move {
         sqlx::query(
             r#"
             INSERT INTO ai.chat_msg (id, chat_id, owner_iid, req_id, sender_iid, role, source, content, attachments, created_ts, updated_ts)
@@ -600,7 +600,26 @@ where
 
     let session_hist = hooks.owner_session.clone();
 
-    // Stage 1: independent reads (tool RAG embed runs in compose, not here — avoids duplicate API calls).
+    let tool_mode_early = if req.tool_mode.trim().is_empty() {
+        "agent"
+    } else {
+        req.tool_mode.trim()
+    };
+    let want_query_embed = (!is_simple_time && tool_mode_early == "agent")
+        || (!is_simple_time && !skip_user_assets)
+        || (!is_simple_time && !crate::memory::is_trivial_query(&req.text) && !req.text.trim().is_empty());
+    let pool_embed = pool.clone();
+    let http_embed = http.clone();
+    let text_embed = req.text.clone();
+    let unified_embed_handle = if want_query_embed {
+        Some(tokio::spawn(async move {
+            crate::memory::unified_query_embed(&pool_embed, &http_embed, &text_embed).await
+        }))
+    } else {
+        None
+    };
+
+    // Stage 1: independent reads (tool RAG embed prefetch runs concurrently in background).
     let (
         (user, doc_st, doc_ms),
         (inst_rows, inst_st, inst_ms),
@@ -623,7 +642,15 @@ where
         timed(mention_list_enabled(pool)),
         timed(async { prompt_run_get(pool, req_id).await.ok().flatten() }),
         timed(mention_resolve_all(pool, owner_iid, &mention_ids)),
-        timed(user_prompt_context_get(pool, owner_iid)),
+        timed(async {
+            if let Some(ref sess) = session_hist {
+                let ctx = sess.read_state().user_ctx.clone();
+                if !ctx.locale.is_empty() {
+                    return ctx;
+                }
+            }
+            user_prompt_context_get(pool, owner_iid).await
+        }),
         timed(async {
             if is_simple_time {
                 None
@@ -635,7 +662,19 @@ where
             }
         }),
         timed(chat_bound_device_iid_for_owner(pool, owner_iid, chat_id)),
-        timed(chat_last_assistant_snapshot(pool, chat_id)),
+        timed(async {
+            if let Some(ref sess) = session_hist {
+                if let Some(pf) = chat_cache_prefetch(sess, chat_id) {
+                    if let Some(last) = pf.rows.iter().rev().find(|r| r.role == "assistant") {
+                        return crate::catalog_add_followup::LastAssistantSnapshot {
+                            content: Some(last.content.clone()),
+                            blocks_json: Some(last.blocks_json.clone()),
+                        };
+                    }
+                }
+            }
+            chat_last_assistant_snapshot(pool, chat_id).await
+        }),
         timed(async {
             if let Some(ref sess) = session_hist {
                 let warm = chat_cache_wait_ready(
@@ -705,6 +744,30 @@ where
             mention_ctx = MentionContext::from_site(site);
         }
     }
+    if crate::device_som::som_command_invoked(&req.text) {
+        if let Some(turn) = crate::device_som::som_try_prompt_shortcut(
+            pool,
+            nats,
+            owner_iid,
+            staff.is_root,
+            req_id,
+            chat_id,
+            user_msg_id,
+            &user_content,
+            &mention_ids,
+            &mention_ctx,
+            bound_device_iid,
+            &mut persist_handle,
+            turn_started,
+            &mut on_delta,
+            &mut on_blocks,
+            &hooks,
+        )
+        .await?
+        {
+            return Ok(turn);
+        }
+    }
     let preloaded_memory = hooks
         .owner_session
         .as_ref()
@@ -717,11 +780,15 @@ where
     let want_retrieval_embed = (!skip_user_assets
         || (!skip_memory && !crate::memory::is_trivial_query(&req.text) && !req.text.trim().is_empty()))
         && !is_simple_time;
-    let shared_retrieval_embed = if want_retrieval_embed {
-        retrieval_query_embed(pool, &http, &req.text).await
+    let unified_embed = if let Some(h) = unified_embed_handle {
+        h.await.ok().flatten()
+    } else if want_retrieval_embed {
+        crate::memory::unified_query_embed(pool, &http, &req.text).await
     } else {
         None
     };
+    let shared_retrieval_embed = unified_embed.as_ref().map(|u| u.embed_256.clone());
+    let tool_precomputed_embed = unified_embed.as_ref().map(|u| u.embed_768.clone());
     let site_iids = mention_ctx.site_iids();
     let site_names = crate::scope_instruction::mention_site_names(&mention_ctx);
 
@@ -893,6 +960,7 @@ where
         extra_tool_exclude: &device_tool_exclude,
         extra_inst_suffix: &extra_inst_suffix,
         skip_tool_rag: is_simple_time,
+        precomputed_query_embed: tool_precomputed_embed.as_deref(),
         ..ComposeTurnOpts::default()
     };
     let compose_preload = ComposePreload { staff };
@@ -987,6 +1055,23 @@ where
             system.push_str("\n\n");
         }
         system.push_str(crate::prompt::web_grounding::WEB_GROUNDED_REPLY_RULE);
+    }
+    if composed
+        .matched_ids
+        .iter()
+        .any(|id| id == "inst.browser.ensure")
+    {
+        if !system.is_empty() {
+            system.push_str("\n\n");
+        }
+        system.push_str(
+            "[BROWSER ENSURE] Hop 1: call browser.ensure with run_repairs true and device_iid from [MENTION TARGETS]. \
+If extension_connected is true, call browser.extension op version. \
+If extension_connected is false and user requested setup/install: do not stop with text instructions. Immediately call computer_use.delegate with a stepwise goal: clear foreground blockers \
+(Taskmgr: Stop-Process or device.input shortcut alt+f4 / win+d), chrome://extensions, Developer mode ON, Load unpacked to install_path, enable extension, Reload; \
+use som=true to locate controls and screenshot_after to verify. Then call browser.extension op version. \
+Only fallback to user_offer.steps if delegation fails or on non-desktop devices. Do not suggest Chrome Web Store.",
+        );
     }
     let sites_block = mention_context_sites_block(&mention_ctx);
     if !sites_block.is_empty() {
@@ -1225,11 +1310,13 @@ where
     }
     let duration_ms = turn_started.elapsed().as_millis() as i32;
     let assistant_msg_id = snowflake_id();
-    let blocks_json = if res.blocks_json.is_empty() {
+    let base_blocks = if res.blocks_json.is_empty() {
         "[]"
     } else {
         res.blocks_json.as_str()
     };
+    let (assistant_content, blocks_json) =
+        crate::viz_chart::merge_assistant_charts(res.text.clone(), base_blocks);
     let settle_started = Instant::now();
     let mut settle = StageClock::new(settle_started);
     tracer
@@ -1240,7 +1327,7 @@ where
             duration_ms as i64,
             prepare_ms,
             0.0,
-            &res.text,
+            &assistant_content,
         )
         .await;
     let context_extra = context_billing.total_extra_usd();
@@ -1343,9 +1430,9 @@ where
     .bind(chat_id)
     .bind(owner_iid)
     .bind(req_id)
-    .bind(&res.text)
+    .bind(&assistant_content)
     .bind(&res.thought)
-    .bind(blocks_json)
+    .bind(&blocks_json)
     .bind(res.tokens_in)
     .bind(res.tokens_out)
     .bind(duration_ms)
@@ -1354,7 +1441,8 @@ where
     .bind(&error_text)
     .execute(pool);
 
-    let sync_fut = crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &res.text, "done");
+    let sync_fut =
+        crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &assistant_content, "done");
 
     let (save_res, sync_res) = tokio::join!(save_fut, sync_fut);
     save_res?;
@@ -1364,8 +1452,8 @@ where
         assistant_msg_id,
         owner_iid,
         "[]",
-        &res.text,
-        blocks_json,
+        &assistant_content,
+        &blocks_json,
     )
     .await
     {
@@ -1392,8 +1480,8 @@ where
             HistoryRow {
                 id: assistant_msg_id,
                 role: "assistant".into(),
-                content: res.text.clone(),
-                blocks_json: blocks_json.to_string(),
+                content: assistant_content.clone(),
+                blocks_json: blocks_json.clone(),
             },
         );
         let mut hint_tools = catalog_followup
@@ -1422,9 +1510,9 @@ where
         chat_id,
         user_msg_id,
         assistant_msg_id,
-        text: res.text,
+        text: assistant_content,
         thought: res.thought,
-        blocks_json: res.blocks_json,
+        blocks_json,
         tokens_in: res.tokens_in,
         tokens_out: res.tokens_out,
         cost_usd,

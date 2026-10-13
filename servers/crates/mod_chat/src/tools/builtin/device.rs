@@ -39,7 +39,7 @@ fn device_fail(error: impl Into<String>) -> Value {
     })
 }
 
-fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
+pub(crate) fn resolve_device_iid(args: &Value, ctx: &ToolContext) -> Result<i64, Value> {
     let direct = json_device_iid_field(args, "device_iid");
     device_iid_resolve(&ctx.mention, &ctx.mention_ids, direct)
         .map_err(|e| device_fail(e.to_string()))

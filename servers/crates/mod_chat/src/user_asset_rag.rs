@@ -24,13 +24,34 @@ const USER_ASSET_CANDIDATE_CAP: i64 = 48;
 /// Max site/bot rows to vector-score per turn (avoids dozens of parallel doc embeds).
 const USER_ASSET_EMBED_CANDIDATE_CAP: usize = 10;
 const EMBED_DIMS: i32 = crate::memory::RETRIEVAL_EMBED_DIMS;
-const EMBED_TIMEOUT: Duration = Duration::from_millis(2500);
+const EMBED_TIMEOUT: Duration = Duration::from_millis(400);
 
 /// Skip user-asset RAG when the turn already names a site or does not need asset hints.
 pub fn user_asset_turn_skip(query_text: &str, mention_ids: &[String]) -> bool {
     if crate::memory::is_trivial_query(query_text) {
         return true;
     }
+    // Check if query is asking about personal memory/identity or general knowledge
+    let lower = query_text.trim().to_lowercase();
+    const PERSONAL_OR_TIME_PHRASES: &[&str] = &[
+        "siapa nama saya",
+        "nama saya",
+        "nama aku",
+        "siapa saya",
+        "siapa aku",
+        "tentang saya",
+        "tentang diriku",
+        "apa yang kamu ingat",
+        "ingatan kamu",
+        "sekarang jam berapa",
+        "jam berapa",
+        "hari apa",
+        "tanggal berapa",
+    ];
+    if PERSONAL_OR_TIME_PHRASES.iter().any(|p| lower.contains(p)) {
+        return true;
+    }
+
     mention_ids.iter().any(|raw| {
         matches!(
             crate::mention_registry::mention_ref_parse(raw),
@@ -348,19 +369,17 @@ pub async fn user_asset_retrieve(
             let doc_futs = scored.iter().enumerate().map(|(i, (cand, _))| {
                 let cached_opt = cached_batch.get(i).cloned().flatten();
                 let text = cand.embed_text.clone();
+                let pool = pool.clone();
+                let http = http.clone();
                 async move {
                     if let Some(vec) = cached_opt {
                         return (vec, 0, true);
                     }
-                    match tokio::time::timeout(
-                        EMBED_TIMEOUT,
-                        embed_cached(pool, http, &text, EMBED_TASK_DOCUMENT, EMBED_DIMS),
-                    )
-                    .await
-                    {
-                        Ok(Ok(r)) => (r.embedding, r.token_in, r.cached),
-                        _ => (Vec::new(), 0, false),
-                    }
+                    // Non-blocking for turn latency: spawn background prewarm so future turns hit cache instantly
+                    tokio::spawn(async move {
+                        let _ = embed_cached(&pool, &http, &text, EMBED_TASK_DOCUMENT, EMBED_DIMS).await;
+                    });
+                    (Vec::new(), 0, false)
                 }
             });
             let doc_results = futures_util::future::join_all(doc_futs).await;
@@ -452,6 +471,9 @@ mod tests {
     fn user_asset_turn_skip_trivial_and_iid_mention() {
         assert!(user_asset_turn_skip("halo", &[]));
         assert!(user_asset_turn_skip("ok", &[]));
+        assert!(user_asset_turn_skip("siapa nama saya?", &[]));
+        assert!(user_asset_turn_skip("nama saya siapa", &[]));
+        assert!(user_asset_turn_skip("sekarang jam berapa", &[]));
         assert!(!user_asset_turn_skip("berapa harga es teh", &[]));
         assert!(user_asset_turn_skip(
             "berapa stok",

@@ -6,6 +6,7 @@ use c_remote_core::ConnExit;
 use c_remote_core::update::{bind_runtime, is_dev_mode, is_idle, update_apply, update_check_on_start, update_run_loop, update_staged_version};
 use c_remote_core::version::agent_version_label;
 use c_remote_windows::pair_loop::pair_until_claimed;
+use c_remote_windows::startup::{EXIT_CODE_CLEAN_QUIT, EXIT_CODE_RESTART};
 use c_remote_windows::tray::{start_tray_thread, TrayAction};
 use tracing::info;
 
@@ -80,6 +81,9 @@ async fn run() -> anyhow::Result<()> {
     // Enable WebRTC RTP media (H.264 hardware GPU / software MFT stream with SCTP fallback)
     c_remote_core::webrtc::set_webrtc_rtp_media_enabled(true);
 
+    c_remote_windows::browser_bridge::register_browser_video_hooks();
+    let _browser = c_remote_browser_core::attach_to_desktop_agent();
+
     let base_url = server_url();
     update_check_on_start(&base_url).await;
     c_remote_core::tools::ffmpeg::ffmpeg_tick(&base_url).await;
@@ -136,6 +140,8 @@ async fn run() -> anyhow::Result<()> {
         }
     });
 
+    let mut tray_closed = false;
+
     loop {
         if session_key_load().is_none() {
             pair_until_claimed(cli, &mut tray_rx).await?;
@@ -185,7 +191,13 @@ async fn run() -> anyhow::Result<()> {
                     }
                     break;
                 }
-                action = tray_rx.recv() => match action {
+                action = async {
+                    if tray_closed {
+                        futures_util::future::pending::<Option<TrayAction>>().await
+                    } else {
+                        tray_rx.recv().await
+                    }
+                } => match action {
                     Some(TrayAction::Unpair) => {
                         info!("Unpairing this PC…");
                         c_remote_windows::drive::drive_unmount();
@@ -209,15 +221,17 @@ async fn run() -> anyhow::Result<()> {
                         info!("Restarting agent per user request.");
                         c_remote_windows::drive::drive_unmount();
                         conn.abort();
-                        if let Err(e) = c_remote_windows::startup::agent_restart_spawn() {
-                            tracing::warn!("agent restart spawn failed: {e:#}");
-                        }
+                        c_remote_windows::startup::restart_agent();
                         return Ok(());
                     }
-                    Some(TrayAction::Quit) | None => {
+                    Some(TrayAction::Quit) => {
                         conn.abort();
                         info!("Exiting per user request.");
-                        return Ok(());
+                        std::process::exit(EXIT_CODE_CLEAN_QUIT);
+                    }
+                    None => {
+                        tray_closed = true;
+                        info!("Tray/UI channel closed; continuing in headless background mode");
                     }
                 }
             }
@@ -225,111 +239,171 @@ async fn run() -> anyhow::Result<()> {
     }
 }
 
-#[tokio::main]
-async fn main() {
-    if std::env::args().any(|a| a == "--chrome-native-host") {
-        c_remote_core::log_local::boot_append(
-            "refused --chrome-native-host: this is the desktop Windows agent; \
-             point Chrome native messaging at c_remote_browser (alienai_remote_browser from remotes build)",
-        );
-        std::process::exit(2);
-    }
+fn run_supervisor() {
     let _ = c_remote_core::log_local::console_attach_from_parent();
-    #[cfg(windows)]
-    unsafe {
-        use windows::Win32::UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
-        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    }
     c_remote_core::log_local::init();
-    c_remote_windows::agent_version::register();
 
     if !c_remote_windows::startup::claim_single_instance() {
         c_remote_windows::agent_window::signal_show_existing();
-        std::process::exit(0);
-    }
-    let background = std::env::args().any(|a| a == "--background");
-    if !background {
-        c_remote_windows::agent_window::arm_show();
+        std::process::exit(EXIT_CODE_CLEAN_QUIT);
     }
 
-    if is_dev_mode() {
-        tokio::select! {
-            r = run() => {
-                if let Err(e) = r {
-                    tracing::error!("{e}");
-                    std::process::exit(1);
-                }
-                std::process::exit(0);
-            }
-            _ = tokio::signal::ctrl_c() => {
-                info!("shutdown");
-                std::process::exit(0);
-            }
+    let exe = std::env::current_exe().expect("failed to determine current_exe");
+    let base_args: Vec<String> = std::env::args().skip(1).collect();
+
+    info!(exe = %exe.display(), "==> [WATCHDOG SUPERVISOR] Starting Remote Agent supervisor");
+
+    let mut crash_count = 0usize;
+    let mut last_crash = std::time::Instant::now();
+    let mut is_initial_start = true;
+
+    loop {
+        let mut child_args = base_args.clone();
+        if !child_args.iter().any(|a| a == "--worker") {
+            child_args.push("--worker".to_string());
         }
-    } else {
-        // Production supervisor watchdog loop: recover and restart on crashes/panics
-        let mut crash_count = 0usize;
-        let mut last_crash = std::time::Instant::now();
+        if !is_initial_start && !child_args.iter().any(|a| a == "--background") {
+            child_args.push("--background".to_string());
+        }
 
-        loop {
-            let run_future = std::panic::AssertUnwindSafe(async {
-                tokio::select! {
-                    r = run() => r,
-                    _ = tokio::signal::ctrl_c() => {
-                        info!("shutdown");
-                        Ok(())
-                    }
+        let mut cmd = std::process::Command::new(&exe);
+        cmd.args(&child_args);
+
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::error!(error = %e, "Supervisor failed to spawn worker process; retrying in 5s");
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                continue;
+            }
+        };
+
+        let status = match child.wait() {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!(error = %e, "Supervisor wait on worker failed; retrying in 3s");
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                continue;
+            }
+        };
+
+        is_initial_start = false;
+
+        let code = status.code();
+        match code {
+            Some(EXIT_CODE_CLEAN_QUIT) => {
+                info!("Remote agent worker exited cleanly (exit code 0); supervisor exiting");
+                std::process::exit(EXIT_CODE_CLEAN_QUIT);
+            }
+            Some(EXIT_CODE_RESTART) => {
+                info!("Remote agent worker requested restart (exit code 42); respawning immediately");
+                crash_count = 0;
+                continue;
+            }
+            _ => {
+                let now = std::time::Instant::now();
+                if now.duration_since(last_crash) < std::time::Duration::from_secs(60) {
+                    crash_count += 1;
+                } else {
+                    crash_count = 1;
                 }
-            });
+                last_crash = now;
 
-            let res = match futures_util::FutureExt::catch_unwind(run_future).await {
-                Ok(inner) => inner,
-                Err(panic_err) => {
-                    tracing::error!(?panic_err, "c_remote_windows panicked; watchdog supervisor recovering");
-                    Err(anyhow::anyhow!("panic"))
+                let delay_secs = if crash_count >= 5 {
+                    tracing::error!(crash_count, exit_code = ?code, "==> [WATCHDOG CRITICAL] Frequent worker crashes ({crash_count} in 60s); backing off 30s");
+                    30
+                } else {
+                    tracing::warn!(crash_count, exit_code = ?code, "==> [WATCHDOG RECOVERING] Worker terminated unexpectedly (status: {status:?}); restarting in 3s");
+                    3
+                };
+
+                if let Some(key) = session_key_load() {
+                    let base = server_url();
+                    let err_msg = format!("Worker terminated with status: {status:?}");
+                    c_remote_core::log_push::spawn_log_push(
+                        base,
+                        key,
+                        "error".into(),
+                        "agent.supervisor".into(),
+                        format!("agent crash #{crash_count}: {err_msg}"),
+                        Some(serde_json::json!({
+                            "crash_count": crash_count,
+                            "delay_secs": delay_secs,
+                            "status": format!("{status:?}"),
+                        })),
+                    );
                 }
-            };
 
-            match res {
-                Ok(()) => {
-                    info!("c_remote_windows exited cleanly");
-                    std::process::exit(0);
-                }
-                Err(e) => {
-                    let now = std::time::Instant::now();
-                    if now.duration_since(last_crash) < std::time::Duration::from_secs(60) {
-                        crash_count += 1;
-                    } else {
-                        crash_count = 1;
-                    }
-                    last_crash = now;
-
-                    let delay_secs = if crash_count >= 5 {
-                        tracing::error!(crash_count, "==> [WATCHDOG CRITICAL] Frequent crashes detected; backing off 30s");
-                        30
-                    } else {
-                        tracing::warn!(crash_count, error = %e, "==> [WATCHDOG RECOVERING] Agent crashed ({e}); supervisor restarting in 3s");
-                        3
-                    };
-
-                    if let Some(key) = session_key_load() {
-                        c_remote_core::log_push::spawn_log_push(
-                            server_url(),
-                            key,
-                            "error".into(),
-                            "agent.supervisor".into(),
-                            format!("agent crash #{crash_count}: {e}"),
-                            Some(serde_json::json!({
-                                "crash_count": crash_count,
-                                "delay_secs": delay_secs,
-                                "error": e.to_string(),
-                            })),
-                        );
-                    }
-
-                    tokio::time::sleep(std::time::Duration::from_secs(delay_secs)).await;
-                }
+                std::thread::sleep(std::time::Duration::from_secs(delay_secs));
             }
         }
     }
 }
+
+fn run_worker() {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to initialize tokio runtime");
+
+    rt.block_on(async {
+        let _ = c_remote_core::log_local::console_attach_from_parent();
+        #[cfg(windows)]
+        unsafe {
+            use windows::Win32::UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
+            let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        }
+        c_remote_core::log_local::init();
+        c_remote_windows::agent_version::register();
+
+        let is_worker = std::env::args().any(|a| a == "--worker");
+        if !is_worker {
+            if !c_remote_windows::startup::claim_single_instance() {
+                c_remote_windows::agent_window::signal_show_existing();
+                std::process::exit(EXIT_CODE_CLEAN_QUIT);
+            }
+        }
+
+        let background = std::env::args().any(|a| a == "--background");
+        if !background {
+            c_remote_windows::agent_window::arm_show();
+        }
+
+        tokio::select! {
+            r = run() => {
+                if let Err(e) = r {
+                    tracing::error!("worker runtime error: {e:#}");
+                    std::process::exit(1);
+                }
+                std::process::exit(EXIT_CODE_CLEAN_QUIT);
+            }
+            _ = tokio::signal::ctrl_c() => {
+                info!("shutdown");
+                std::process::exit(EXIT_CODE_CLEAN_QUIT);
+            }
+        }
+    });
+}
+
+fn main() {
+    if std::env::args().any(|a| a == "--chrome-native-host") || c_remote_browser_core::should_run_native_host() {
+        std::env::set_var("C35_NATIVE_MESSAGING_HOST", "1");
+        std::env::set_var("C35_BROWSER_ENGINE", "extension");
+        let code = if c_remote_browser_core::run_chrome_native_host().is_ok() {
+            0
+        } else {
+            1
+        };
+        std::process::exit(code);
+    }
+
+    let is_worker = std::env::args().any(|a| a == "--worker");
+    let no_supervisor = std::env::args().any(|a| a == "--no-supervisor" || a == "--no-watchdog");
+
+    if !is_worker && !no_supervisor {
+        run_supervisor();
+    } else {
+        run_worker();
+    }
+}
+

@@ -46,6 +46,10 @@ ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS freemium_tokens_used INT
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS plan_expires_ts TIMESTAMPTZ;
 ALTER TABLE ai.billing_profile ADD COLUMN IF NOT EXISTS plan_auto_renew BOOLEAN NOT NULL DEFAULT FALSE;
 UPDATE ai.billing_promotion SET code = 'SIGNUPTRIAL' WHERE id = 900000000000000001 AND code = 'signup_trial';
+ALTER TABLE site.config ADD COLUMN IF NOT EXISTS guest_render_version INT NOT NULL DEFAULT 0;
+INSERT INTO ai.config (key, value, updated_at)
+VALUES ('site.guest_renderer_version', jsonb_build_object('version', 1), NOW())
+ON CONFLICT (key) DO NOTHING;
 ";
 
 pub fn missing_table(err: &SqlxError) -> bool {

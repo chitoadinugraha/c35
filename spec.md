@@ -115,6 +115,8 @@ Full UI spec: [`_/specs/ui.md`](_/specs/ui.md)
 | [`_/specs/remote.md`](_/specs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media), NATS task scheduler & computer use |
 | [`_/specs/browser-remote.md`](_/specs/browser-remote.md) | Remote browser (`type=browser`): Rust agent + Playwright sidecar, same WebRTC UX |
 | [`_/specs/plans/2026-09-29-chrome-extension-remote-multitask.md`](_/specs/plans/2026-09-29-chrome-extension-remote-multitask.md) | Chrome extension remote (daily profile): native host, pair web page, OTA, alienai.id download |
+| [`_/specs/plans/2026-10-12-android-apk-ota-channel.md`](_/specs/plans/2026-10-12-android-apk-ota-channel.md) | Android APK OTA channel (independent of Play): background stage, PackageInstaller, Settings |
+| [`_/specs/plans/2026-10-12-windows-app-ota-parity.md`](_/specs/plans/2026-10-12-windows-app-ota-parity.md) | Windows ZIP app OTA: NATS wake, WS nudge, title-bar Restart, background stage, busy gating |
 | [`_/specs/browser-extension.md`](_/specs/browser-extension.md) | Chrome extension remote (locked spec) — created in CE-W1 Track A |
 | [`_/specs/remote-agent.md`](_/specs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |
 | [`_/specs/remote-android.md`](_/specs/remote-android.md) | Android Remote Agent (`id.alienai.remote`): dual-app model, WebRTC, MediaProjection, Accessibility & SoM |

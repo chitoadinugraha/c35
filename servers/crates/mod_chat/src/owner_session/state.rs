@@ -38,6 +38,7 @@ pub struct OwnerPromptSession {
     superseded: AtomicBool,
     /// Owner-bundle warmup task started (WS connect or headless attach).
     owner_warm_spawned: AtomicBool,
+    ready_notify: std::sync::Arc<tokio::sync::Notify>,
 }
 
 impl OwnerPromptSession {
@@ -49,7 +50,16 @@ impl OwnerPromptSession {
             revision: AtomicU64::new(0),
             superseded: AtomicBool::new(false),
             owner_warm_spawned: AtomicBool::new(false),
+            ready_notify: std::sync::Arc::new(tokio::sync::Notify::new()),
         }
+    }
+
+    pub fn ready_notify(&self) -> std::sync::Arc<tokio::sync::Notify> {
+        self.ready_notify.clone()
+    }
+
+    pub fn notify_ready(&self) {
+        self.ready_notify.notify_waiters();
     }
 
     pub fn owner_warm_spawned(&self) -> bool {

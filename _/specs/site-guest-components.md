@@ -26,7 +26,7 @@ Operators debug parity across **three surfaces**. Do not compare the wrong pair.
 
 **Sharing drafts:** `?draft=1` is enough — no preview token. Anyone with the link sees the current draft (same as a public URL with a different snapshot). Legacy `ptoken` query params are ignored.
 
-**Local dev (`dev_server.ps1`):** `C35_GUEST_DEV_LIVE_RENDER=1` (default) re-runs `page_html_render` on each `localhost` request using the **published doc snapshot**, so renderer/CSS/JS code changes show without republishing. Production and non-local hosts still serve cached `site.render` until **Publish**. Unpublished **draft** edits still require the Visit link or in-app Draft preview.
+**Local dev (`dev_server.ps1`):** `C35_GUEST_DEV_LIVE_RENDER=1` (default) re-runs `page_html_render` on each `localhost` request using the **published doc snapshot**, so renderer/CSS/JS code changes show without republishing. Production serves cached `site.render` until **Publish** (content) or **guest renderer version** bump + first visit (compiler-only). Unpublished **draft** edits still require the Visit link or in-app Draft preview.
 
 ## Web guest assets
 
@@ -80,7 +80,7 @@ Flutter and preview use the same payload shape (v1 string `boot_json`).
 | `siteIid` / `site_id` | `site_iid` | cart, forms, order poll |
 | `commerceBoot` | `commerce_boot` | products map, payment methods |
 | `design` / theme | `design` + `theme` | layout from HTML/CSS + tokens |
-| `orderProgressSteps` | `order_progress_steps` | optional; preview poll is label-only |
+| `orderProgressSteps` | `order_progress_steps` | When `capabilities.order_fulfillment` is on: includes `pending` (“Diproses”); when off, payment → complete only |
 | `SiteAiAssistantDraft` / editor | `ai_assistant` | `c35GuestAssistant` FABs + chat/call UI |
 | `meta.knowledge[]` (published) | `knowledge` | server-trimmed title+content rows for guest assistant context |
 
@@ -90,6 +90,8 @@ Fields:
 |-------|------|
 | `site_id`, `name`, `alien_id`, `avatar_url` | Identity meta (CSA `__SITE_BOOT__` subset) |
 | `meta`, `theme` | From `SiteDoc` |
+| `meta.lang` / `meta.locale` | Guest copy (`id` default): quote labels, catalog chips, load-more |
+| `meta.guest_layout` | `hub` (720px) or `store` (1040px, 4-col grid on desktop); auto `store` when home catalog has 9+ products |
 | `pages` | Block tree (`id`, `type`, `props`) |
 | `capabilities` | From `site.config.capabilities_json` |
 | `product_preload` | Map block id -> product rows for each `product_grid` |

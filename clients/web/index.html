@@ -88,6 +88,16 @@
   </script>
 
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg-glass: rgba(20, 21, 28, 0.45);
+      --border-glass: rgba(255, 255, 255, 0.08);
+      --glow-win: rgba(59, 130, 246, 0.2);
+      --glow-android: rgba(16, 185, 129, 0.2);
+      --glow-web: rgba(139, 92, 246, 0.25);
+    }
+
     #stars {
       position: fixed;
       inset: 0;
@@ -103,6 +113,43 @@
     .hero-glow {
       background: radial-gradient(circle at 50% 35%, rgba(0, 229, 153, 0.06) 0%, transparent 65%);
     }
+
+    /* Floating logo animation */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+    .logo-float {
+      animation: float 6s ease-in-out infinite;
+    }
+
+    /* Modern Glass Card */
+    .glass-card {
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-glass);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .platform-card-win:hover {
+      background: rgba(59, 130, 246, 0.04);
+      border-color: rgba(59, 130, 246, 0.3);
+      box-shadow: 0 12px 30px rgba(59, 130, 246, 0.12);
+      transform: translateY(-3px);
+    }
+    .platform-card-android:hover {
+      background: rgba(16, 185, 129, 0.04);
+      border-color: rgba(16, 185, 129, 0.3);
+      box-shadow: 0 12px 30px rgba(16, 185, 129, 0.12);
+      transform: translateY(-3px);
+    }
+    .platform-card-web:hover {
+      background: rgba(139, 92, 246, 0.04);
+      border-color: rgba(139, 92, 246, 0.3);
+      box-shadow: 0 12px 30px rgba(139, 92, 246, 0.12);
+      transform: translateY(-3px);
+    }
   </style>
 </head>
 <body class="bg-dark-bg text-slate-200 font-sans antialiased selection:bg-brand-500 selection:text-black min-h-screen flex flex-col relative">
@@ -117,9 +164,9 @@
       <!-- Brand Logo -->
       <a href="/" class="flex items-center gap-3 group z-20">
         <div class="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:border-white/40 transition duration-300">
-          <img src="/alien.svg" alt="Alien AI" class="w-5 h-5">
+          <img src="/alien.svg" alt="Alien AI" class="w-5 h-5 logo-float">
         </div>
-        <span class="text-xl font-bold tracking-tight text-white">Alien<span class="text-white font-black">AI</span></span>
+        <span class="text-xl font-bold tracking-tight text-white font-['Outfit']">Alien<span class="text-white font-black">AI</span></span>
       </a>
 
       <!-- Right controls: Status + Language switcher -->
@@ -159,10 +206,10 @@
         <div id="hero-actions" class="flex flex-col md:flex-row items-stretch justify-center gap-5 max-w-3xl mx-auto mb-6">
           
           <!-- Card 1: Download App (Desktop & Mobile) -->
-          <div class="flex-1 p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
+          <div class="flex-1 p-6 rounded-2xl glass-card hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
             <div>
               <div class="flex items-center gap-3 mb-2 flex-wrap">
-                <h2 class="text-xl sm:text-2xl font-bold text-white leading-tight" data-i18n="hero.downloadApp">Download App</h2>
+                <h2 class="text-xl sm:text-2xl font-bold text-white leading-tight font-['Outfit']" data-i18n="hero.downloadApp">Download App</h2>
                 <span id="heroAppVersion" class="hidden inline-flex items-baseline gap-1 px-2.5 py-1 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] text-[11px] leading-none">
                   <span data-i18n="hero.versionLabel" class="text-slate-400 font-medium leading-none">Version:</span>
                   <span id="heroAppVersionNum" class="text-emerald-300 font-semibold tabular-nums leading-none"></span>
@@ -231,9 +278,9 @@
           </div>
 
           <!-- Card 2: Remote Control (Background Node) -->
-          <div class="flex-1 p-6 rounded-2xl bg-white/[0.04] border border-white/10 backdrop-blur-xl hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
+          <div class="flex-1 p-6 rounded-2xl glass-card hover:border-emerald-400/30 transition duration-300 flex flex-col justify-start gap-4 text-left">
             <div>
-              <h2 class="text-xl sm:text-2xl font-bold text-white mb-2" data-i18n="hero.downloadAgent">Remote Control</h2>
+              <h2 class="text-xl sm:text-2xl font-bold text-white mb-2 font-['Outfit']" data-i18n="hero.downloadAgent">Remote Control</h2>
               <p class="text-xs text-slate-400 mb-6 leading-relaxed" data-i18n="hero.agentDesc">Background node for automated clicks, keyboard input, WebRTC screen streaming, and virtual cloud drive.</p>
             </div>
             

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use c35_ctx::Ctx;
 use c35_mod_billing::{billing_account_get, billing_history};
-use c35_mod_device::{mcp_client_list, mcp_device_list};
+use c35_mod_device::mcp_client_list;
 use c35_mod_identity::{identity_list, identity_nav_counts, identity_profile_get};
 use c35_mod_referral::{referral_ledger_list, referral_user_stats};
 use c35_proto::{
@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
 use crate::tool;
+use crate::tools::builtin::device_manage::device_list_exec;
 use crate::tools::ToolContext;
 
 fn tool_ctx(ctx: &ToolContext) -> Ctx {
@@ -329,17 +330,6 @@ pub async fn account_snapshot_exec(ctx: &ToolContext, args: &Value) -> Result<Va
     }))
 }
 
-pub async fn device_list_exec(ctx: &ToolContext, _args: &Value) -> Result<Value> {
-    let out = mcp_device_list(&ctx.pool, ctx.owner_iid).await;
-    Ok(json!({
-        "ok": out.get("ok").and_then(|v| v.as_bool()).unwrap_or(true),
-        "tool": "device.list",
-        "devices": out.get("devices").cloned().unwrap_or(json!([])),
-        "count": out.get("count").and_then(|v| v.as_i64()).unwrap_or(0),
-        "llm": out,
-    }))
-}
-
 async fn identity_kind_list_exec(ctx: &ToolContext, kinds: &[&str], tool: &str) -> Result<Value> {
     let req = ReqIdentityList {
         kinds: kinds.iter().map(|s| s.to_string()).collect(),
@@ -476,14 +466,16 @@ tool! {
     struct: DeviceListTool,
     name: "device.list",
     aliases: ["device_list", "list devices", "daftar device"],
-    description: "List paired remote devices for the signed-in user with online and version hints.",
+    description: "List paired remote and IoT devices (owned or granted) with pin, archive, and online hints.",
     topics: ["general", "device"],
     always: ["general", "device"],
     rag_phrases: ["daftar device", "my devices", "paired pc", "list devices"],
     ui_calling_key: "tool.device.list.calling",
     ui_done_key: "tool.device.list.done",
     readonly: true,
-    parameters: {},
+    parameters: {
+        include_archived: (boolean, "Include archived devices (default false)", optional, default = false),
+    },
     execute: |args, ctx| device_list_exec(ctx, &args).await
 }
 

@@ -19,6 +19,7 @@ use sqlx::PgPool;
 use tokio::sync::mpsc;
 
 use crate::agent_meta_get;
+use crate::release_config::{device_type_is_unified_desktop, meta_browser_ready};
 
 static HUB: OnceLock<Arc<RemoteSignalingHub>> = OnceLock::new();
 static APP_CONN_SEQ: AtomicU64 = AtomicU64::new(1);
@@ -1083,6 +1084,86 @@ pub async fn remote_device_task_run_enqueue(
     Ok(run_id)
 }
 
+/// When the user mentions a desktop VM/device but calls browser tools, route to the sole online
+/// `type=browser` agent when unambiguous.
+/// When `allow_unready_desktop` is true (e.g. `browser.ensure`), route browser RPC to the
+/// mentioned windows/linux device even if `meta.browser_ready` is false.
+pub async fn remote_browser_device_iid_for_invoke(
+    pool: &PgPool,
+    nats: Option<&async_nats::Client>,
+    owner_iid: i64,
+    resolved_device_iid: i64,
+    allow_unready_desktop: bool,
+) -> Result<i64, String> {
+    use crate::device_meta::{device_remote_name, device_remote_type};
+
+    let typ = device_remote_type(pool, resolved_device_iid).await?;
+    if typ.eq_ignore_ascii_case("browser") {
+        return Ok(resolved_device_iid);
+    }
+    let meta = agent_meta_get(pool, resolved_device_iid).await?;
+    if device_type_is_unified_desktop(&typ) {
+        if meta_browser_ready(&meta) || allow_unready_desktop {
+            return Ok(resolved_device_iid);
+        }
+        let name = device_remote_name(pool, resolved_device_iid)
+            .await
+            .unwrap_or_else(|_| format!("device {resolved_device_iid}"));
+        return Err(format!(
+            "Chrome extension browser is not connected on {name} (type={typ}, device_iid={resolved_device_iid}). \
+Call browser.ensure on that device to install or reconnect the extension, then retry browser tools."
+        ));
+    }
+    let name = device_remote_name(pool, resolved_device_iid)
+        .await
+        .unwrap_or_else(|_| format!("device {resolved_device_iid}"));
+
+    let rows: Vec<(i64, String)> = sqlx::query_as(
+        r#"
+        SELECT id, COALESCE(name, '') AS name
+        FROM ai.identity
+        WHERE owner_iid = $1 AND kind = 'remote' AND deleted_ts IS NULL
+          AND type = 'browser'
+        ORDER BY id
+        "#,
+    )
+    .bind(owner_iid)
+    .fetch_all(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    let mut online: Vec<(i64, String)> = Vec::new();
+    for (id, browser_name) in rows {
+        if agent_cluster_online(pool, nats, id).await? {
+            online.push((id, browser_name));
+        }
+    }
+    match online.len() {
+        0 => Err(format!(
+            "browser tools need a paired Chrome Remote device (type=browser). {name} is type={typ}. \
+Open Chrome with the AlienAI Remote extension on that PC, or @mention an online browser device."
+        )),
+        1 => Ok(online[0].0),
+        _ => {
+            let labels: Vec<String> = online
+                .iter()
+                .map(|(id, n)| {
+                    if n.is_empty() {
+                        format!("iid:{id}")
+                    } else {
+                        format!("{n} (iid:{id})")
+                    }
+                })
+                .collect();
+            Err(format!(
+                "browser tools must target a Chrome Remote device (type=browser), not {name} (type={typ}). \
+Several browser devices are online: {}. @mention the browser you want.",
+                labels.join(", ")
+            ))
+        }
+    }
+}
+
 /// Synchronous browser engine RPC via `ReqRemoteCommand` (remote browser agent only).
 pub async fn remote_device_browser_invoke(
     pool: &PgPool,
@@ -1093,6 +1174,15 @@ pub async fn remote_device_browser_invoke(
     params: Value,
     timeout_sec: u32,
 ) -> Result<Value, String> {
+    let allow_unready = method.eq_ignore_ascii_case("ensure");
+    let device_iid = remote_browser_device_iid_for_invoke(
+        pool,
+        nats,
+        caller_iid,
+        device_iid,
+        allow_unready,
+    )
+    .await?;
     let command = format!(
         "{}{}",
         BROWSER_COMMAND_PREFIX,

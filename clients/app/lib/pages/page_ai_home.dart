@@ -47,6 +47,7 @@ import 'package:alienai_c35/c/mention/composer_test_commands.dart';
 import 'package:alienai_c35/core/notify/fcm_service.dart';
 import 'package:alienai_c35/core/notify/notify_router.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/c/update/app_update_busy.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/store/prompt_followup_store.dart';
 import 'package:alienai_c35/widgets/ai/prompt_followup_format.dart';
@@ -184,6 +185,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    appUpdateBusyBind(conn: _conn, store: _store);
     WidgetsBinding.instance.addObserver(this);
     SttService.instance.bindVoiceApi(_voiceApi);
     TtsService.instance.bindVoiceApi(_voiceApi);

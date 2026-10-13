@@ -60,6 +60,7 @@ fn mention_force_tools_includes_device_when_remote() {
         identity_kind: Some("remote".into()),
         identity_type: None,
         device_engine: None,
+        device_browser_ready: None,
     }];
     assert!(mention_has_device(&resolved));
     let tools = mention_force_tools(&resolved);
@@ -95,6 +96,7 @@ fn mention_active_topics_adds_site_commerce_when_enabled() {
         identity_kind: Some("site".into()),
         identity_type: None,
         device_engine: None,
+        device_browser_ready: None,
     }];
     let topics = mention_active_topics(&resolved, "", &[111]);
     assert!(topics.iter().any(|t| t == "web.builder"));
@@ -116,11 +118,36 @@ fn mention_prompt_block_formats_browser_extension_engine() {
         identity_kind: Some("remote".into()),
         identity_type: Some("browser".into()),
         device_engine: Some("extension".into()),
+        device_browser_ready: None,
     }];
     let block = mention_prompt_block(&resolved);
     assert_eq!(
         block,
         "[MENTION TARGETS]\n- User's Google Chrome (ref=iid:123, iid=123, topic=device, type=browser, engine=extension)"
+    );
+}
+
+#[test]
+fn mention_prompt_block_formats_desktop_browser_ready() {
+    use c35_mod_chat::mention_prompt_block;
+    use c35_proto::MentionItem;
+    let resolved = vec![MentionResolved {
+        item: MentionItem {
+            id: "iid:456".into(),
+            topic_id: "device".into(),
+            label: "VM1".into(),
+            ..Default::default()
+        },
+        identity_iid: Some(456),
+        identity_kind: Some("remote".into()),
+        identity_type: Some("windows".into()),
+        device_engine: Some("extension".into()),
+        device_browser_ready: Some(true),
+    }];
+    let block = mention_prompt_block(&resolved);
+    assert!(
+        block.contains("browser_ready=true"),
+        "expected browser_ready in mention block: {block}"
     );
 }
 

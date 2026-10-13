@@ -14,6 +14,7 @@ use crate::site_config::site_capabilities_get;
 use crate::site_link::site_link_boot_rows;
 use crate::product_design::product_design_from_site_meta;
 use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json};
+use crate::site_config::site_order_fulfillment_enabled;
 use crate::site_assistant::site_assistant_boot_extras;
 use crate::site_post::{post_boot_summary_json, site_post_boot_summaries};
 
@@ -244,7 +245,10 @@ pub async fn site_boot_get(pool: &PgPool, caller_iid: i64, req: ReqSiteBootGet) 
             m.insert(k, v);
         }
         m.insert("commerce_boot".into(), commerce_boot);
-        m.insert("order_progress_steps".into(), order_progress_steps_json());
+        m.insert(
+            "order_progress_steps".into(),
+            order_progress_steps_json(site_order_fulfillment_enabled(&capabilities)),
+        );
         Value::Object(m)
     } else {
         boot

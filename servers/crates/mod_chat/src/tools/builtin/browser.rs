@@ -253,11 +253,14 @@ async fn browser_invoke(
     {
         Ok(v) => {
             if v.get("ok").and_then(|x| x.as_bool()) == Some(false) {
-                return browser_fail(
-                    v.get("error")
-                        .and_then(|x| x.as_str())
-                        .unwrap_or("browser command failed"),
-                );
+                let probe = method.eq_ignore_ascii_case("ensure") && v.get("user_offer").is_some();
+                if !probe {
+                    return browser_fail(
+                        v.get("error")
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("browser command failed"),
+                    );
+                }
             }
             let mut out = v;
             if out.get("device_iid").is_none() {
@@ -688,6 +691,44 @@ tool! {
 }
 
 tool! {
+    struct: BrowserEnsureTool,
+    name: "browser.ensure",
+    aliases: ["browser_ensure"],
+    description: "Probe Chrome + Alien AI Remote extension on a paired desktop (or browser device). Returns user_offer steps when not ready. Repairs: install_chrome (opens download page), sync_install, register_nm, open_extensions_page, start_extension_agent. Prefer this before sheet/web automation — uses the user's Chrome profile (faster, cheaper than web.search).",
+    topics: ["device", "browser"],
+    always: ["device", "browser"],
+    rag_phrases: [
+        "extension not connected", "browser tools failed", "install chrome extension",
+        "load unpacked", "chrome extension not working", "native messaging",
+        "browser ensure", "fix chrome remote extension"
+    ],
+    ui_calling_key: "tool.browser.ensure.calling",
+    ui_done_key: "tool.browser.ensure.done",
+    parameters: {
+        device_iid: (integer, "Target remote device identity ID (windows or browser)", required),
+        run_repairs: (boolean, "When true (default), run automatic repair actions before re-probing", optional),
+        actions: (array, "Optional subset of repair actions (install_chrome, sync_install, register_nm, open_extensions_page, load_extension_in_chrome, start_extension_agent)", optional),
+    },
+    execute: |args, ctx| {
+        let mut params = json!({});
+        if let Some(v) = args.get("run_repairs") {
+            params["run_repairs"] = v.clone();
+        }
+        if let Some(v) = args.get("actions") {
+            params["actions"] = v.clone();
+        }
+        let mut out = browser_invoke(&args, ctx, "ensure", params, 90).await;
+        // Probe may report extension_connected:false with user_offer; still a successful tool call.
+        if out.get("user_offer").is_some() {
+            if let Some(obj) = out.as_object_mut() {
+                obj.insert("ok".into(), json!(true));
+            }
+        }
+        Ok(out)
+    }
+}
+
+tool! {
     struct: BrowserExtensionTool,
     name: "browser.extension",
     aliases: ["browser_extension"],
@@ -1036,6 +1077,32 @@ fn attachment_resolve(attachments_json: &str, attachment_id: &str) -> Option<Res
         });
     }
     None
+}
+
+#[cfg(test)]
+mod browser_ensure_tests {
+    use super::arg_str;
+    use serde_json::json;
+
+    #[test]
+    fn ensure_run_repairs_defaults_when_omitted() {
+        let args = json!({ "device_iid": 42 });
+        let run = args
+            .get("run_repairs")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+        assert!(run);
+    }
+
+    #[test]
+    fn ensure_actions_array_non_empty() {
+        let args = json!({
+            "actions": ["sync_install", "register_nm"],
+        });
+        let list = args.get("actions").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(list.len(), 2);
+        assert_eq!(arg_str(&args, "device_iid"), "");
+    }
 }
 
 #[cfg(test)]

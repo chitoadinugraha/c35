@@ -88,6 +88,7 @@ pub async fn handle(
     session_key: String,
     agent_build: i64,
     agent_version_name: String,
+    browser_meta: serde_json::Value,
 ) {
     let session = match agent_session_resolve(&state.pool, &session_key).await {
         Ok(Some(s)) => s,
@@ -105,13 +106,17 @@ pub async fn handle(
         "agent ws connected"
     );
 
-    let version = if agent_build > 0 {
-        Some(AgentVersionReport {
+    let version = {
+        let report = AgentVersionReport {
             build: agent_build,
             version_name: agent_version_name,
-        })
-    } else {
-        None
+            browser_meta,
+        };
+        if c35_mod_device::agent_version_report_has_payload(&report) {
+            Some(report)
+        } else {
+            None
+        }
     };
     let _ = agent_presence_put(
         &state.pool,

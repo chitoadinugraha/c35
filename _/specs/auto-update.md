@@ -27,7 +27,7 @@
 }
 ```
 
-- Android client adds `url` (Play Store) and optional `apkHash` / `apkSize` for direct APK download.
+- Android client adds `url` (Play Store) and optional `apkUrl` / `apkHash` / `apkSize` for direct APK download (APK update channel).
 - Web client (`app.release.c35.web`) adds `url: https://alienai.id/app/` — no hash/size (static tree on S3).
 - Signed CAS URL: `https://alienai.id/fs/{hash}?exp={exp}&sig={sig}`. Cloudflare orange cloud caches the immutable blob at edge PoPs globally.
 
@@ -58,6 +58,35 @@ Windows remote agents (and desktop app if needed) download **ffmpeg** separately
 - Zip layout: **`ffmpeg.exe` at archive root** (plus DLLs); publish script rejects dirs without root `ffmpeg.exe`.
 
 **Android Play builds:** no ffmpeg binary OTA (policy); media/tools use agent-side ffmpeg on paired PCs only.
+
+---
+
+## Android APK update channel (main app)
+
+Independent of Google Play In-App Update. Same package `id.alienai` and upload keystore; different **client channel** (`play` vs `apk` in app prefs).
+
+| Channel | Check | Install |
+|---------|--------|---------|
+| `play` (default) | Play In-App Update; falls back to `apk` on `ERROR_APP_NOT_OWNED` | Play flexible / immediate |
+| `apk` | `GET /version/android` — compare **build number**; uses `apkUrl`, `apkHash`, `apkSize` | Background download to app support dir → Blake3 → `PackageInstaller` (Kotlin) with intent fallback |
+
+- **Staging:** `{applicationSupport}/alienai-updates/{version}/update.apk` + `.ready` marker.
+- **Force:** `min` in release JSON blocks app (`UiUpdateForceGate`) until install is launched.
+- **Settings:** Android → App updates → Google Play vs Website APK; manual “Download latest APK” uses the same pipeline.
+- **Ops:** Prod publish only (`deploy_app_release.dart` / `play_store_upload_prod.dart` with CAS APK). Never point `/version/android` at internal/tester-only Play builds.
+
+---
+
+## Windows desktop app OTA
+
+Alien AI for Windows (`alienai.exe`) uses the same release JSON as other platforms: `GET /version/windows` → `app.release.c35.windows`, CAS zip download, Blake3 verify, staging under `%LOCALAPPDATA%\AlienAI\updates\{version}\`, apply on restart via `apply.ps1`.
+
+| Behavior | Detail |
+|----------|--------|
+| **Poll** | Startup + every **6h** when up to date; **45s** while checking, downloading, or staged (`ready` / `forceRequired`) |
+| **NATS wakeup** | Publish broadcasts `c35.release.windows`; logged-in app on `/v1/ws?build=&platform=3` receives `WsRes.app_release_nudge` → `checkNow()` (plus reconnect poll) |
+| **Apply** | User taps title-bar **Restart to update** (or force gate **Update now**); no idle countdown auto-restart on Windows |
+| **Staging** | `%LOCALAPPDATA%\AlienAI\updates\{version}\staging\` (exe present ⇒ ready; no separate `.ready` file on Windows desktop) |
 
 ---
 

@@ -74,13 +74,45 @@ pub fn set_autostart_enabled(enabled: bool) -> Result<()> {
             let _ = RegCloseKey(hkey);
             res.ok()?;
             info!(path = %val_str, "Windows autostart registered in HKCU Run key");
+
+            register_scheduled_task(&exe_path, true);
         } else {
             let _ = RegDeleteValueW(hkey, APP_NAME);
             let _ = RegCloseKey(hkey);
             info!("Windows autostart removed from HKCU Run key");
+            if let Ok(exe_path) = std::env::current_exe() {
+                register_scheduled_task(&exe_path, false);
+            }
         }
     }
     Ok(())
+}
+
+#[cfg(windows)]
+fn register_scheduled_task(exe_path: &std::path::Path, enabled: bool) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let exe_str = exe_path.to_string_lossy().to_string();
+    if enabled {
+        let _ = std::process::Command::new("schtasks")
+            .args(&[
+                "/create",
+                "/tn",
+                "AlienAI Remote Agent",
+                "/tr",
+                &format!("\"{}\" --background", exe_str),
+                "/sc",
+                "onlogon",
+                "/f",
+            ])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    } else {
+        let _ = std::process::Command::new("schtasks")
+            .args(&["/delete", "/tn", "AlienAI Remote Agent", "/f"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
 }
 
 #[cfg(windows)]
@@ -165,6 +197,22 @@ pub fn claim_single_instance() -> bool {
 #[cfg(not(windows))]
 pub fn claim_single_instance() -> bool {
     true
+}
+
+pub const EXIT_CODE_CLEAN_QUIT: i32 = 0;
+pub const EXIT_CODE_RESTART: i32 = 42;
+
+/// Notify supervisor to restart this worker or spawn a fresh detached process.
+pub fn restart_agent() {
+    if std::env::args().any(|a| a == "--worker") {
+        info!("Worker requesting restart from supervisor (exit code 42)");
+        std::process::exit(EXIT_CODE_RESTART);
+    } else {
+        if let Err(e) = agent_restart_spawn() {
+            tracing::warn!("agent restart spawn failed: {e:#}");
+        }
+        std::process::exit(EXIT_CODE_CLEAN_QUIT);
+    }
 }
 
 /// Spawn a fresh agent process (same exe + args), then exit the current process.

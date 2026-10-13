@@ -259,6 +259,7 @@ class SiteConfig extends $pb.GeneratedMessage {
     $core.String? presencePolicyJson,
     $core.String? capabilitiesJson,
     $fixnum.Int64? alienIdChangedTsMs,
+    $fixnum.Int64? assistantBotIid,
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
@@ -277,6 +278,7 @@ class SiteConfig extends $pb.GeneratedMessage {
     if (capabilitiesJson != null) result.capabilitiesJson = capabilitiesJson;
     if (alienIdChangedTsMs != null)
       result.alienIdChangedTsMs = alienIdChangedTsMs;
+    if (assistantBotIid != null) result.assistantBotIid = assistantBotIid;
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
@@ -305,6 +307,7 @@ class SiteConfig extends $pb.GeneratedMessage {
     ..aOS(7, _omitFieldNames ? '' : 'presencePolicyJson')
     ..aOS(8, _omitFieldNames ? '' : 'capabilitiesJson')
     ..aInt64(9, _omitFieldNames ? '' : 'alienIdChangedTsMs')
+    ..aInt64(10, _omitFieldNames ? '' : 'assistantBotIid')
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
@@ -411,30 +414,39 @@ class SiteConfig extends $pb.GeneratedMessage {
   @$pb.TagNumber(9)
   void clearAlienIdChangedTsMs() => $_clearField(9);
 
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get assistantBotIid => $_getI64(9);
+  @$pb.TagNumber(10)
+  set assistantBotIid($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasAssistantBotIid() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearAssistantBotIid() => $_clearField(10);
+
   @$pb.TagNumber(20)
-  $fixnum.Int64 get createdTsMs => $_getI64(9);
+  $fixnum.Int64 get createdTsMs => $_getI64(10);
   @$pb.TagNumber(20)
-  set createdTsMs($fixnum.Int64 value) => $_setInt64(9, value);
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(10, value);
   @$pb.TagNumber(20)
-  $core.bool hasCreatedTsMs() => $_has(9);
+  $core.bool hasCreatedTsMs() => $_has(10);
   @$pb.TagNumber(20)
   void clearCreatedTsMs() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $fixnum.Int64 get updatedTsMs => $_getI64(10);
+  $fixnum.Int64 get updatedTsMs => $_getI64(11);
   @$pb.TagNumber(21)
-  set updatedTsMs($fixnum.Int64 value) => $_setInt64(10, value);
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(11, value);
   @$pb.TagNumber(21)
-  $core.bool hasUpdatedTsMs() => $_has(10);
+  $core.bool hasUpdatedTsMs() => $_has(11);
   @$pb.TagNumber(21)
   void clearUpdatedTsMs() => $_clearField(21);
 
   @$pb.TagNumber(22)
-  $fixnum.Int64 get deletedTsMs => $_getI64(11);
+  $fixnum.Int64 get deletedTsMs => $_getI64(12);
   @$pb.TagNumber(22)
-  set deletedTsMs($fixnum.Int64 value) => $_setInt64(11, value);
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(12, value);
   @$pb.TagNumber(22)
-  $core.bool hasDeletedTsMs() => $_has(11);
+  $core.bool hasDeletedTsMs() => $_has(12);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
 }
@@ -6405,6 +6417,382 @@ class ResSiteBootGet extends $pb.GeneratedMessage {
   $core.bool hasBootJson() => $_has(0);
   @$pb.TagNumber(1)
   void clearBootJson() => $_clearField(1);
+}
+
+class SiteAssistantChannelSummary extends $pb.GeneratedMessage {
+  factory SiteAssistantChannelSummary({
+    $core.String? id,
+    $core.String? platform,
+    $core.String? provider,
+    $core.String? status,
+    $core.String? botUsername,
+    $core.String? phone,
+    $core.String? errorMessage,
+  }) {
+    final result = SiteAssistantChannelSummary._();
+    if (id != null) result.id = id;
+    if (platform != null) result.platform = platform;
+    if (provider != null) result.provider = provider;
+    if (status != null) result.status = status;
+    if (botUsername != null) result.botUsername = botUsername;
+    if (phone != null) result.phone = phone;
+    if (errorMessage != null) result.errorMessage = errorMessage;
+    return result;
+  }
+
+  SiteAssistantChannelSummary._();
+
+  factory SiteAssistantChannelSummary.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteAssistantChannelSummary()..mergeFromBuffer(data, registry);
+  factory SiteAssistantChannelSummary.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteAssistantChannelSummary()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SiteAssistantChannelSummary',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SiteAssistantChannelSummary.$_createMessage)
+    ..aOS(1, _omitFieldNames ? '' : 'id')
+    ..aOS(2, _omitFieldNames ? '' : 'platform')
+    ..aOS(3, _omitFieldNames ? '' : 'provider')
+    ..aOS(4, _omitFieldNames ? '' : 'status')
+    ..aOS(5, _omitFieldNames ? '' : 'botUsername')
+    ..aOS(6, _omitFieldNames ? '' : 'phone')
+    ..aOS(7, _omitFieldNames ? '' : 'errorMessage')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteAssistantChannelSummary clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteAssistantChannelSummary copyWith(
+          void Function(SiteAssistantChannelSummary) updates) =>
+      super.copyWith(
+              (message) => updates(message as SiteAssistantChannelSummary))
+          as SiteAssistantChannelSummary;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use SiteAssistantChannelSummary() / SiteAssistantChannelSummary.new instead')
+  static SiteAssistantChannelSummary create() =>
+      SiteAssistantChannelSummary._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      SiteAssistantChannelSummary._();
+  @$core.override
+  SiteAssistantChannelSummary createEmptyInstance() =>
+      SiteAssistantChannelSummary._();
+  @$core.pragma('dart2js:noInline')
+  static SiteAssistantChannelSummary getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SiteAssistantChannelSummary>(
+          SiteAssistantChannelSummary.$_createMessage);
+  static SiteAssistantChannelSummary? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get id => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set id($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get platform => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set platform($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPlatform() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPlatform() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get provider => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set provider($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasProvider() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearProvider() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get status => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set status($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStatus() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStatus() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get botUsername => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set botUsername($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasBotUsername() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearBotUsername() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get phone => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set phone($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPhone() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPhone() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get errorMessage => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set errorMessage($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasErrorMessage() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearErrorMessage() => $_clearField(7);
+}
+
+class ReqSiteAssistantGet extends $pb.GeneratedMessage {
+  factory ReqSiteAssistantGet({
+    $fixnum.Int64? siteIid,
+  }) {
+    final result = ReqSiteAssistantGet._();
+    if (siteIid != null) result.siteIid = siteIid;
+    return result;
+  }
+
+  ReqSiteAssistantGet._();
+
+  factory ReqSiteAssistantGet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteAssistantGet()..mergeFromBuffer(data, registry);
+  factory ReqSiteAssistantGet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteAssistantGet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteAssistantGet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteAssistantGet.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteAssistantGet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteAssistantGet copyWith(void Function(ReqSiteAssistantGet) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteAssistantGet))
+          as ReqSiteAssistantGet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ReqSiteAssistantGet() / ReqSiteAssistantGet.new instead')
+  static ReqSiteAssistantGet create() => ReqSiteAssistantGet._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteAssistantGet._();
+  @$core.override
+  ReqSiteAssistantGet createEmptyInstance() => ReqSiteAssistantGet._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteAssistantGet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteAssistantGet>(
+          ReqSiteAssistantGet.$_createMessage);
+  static ReqSiteAssistantGet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+}
+
+class ResSiteAssistantGet extends $pb.GeneratedMessage {
+  factory ResSiteAssistantGet({
+    $fixnum.Int64? assistantBotIid,
+    $core.Iterable<SiteAssistantChannelSummary>? channels,
+  }) {
+    final result = ResSiteAssistantGet._();
+    if (assistantBotIid != null) result.assistantBotIid = assistantBotIid;
+    if (channels != null) result.channels.addAll(channels);
+    return result;
+  }
+
+  ResSiteAssistantGet._();
+
+  factory ResSiteAssistantGet.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteAssistantGet()..mergeFromBuffer(data, registry);
+  factory ResSiteAssistantGet.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteAssistantGet()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteAssistantGet',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteAssistantGet.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'assistantBotIid')
+    ..pPM<SiteAssistantChannelSummary>(2, _omitFieldNames ? '' : 'channels',
+        subBuilder: SiteAssistantChannelSummary.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteAssistantGet clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteAssistantGet copyWith(void Function(ResSiteAssistantGet) updates) =>
+      super.copyWith((message) => updates(message as ResSiteAssistantGet))
+          as ResSiteAssistantGet;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core
+      .Deprecated('Use ResSiteAssistantGet() / ResSiteAssistantGet.new instead')
+  static ResSiteAssistantGet create() => ResSiteAssistantGet._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteAssistantGet._();
+  @$core.override
+  ResSiteAssistantGet createEmptyInstance() => ResSiteAssistantGet._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteAssistantGet getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteAssistantGet>(
+          ResSiteAssistantGet.$_createMessage);
+  static ResSiteAssistantGet? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get assistantBotIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set assistantBotIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAssistantBotIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAssistantBotIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $pb.PbList<SiteAssistantChannelSummary> get channels => $_getList(1);
+}
+
+class ReqSiteAssistantEnsure extends $pb.GeneratedMessage {
+  factory ReqSiteAssistantEnsure({
+    $fixnum.Int64? siteIid,
+  }) {
+    final result = ReqSiteAssistantEnsure._();
+    if (siteIid != null) result.siteIid = siteIid;
+    return result;
+  }
+
+  ReqSiteAssistantEnsure._();
+
+  factory ReqSiteAssistantEnsure.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteAssistantEnsure()..mergeFromBuffer(data, registry);
+  factory ReqSiteAssistantEnsure.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteAssistantEnsure()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteAssistantEnsure',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteAssistantEnsure.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteAssistantEnsure clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteAssistantEnsure copyWith(
+          void Function(ReqSiteAssistantEnsure) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteAssistantEnsure))
+          as ReqSiteAssistantEnsure;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteAssistantEnsure() / ReqSiteAssistantEnsure.new instead')
+  static ReqSiteAssistantEnsure create() => ReqSiteAssistantEnsure._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteAssistantEnsure._();
+  @$core.override
+  ReqSiteAssistantEnsure createEmptyInstance() => ReqSiteAssistantEnsure._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteAssistantEnsure getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteAssistantEnsure>(
+          ReqSiteAssistantEnsure.$_createMessage);
+  static ReqSiteAssistantEnsure? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+}
+
+class ResSiteAssistantEnsure extends $pb.GeneratedMessage {
+  factory ResSiteAssistantEnsure({
+    $fixnum.Int64? assistantBotIid,
+  }) {
+    final result = ResSiteAssistantEnsure._();
+    if (assistantBotIid != null) result.assistantBotIid = assistantBotIid;
+    return result;
+  }
+
+  ResSiteAssistantEnsure._();
+
+  factory ResSiteAssistantEnsure.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteAssistantEnsure()..mergeFromBuffer(data, registry);
+  factory ResSiteAssistantEnsure.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteAssistantEnsure()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteAssistantEnsure',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteAssistantEnsure.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'assistantBotIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteAssistantEnsure clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteAssistantEnsure copyWith(
+          void Function(ResSiteAssistantEnsure) updates) =>
+      super.copyWith((message) => updates(message as ResSiteAssistantEnsure))
+          as ResSiteAssistantEnsure;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteAssistantEnsure() / ResSiteAssistantEnsure.new instead')
+  static ResSiteAssistantEnsure create() => ResSiteAssistantEnsure._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteAssistantEnsure._();
+  @$core.override
+  ResSiteAssistantEnsure createEmptyInstance() => ResSiteAssistantEnsure._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteAssistantEnsure getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteAssistantEnsure>(
+          ResSiteAssistantEnsure.$_createMessage);
+  static ResSiteAssistantEnsure? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get assistantBotIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set assistantBotIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasAssistantBotIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearAssistantBotIid() => $_clearField(1);
 }
 
 class SiteQueryRow extends $pb.GeneratedMessage {

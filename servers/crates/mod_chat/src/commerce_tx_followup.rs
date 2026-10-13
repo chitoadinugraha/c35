@@ -73,6 +73,7 @@ fn parse_tx_list_block(blocks_json: &str) -> TxListCtx {
     }
 }
 
+#[allow(dead_code)]
 pub async fn chat_last_assistant_blocks(pool: &sqlx::PgPool, chat_id: i64) -> Option<String> {
     crate::catalog_add_followup::chat_last_assistant_snapshot(pool, chat_id)
         .await

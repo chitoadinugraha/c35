@@ -39,6 +39,7 @@ class _InSiteCreateDialogState extends State<_InSiteCreateDialog> {
   late bool _pos;
   late bool _attendance;
   late bool _reservation;
+  late bool _orderFulfillment;
   late bool _busy;
   var _alienIdTouched = false;
   var _taglinePick = 0;
@@ -57,6 +58,7 @@ class _InSiteCreateDialogState extends State<_InSiteCreateDialog> {
     _pos = false;
     _attendance = false;
     _reservation = false;
+    _orderFulfillment = false;
     _busy = false;
     _nameCtrl.addListener(_onNameChanged);
     _alienIdCtrl.addListener(() => setState(() {}));
@@ -107,7 +109,10 @@ class _InSiteCreateDialogState extends State<_InSiteCreateDialog> {
         pos: _pos,
         attendance: _attendance,
         reservation: _reservation,
+        orderFulfillment: _orderFulfillment,
       );
+
+  bool get _commerceOn => _product || _pos;
 
   Future<void> _submit() async {
     final name = _nameCtrl.text.trim();
@@ -235,15 +240,35 @@ class _InSiteCreateDialogState extends State<_InSiteCreateDialog> {
               Text('Features', style: Theme.of(context).textTheme.titleSmall),
               CheckboxListTile(
                 value: _product,
-                onChanged: _busy ? null : (v) => setState(() => _product = v ?? false),
+                onChanged: _busy
+                    ? null
+                    : (v) => setState(() {
+                          _product = v ?? false;
+                          if (!_commerceOn) _orderFulfillment = false;
+                        }),
                 title: const Text('Product'),
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
               ),
               CheckboxListTile(
                 value: _pos,
-                onChanged: _busy ? null : (v) => setState(() => _pos = v ?? false),
+                onChanged: _busy
+                    ? null
+                    : (v) => setState(() {
+                          _pos = v ?? false;
+                          if (!_commerceOn) _orderFulfillment = false;
+                        }),
                 title: const Text('POS'),
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+              ),
+              CheckboxListTile(
+                value: _orderFulfillment,
+                onChanged: _busy || !_commerceOn
+                    ? null
+                    : (v) => setState(() => _orderFulfillment = v ?? false),
+                title: const Text('Order processing (kitchen)'),
+                subtitle: const Text('Track preparation; cashier-only sites can leave off.'),
                 controlAffinity: ListTileControlAffinity.leading,
                 dense: true,
               ),

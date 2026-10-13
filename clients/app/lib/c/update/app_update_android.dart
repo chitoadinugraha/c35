@@ -1,7 +1,8 @@
 import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/update/app_release.dart';
-import 'package:alienai_c35/c/update/app_update_apk_sideload.dart';
+import 'package:alienai_c35/c/update/app_update_apk_ota.dart';
+import 'package:alienai_c35/c/update/app_update_channel.dart';
 import 'package:alienai_c35/c/update/app_update_prefs.dart';
 import 'package:flutter/services.dart';
 import 'package:in_app_update/in_app_update.dart';
@@ -18,6 +19,11 @@ Future<void> appUpdateAndroidCheck({
   required Future<bool> Function({required bool force, required bool apkSideload}) askToUpdate,
   required Future<bool> Function() askToRestart,
 }) async {
+  if (await appUpdateChannelGet() == AppUpdateChannel.apk) {
+    await appUpdateApkOtaCheck(askToUpdate: askToUpdate);
+    return;
+  }
+
   AppUpdateInfo? info;
   var playOwned = true;
   try {
@@ -31,7 +37,8 @@ Future<void> appUpdateAndroidCheck({
   }
 
   if (!playOwned) {
-    await appUpdateAndroidSideloadCheck(askToUpdate: askToUpdate);
+    await appUpdateChannelPreferApk();
+    await appUpdateApkOtaCheck(askToUpdate: askToUpdate);
     return;
   }
 

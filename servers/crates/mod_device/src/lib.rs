@@ -19,23 +19,27 @@ pub use agent_auth::{agent_session_resolve, AgentSession};
 pub use agent_log_put::agent_log_put;
 pub use agent_profile::{agent_profile_get, AgentProfile};
 pub use agent_presence::{
-    agent_meta_get, agent_presence_heartbeat, agent_presence_put, AgentVersionReport,
+    agent_browser_meta_from_json, agent_meta_get, agent_presence_heartbeat,
+    agent_presence_meta_merge, agent_presence_put, agent_version_report_has_payload,
+    AgentVersionReport,
 };
 pub use mcp_client::mcp_client_list;
 pub use device_pair::device_pair;
 pub use egress::{captcha_egress_hosts, device_egress_lease_mint, egress_proxy_spawn};
 pub use device_pair_poll::device_pair_poll;
-pub use device_meta::device_browser_engine;
+pub use device_meta::{device_browser_engine, device_remote_name, device_remote_type};
 pub use mention_identity_icon::mention_identity_icon;
 pub use device_pair_register::device_pair_register;
 pub use device_unpair::{device_unpair, device_unpair_notify, DEVICE_UNPAIR_PUSH};
 pub use mcp_device::{mcp_device_get, mcp_device_list};
 pub use release_config::{
-    device_release_platform_key, meta_browser_engine, release_config_get, release_needs_update,
+    device_release_platform_key, device_type_is_unified_desktop, meta_browser_engine,
+    meta_browser_ready, release_config_get, release_needs_update, release_summary,
 };
 pub use remote_ice_config::remote_ice_config;
 pub use remote_signaling::{
-    remote_agent_send_raw, remote_device_agent_push, remote_device_browser_invoke,
+    remote_agent_send_raw, remote_browser_device_iid_for_invoke, remote_device_agent_push,
+    remote_device_browser_invoke,
     remote_device_browser_invoke_app, remote_device_command_run,
     remote_device_fs_list, remote_device_fs_read, remote_device_input_send,
     remote_device_screenshot_capture, remote_device_task_run_enqueue, remote_session_start,

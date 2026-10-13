@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS site.config (
     owner_iid                   BIGINT NOT NULL REFERENCES ai.identity(id),
 
     published_version_id        VARCHAR(64),
+    guest_render_version        INT NOT NULL DEFAULT 0,  -- last guest HTML compile generation (see site.guest_renderer_version)
     inventory_costing_method    VARCHAR(8) NOT NULL DEFAULT 'fifo',
     tz                          VARCHAR(64) NOT NULL DEFAULT 'Asia/Jakarta',
 

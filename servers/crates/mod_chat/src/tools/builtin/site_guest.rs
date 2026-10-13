@@ -1,8 +1,6 @@
-use anyhow::{anyhow, Result};
-use serde_json::Value;
+use anyhow::anyhow;
 
 use crate::site_guest_cart::{guest_cart_get_exec, guest_cart_patch_exec};
-use crate::tools::ToolContext;
 use crate::tool;
 
 tool! {

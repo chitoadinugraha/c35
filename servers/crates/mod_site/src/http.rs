@@ -13,6 +13,7 @@ use sqlx::Row;
 
 use crate::render::render_offline_html;
 use crate::site_domain::{domain_site_id_verified, normalize_hostname};
+use crate::guest_renderer::site_guest_render_ensure_current;
 use crate::site_preview::{site_draft_html_render, site_published_html_render};
 use crate::site_publish::{render_get, resolve_site_by_alien_id, site_published};
 
@@ -317,6 +318,15 @@ async fn serve_render_site(
         Err(e) => {
             tracing::warn!("guest site_published check failed site_iid={}: {:#}", site_id, e);
             return guest_busy_page();
+        }
+    }
+    if !(guest_dev_live_render_enabled() && is_local_dev_host(headers)) {
+        if let Err(e) = site_guest_render_ensure_current(pool, site_id).await {
+            tracing::warn!(
+                "guest render version refresh skipped site_iid={}: {:#}",
+                site_id,
+                e
+            );
         }
     }
     if guest_dev_live_render_enabled() && is_local_dev_host(headers) {

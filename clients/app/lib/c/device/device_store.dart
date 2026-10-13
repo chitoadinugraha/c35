@@ -36,6 +36,35 @@ bool deviceClusterOnline(String metaJson, {bool remoteSessionActive = false}) =>
     deviceOnlineFromMeta(metaJson) || remoteSessionActive;
 
 /// `playwright` when absent — see _/specs/browser-extension.md.
+/// `true` / `false` when agent reports `meta.browser_ready`; `null` if unknown (legacy rows).
+bool? deviceBrowserReadyFromMeta(String metaJson) {
+  if (metaJson.trim().isEmpty) return null;
+  try {
+    final m = jsonDecode(metaJson);
+    if (m is! Map) return null;
+    final v = m['browser_ready'];
+    if (v is bool) return v;
+    if (v == true || v == 'true' || v == 1 || v == '1') return true;
+    if (v == false || v == 'false' || v == 0 || v == '0') return false;
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+bool deviceNeedsChromeExtensionSetup({
+  required String deviceType,
+  required String metaJson,
+}) {
+  final t = deviceType.toLowerCase();
+  if (t != 'windows' && t != 'linux') return false;
+  final ready = deviceBrowserReadyFromMeta(metaJson);
+  return ready != true;
+}
+
+String deviceChromeSetupPromptText(String deviceName) =>
+    'Set up Google Chrome and the Alien AI Remote extension on $deviceName for faster Google Sheets and web automation (uses my Chrome logins, cheaper than web search). Run browser.ensure with repairs.';
+
 String deviceBrowserEngineFromMeta(
   String metaJson, {
   String deviceName = '',

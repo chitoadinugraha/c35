@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/update/app_update_nudge.dart';
+import 'package:alienai_c35/c/update/app_update_service.dart';
 import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:flutter/foundation.dart';
@@ -159,6 +162,9 @@ class ChatConn {
 
   bool get connected => _ch != null && status.value == ChatConnStatus.connected;
 
+  /// True while a Home prompt stream is open on this socket.
+  bool get promptInFlight => _promptPending.isNotEmpty;
+
   String _wsUrl({String locale = 'en', String tz = '', int appBuild = 0, String appVersionName = ''}) {
     final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
     final u = Uri.parse(base);
@@ -175,6 +181,7 @@ class ChatConn {
         if (tz.isNotEmpty) 'tz': tz,
         if (appBuild > 0) 'build': '$appBuild',
         if (appVersionName.isNotEmpty) 'version_name': appVersionName,
+        if (!kIsWeb && Platform.isWindows && appBuild > 0) 'platform': '${wirePlatform()}',
       },
     ).toString();
   }
@@ -336,6 +343,9 @@ class ChatConn {
     _statusSet(ChatConnStatus.connected);
     if (wasOffline) {
       if (!_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
+    }
+    if (!kDebugMode && !kIsWeb && Platform.isWindows) {
+      unawaited(AppUpdateService.instance.checkNow());
     }
   }
 
@@ -530,6 +540,7 @@ class ChatConn {
       if (!_devicePresencePushCtrl.isClosed) _devicePresencePushCtrl.add(push);
     }
     if (res.hasNotifyPush() && !_notifyPushCtrl.isClosed) _notifyPushCtrl.add(res.notifyPush);
+    if (res.hasAppReleaseNudge()) appUpdateOnReleaseNudge(res.appReleaseNudge);
     if (_isRemoteSignal(res) && !_remoteSignalCtrl.isClosed) _remoteSignalCtrl.add(res);
 
     if (res.hasErr() && reqId.isNotEmpty) {

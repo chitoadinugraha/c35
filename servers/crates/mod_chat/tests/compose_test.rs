@@ -1,7 +1,7 @@
 use c35_mod_chat::compose::{
     compose_force_account_tool_call, compose_force_catalog_menu_tool_call, compose_force_consumption_coach_tool_call,
     compose_force_presentation_tool_call, compose_force_site_builder_tool_call, compose_force_site_query_tool_call,
-    compose_force_tool_call,
+    compose_force_tool_call, compose_force_viz_chart_tool_call, compose_suppress_general_web_when_viz_chart,
     compose_force_web_tool_call, compose_tools_and_inst, site_builder_bootstrap_catalog,
     site_builder_ready_to_create, tool_mention_eligible, ComposeTurnOpts,
 };
@@ -694,6 +694,80 @@ fn compose_referral_list_forces_list_tool() {
     assert!(out.tools.iter().any(|t| t.name == "referral.code.list"));
 }
 
+fn inst_billing_voucher() -> InstRow {
+    InstRow {
+        id: "inst.billing.voucher".into(),
+        scope: "global".into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[BILLING VOUCHER]".into(),
+        phrases: vec!["buat voucher".into(), "daftar voucher".into(), "void voucher".into()],
+        triggers: vec![],
+        include_tools: vec!["billing.voucher".into()],
+        exclude_tools: vec!["referral.code.put".into()],
+        requires_global_roles: vec![],
+        priority: 128,
+    }
+}
+
+fn inst_billing_redeem() -> InstRow {
+    InstRow {
+        id: "inst.billing.redeem".into(),
+        scope: "global".into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[BILLING REDEEM]".into(),
+        phrases: vec!["redeem voucher".into(), "pakai kode voucher".into()],
+        triggers: vec![],
+        include_tools: vec!["billing.redeem".into()],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 127,
+    }
+}
+
+fn billing_voucher_catalog() -> Vec<ToolDef> {
+    vec![
+        ToolDef::new(
+            "billing.voucher".into(),
+            "Staff prepaid voucher operations.".into(),
+            json!({}),
+        ),
+        ToolDef::new(
+            "billing.redeem".into(),
+            "Redeem prepaid voucher or package code.".into(),
+            json!({}),
+        ),
+        ToolDef::new("web.search".into(), "Search the web".into(), json!({})),
+    ]
+}
+
+#[test]
+fn compose_billing_voucher_issue_forces_tool() {
+    let out = compose_default(
+        &[inst_billing_voucher()],
+        "buat voucher 100 ribu",
+        billing_voucher_catalog(),
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.billing.voucher".into()));
+    assert!(out.tools.iter().any(|t| t.name == "billing.voucher"));
+}
+
+#[test]
+fn compose_billing_redeem_forces_tool() {
+    let out = compose_default(
+        &[inst_billing_redeem()],
+        "redeem voucher V123",
+        billing_voucher_catalog(),
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.billing.redeem".into()));
+    assert!(out.tools.iter().any(|t| t.name == "billing.redeem"));
+}
+
 fn inst_account_billing() -> InstRow {
     InstRow {
         id: "inst.account.billing".into(),
@@ -871,6 +945,69 @@ fn compose_device_pair_phrase() {
     let out = compose_default(&[inst_device_pair()], "pair device AB12C-D34EF", catalog, &[]);
     assert!(out.matched_ids.contains(&"inst.device.pair".into()));
     assert!(out.tools.iter().any(|t| t.name == "device.pair"));
+}
+
+fn inst_device_pin() -> InstRow {
+    InstRow {
+        id: "inst.device.pin".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[DEVICE.PIN]".into(),
+        phrases: vec!["pin device".into(), "sematkan device".into()],
+        triggers: vec![],
+        include_tools: vec!["device.pin".into()],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 131,
+    }
+}
+
+#[test]
+fn compose_device_pin_phrase_and_force() {
+    let catalog = vec![
+        ToolDef::new("device.pin".into(), "Pin device".into(), json!({})),
+        ToolDef::new("shell.run".into(), "Shell".into(), json!({})),
+    ];
+    let out = compose_default(&[inst_device_pin()], "pin device Chito-PC", catalog, &[]);
+    assert!(out.matched_ids.contains(&"inst.device.pin".into()));
+    assert!(out.tools.iter().any(|t| t.name == "device.pin"));
+    assert!(compose_force_account_tool_call(&out.matched_ids, &out.tools));
+}
+
+fn inst_device_rename() -> InstRow {
+    InstRow {
+        id: "inst.device.rename".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "task".into(),
+        topic_id: String::new(),
+        topics: vec![],
+        inst: "[DEVICE.RENAME]".into(),
+        phrases: vec!["rename device".into(), "ganti nama pc".into()],
+        triggers: vec![],
+        include_tools: vec!["device.rename".into()],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 131,
+    }
+}
+
+#[test]
+fn compose_device_rename_phrase() {
+    let catalog = vec![ToolDef::new(
+        "device.rename".into(),
+        "Rename".into(),
+        json!({}),
+    )];
+    let out = compose_default(
+        &[inst_device_rename()],
+        "rename device Office to Laptop",
+        catalog,
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.device.rename".into()));
+    assert!(compose_force_account_tool_call(&out.matched_ids, &out.tools));
 }
 
 #[test]
@@ -1202,6 +1339,59 @@ fn compose_force_tool_call_when_presentation_inst_and_tool() {
     assert!(compose_force_presentation_tool_call(&["inst.presentation".into()], &tools));
     assert!(compose_force_tool_call(&["inst.presentation".into()], &tools));
     assert!(!compose_force_presentation_tool_call(&["inst.core.assistant".into()], &tools));
+}
+
+#[test]
+fn compose_force_tool_call_when_viz_chart_inst_and_tool() {
+    let tools = vec![ToolDef::new("viz.chart".into(), "Chart".into(), json!({}))];
+    assert!(compose_force_viz_chart_tool_call(&["inst.viz.chart".into()], &tools));
+    assert!(compose_force_tool_call(&["inst.viz.chart".into()], &tools));
+    assert!(compose_suppress_general_web_when_viz_chart(&["inst.viz.chart".into()]));
+    assert!(!compose_force_viz_chart_tool_call(&["inst.core.assistant".into()], &tools));
+}
+
+fn inst_viz_chart() -> InstRow {
+    InstRow {
+        id: "inst.viz.chart".into(),
+        scope: SCOPE_ROLE_PERSONAL_ASSISTANT.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "chart".into(),
+        phrases: vec![
+            "create chart".into(),
+            "pie chart".into(),
+            "grafik".into(),
+        ],
+        triggers: vec![],
+        include_tools: vec!["viz.chart".into()],
+        exclude_tools: vec![
+            "web.search".into(),
+            "web.visit".into(),
+            "web.research".into(),
+        ],
+        requires_global_roles: vec![],
+        priority: 148,
+    }
+}
+
+#[test]
+fn compose_create_chart_phrase_feeds_viz_chart_not_web() {
+    let catalog = vec![
+        ToolDef::new("viz.chart".into(), "Chart".into(), json!({})),
+        ToolDef::new("web.search".into(), "Search".into(), json!({})),
+        ToolDef::new("web.visit".into(), "Visit".into(), json!({})),
+    ];
+    let out = compose_default(
+        &[inst_core_assistant(), inst_viz_chart()],
+        "create chart 70% female 30% male 20% gay",
+        catalog,
+        &[],
+    );
+    assert!(out.matched_ids.contains(&"inst.viz.chart".into()));
+    assert!(out.tools.iter().any(|t| t.name == "viz.chart"));
+    assert!(!out.tools.iter().any(|t| t.name == "web.search"));
+    assert!(!out.tools.iter().any(|t| t.name == "web.visit"));
 }
 
 #[test]
@@ -1552,6 +1742,62 @@ fn bot_draft_tool() -> ToolDef {
     }
 }
 
+fn inst_bot_manage() -> InstRow {
+    InstRow {
+        id: "inst.bot.manage".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "".into(),
+        topics: vec![],
+        inst: "[BOT MANAGE] Call bot.put.".into(),
+        phrases: vec![
+            "matikan bot".into(),
+            "aktifkan bot".into(),
+            "turn bot off".into(),
+            "rename bot".into(),
+        ],
+        triggers: vec![],
+        include_tools: vec!["bot.put".into(), "bot.list".into()],
+        exclude_tools: vec!["bot.draft".into(), "web.search".into(), "web.visit".into()],
+        requires_global_roles: vec![],
+        priority: 131,
+    }
+}
+
+fn bot_put_tool() -> ToolDef {
+    ToolDef {
+        name: "bot.put".into(),
+        description: "Update bot".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["general".into(), "bot".into()],
+        always: vec![],
+        readonly: false,
+        requires_kinds: vec![],
+        rag_phrases: vec!["matikan bot".into(), "aktifkan bot".into()],
+        requires_capability: None,
+        requires_global_roles: vec![],
+        requires_platform_mail: false,
+    }
+}
+
+fn bot_list_tool_def() -> ToolDef {
+    ToolDef {
+        name: "bot.list".into(),
+        description: "List bots".into(),
+        parameters: json!({}),
+        aliases: vec![],
+        topics: vec!["general".into(), "bot".into()],
+        always: vec!["general".into(), "bot".into()],
+        readonly: true,
+        requires_kinds: vec![],
+        rag_phrases: vec!["daftar bot".into()],
+        requires_capability: None,
+        requires_global_roles: vec![],
+        requires_platform_mail: false,
+    }
+}
+
 fn inst_site_builder() -> InstRow {
     InstRow {
         id: "inst.site.builder".into(),
@@ -1690,6 +1936,19 @@ fn compose_bot_draft_phrase_excludes_web_search() {
     assert!(out.matched_ids.iter().any(|id| id == "inst.bot.draft"));
     assert!(out.tools.iter().any(|t| t.name == "bot.draft"));
     assert!(out.tools.iter().all(|t| t.name != "web.search"));
+}
+
+#[test]
+fn compose_bot_manage_phrase_feeds_bot_put_not_draft() {
+    let out = compose_default(
+        &[inst_core_assistant(), inst_bot_manage(), inst_bot_draft()],
+        "matikan bot penjualan",
+        vec![bot_put_tool(), bot_list_tool_def(), bot_draft_tool()],
+        &[],
+    );
+    assert!(out.matched_ids.iter().any(|id| id == "inst.bot.manage"));
+    assert!(out.tools.iter().any(|t| t.name == "bot.put"));
+    assert!(out.tools.iter().all(|t| t.name != "bot.draft"));
 }
 
 fn inst_site_catalog_stock() -> InstRow {
@@ -1886,4 +2145,73 @@ fn compose_model_pool_signal_picks_inst() {
     );
     assert!(frontier.matched_ids.iter().any(|id| id == "inst.pool.frontier"));
     assert!(!frontier.matched_ids.iter().any(|id| id == "inst.pool.alien"));
+}
+
+#[test]
+fn compose_windows_device_install_extension_not_suppressed_by_browser_mention() {
+    let inst_install = InstRow {
+        id: "inst.browser.extension.install".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "device".into(),
+        topics: vec![],
+        inst: "Install Alien AI Chrome Extension".into(),
+        phrases: vec!["install alien ai chrome extension".into()],
+        triggers: vec![
+            "tool_include:browser.ensure".into(),
+            "tool_include:computer_use.delegate".into(),
+            "tool_exclude:browser.page.act".into(),
+        ],
+        include_tools: vec!["browser.ensure".into(), "computer_use.delegate".into()],
+        exclude_tools: vec!["browser.page.act".into()],
+        requires_global_roles: vec![],
+        priority: 142,
+    };
+    let inst_browser_mention = InstRow {
+        id: "inst.mention.browser_extension".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "trigger".into(),
+        topic_id: "browser".into(),
+        topics: vec![],
+        inst: "Chrome extension remote".into(),
+        phrases: vec![],
+        triggers: vec![
+            "device:type:browser".into(),
+            "tool_exclude:computer_use.delegate".into(),
+        ],
+        include_tools: vec!["browser.page.act".into()],
+        exclude_tools: vec!["computer_use.delegate".into()],
+        requires_global_roles: vec![],
+        priority: 137,
+    };
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![98063412749627392],
+        bots: vec![],
+        default_site_iid: None,
+    };
+    let scopes = inst_scopes_home();
+    let catalog = cluster_tools();
+    let out = compose_tools_and_inst(
+        &[inst_core_assistant(), inst_install, inst_browser_mention],
+        "@VM1 Install Alien AI chrome extension",
+        catalog,
+        &[],
+        &[],
+        &["device".into()],
+        "agent",
+        &[],
+        &scopes,
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts {
+            extra_signals: &["device:type:windows".into()],
+            ..ComposeTurnOpts::default()
+        },
+    );
+    assert!(out.matched_ids.contains(&"inst.browser.extension.install".into()));
+    assert!(!out.matched_ids.contains(&"inst.mention.browser_extension".into()));
+    assert!(out.tools.iter().any(|t| t.name == "computer_use.delegate"));
+    assert!(out.tools.iter().any(|t| t.name == "browser.ensure"));
+    assert!(!out.tools.iter().any(|t| t.name == "browser.page.act"));
 }

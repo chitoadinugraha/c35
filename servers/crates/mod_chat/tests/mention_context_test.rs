@@ -27,6 +27,7 @@ fn site_mention(iid: i64, alien_id: &str, name: &str) -> MentionResolved {
         identity_kind: Some("site".into()),
         identity_type: None,
         device_engine: None,
+        device_browser_ready: None,
     }
 }
 
@@ -54,6 +55,7 @@ fn bot_mention(iid: i64, name: &str) -> MentionResolved {
         identity_kind: Some("bot".into()),
         identity_type: Some("chat".into()),
         device_engine: None,
+        device_browser_ready: None,
     }
 }
 

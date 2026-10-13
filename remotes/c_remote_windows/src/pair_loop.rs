@@ -72,9 +72,7 @@ pub async fn pair_until_claimed(
                     }
                     Some(TrayAction::Restart) => {
                         ui.close();
-                        if let Err(e) = crate::startup::agent_restart_spawn() {
-                            tracing::warn!("agent restart spawn failed: {e:#}");
-                        }
+                        crate::startup::restart_agent();
                         return Ok(());
                     }
                     Some(TrayAction::Unpair) | Some(TrayAction::DriveSet(_)) | None => {}

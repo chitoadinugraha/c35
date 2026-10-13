@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
@@ -14,6 +14,13 @@ use crate::webrtc::WebrtcHub;
 pub fn is_invalid_session(err: &anyhow::Error) -> bool {
     let msg = err.to_string().to_ascii_lowercase();
     msg.contains("401") || msg.contains("unauthorized") || msg.contains("invalid session")
+}
+
+static AGENT_WS_QUERY_SUFFIX: OnceLock<Arc<dyn Fn() -> String + Send + Sync>> = OnceLock::new();
+
+/// Optional query suffix for `/v1/agent/ws` (e.g. `&browser_ready=true&browser_engine=extension`).
+pub fn set_agent_ws_query_suffix(f: Arc<dyn Fn() -> String + Send + Sync>) {
+    let _ = AGENT_WS_QUERY_SUFFIX.set(f);
 }
 
 pub fn agent_ws_url(server_url: &str, session_key: &str, agent_build: i64, version_name: &str) -> String {
@@ -36,6 +43,9 @@ pub fn agent_ws_url(server_url: &str, session_key: &str, agent_build: i64, versi
             url.push_str("&version_name=");
             url.push_str(&urlencoding::encode(version_name));
         }
+    }
+    if let Some(f) = AGENT_WS_QUERY_SUFFIX.get() {
+        url.push_str(&f());
     }
     url
 }
@@ -75,17 +85,35 @@ pub async fn conn_ws_run(
     }
     info!(device_iid, "==> [WS CONNECTED] Agent online & control socket ready");
     crate::agent_ui::ws_connected_set(true);
+    let mut connect_meta = serde_json::json!({
+        "device_iid": device_iid,
+        "agent_build": agent_build(),
+        "agent_version_name": agent_version_name(),
+    });
+    if let Some(f) = AGENT_WS_QUERY_SUFFIX.get() {
+        let suffix = f();
+        for part in suffix.trim_start_matches('&').split('&') {
+            let Some((k, v)) = part.split_once('=') else { continue };
+            if k.is_empty() {
+                continue;
+            }
+            let decoded = urlencoding::decode(v)
+                .map(|s| s.into_owned())
+                .unwrap_or_else(|_| v.to_string());
+            if decoded == "true" || decoded == "false" {
+                connect_meta[k] = serde_json::json!(decoded == "true");
+            } else {
+                connect_meta[k] = serde_json::json!(decoded);
+            }
+        }
+    }
     log_push::log_push(
         server_url,
         session_key,
         "conn",
         "agent.ws",
         "connected",
-        Some(serde_json::json!({
-            "device_iid": device_iid,
-            "agent_build": agent_build(),
-            "agent_version_name": agent_version_name(),
-        })),
+        Some(connect_meta),
     )
     .await;
 

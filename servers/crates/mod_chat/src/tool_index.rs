@@ -164,12 +164,22 @@ pub struct ToolFindResult {
     pub embed_model: String,
 }
 
-/// Vector-rank eligible tools. Returns empty ranked when index not ready or embed fails.
+#[allow(dead_code)]
 pub async fn tool_find_vector(
     pool: &PgPool,
     http: &Client,
     query: &str,
     eligible: &[ToolDef],
+) -> ToolFindResult {
+    tool_find_vector_with_precomputed(pool, http, query, eligible, None).await
+}
+
+pub async fn tool_find_vector_with_precomputed(
+    pool: &PgPool,
+    http: &Client,
+    query: &str,
+    eligible: &[ToolDef],
+    precomputed: Option<&[f32]>,
 ) -> ToolFindResult {
     let empty = |embed_model: String| ToolFindResult {
         ranked: vec![],
@@ -194,18 +204,27 @@ pub async fn tool_find_vector(
         return empty(embed_model);
     }
 
-    let embed_t0 = Instant::now();
-    let embed =
-        match embed_cached(pool, http, txt, EMBED_TASK_QUERY, EMBED_DIMENSIONS_DEFAULT).await {
-            Ok(r) => r,
-            Err(e) => {
-                warn!("tool_find_vector embed failed: {e}");
-                return empty(embed_model);
-            }
+    let (embed_vec, embed_ms, embed_token_in, embed_cost_usd, query_cached) =
+        if let Some(pre) = precomputed {
+            (pre.to_vec(), 0, 0, 0.0, true)
+        } else {
+            let embed_t0 = Instant::now();
+            let embed =
+                match embed_cached(pool, http, txt, EMBED_TASK_QUERY, EMBED_DIMENSIONS_DEFAULT).await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        warn!("tool_find_vector embed failed: {e}");
+                        return empty(embed_model);
+                    }
+                };
+            (
+                embed.embedding,
+                embed_t0.elapsed().as_millis() as i64,
+                embed.token_in,
+                billing_embed_cost_usd(&embed_model, embed.token_in),
+                embed.cached,
+            )
         };
-    let embed_ms = embed_t0.elapsed().as_millis() as i64;
-    let embed_token_in = embed.token_in;
-    let embed_cost_usd = billing_embed_cost_usd(&embed_model, embed_token_in);
 
     let rank_t0 = Instant::now();
     let eligible_ids: std::collections::HashSet<&str> =
@@ -217,7 +236,7 @@ pub async fn tool_find_vector(
         if !eligible_ids.contains(item.tool_id.as_str()) {
             continue;
         }
-        let sim = cosine_similarity(&embed.embedding, &item.embedding);
+        let sim = cosine_similarity(&embed_vec, &item.embedding);
         if sim > best_sim {
             best_sim = sim;
         }
@@ -254,7 +273,7 @@ pub async fn tool_find_vector(
     ToolFindResult {
         ranked,
         best_sim,
-        query_cached: embed.cached,
+        query_cached,
         ranker: "vector",
         embed_ms,
         filter_ms,

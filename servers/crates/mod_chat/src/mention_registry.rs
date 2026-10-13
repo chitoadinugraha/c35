@@ -19,6 +19,8 @@ pub struct MentionResolved {
     pub identity_kind: Option<String>,
     pub identity_type: Option<String>,
     pub device_engine: Option<String>,
+    /// Set for unified desktop (`windows`/`linux`) when `meta.browser_ready` is present.
+    pub device_browser_ready: Option<bool>,
 }
 
 pub fn mention_ref_parse(raw: &str) -> Option<MentionRef> {
@@ -85,7 +87,7 @@ fn meta_online(meta: &Value) -> bool {
 }
 
 fn catalog_mention_kind(id: &str) -> &'static str {
-    if id == "test_multitask" {
+    if id == "test_multitask" || id == "som" {
         "command"
     } else {
         "catalog"
@@ -383,8 +385,25 @@ async fn identity_resolve(pool: &PgPool, caller_iid: i64, iid: i64) -> Option<Me
     let kind: String = row.get("kind");
     let identity_type: String = row.get("type");
     let meta: serde_json::Value = row.get("meta");
-    let device_engine = if kind == "remote" && identity_type == "browser" {
-        Some(c35_mod_device::meta_browser_engine(&meta).to_string())
+    let device_engine = if kind == "remote"
+        && (identity_type == "browser"
+            || (c35_mod_device::device_type_is_unified_desktop(&identity_type)
+                && c35_mod_device::meta_browser_ready(&meta)))
+    {
+        let eng = c35_mod_device::meta_browser_engine(&meta);
+        if identity_type == "browser" || !eng.eq_ignore_ascii_case("playwright") {
+            Some(eng.to_string())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let device_browser_ready = if kind == "remote"
+        && c35_mod_device::device_type_is_unified_desktop(&identity_type)
+        && meta.get("browser_ready").is_some()
+    {
+        Some(c35_mod_device::meta_browser_ready(&meta))
     } else {
         None
     };
@@ -401,6 +420,7 @@ async fn identity_resolve(pool: &PgPool, caller_iid: i64, iid: i64) -> Option<Me
                 Some(identity_type)
             },
             device_engine,
+            device_browser_ready,
         })
 }
 
@@ -417,6 +437,7 @@ async fn catalog_resolve(pool: &PgPool, caller_iid: i64, id: &str) -> Option<Men
             identity_kind: None,
             identity_type: None,
             device_engine: None,
+            device_browser_ready: None,
         })
 }
 
@@ -451,6 +472,7 @@ pub async fn mention_resolve_one(
             identity_kind: None,
             identity_type: None,
             device_engine: None,
+            device_browser_ready: None,
         }),
     }
 }
@@ -490,6 +512,9 @@ pub fn mention_prompt_block(resolved: &[MentionResolved]) -> String {
                     if !eng.is_empty() {
                         extra.push_str(&format!(", engine={eng}"));
                     }
+                }
+                if let Some(ready) = r.device_browser_ready {
+                    extra.push_str(&format!(", browser_ready={ready}"));
                 }
                 format!(
                     "- {} (ref={}, iid={}, topic={}{})",

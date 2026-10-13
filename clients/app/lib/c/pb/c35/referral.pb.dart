@@ -1171,11 +1171,13 @@ class ReqReferralUserStats extends $pb.GeneratedMessage {
     $fixnum.Int64? subjectUid,
     ReferralStatPeriod? colA,
     ReferralStatPeriod? colB,
+    $core.String? subjectHandle,
   }) {
     final result = ReqReferralUserStats._();
     if (subjectUid != null) result.subjectUid = subjectUid;
     if (colA != null) result.colA = colA;
     if (colB != null) result.colB = colB;
+    if (subjectHandle != null) result.subjectHandle = subjectHandle;
     return result;
   }
 
@@ -1197,6 +1199,7 @@ class ReqReferralUserStats extends $pb.GeneratedMessage {
         subBuilder: ReferralStatPeriod.$_createMessage)
     ..aOM<ReferralStatPeriod>(3, _omitFieldNames ? '' : 'colB',
         subBuilder: ReferralStatPeriod.$_createMessage)
+    ..aOS(4, _omitFieldNames ? '' : 'subjectHandle')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1252,6 +1255,15 @@ class ReqReferralUserStats extends $pb.GeneratedMessage {
   void clearColB() => $_clearField(3);
   @$pb.TagNumber(3)
   ReferralStatPeriod ensureColB() => $_ensure(2);
+
+  @$pb.TagNumber(4)
+  $core.String get subjectHandle => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set subjectHandle($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasSubjectHandle() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearSubjectHandle() => $_clearField(4);
 }
 
 class ReferralUserWalletSnapshot extends $pb.GeneratedMessage {
@@ -1366,6 +1378,91 @@ class ReferralUserWalletSnapshot extends $pb.GeneratedMessage {
   void clearBillingCurrency() => $_clearField(5);
 }
 
+class ReferralUserReferrerBrief extends $pb.GeneratedMessage {
+  factory ReferralUserReferrerBrief({
+    $fixnum.Int64? identityId,
+    $core.String? name,
+    $core.String? alienId,
+  }) {
+    final result = ReferralUserReferrerBrief._();
+    if (identityId != null) result.identityId = identityId;
+    if (name != null) result.name = name;
+    if (alienId != null) result.alienId = alienId;
+    return result;
+  }
+
+  ReferralUserReferrerBrief._();
+
+  factory ReferralUserReferrerBrief.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReferralUserReferrerBrief()..mergeFromBuffer(data, registry);
+  factory ReferralUserReferrerBrief.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReferralUserReferrerBrief()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReferralUserReferrerBrief',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReferralUserReferrerBrief.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'identityId')
+    ..aOS(2, _omitFieldNames ? '' : 'name')
+    ..aOS(3, _omitFieldNames ? '' : 'alienId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReferralUserReferrerBrief clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReferralUserReferrerBrief copyWith(
+          void Function(ReferralUserReferrerBrief) updates) =>
+      super.copyWith((message) => updates(message as ReferralUserReferrerBrief))
+          as ReferralUserReferrerBrief;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReferralUserReferrerBrief() / ReferralUserReferrerBrief.new instead')
+  static ReferralUserReferrerBrief create() => ReferralUserReferrerBrief._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReferralUserReferrerBrief._();
+  @$core.override
+  ReferralUserReferrerBrief createEmptyInstance() =>
+      ReferralUserReferrerBrief._();
+  @$core.pragma('dart2js:noInline')
+  static ReferralUserReferrerBrief getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReferralUserReferrerBrief>(
+          ReferralUserReferrerBrief.$_createMessage);
+  static ReferralUserReferrerBrief? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get identityId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set identityId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasIdentityId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearIdentityId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get name => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set name($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get alienId => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set alienId($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAlienId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAlienId() => $_clearField(3);
+}
+
 class ResReferralUserStats extends $pb.GeneratedMessage {
   factory ResReferralUserStats({
     ReferralUserStatColumn? colA,
@@ -1373,6 +1470,8 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
     ReferralUserWalletSnapshot? wallet,
     $core.String? authEmail,
     $core.String? authPhone,
+    ReferralUserReferrerBrief? referredBy,
+    $fixnum.Int64? registeredTsMs,
   }) {
     final result = ResReferralUserStats._();
     if (colA != null) result.colA = colA;
@@ -1380,6 +1479,8 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
     if (wallet != null) result.wallet = wallet;
     if (authEmail != null) result.authEmail = authEmail;
     if (authPhone != null) result.authPhone = authPhone;
+    if (referredBy != null) result.referredBy = referredBy;
+    if (registeredTsMs != null) result.registeredTsMs = registeredTsMs;
     return result;
   }
 
@@ -1404,6 +1505,9 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
         subBuilder: ReferralUserWalletSnapshot.$_createMessage)
     ..aOS(4, _omitFieldNames ? '' : 'authEmail')
     ..aOS(5, _omitFieldNames ? '' : 'authPhone')
+    ..aOM<ReferralUserReferrerBrief>(6, _omitFieldNames ? '' : 'referredBy',
+        subBuilder: ReferralUserReferrerBrief.$_createMessage)
+    ..aInt64(7, _omitFieldNames ? '' : 'registeredTsMs')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1480,6 +1584,26 @@ class ResReferralUserStats extends $pb.GeneratedMessage {
   $core.bool hasAuthPhone() => $_has(4);
   @$pb.TagNumber(5)
   void clearAuthPhone() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  ReferralUserReferrerBrief get referredBy => $_getN(5);
+  @$pb.TagNumber(6)
+  set referredBy(ReferralUserReferrerBrief value) => $_setField(6, value);
+  @$pb.TagNumber(6)
+  $core.bool hasReferredBy() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearReferredBy() => $_clearField(6);
+  @$pb.TagNumber(6)
+  ReferralUserReferrerBrief ensureReferredBy() => $_ensure(5);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get registeredTsMs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set registeredTsMs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasRegisteredTsMs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearRegisteredTsMs() => $_clearField(7);
 }
 
 class ReferralCommissionLevel extends $pb.GeneratedMessage {

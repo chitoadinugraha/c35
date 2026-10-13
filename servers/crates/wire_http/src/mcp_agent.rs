@@ -5,8 +5,8 @@ use axum::routing::post;
 use axum::{Json, Router};
 use c35_ctx::AppState;
 use c35_mod_chat::{
-    mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run,
-    mcp_json_i64, mcp_tool_artifact_fetch, mcp_tool_artifact_list, mcp_tool_exec,
+    mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_device_som, mcp_prompt_compose,
+    mcp_prompt_run, mcp_json_i64, mcp_tool_artifact_fetch, mcp_tool_artifact_list, mcp_tool_exec,
     mcp_trace_screenshot, DEFAULT_TEST_OWNER_IID,
 };
 use c35_store::snowflake_id;
@@ -158,6 +158,16 @@ async fn mcp_agent_post(
         "tool_artifact_list" => mcp_tool_artifact_list(&st.pool, owner_iid, &body.args_json).await,
         "tool_artifact_fetch" => mcp_tool_artifact_fetch(&st.pool, owner_iid, &body.args_json).await,
         "trace_screenshot" => mcp_trace_screenshot(&st.pool, owner_iid, &body.args_json).await,
+        "device_som" => {
+            mcp_device_som(
+                &st.pool,
+                st.nats.clone(),
+                owner_iid,
+                &req_id,
+                &body.args_json,
+            )
+            .await
+        }
         "device_get" => {
             let device_iid = mcp_json_i64(&body.args_json, "device_iid").unwrap_or(0);
             if device_iid <= 0 {
@@ -204,7 +214,8 @@ async fn mcp_agent_post(
                         "client_list",
                         "tool_artifact_list",
                         "tool_artifact_fetch",
-                        "trace_screenshot"
+                        "trace_screenshot",
+                        "device_som"
                     ],
                 })),
             )

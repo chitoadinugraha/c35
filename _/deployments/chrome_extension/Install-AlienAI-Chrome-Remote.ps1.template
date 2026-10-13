@@ -27,7 +27,6 @@ $nm = @{
   path            = $hostExe
   type            = 'stdio'
   allowed_origins = @("chrome-extension://$extId/")
-  args            = @('--chrome-native-host')
 } | ConvertTo-Json -Compress
 [System.IO.File]::WriteAllText($nmFile, $nm, [System.Text.UTF8Encoding]::new($false))
 New-Item -Path $nmReg -Force | Out-Null

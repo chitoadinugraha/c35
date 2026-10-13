@@ -34,6 +34,11 @@ class LiveCallSession {
   /// Set on [error] when the socket drops without the user hanging up.
   static const disconnectedError = 'Call disconnected';
 
+  static var _activeOutboundLiveCalls = 0;
+
+  /// Active outbound live-call WebSocket sessions (OTA idle-apply busy gating).
+  static bool get hasActiveLiveCall => _activeOutboundLiveCalls > 0;
+
   LiveCallSession({AudioPlayer? playerA, AudioPlayer? playerB})
       : _pA = playerA,
         _pB = playerB;
@@ -53,6 +58,7 @@ class LiveCallSession {
   var _playBusy = false;
   var _disposed = false;
   var _userHungUp = false;
+  var _outboundLiveBusyTracked = false;
 
   // Track D: Client-Side VAD (Voice Activity Detection)
   static const int _vadSampleRate = 16000;
@@ -196,6 +202,16 @@ class LiveCallSession {
     ).toString();
   }
 
+  void _setOutboundLiveBusy(bool active) {
+    if (active == _outboundLiveBusyTracked) return;
+    _outboundLiveBusyTracked = active;
+    if (active) {
+      _activeOutboundLiveCalls++;
+    } else if (_activeOutboundLiveCalls > 0) {
+      _activeOutboundLiveCalls--;
+    }
+  }
+
   Future<void> connect(ResLiveStart res) async {
     await disconnect();
     if (_disposed) return;
@@ -206,6 +222,7 @@ class LiveCallSession {
     await _ch!.ready;
     if (_disposed) return;
     connected.value = true;
+    _setOutboundLiveBusy(true);
     _wsSub = _ch!.stream.listen(
       _onMessage,
       onError: (e) {
@@ -871,6 +888,7 @@ class LiveCallSession {
   }
 
   Future<void> disconnect() async {
+    _setOutboundLiveBusy(false);
     if (!_disposed) {
       ready.value = false;
       connected.value = false;

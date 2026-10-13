@@ -423,7 +423,7 @@ pub async fn prepare_prompt_history_with_prefetch(
     system: &str,
     user: &str,
     bot_iid: Option<i64>,
-    mut prefetch: HistoryPrefetch,
+    prefetch: HistoryPrefetch,
 ) -> Result<PreparedPromptHistory> {
     let mut billing = ContextBillingExtra::default();
     let system_tokens = token_estimate(system);

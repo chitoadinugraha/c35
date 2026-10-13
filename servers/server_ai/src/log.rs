@@ -79,16 +79,19 @@ pub fn port_in_use(listen: &str) {
     let port = listen.rsplit(':').next().unwrap_or(listen);
     eprintln!("{} {}", label("Listening failed:"), url(listen));
     let pids = port_pids(port);
-    if pids.is_empty() {
-        return;
-    }
     eprintln!();
     if cfg!(windows) {
         eprintln!(
-            "Stop-Process -Id {} -Force",
-            pids.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(",")
+            "Free the port: .\\_\\scripts\\dev\\stop_listen_port.ps1 -Port {}",
+            port
         );
-    } else {
+        if !pids.is_empty() {
+            eprintln!(
+                "Or: Stop-Process -Id {} -Force",
+                pids.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(",")
+            );
+        }
+    } else if !pids.is_empty() {
         eprintln!(
             "kill -9 {}",
             pids.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(" ")
@@ -100,7 +103,7 @@ pub fn port_in_use(listen: &str) {
 #[cfg(windows)]
 fn port_pids(port: &str) -> Vec<u32> {
     let script = format!(
-        "(Get-NetTCPConnection -LocalPort {port} -ErrorAction SilentlyContinue).OwningProcess | Sort-Object -Unique"
+        "$p=@(); try {{ $p=@(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique) }} catch {{}}; if (-not $p) {{ netstat -ano | ForEach-Object {{ if ($_ -match 'LISTENING' -and $_ -match ':{port}\\s') {{ ($_ -split '\\s+')[-1] }} }} | Select-Object -Unique }}; $p -join ' '"
     );
     std::process::Command::new("powershell")
         .args(["-NoProfile", "-NonInteractive", "-Command", &script])

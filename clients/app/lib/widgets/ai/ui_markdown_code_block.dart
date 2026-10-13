@@ -1,4 +1,6 @@
 import 'package:alienai_c35/widgets/ai/ui_slide_deck_card.dart';
+import 'package:alienai_c35/c/viz/viz_chart_data.dart';
+import 'package:alienai_c35/widgets/ai/ui_viz_chart_card.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,8 +55,19 @@ class _UiMarkdownCodeBlockState extends State<UiMarkdownCodeBlock> {
     return l == 'slide' || l == 'slides' || l == 'presentation' || l == 'marp';
   }
 
+  bool get _isChartLanguage {
+    final l = widget.language.trim().toLowerCase();
+    return l == 'chart' || l == 'viz-chart';
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isChartLanguage) {
+      final chart = VizChartData.fromFenceJson(widget.code);
+      if (chart != null) {
+        return UiVizChartCard(data: chart);
+      }
+    }
     if (_isSlideLanguage) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),

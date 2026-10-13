@@ -9,7 +9,9 @@ import 'package:alienai_c35/c/drive/drive_api.dart';
 import 'package:alienai_c35/c/locale/app_locale.dart';
 import 'package:alienai_c35/c/parts/version_label.dart';
 import 'package:alienai_c35/c/update/app_release.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:alienai_c35/c/update/app_update_apk_ota.dart';
+import 'package:alienai_c35/c/update/app_update_channel.dart';
+import 'package:alienai_c35/c/update/app_update_service.dart';
 import 'package:alienai_c35/c/profile/profile_api.dart';
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -114,6 +116,7 @@ class _PageSettingsState extends State<PageSettings> {
   late String _locationSource = UserLocalePrefs.instance.locationSource;
   var _locationManualExpanded = UserLocalePrefs.instance.locationSource.trim().toLowerCase() == 'user';
   String _apkUrl = '';
+  AppUpdateChannel _updateChannel = AppUpdateChannel.play;
   DriveStorage? _driveStorage;
   List<InputDevice> _audioInputDevices = const [];
   InputDevice? _resolvedDefaultMic;
@@ -159,9 +162,11 @@ class _PageSettingsState extends State<PageSettings> {
     final apiBase = await serverHostActiveBase();
     var apkUrl = '';
     var releaseFooter = '';
+    var updateChannel = AppUpdateChannel.play;
     if (defaultTargetPlatform == TargetPlatform.android) {
       final release = await appReleaseGet(apiBase, platform: 'android');
       apkUrl = release?.apkUrl ?? '';
+      updateChannel = await appUpdateChannelGet();
     }
     final platforms = await appReleasePlatformsGet(apiBase);
     if (platforms != null) {
@@ -189,6 +194,7 @@ class _PageSettingsState extends State<PageSettings> {
       _pic = Session.instance.pic;
       _serverLabel = host;
       _apkUrl = apkUrl;
+      _updateChannel = updateChannel;
       _releaseVersionsFooter = releaseFooter;
       if (settings != null) {
         _hasPassword = settings.hasPassword;
@@ -257,6 +263,45 @@ class _PageSettingsState extends State<PageSettings> {
       _locationSource = UserLocalePrefs.instance.locationSource;
       _locationManualExpanded = UserLocalePrefs.instance.locationSource.trim().toLowerCase() == 'user';
     });
+  }
+
+  Future<void> _pickUpdateChannel() async {
+    final picked = await showModalBottomSheet<AppUpdateChannel>(
+      context: context,
+      backgroundColor: const Color(0xFF18181B),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: const Text('Google Play', style: TextStyle(color: Color(0xFFF4F4F5))),
+              subtitle: const Text('In-app update from Play Store', style: TextStyle(color: Color(0xFFA1A1AA))),
+              trailing: _updateChannel == AppUpdateChannel.play ? const Icon(Icons.check, color: Color(0xFF34D399)) : null,
+              onTap: () => Navigator.pop(ctx, AppUpdateChannel.play),
+            ),
+            ListTile(
+              title: const Text('Website APK', style: TextStyle(color: Color(0xFFF4F4F5))),
+              subtitle: const Text('Download updates from alienai.id', style: TextStyle(color: Color(0xFFA1A1AA))),
+              trailing: _updateChannel == AppUpdateChannel.apk ? const Icon(Icons.check, color: Color(0xFF34D399)) : null,
+              onTap: () => Navigator.pop(ctx, AppUpdateChannel.apk),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || picked == _updateChannel) return;
+    await appUpdateChannelPut(picked);
+    if (!mounted) return;
+    setState(() => _updateChannel = picked);
+    if (picked == AppUpdateChannel.apk) {
+      await AppUpdateService.instance.checkNow();
+    }
+  }
+
+  Future<void> _downloadLatestApk() async {
+    await appUpdateChannelPreferApk();
+    if (mounted) setState(() => _updateChannel = AppUpdateChannel.apk);
+    await appUpdateApkManualFetchAndInstall();
   }
 
   String _locationSourceLabel(String source) {
@@ -712,11 +757,24 @@ class _PageSettingsState extends State<PageSettings> {
                           const _SectionLabel('App'),
                           const SizedBox(height: 8),
                           _Card(
-                            child: UiSettingsTile(
-                              icon: Icons.android_outlined,
-                              title: 'Download APK',
-                              subtitle: 'Install without Google Play',
-                              onTap: () => launchUrl(Uri.parse(_apkUrl), mode: LaunchMode.externalApplication),
+                            child: Column(
+                              children: [
+                                UiSettingsTile(
+                                  icon: Icons.system_update_alt_outlined,
+                                  title: 'App updates',
+                                  subtitle: _updateChannel == AppUpdateChannel.apk
+                                      ? 'Website APK (auto-download)'
+                                      : 'Google Play',
+                                  onTap: _pickUpdateChannel,
+                                ),
+                                uiSettingsDivider(),
+                                UiSettingsTile(
+                                  icon: Icons.android_outlined,
+                                  title: 'Download latest APK',
+                                  subtitle: 'Verify, download, and install from alienai.id',
+                                  onTap: () => unawaited(_downloadLatestApk()),
+                                ),
+                              ],
                             ),
                           ),
                         ],

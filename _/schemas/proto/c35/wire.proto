@@ -561,7 +561,15 @@ message WsRes {
     SessionSuperseded session_superseded = 224;
     ResSiteAssistantGet site_assistant_get = 225;
     ResSiteAssistantEnsure site_assistant_ensure = 226;
+    // Server push: Windows desktop app OTA wake (NATS c35.release.windows).
+    AppReleaseNudge app_release_nudge = 227;
   }
+}
+
+// Instant OTA nudge for connected app WebSockets (Windows desktop).
+message AppReleaseNudge {
+  string platform = 1; // "windows"
+  int64 version = 2;     // optional hint; client still calls GET /version/windows
 }
 
 message NotifyItem {

@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import '../deploy_app/hash_blake3.dart';
 import '../deploy_lib.dart';
 import 'agent_version.dart';
+import 'build_chrome_extension.dart';
 
 class RemoteWindowsBuildResult {
   const RemoteWindowsBuildResult({
@@ -105,6 +106,47 @@ Future<File> _ensureWinfspMsi(String root) async {
   dest.writeAsBytesSync(res.bodyBytes);
   stdout.writeln('✓ ${p.basename(dest.path)} ${formatBytes(dest.lengthSync())}');
   return dest;
+}
+
+void _addDirToArchive(Archive archive, Directory dir, String prefix) {
+  for (final f in dir.listSync(recursive: true).whereType<File>()) {
+    final rel = p.relative(f.path, from: dir.path).replaceAll('\\', '/');
+    final name = prefix.isEmpty ? rel : '$prefix/$rel';
+    archive.addFile(ArchiveFile(name, f.lengthSync(), f.readAsBytesSync()));
+  }
+}
+
+Future<void> _copyTree(String src, String dest) async {
+  final d = Directory(dest);
+  d.createSync(recursive: true);
+  await for (final ent in Directory(src).list(recursive: true, followLinks: false)) {
+    final rel = p.relative(ent.path, from: src);
+    final target = p.join(dest, rel);
+    if (ent is Directory) {
+      Directory(target).createSync(recursive: true);
+    } else if (ent is File) {
+      File(target).parent.createSync(recursive: true);
+      ent.copySync(target);
+    }
+  }
+}
+
+Future<void> _bundleChromeExtensionForAgent(String root, String stagePath) async {
+  final pkg = chromeExtensionPackageDir(root);
+  final manifest = File(p.join(pkg, 'manifest.json'));
+  final dist = Directory(p.join(pkg, 'dist'));
+  if (!manifest.existsSync() || !dist.existsSync()) {
+    stdout.writeln('WARN: chrome extension package missing — browser.ensure sync_install may fail');
+    return;
+  }
+  final dest = p.join(stagePath, 'chrome_extension', 'alienai_remote');
+  await _copyTree(dist.path, p.join(dest, 'dist'));
+  manifest.copySync(p.join(dest, 'manifest.json'));
+  final icons = Directory(p.join(pkg, 'icons'));
+  if (icons.existsSync()) {
+    await _copyTree(icons.path, p.join(dest, 'icons'));
+  }
+  stdout.writeln('✓ bundled chrome_extension/alienai_remote for OTA');
 }
 
 Future<File> _ensureVcRedist(String root) async {
@@ -215,11 +257,17 @@ Future<RemoteWindowsBuildResult> buildRemoteWindowsRelease({bool bundleVcRedist 
   File(_runtimeScriptPath(root)).copySync(p.join(stage.path, 'remote_runtime.ps1'));
   File(_installScriptPath(root)).copySync(p.join(stage.path, 'install_remote_windows.ps1'));
 
+  await _bundleChromeExtensionForAgent(root, stage.path);
+
   final winfspBytes = winfspDll.readAsBytesSync();
-  // OTA zip: agent exe + WinFsp user-mode DLL (delay-load; driver via MSI on first setup).
+  // OTA zip: agent exe + WinFsp DLL + chrome_extension/ (for browser.ensure sync_install).
   final archive = Archive()
     ..addFile(ArchiveFile(remoteWindowsExeName, stagedExe.lengthSync(), stagedExe.readAsBytesSync()))
     ..addFile(ArchiveFile(_winfspDllName, winfspBytes.length, winfspBytes));
+  final extRoot = Directory(p.join(stage.path, 'chrome_extension'));
+  if (extRoot.existsSync()) {
+    _addDirToArchive(archive, extRoot, 'chrome_extension');
+  }
   final zipPath = remoteZipPath(root, build);
   File(zipPath).parent.createSync(recursive: true);
   final zipBytes = ZipEncoder().encode(archive);

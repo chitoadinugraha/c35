@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
-use c35_mod_site::site_sync_push;
+use c35_mod_site::{site_capabilities_get, site_order_fulfillment_enabled, site_sync_push};
 use c35_proto::{sync_push, ReqTxPut, ResTxPut, TxState, WsRes};
 use c35_store::snowflake_id;
 use sqlx::PgPool;
 use tokio::sync::mpsc;
 
 use crate::finalize::tx_finalize;
+use crate::tx_fulfillment_gate::tx_coerce_sale_without_fulfillment;
 use crate::tx_owner_resolve::tx_owner_resolve;
 use crate::load::{tx_load, tx_stocks_load};
 use crate::persist::{tx_acc_counts, tx_children_del, tx_children_put, tx_header_put};
@@ -42,6 +43,10 @@ pub async fn tx_put(
         tx.created_by_iid = caller_iid;
     }
     tx_finalize(&mut tx);
+    let caps = site_capabilities_get(pool, site_iid).await;
+    if !site_order_fulfillment_enabled(&caps) {
+        tx_coerce_sale_without_fulfillment(&mut tx);
+    }
     let (generated_count, manual_count) = tx_acc_counts(&tx);
     let mut db = pool.begin().await?;
     tx_children_del(&mut db, site_iid, tx.tx_id).await?;

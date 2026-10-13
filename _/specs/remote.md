@@ -36,6 +36,19 @@ Same **two-plane** rule; different capture/input backend. Full spec: [browser-re
 
 Playwright does not provide WebRTC to the app; Rust owns encode and `c_remote_core::webrtc`.
 
+### Unified Chrome extension on desktop agent (planned 2026-10-12)
+
+One paired **`type=windows`** (or `linux`) device per VM/PC may expose **`browser.*`** tools on the **same** `device_iid` when daily Chrome + the MV3 extension are connected — no second `type=browser` row required for that host.
+
+| | Today (shipped) | Target (unified) |
+|---|-----------------|------------------|
+| `__c35_browser__` RPC | `alienai_remote_browser.exe` only | Also `alienai_remote_windows.exe` (+ Linux agent) |
+| Native messaging host | Browser binary | Desktop binary (same NM name `com.alienai.c35.remote`) |
+| Identity | Often two devices (windows + browser) | One device; `meta.browser_ready`, `meta.browser_engine=extension` |
+| Playwright `type=browser` | Separate headless device | Unchanged — not merged into desktop |
+
+Implementation: [_/specs/plans/2026-10-12-unified-desktop-browser-agent-multitask.md](plans/2026-10-12-unified-desktop-browser-agent-multitask.md).
+
 ## Reference
 
 | Project | Borrow |

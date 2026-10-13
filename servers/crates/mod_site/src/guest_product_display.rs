@@ -1,5 +1,7 @@
 use serde_json::Value;
 
+use crate::guest_i18n::GuestI18n;
+
 /// Legacy / editor sentinel: show "Contact Us" instead of a numeric price.
 pub const GUEST_PRODUCT_PRICE_CONTACT: i64 = -1;
 
@@ -21,8 +23,12 @@ pub fn format_idr(amount: i64) -> String {
 }
 
 pub fn guest_product_price_label(price: i64) -> String {
+    guest_product_price_label_i18n(price, &GuestI18n::english())
+}
+
+pub fn guest_product_price_label_i18n(price: i64, i18n: &GuestI18n) -> String {
     if price == GUEST_PRODUCT_PRICE_CONTACT {
-        return "Contact Us".to_string();
+        return i18n.price_contact().to_string();
     }
     if price <= 0 {
         return String::new();

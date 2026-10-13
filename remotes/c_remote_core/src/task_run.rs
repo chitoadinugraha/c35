@@ -119,7 +119,8 @@ pub async fn task_run_handle(
             crate::update::trigger_background_update(dispatch_ctx.server_url.clone());
             return Ok(());
         }
-        if (cmd.starts_with("c35.release:") && !cmd.contains("remote-browser") && !cmd.contains("chrome-extension"))
+        if cmd.contains("\"platform\":\"remote-windows\"")
+            || (cmd.starts_with("c35.release:") && !cmd.contains("remote-browser") && !cmd.contains("chrome-extension"))
             || cmd.starts_with("{\"platform\":\"remote-windows\"")
         {
             info!("Received release notification over agent session; triggering immediate background update");

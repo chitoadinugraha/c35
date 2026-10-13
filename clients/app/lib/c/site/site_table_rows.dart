@@ -7,26 +7,45 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:fixnum/fixnum.dart';
 
-const _capabilityKeys = ['commerce', 'booking', 'queue', 'attendance'];
+const _capabilityKeys = ['commerce', 'booking', 'queue', 'attendance', 'order_fulfillment'];
 
-/// Defaults: commerce/booking/queue on; attendance off when key absent (create/settings).
+/// Defaults for new encodes / missing keys (except [siteOrderFulfillmentFromJson] back-compat).
 const siteCapabilityDefaults = <String, bool>{
   'commerce': true,
   'booking': true,
   'queue': true,
   'attendance': false,
+  'order_fulfillment': false,
 };
 
 bool siteCapabilityDefault(String key) => siteCapabilityDefaults[key] ?? true;
+
+bool siteOrderFulfillmentFromJson(Map<dynamic, dynamic> decoded) {
+  if (decoded['order_fulfillment'] is bool) {
+    return decoded['order_fulfillment'] as bool;
+  }
+  final commerce = decoded['commerce'] is bool ? decoded['commerce'] as bool : siteCapabilityDefault('commerce');
+  return commerce;
+}
+
+bool siteOrderFulfillmentEnabled(Map<String, bool> caps) {
+  if (caps.containsKey('order_fulfillment')) {
+    return caps['order_fulfillment']!;
+  }
+  return caps['commerce'] ?? siteCapabilityDefault('commerce');
+}
 
 Map<String, bool> siteCapabilitiesParse(String raw) {
   if (raw.trim().isEmpty) return Map<String, bool>.from(siteCapabilityDefaults);
   try {
     final decoded = jsonDecode(raw);
     if (decoded is! Map) return Map<String, bool>.from(siteCapabilityDefaults);
+    final map = Map<dynamic, dynamic>.from(decoded);
     return {
       for (final k in _capabilityKeys)
-        k: decoded[k] is bool ? decoded[k] as bool : siteCapabilityDefault(k),
+        k: k == 'order_fulfillment'
+            ? siteOrderFulfillmentFromJson(map)
+            : (decoded[k] is bool ? decoded[k] as bool : siteCapabilityDefault(k)),
     };
   } catch (_) {
     return Map<String, bool>.from(siteCapabilityDefaults);
@@ -34,12 +53,19 @@ Map<String, bool> siteCapabilitiesParse(String raw) {
 }
 
 class SiteEditorCaps {
-  const SiteEditorCaps({this.commerce = true, this.booking = true, this.queue = true, this.attendance = false});
+  const SiteEditorCaps({
+    this.commerce = true,
+    this.booking = true,
+    this.queue = true,
+    this.attendance = false,
+    this.orderFulfillment = false,
+  });
 
   final bool commerce;
   final bool booking;
   final bool queue;
   final bool attendance;
+  final bool orderFulfillment;
 
   factory SiteEditorCaps.parse(String capabilitiesJson) {
     final m = siteCapabilitiesParse(capabilitiesJson);
@@ -48,6 +74,7 @@ class SiteEditorCaps {
       booking: m['booking'] ?? true,
       queue: m['queue'] ?? true,
       attendance: m['attendance'] ?? false,
+      orderFulfillment: siteOrderFulfillmentEnabled(m),
     );
   }
 }

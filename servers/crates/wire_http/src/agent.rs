@@ -5,7 +5,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use c35_ctx::AppState;
 use c35_mod_device::{
-    agent_log_put, agent_presence_put, agent_profile_get, agent_session_resolve, remote_ice_config,
+    agent_browser_meta_from_json, agent_log_put, agent_presence_meta_merge, agent_presence_put,
+    agent_profile_get, agent_session_resolve, agent_version_report_has_payload, remote_ice_config,
     AgentVersionReport,
 };
 use c35_proto::ReqRemoteIceConfig;
@@ -114,24 +115,24 @@ async fn agent_log(
     let presence_offline = body.topic == "agent.ws" && body.text == "disconnected";
     if presence_online || presence_offline {
         let version = if presence_online {
-            let build = body
-                .meta
-                .as_ref()
-                .and_then(|m| m.get("agent_build"))
+            let meta = body.meta.as_ref().cloned().unwrap_or_default();
+            let build = meta
+                .get("agent_build")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(0);
-            let version_name = body
-                .meta
-                .as_ref()
-                .and_then(|m| m.get("agent_version_name"))
+            let version_name = meta
+                .get("agent_version_name")
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            if build > 0 {
-                Some(AgentVersionReport {
-                    build,
-                    version_name,
-                })
+            let browser_meta = agent_browser_meta_from_json(&meta);
+            let report = AgentVersionReport {
+                build,
+                version_name,
+                browser_meta,
+            };
+            if agent_version_report_has_payload(&report) {
+                Some(report)
             } else {
                 None
             }
@@ -144,6 +145,15 @@ async fn agent_log(
             session.device_iid,
             presence_online,
             version,
+        )
+        .await;
+    } else if body.topic == "agent.presence" {
+        let meta = body.meta.as_ref().cloned().unwrap_or_default();
+        let _ = agent_presence_meta_merge(
+            &st.pool,
+            st.nats.as_ref(),
+            session.device_iid,
+            &meta,
         )
         .await;
     }

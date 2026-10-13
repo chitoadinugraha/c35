@@ -48,6 +48,7 @@ class PageSitePos extends StatefulWidget {
 class _PageSitePosState extends State<PageSitePos> {
   late final _store = SiteStore(conn: widget.chatConn);
   var _booting = true;
+  var _orderFulfillmentEnabled = true;
   String? _blockReason;
   SiteGuestOrderEvent? _lastGuestOrderSnack;
 
@@ -103,13 +104,19 @@ class _PageSitePosState extends State<PageSitePos> {
       }
       final siteIid = row.siteIid.toInt();
       var commerce = true;
+      var orderFulfillment = true;
       try {
         final config = await _store.api.configGet(siteIid);
-        commerce = siteCapabilitiesParse(config.capabilitiesJson)['commerce'] ?? true;
+        final caps = siteCapabilitiesParse(config.capabilitiesJson);
+        commerce = caps['commerce'] ?? true;
+        orderFulfillment = siteOrderFulfillmentEnabled(caps);
+        await siteCapabilitiesCacheSave(Session.instance.uid, siteIid, config.capabilitiesJson);
       } catch (_) {
         final cached = await siteCapabilitiesCacheRestore(Session.instance.uid, siteIid);
         if (cached != null) {
-          commerce = siteCapabilitiesParse(cached)['commerce'] ?? true;
+          final caps = siteCapabilitiesParse(cached);
+          commerce = caps['commerce'] ?? true;
+          orderFulfillment = siteOrderFulfillmentEnabled(caps);
         } else {
           final products = await siteProductCacheRestore(Session.instance.uid, siteIid);
           if (products.isEmpty) {
@@ -119,6 +126,7 @@ class _PageSitePosState extends State<PageSitePos> {
         }
       }
       if (!commerce) _blockReason = 'commerce_disabled';
+      _orderFulfillmentEnabled = orderFulfillment;
     } catch (_) {
       _blockReason = 'load_failed';
     } finally {
@@ -162,6 +170,7 @@ class _PageSitePosState extends State<PageSitePos> {
       site: row,
       txId: widget.txId,
       posEntry: true,
+      orderFulfillmentEnabled: _orderFulfillmentEnabled,
       onSaved: (_) {},
     );
   }

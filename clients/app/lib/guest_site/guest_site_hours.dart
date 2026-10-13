@@ -55,6 +55,12 @@ class _GuestSiteHoursCompactState extends State<GuestSiteHoursCompact> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 6),
                       Icon(Icons.schedule_outlined, size: 14, color: statusColor),
                       const SizedBox(width: 6),
                       Text(

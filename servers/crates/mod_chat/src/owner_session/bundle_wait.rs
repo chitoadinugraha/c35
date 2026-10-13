@@ -47,12 +47,26 @@ pub async fn owner_session_wait_owner_bundle(
     if owner_session_bundle_ready(session) {
         return 0;
     }
+    let notify = session.ready_notify();
     let started = Instant::now();
-    while started.elapsed() < max_wait {
+    let deadline = started + max_wait;
+    while Instant::now() < deadline {
         if session.is_superseded() || owner_session_bundle_ready(session) {
             break;
         }
-        tokio::time::sleep(Duration::from_millis(25)).await;
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        tokio::select! {
+            _ = notify.notified() => {
+                if session.is_superseded() || owner_session_bundle_ready(session) {
+                    break;
+                }
+            }
+            _ = tokio::time::sleep(remaining.min(Duration::from_millis(15))) => {
+                if session.is_superseded() || owner_session_bundle_ready(session) {
+                    break;
+                }
+            }
+        }
     }
     started.elapsed().as_millis() as u64
 }

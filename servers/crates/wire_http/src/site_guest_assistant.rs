@@ -8,7 +8,7 @@ use axum::{
     extract::State,
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
-    routing::{options, post},
+    routing::post,
     Json, Router,
 };
 use c35_ctx::AppState;

@@ -1,27 +1,16 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod agent_version;
-mod browser_command;
 mod browser_download;
-mod browser_idle;
-mod browser_input;
-mod browser_screenshot;
-mod browser_state;
-mod browser_stream;
-mod browser_tabs;
-mod browser_task;
-mod chrome_native;
+mod browser_video_hooks;
 mod engine;
-mod extension_agent;
-mod extension_install;
-mod extension_ipc;
-mod extension_page;
-mod extension_sheets;
-mod extension_tabs;
-mod mode;
 mod pair_loop;
-mod webrtc;
+mod playwright_invoke;
 
+use c_remote_browser_core::{
+    browser_command, browser_idle, browser_state, browser_task, chrome_native, extension_ipc,
+    mode, webrtc_handlers,
+};
 use c_remote_core::config::{device_iid_load, session_key_clear, session_key_load, server_url};
 use c_remote_core::conn_ws::{conn_ws_run_reconnect, is_invalid_session};
 use c_remote_core::log_local;
@@ -76,6 +65,9 @@ async fn run_agent() -> anyhow::Result<()> {
     }
     mode::hydrate_agent_ui_from_config();
     agent_version::register();
+    playwright_invoke::register();
+    browser_video_hooks::register();
+
     let cli = std::env::args().any(|a| a == "--cli");
     let extension_engine = mode::is_extension_engine();
     if extension_engine && extension_ipc::extension_ipc_port_in_use() {
@@ -99,10 +91,12 @@ async fn run_agent() -> anyhow::Result<()> {
     browser_state::init(state.clone());
     browser_task::register_task_handler();
     browser_command::register_command_handler();
-    webrtc::register_handlers();
+    webrtc_handlers::register_browser_webrtc_handlers();
     browser_idle::spawn_screencast_idle_loop(state.clone());
 
     if extension_engine {
+        c_remote_browser_core::browser_presence::register_agent_browser_ws_query();
+        c_remote_browser_core::browser_presence::spawn_browser_presence_reports();
         if let Err(e) = extension_ipc::spawn_extension_ipc_server(state.clone()) {
             warn!("extension ipc server: {e:#}");
         }
@@ -124,20 +118,17 @@ async fn run_agent() -> anyhow::Result<()> {
             "already paired; pair window skipped (run dev_browser with -Unpair to re-pair)"
         );
 
-        if !extension_engine {
-            let mut slot = state.engine.lock().map_err(|_| anyhow::anyhow!("lock"))?;
-            if slot.is_none() {
-                let headless = mode::headless_from_config();
-                info!(
-                    headless,
-                    "launching Playwright Chromium (headless=false shows a visible window)"
-                );
-                match engine::process::spawn_engine(headless, "default").await {
-                    Ok(e) => *slot = Some(e),
-                    Err(e) => {
-                        eprintln!("browser_engine not started: {e:#}");
-                        warn!("browser_engine not started: {e:#}");
-                    }
+        if !extension_engine && engine::process::playwright_engine_is_none() {
+            let headless = mode::headless_from_config();
+            info!(
+                headless,
+                "launching Playwright Chromium (headless=false shows a visible window)"
+            );
+            match engine::process::spawn_engine(headless, "default").await {
+                Ok(e) => engine::process::set_playwright_engine(e),
+                Err(e) => {
+                    eprintln!("browser_engine not started: {e:#}");
+                    warn!("browser_engine not started: {e:#}");
                 }
             }
         }
@@ -157,22 +148,14 @@ async fn run_agent() -> anyhow::Result<()> {
                     match r {
                         Ok(Ok(ConnExit::Unpaired)) => {
                             info!("unpaired");
-                            if let Ok(mut g) = state.engine.lock() {
-                                if let Some(mut e) = g.take() {
-                                    engine::process::shutdown_engine(&mut e).await;
-                                }
-                            }
+                            engine::process::shutdown_playwright_engine().await;
                             if let Err(clear_err) = session_key_clear() {
                                 warn!("session_key_clear: {clear_err:#}");
                             }
                         }
                         Ok(Ok(ConnExit::Completed)) => warn!("conn_ws exited"),
                         Ok(Err(e)) if is_invalid_session(&e) => {
-                            if let Ok(mut g) = state.engine.lock() {
-                                if let Some(mut e) = g.take() {
-                                    engine::process::shutdown_engine(&mut e).await;
-                                }
-                            }
+                            engine::process::shutdown_playwright_engine().await;
                             eprintln!(
                                 "Session rejected by {} (wrong server or expired). Run .\\dev_browser.ps1 -Unpair and pair again.",
                                 server_url()

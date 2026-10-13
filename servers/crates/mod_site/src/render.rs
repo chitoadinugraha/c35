@@ -1,9 +1,12 @@
+use std::collections::BTreeSet;
+
 use anyhow::{anyhow, Result};
 use c35_proto::{SiteDoc, SiteLink, SitePost};
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
 use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
+use crate::site_config::{site_capabilities_get, site_order_fulfillment_enabled};
 use crate::site_assistant::site_assistant_boot_extras;
 use crate::doc::site_doc_from_json;
 use crate::product_design::{
@@ -16,9 +19,12 @@ use crate::link_platform_icon::link_platform_icon_html;
 use crate::guest_product::{
     guest_product_get, guest_product_list, guest_product_sell_ids, product_grid_page_size,
 };
+use crate::guest_i18n::{
+    guest_layout_grid_min_css, guest_layout_mode, guest_layout_page_max_css, GuestI18n,
+};
 use crate::guest_product_display::{
-    guest_product_can_add_to_cart, guest_product_price_label, pic_url, pic_url_display,
-    product_grid_display,
+    guest_product_can_add_to_cart, guest_product_price_label, guest_product_price_label_i18n,
+    pic_url, pic_url_display, product_grid_display, GUEST_PRODUCT_PRICE_CONTACT,
 };
 use crate::product_icon_svg::product_icon_svg;
 use crate::site_link::site_link_boot_rows;
@@ -44,6 +50,14 @@ fn product_placeholder_html(icon: &str) -> String {
 }
 
 pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> String {
+    product_card_html_i18n(p, product_design, &GuestI18n::english())
+}
+
+pub fn product_card_html_i18n(
+    p: &ProductRow,
+    product_design: Option<&Value>,
+    i18n: &GuestI18n,
+) -> String {
     let img = if p.pic.is_empty() {
         product_placeholder_html(&p.icon)
     } else {
@@ -72,11 +86,14 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
         format!(r#" style="{}""#, esc_attr(&price_style))
     };
     let reserve_attr = product_reserve_attrs(p);
-    let action = product_purchase_button(p);
+    let action = product_tile_actions(p, i18n);
     let stock = product_stock_line(p);
+    let cat_attr = product_category_data_attr(p);
+    let (price_row, bottom_class) = product_price_row_html(p, i18n, &price_attr);
     format!(
-        r#"<article class="product-card guest-product-tile" data-pid="{pid}"{reserve_attr}><div class="guest-product-thumb-wrap">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom"><span class="price"{price_attr}>{price_str}</span>{action}</div></div></article>"#,
+        r#"<article class="product-card guest-product-tile" data-pid="{pid}"{cat_attr}{reserve_attr}><div class="guest-product-thumb-wrap">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom{bottom_class}">{price_row}{action}</div></div></article>"#,
         pid = p.product_id,
+        cat_attr = cat_attr,
         reserve_attr = reserve_attr,
         img = img,
         title_attr = title_attr,
@@ -84,13 +101,21 @@ pub fn product_card_html(p: &ProductRow, product_design: Option<&Value>) -> Stri
         subtitle_attr = subtitle_attr,
         desc = esc(&p.desc),
         stock = stock,
-        price_attr = price_attr,
-        price_str = esc(&guest_product_price_label(p.price)),
+        bottom_class = bottom_class,
+        price_row = price_row,
         action = action,
     )
 }
 
 pub fn product_list_row_html(p: &ProductRow, product_design: Option<&Value>) -> String {
+    product_list_row_html_i18n(p, product_design, &GuestI18n::english())
+}
+
+pub fn product_list_row_html_i18n(
+    p: &ProductRow,
+    product_design: Option<&Value>,
+    i18n: &GuestI18n,
+) -> String {
     let img = if p.pic.is_empty() {
         product_placeholder_html(&p.icon)
     } else {
@@ -119,17 +144,19 @@ pub fn product_list_row_html(p: &ProductRow, product_design: Option<&Value>) -> 
         format!(r#" style="{}""#, esc_attr(&price_style))
     };
     let reserve_attr = product_reserve_attrs(p);
-    let action = product_purchase_button(p);
+    let action = product_tile_actions(p, i18n);
     let stock = product_stock_line(p);
-    let price_str = guest_product_price_label(p.price);
-    let price_html = if price_str.is_empty() {
+    let cat_attr = product_category_data_attr(p);
+    let price_str = guest_product_price_label_i18n(p.price, i18n);
+    let price_html = if price_str.is_empty() || p.price == GUEST_PRODUCT_PRICE_CONTACT {
         String::new()
     } else {
         format!(r#"<span class="price"{price_attr}>{price}</span>"#, price_attr = price_attr, price = esc(&price_str))
     };
     format!(
-        r#"<article class="product-list-row guest-product-tile" data-pid="{pid}"{reserve_attr}><div class="product-list-thumb">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-list-body"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}</div><div class="product-list-trail">{price_html}{action}</div></article>"#,
+        r#"<article class="product-list-row guest-product-tile" data-pid="{pid}"{cat_attr}{reserve_attr}><div class="product-list-thumb">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-list-body"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}</div><div class="product-list-trail">{price_html}{action}</div></article>"#,
         pid = p.product_id,
+        cat_attr = cat_attr,
         reserve_attr = reserve_attr,
         img = img,
         title_attr = title_attr,
@@ -167,11 +194,48 @@ fn product_reserve_attrs(p: &ProductRow) -> String {
     )
 }
 
-fn product_purchase_button(p: &ProductRow) -> String {
-    format!(
-        r#"<button type="button" class="guest-product-info-btn" data-product-info="{}" aria-label="Detail">&#9432;</button>"#,
-        p.product_id
+fn product_category_data_attr(p: &ProductRow) -> String {
+    let c = p.category.trim();
+    if c.is_empty() {
+        String::new()
+    } else {
+        format!(r#" data-product-category="{}""#, esc_attr(c))
+    }
+}
+
+fn product_price_row_html(p: &ProductRow, i18n: &GuestI18n, price_attr: &str) -> (String, &'static str) {
+    if p.price == GUEST_PRODUCT_PRICE_CONTACT {
+        return (String::new(), " product-bottom--quote");
+    }
+    let price_str = guest_product_price_label_i18n(p.price, i18n);
+    if price_str.is_empty() {
+        return (String::new(), "");
+    }
+    (
+        format!(
+            r#"<span class="price"{price_attr}>{price}</span>"#,
+            price_attr = price_attr,
+            price = esc(&price_str),
+        ),
+        "",
     )
+}
+
+fn product_tile_actions(p: &ProductRow, i18n: &GuestI18n) -> String {
+    let info = format!(
+        r#"<button type="button" class="guest-product-info-btn" data-product-info="{}" aria-label="{}">&#9432;</button>"#,
+        p.product_id,
+        esc_attr(i18n.detail_aria()),
+    );
+    if p.price == GUEST_PRODUCT_PRICE_CONTACT {
+        return format!(
+            r#"<button type="button" class="guest-tile-cta" data-product-info="{}">{}</button>{}"#,
+            p.product_id,
+            esc(i18n.tile_contact_cta()),
+            info,
+        );
+    }
+    info
 }
 
 fn product_detail_actions(p: &ProductRow) -> String {
@@ -478,6 +542,41 @@ fn contact_field_html(field: &Value) -> String {
     )
 }
 
+fn product_grid_category_filters_html(
+    products: &[ProductRow],
+    block_category: &str,
+    i18n: &GuestI18n,
+) -> String {
+    if !block_category.trim().is_empty() {
+        return String::new();
+    }
+    let mut cats: BTreeSet<String> = BTreeSet::new();
+    for p in products {
+        let c = p.category.trim();
+        if !c.is_empty() {
+            cats.insert(c.to_string());
+        }
+    }
+    if cats.len() < 2 {
+        return String::new();
+    }
+    let mut chips = format!(
+        r#"<button type="button" class="guest-catalog-chip is-active" data-guest-filter="" aria-pressed="true">{}</button>"#,
+        esc(i18n.filter_all()),
+    );
+    for cat in cats {
+        chips.push_str(&format!(
+            r#"<button type="button" class="guest-catalog-chip" data-guest-filter="{}" aria-pressed="false">{}</button>"#,
+            esc_attr(&cat),
+            esc(&cat),
+        ));
+    }
+    format!(
+        r#"<div class="guest-catalog-filters" role="toolbar" aria-label="Category">{chips}</div>"#,
+        chips = chips,
+    )
+}
+
 fn hub_hours_compact_html(meta: &Value) -> String {
     use crate::guest_schedule::{hours_panel_rows, schedule_status, slots_from_meta};
     let slots = slots_from_meta(meta);
@@ -499,7 +598,7 @@ fn hub_hours_compact_html(meta: &Value) -> String {
         .collect::<Vec<_>>()
         .join("");
     format!(
-        r#"<div class="hub-hours-compact"><details class="guest-hub-hours-chip"><summary><span class="guest-hub-hours-icon" aria-hidden="true">&#9201;</span><span class="guest-hub-hours-status {status_class}">{label}</span></summary><div class="guest-hub-hours-panel">{panel}</div></details></div>"#,
+        r#"<div class="hub-hours-compact"><details class="guest-hub-hours-chip"><summary><span class="guest-hub-hours-dot {status_class}" aria-hidden="true"></span><span class="guest-hub-hours-icon" aria-hidden="true">&#9201;</span><span class="guest-hub-hours-status {status_class}">{label}</span></summary><div class="guest-hub-hours-panel">{panel}</div></details></div>"#,
         status_class = esc_attr(status_class),
         label = esc(&label),
         panel = panel,
@@ -844,6 +943,7 @@ pub fn block_html_render(
             format!(r#"<div class="block spacer" style="height:{}px"></div>"#, h)
         }
         "product_grid" => {
+            let i18n = GuestI18n::from_meta(site_meta);
             let filter = props.get("filter").and_then(|x| x.as_str()).unwrap_or("all");
             let category = props.get("category").and_then(|x| x.as_str()).unwrap_or("");
             let typography = if design.product_from_theme {
@@ -855,13 +955,13 @@ pub fn block_html_render(
             let items = if display == "list" {
                 products
                     .iter()
-                    .map(|p| product_list_row_html(p, typography))
+                    .map(|p| product_list_row_html_i18n(p, typography, &i18n))
                     .collect::<Vec<_>>()
                     .join("")
             } else {
                 products
                     .iter()
-                    .map(|p| product_card_html(p, typography))
+                    .map(|p| product_card_html_i18n(p, typography, &i18n))
                     .collect::<Vec<_>>()
                     .join("")
             };
@@ -873,7 +973,8 @@ pub fn block_html_render(
                 String::new()
             } else {
                 format!(
-                    r#"<button type="button" class="guest-load-more-btn" onclick="c35GuestCatalog.loadMore(this)">Muat lebih banyak</button>"#
+                    r#"<button type="button" class="guest-load-more-btn" onclick="c35GuestCatalog.loadMore(this)">{label}</button>"#,
+                    label = esc(i18n.load_more()),
                 )
             };
             let (card_open, card_close) = design.card_wrap("site_product");
@@ -881,10 +982,11 @@ pub fn block_html_render(
                 .get("title")
                 .and_then(|x| x.as_str())
                 .filter(|s| !s.trim().is_empty())
-                .unwrap_or("Katalog & Layanan");
+                .unwrap_or(i18n.catalog_default_title());
             let heading = format!(r#"<h2 class="product-grid-title">{}</h2>"#, esc(grid_title));
+            let filters = product_grid_category_filters_html(products, category, &i18n);
             format!(
-                r#"<section class="block product-grid" data-guest="site_product" data-display="{display}" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{heading}{card_open}<div class="{layout_class}">{items}</div>{load_more}{card_close}</section>"#,
+                r#"<section class="block product-grid" data-guest="site_product" data-display="{display}" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{heading}{filters}{card_open}<div class="{layout_class}">{items}</div>{load_more}{card_close}</section>"#,
                 display = esc(display),
                 bid = esc(block_id),
                 sid = site_iid,
@@ -1188,6 +1290,7 @@ pub async fn page_html_render(
         props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false)
     });
     let mut body = String::new();
+    let mut catalog_product_count = 0usize;
     for block in &page.blocks {
         if block.r#type == "hours" && hub_shows_hours {
             continue;
@@ -1208,6 +1311,7 @@ pub async fn page_html_render(
                 block_id: block.id.clone(),
                 next_cursor: listed.next_cursor,
             };
+            catalog_product_count += listed.items.len();
             (listed.items, Some(ctx))
         } else {
             (vec![], None)
@@ -1227,72 +1331,91 @@ pub async fn page_html_render(
             &site_meta,
         ));
     }
+    let i18n = GuestI18n::from_meta(&site_meta);
+    let layout = guest_layout_mode(&site_meta, catalog_product_count);
+    let page_max = guest_layout_page_max_css(layout);
+    let grid_min = guest_layout_grid_min_css(layout);
     let root = guest_root_css(&design);
+    let layout_root = format!(
+        ":root{{--guest-page-max:{page_max};--guest-grid-min:{grid_min};}}",
+        page_max = page_max,
+        grid_min = grid_min,
+    );
     let image = page_bg_image_html(&design);
     let identity_pic = site_identity_pic(pool, site_iid).await;
     let favicon_tags = guest_favicon_head_markup(&guest_site_favicon_url(&site_meta, doc, &identity_pic));
     Ok(format!(
-        r#"<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}<style>
+        r#"<!DOCTYPE html><html lang="{html_lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}<style>
 {root}
-body{{margin:0;font-family:system-ui,sans-serif;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
-.wrap{{max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
+{layout_root}
+body{{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
+.wrap{{max-width:var(--guest-page-max,720px);margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
 .block{{margin:0 0 24px}}
-.hero{{position:relative;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,var(--accent),#111);color:#fff;padding:48px 24px}}
+.hero{{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,var(--accent),#111);color:#fff;padding:48px 24px}}
 .hero-inner{{position:relative;z-index:1}}
 .hero-bg img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}}
-.product-grid .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}}
+.product-grid .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--guest-grid-min,168px),1fr));gap:16px}}
+@media(min-width:1024px){{body.guest-layout-store .product-grid .grid{{grid-template-columns:repeat(4,minmax(0,1fr))}}}}
 .product-grid .list{{display:flex;flex-direction:column;gap:8px}}
-.product-list-row{{display:flex;gap:10px;align-items:flex-start;padding:12px;background:var(--card-bg,#fff);border-radius:12px;border:1px solid var(--card-border,#eee)}}
-.product-list-thumb{{flex:0 0 56px;width:56px;height:56px;border-radius:8px;overflow:hidden}}
+.product-list-row{{display:flex;gap:10px;align-items:flex-start;padding:12px;background:var(--card-bg,#fff);border-radius:var(--card-radius,14px);border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent));box-shadow:0 2px 8px rgba(0,0,0,.04);font-variant-numeric:tabular-nums;transition:transform .22s cubic-bezier(.16,1,.3,1),box-shadow .22s cubic-bezier(.16,1,.3,1),border-color .22s ease}}
+.product-list-row:hover{{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.08);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}}
+.product-list-thumb{{flex:0 0 56px;width:56px;height:56px;border-radius:10px;overflow:hidden}}
 .product-list-thumb img,.product-list-thumb .product-ph{{width:56px;height:56px;object-fit:cover}}
 .product-list-body{{flex:1;min-width:0}}
-.product-list-body h3{{margin:0;font-size:14px;font-weight:600}}
-.product-list-body p{{margin:4px 0 0;font-size:12px;color:var(--muted,#666);line-height:1.35}}
+.product-list-body h3{{margin:0;font-size:14px;font-weight:600;letter-spacing:-0.01em;line-height:1.35}}
+.product-list-body p{{margin:4px 0 0;font-size:12px;color:var(--muted,#666);line-height:1.45}}
 .product-list-trail{{display:flex;flex-direction:column;align-items:flex-end;gap:4px}}
 .guest-pic-thumb{{cursor:zoom-in}}
-.product-card{{background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;flex-direction:column}}
+.product-card{{background:var(--card-bg,#fff);border-radius:var(--card-radius,14px);overflow:hidden;border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent));box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;flex-direction:column;font-variant-numeric:tabular-nums;transition:transform .22s cubic-bezier(.16,1,.3,1),box-shadow .22s cubic-bezier(.16,1,.3,1),border-color .22s ease}}
+.product-card:hover{{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.08);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}}
+.product-card .guest-product-thumb-wrap{{overflow:hidden;border-radius:calc(var(--card-radius,14px) - 2px) calc(var(--card-radius,14px) - 2px) 0 0}}
+.product-card .guest-product-thumb-wrap img{{width:100%;aspect-ratio:1;object-fit:cover;display:block;transition:transform .3s cubic-bezier(.16,1,.3,1)}}
+.product-card:hover .guest-product-thumb-wrap img{{transform:scale(1.03)}}
 .product-card img{{width:100%;aspect-ratio:1;object-fit:cover;display:block}}
 .product-card .product-ph{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#f4f4f5}}
 .product-card .product-ph svg{{width:28%;height:28%}}
-.product-card .product-info{{padding:12px;display:flex;flex-direction:column;flex:1}}
-.product-card h3{{margin:0 0 6px;font-size:15px;font-weight:600}}
-.product-card p{{margin:0 0 10px;font-size:13px;color:#666;line-height:1.4;flex:1}}
+.product-card .product-info{{padding:14px;display:flex;flex-direction:column;flex:1}}
+.product-card h3{{margin:0 0 6px;font-size:14px;font-weight:600;letter-spacing:-0.01em;line-height:1.35}}
+.product-card p{{margin:0 0 10px;font-size:12px;color:var(--muted,#71717a);line-height:1.45;flex:1}}
 .product-bottom{{display:flex;align-items:center;justify-content:space-between;gap:8px}}
-.product-bottom .price{{font-weight:700;color:var(--accent);font-size:14px}}
-.guest-add-btn{{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer}}
+.product-bottom .price{{font-weight:700;color:var(--accent);font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:-0.01em}}
+.guest-add-btn{{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s ease}}
 .guest-add-btn:hover{{opacity:.88}}
-.guest-load-more-btn{{display:block;margin:16px auto 0;background:var(--card-bg);color:var(--text);border:1px solid var(--card-border);border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer}}
+.guest-load-more-btn{{display:block;margin:16px auto 0;background:var(--card-bg);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .15s ease,color .15s ease}}
 .guest-load-more-btn:hover{{border-color:var(--accent);color:var(--accent)}}
 .gallery{{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}}
-.gallery img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}}
+.gallery img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}}
 .links{{list-style:none;padding:0;margin:0}}
 .links li{{margin:8px 0}}
 .contact-form label{{display:block;margin:0 0 12px}}
-.contact-form input, .contact-form textarea{{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;font-family:inherit}}
-.contact-form button[type="submit"]{{background:var(--accent);color:#fff;border:0;padding:10px 18px;border-radius:6px;font-weight:600;cursor:pointer}}
+.contact-form input, .contact-form textarea{{width:100%;padding:10px 12px;border:1px solid color-mix(in srgb,var(--muted,#a1a1aa) 35%,transparent);border-radius:10px;box-sizing:border-box;font-family:inherit;background:transparent;color:inherit}}
+.contact-form button[type="submit"]{{background:var(--accent);color:#fff;border:0;padding:10px 20px;border-radius:10px;font-weight:600;cursor:pointer}}
 .hours{{width:100%;border-collapse:collapse}}
-.hours td{{padding:6px 8px;border-bottom:1px solid #eee}}
+.hours td{{padding:8px 10px;border-bottom:1px solid color-mix(in srgb,var(--muted,#a1a1aa) 20%,transparent)}}
 .map a{{color:var(--accent)}}
-.queue{{padding:16px;background:#fff;border-radius:8px}}
-.guest-queue-btn,.guest-order-poll-btn{{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;margin-top:8px}}
-.block.hub-profile{{margin:0 0 12px;padding:0}}
-.hub-avatar{{width:96px;height:96px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block}}
+.queue{{padding:16px;background:var(--card-bg,#fff);border-radius:var(--card-radius,14px);border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent))}}
+.guest-queue-btn,.guest-order-poll-btn{{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:8px 16px;font-weight:600;cursor:pointer;margin-top:8px}}
+.block.hub-profile{{margin:0 0 16px;padding:0}}
+.hub-avatar{{width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 10px;display:block;box-shadow:0 4px 16px rgba(0,0,0,.08)}}
 .hub-chips{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}}
-.hub-chip{{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #e5e5e5;font-size:12px;color:#333;text-decoration:none}}
-.hub-chip-muted{{color:#666}}
+.hub-chip{{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:var(--card-bg,#fff);border:1px solid var(--card-border,color-mix(in srgb,var(--muted,#a1a1aa) 25%,transparent));font-size:12px;color:var(--fg,#18181b);text-decoration:none}}
+.hub-chip-muted{{color:var(--muted,#71717a)}}
 .order-track label{{display:block;margin:12px 0}}
-.order-track input{{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box}}
-.product-detail .price{{font-size:14px;font-weight:700;margin:8px 0}}
-.product-detail-pic{{width:100%;max-height:280px;object-fit:cover;border-radius:8px;margin-bottom:12px}}
-.product-reserve-placeholder{{margin-top:16px;padding:12px;background:#fff;border-radius:8px;color:#666;font-size:14px}}
-.embed iframe{{display:block;border-radius:8px}}
+.order-track input{{width:100%;padding:10px 12px;border:1px solid color-mix(in srgb,var(--muted,#a1a1aa) 35%,transparent);border-radius:10px;box-sizing:border-box;background:transparent;color:inherit}}
+.product-detail .price{{font-size:15px;font-weight:700;margin:8px 0;font-variant-numeric:tabular-nums;color:var(--accent)}}
+.product-detail-pic{{width:100%;max-height:300px;object-fit:cover;border-radius:12px;margin-bottom:12px}}
+.product-reserve-placeholder{{margin-top:16px;padding:14px;background:var(--card-bg,#fff);border-radius:12px;color:var(--muted,#71717a);font-size:14px;border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent))}}
+.embed iframe{{display:block;border-radius:12px}}
 .md{{line-height:1.6}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront">{image}<main class="wrap guest-page-main">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}">{image}<main class="wrap guest-page-main">{body}</main>
 {chrome}
 {client_js}</body></html>"#,
         esc(&doc_title),
+        html_lang = i18n.html_lang(),
         favicon = favicon_tags,
         root = root,
+        layout_root = layout_root,
+        layout = layout,
         bd = design.backdrop_id,
         image = image,
         body = body,
@@ -1325,7 +1448,14 @@ fn theme_effects(theme_json: &str) -> Value {
 
 /// Sticky cart row + assistant host (parity with Flutter `GuestSiteShell` chrome).
 pub fn guest_storefront_chrome_html() -> &'static str {
-    r#"<div id="c35-guest-cart-row" class="guest-cart-row" style="display:none;">
+    r#"<header id="c35-guest-sticky" class="guest-sticky-bar" hidden aria-hidden="true">
+  <div class="guest-sticky-inner">
+    <img class="guest-sticky-avatar" alt="" width="32" height="32" hidden/>
+    <span class="guest-sticky-title"></span>
+    <a class="guest-sticky-cta" hidden></a>
+  </div>
+</header>
+<div id="c35-guest-cart-row" class="guest-cart-row" style="display:none;">
   <div id="c35-guest-cart-bar" data-guest="cart" class="guest-cart">
     <div class="guest-cart-meta">
       <div class="guest-cart-total" id="c35-cart-total">Rp 0</div>
@@ -1346,15 +1476,25 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
     let commerce = commerce_boot_build(pool, site_iid, &meta)
         .await
         .unwrap_or_else(|_| serde_json::json!({}));
+    let caps = site_capabilities_get(pool, site_iid).await;
+    let order_fulfillment = site_order_fulfillment_enabled(&caps);
     let assistant = site_assistant_boot_extras(&meta);
+    let i18n = GuestI18n::from_meta(&meta);
+    let commerce_product_count = commerce
+        .get("products")
+        .and_then(|v| v.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0);
     let guest = serde_json::json!({
         "site_iid": site_iid,
         "site_id": site_iid,
         "api_base": "",
         "commerce_boot": commerce,
-        "order_progress_steps": order_progress_steps_json(),
+        "order_progress_steps": order_progress_steps_json(order_fulfillment),
         "ai_assistant": assistant.get("ai_assistant").cloned().unwrap_or(Value::Null),
         "knowledge": assistant.get("knowledge").cloned().unwrap_or_else(|| json!([])),
+        "i18n": i18n.to_json(),
+        "guest_layout": guest_layout_mode(&meta, commerce_product_count),
     });
     let raw = serde_json::to_string(&guest).unwrap_or_else(|_| "{}".into());
     guest_client_script_markup(&raw, effects)

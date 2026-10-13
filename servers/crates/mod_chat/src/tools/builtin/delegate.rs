@@ -196,7 +196,7 @@ tool! {
     struct: ComputerUseDelegateTool,
     name: "computer_use.delegate",
     aliases: ["computer_use_delegate", "delegate_computer_use"],
-    description: "Spawn a computer-use subagent on a paired device. Requires device_iid; captures screenshots and sends input until the goal is done or safety limits hit.",
+    description: "Spawn a computer-use subagent on a paired device. Requires device_iid; uses device.screenshot and device.input (normalized coords, screenshot_after, shortcuts) until the goal is done or safety limits hit. Goal should include clearing foreground blockers on Windows (e.g. Task Manager via Stop-Process or Alt+F4) before clicking Chrome UI.",
     topics: ["general", "research", "device"],
     always: ["device"],
     ui_calling_key: "tool.computer_use.delegate.calling",

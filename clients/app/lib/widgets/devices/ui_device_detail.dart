@@ -14,6 +14,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/skill/io_skill_review.dart';
 import 'dart:async';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/widgets/devices/ui_device_chrome_setup_banner.dart';
 import 'package:alienai_c35/widgets/devices/ui_device_files.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_browser_pane.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
@@ -126,7 +127,12 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
   Widget _buildBody(BuildContext context) {
     final id = widget.row.identity;
     final kind = id.kind.toLowerCase();
-    final online = deviceOnlineFromMeta(DevicePresenceCache.instance.metaFor(id.iid, id.metaJson));
+    final metaJson = DevicePresenceCache.instance.metaFor(id.iid, id.metaJson);
+    final online = deviceOnlineFromMeta(metaJson);
+    final showChromeSetup = kind == 'remote' &&
+        online &&
+        deviceNeedsChromeExtensionSetup(deviceType: id.type, metaJson: metaJson) &&
+        _promptStore != null;
     final tabIndex = _tabController.index;
     final activeTab = _tabs[tabIndex];
     final isRemote = kind == 'remote' && activeTab == 'Remote';
@@ -145,6 +151,11 @@ class _UiDeviceDetailState extends State<UiDeviceDetail> with SingleTickerProvid
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!immersiveRemote && (widget.onBack != null || widget.title != null)) _navBarWrap(),
+              if (!immersiveRemote && showChromeSetup)
+                UiDeviceChromeSetupBanner(
+                  deviceName: id.name.isNotEmpty ? id.name : 'this device',
+                  promptStore: _promptStore!,
+                ),
               if (!immersiveRemote)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(8, 0, 12, 0),

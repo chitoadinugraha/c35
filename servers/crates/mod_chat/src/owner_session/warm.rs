@@ -38,29 +38,24 @@ pub async fn owner_session_warm_owner_bundle(
         let mut clock = StageClock::new(started);
         let http = http_client(std::time::Duration::from_secs(60));
 
-        let (_, bill_started, _) = timed(async {
-            billing_cache_warmup(&pool, nats_cloned.as_ref(), owner_iid).await;
-        })
-        .await;
-        clock.seq("billing_warmup", "Billing warmup", bill_started);
-
-        let (_, mem_started, _) = timed(async {
-            memory_bundle_warmup(&pool, nats_cloned.as_ref(), &http, owner_iid, None).await;
-        })
-        .await;
-        clock.seq("memory_warmup", "Memory warmup", mem_started);
-
-        let (_, scope_started, _) = timed(async {
-            scope_instruction_warm_owner_bundle(&pool, nats_cloned.as_ref(), owner_iid).await;
-        })
-        .await;
-        clock.seq("scope_warmup", "Scope warmup", scope_started);
-
-        let (user_ctx, ctx_started, _) =
-            timed(async { user_prompt_context_get(&pool, owner_iid).await }).await;
-        clock.seq("user_ctx", "User context", ctx_started);
+        let (
+            (_, bill_started, bill_ms),
+            (_, mem_started, mem_ms),
+            (_, scope_started, scope_ms),
+            (user_ctx, ctx_started, ctx_ms),
+        ) = tokio::join!(
+            timed(billing_cache_warmup(&pool, nats_cloned.as_ref(), owner_iid)),
+            timed(memory_bundle_warmup(&pool, nats_cloned.as_ref(), &http, owner_iid, None)),
+            timed(scope_instruction_warm_owner_bundle(&pool, nats_cloned.as_ref(), owner_iid)),
+            timed(user_prompt_context_get(&pool, owner_iid)),
+        );
+        clock.par("billing_warmup", "Billing warmup", bill_started, bill_ms);
+        clock.par("memory_warmup", "Memory warmup", mem_started, mem_ms);
+        clock.par("scope_warmup", "Scope warmup", scope_started, scope_ms);
+        clock.par("user_ctx", "User context", ctx_started, ctx_ms);
 
         if session.is_superseded() {
+            session.notify_ready();
             let duration_ms = started.elapsed().as_millis() as i64;
             session_warmup_trace_put(
                 &pool,
@@ -118,6 +113,7 @@ pub async fn owner_session_warm_owner_bundle(
         }
 
         session.bump_revision();
+        session.notify_ready();
         let duration_ms = started.elapsed().as_millis() as i64;
         let cancelled = session.is_superseded();
         session_warmup_trace_put(

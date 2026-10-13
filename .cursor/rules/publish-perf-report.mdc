@@ -18,6 +18,7 @@ Whenever you run a **publish** script for c35 (or the user asks you to publish),
 | `.\_\scripts\deploy\publish_node_stats.ps1` | `c35-node-stats` |
 | `.\_\scripts\deploy\publish_channel_whatsapp_device.ps1` | `channel-whatsapp-device` |
 | `.\_\scripts\deploy\publish_app_release.ps1` | see app targets below |
+| `.\_\scripts\deploy\publish_server_apk_web.ps1` | server + `android-apk-prod` + `windows-app-prod` + `web-release` |
 
 ### App / client `target` values (Dart `C35_PUBLISH_PERF`)
 
@@ -29,6 +30,7 @@ Whenever you run a **publish** script for c35 (or the user asks you to publish),
 | `android-tester` | `-Tester` |
 | `android-release` | `-AndroidOnly` |
 | `windows-release` | `-WindowsOnly` |
+| `windows-app-prod` | `-WindowsAppOnly` / `windows_upload_prod.dart` |
 | `web-release` | `-WebOnly` |
 | `remote-windows-agent` | `-RemoteAgent` |
 

@@ -1,3 +1,4 @@
+pub mod browser_bridge;
 pub mod agent_version;
 pub mod audio_capture;
 pub mod cursor_shape;

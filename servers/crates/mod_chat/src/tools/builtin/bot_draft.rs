@@ -8,6 +8,7 @@ use crate::bot_draft::{
     draft_summary, flag_true, plan_bot_draft, purpose_clear, sheet_config, BotDraftInput,
     PlannedSheet, SheetIn,
 };
+use crate::tools::builtin::bot_put::optional_bool_arg;
 use crate::data_source_put;
 use crate::tool;
 use crate::tools::ToolContext;
@@ -139,13 +140,23 @@ fn bot_draft_args(args: &Value) -> (String, String) {
 
 pub async fn bot_draft_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
     let (purpose, name) = bot_draft_args(args);
+    let deactivate = flag_true(&arg_str(args, "deactivate"));
+    let activate = flag_true(&arg_str(args, "activate"));
+    let active_flag = optional_bool_arg(args, "active");
+    let effective_activate = if deactivate {
+        false
+    } else if activate {
+        true
+    } else {
+        active_flag.unwrap_or(false)
+    };
     let input = BotDraftInput {
         purpose,
         name,
         inst_base: arg_str(args, "inst_base"),
         bot_iid: arg_i64(args, "bot_iid"),
         channel: arg_str(args, "channel"),
-        activate: flag_true(&arg_str(args, "activate")),
+        activate: effective_activate,
         web_search: flag_true(&arg_str(args, "web_search")),
         sheets: sheets_from_args(args),
     };
@@ -183,7 +194,11 @@ pub async fn bot_draft_exec(ctx: &ToolContext, args: &Value) -> Result<Value> {
         meta["channels"] = json!([]);
         meta["web_search"] = json!(plan.web_search);
     } else {
-        if plan.active {
+        if deactivate || active_flag == Some(false) {
+            meta["active"] = json!(false);
+        } else if plan.active {
+            meta["active"] = json!(true);
+        } else if active_flag == Some(true) {
             meta["active"] = json!(true);
         }
         if !input.inst_base.trim().is_empty()
@@ -277,7 +292,9 @@ tool! {
         inst_base: (string, "Replacement instruction. Empty to let the server write it from purpose.", optional, default = ""),
         bot_iid: (integer, "Existing draft bot id. 0 creates a new bot.", optional, default = 0),
         channel: (string, "whatsapp or telegram when the user named one. Empty otherwise.", optional, default = ""),
-        activate: (string, "true only when the user says to turn the bot on.", optional, default = ""),
+        activate: (string, "Deprecated: prefer bot.put with active. true when the user says to turn the bot on.", optional, default = ""),
+        deactivate: (string, "true when the user says to turn the bot off (or use bot.put).", optional, default = ""),
+        active: (boolean, "Explicit on/off when updating an existing bot_iid.", optional),
         web_search: (string, "true only when the user wants answers from the web.", optional, default = ""),
         sheet_url: (string, "One Google Sheet, Doc, or Slide URL.", optional, default = ""),
         sheet_name: (string, "Label for sheet_url.", optional, default = ""),

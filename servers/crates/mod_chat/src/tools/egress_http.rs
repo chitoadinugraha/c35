@@ -63,7 +63,15 @@ pub fn http_client_builder(timeout: Duration) -> Result<ClientBuilder, String> {
     Ok(builder)
 }
 
-pub fn http_client(timeout: Duration) -> Client {
+static CLIENT_30S: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
+    build_client_with_timeout(Duration::from_secs(30))
+});
+
+static CLIENT_DEFAULT: std::sync::LazyLock<Client> = std::sync::LazyLock::new(|| {
+    build_client_with_timeout(Duration::from_secs(15))
+});
+
+fn build_client_with_timeout(timeout: Duration) -> Client {
     match http_client_builder(timeout).and_then(|b| b.build().map_err(|e| e.to_string())) {
         Ok(c) => c,
         Err(e) => {
@@ -75,6 +83,16 @@ pub fn http_client(timeout: Duration) -> Client {
                 .build()
                 .unwrap_or_default()
         }
+    }
+}
+
+pub fn http_client(timeout: Duration) -> Client {
+    if timeout == Duration::from_secs(30) {
+        CLIENT_30S.clone()
+    } else if timeout == Duration::from_secs(15) {
+        CLIENT_DEFAULT.clone()
+    } else {
+        build_client_with_timeout(timeout)
     }
 }
 

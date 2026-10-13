@@ -63,7 +63,11 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
     if (_savingCaps) return;
     setState(() {
       _savingCaps = true;
-      _caps = {..._caps, key: value};
+      var next = {..._caps, key: value};
+      if (key == 'commerce' && !value) {
+        next['order_fulfillment'] = false;
+      }
+      _caps = next;
     });
     try {
       await widget.api.configPut(widget.siteIid, capabilitiesJson: siteCapabilitiesEncode(_caps));
@@ -201,6 +205,19 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
         const SizedBox(height: 4),
         const Text('Enable backend features for this site.', style: TextStyle(color: _muted, fontSize: 12)),
         _capToggle('commerce', 'Commerce (Orders & Products)'),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Order processing (kitchen)', style: TextStyle(color: _text, fontSize: 14)),
+          subtitle: const Text(
+            'Kitchen queue and guest “being prepared” status. Cashier-only: leave off.',
+            style: TextStyle(color: _muted, fontSize: 12),
+          ),
+          value: siteOrderFulfillmentEnabled(_caps),
+          activeThumbColor: _accent,
+          onChanged: (_savingCaps || !(_caps['commerce'] ?? true))
+              ? null
+              : (v) => _saveCapability('order_fulfillment', v),
+        ),
         _capToggle('booking', 'Booking (Objects tab)'),
         _capToggle('queue', 'Queue blocks'),
         _capToggle('attendance', 'Attendance (face enroll on Team)'),

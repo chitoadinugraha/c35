@@ -659,6 +659,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bytes",
+ "c_remote_browser_core",
  "c_remote_core",
  "c_remote_windows",
  "hostname",
@@ -668,6 +669,25 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "webrtc",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "c_remote_browser_core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "bytes",
+ "c_remote_core",
+ "hostname",
+ "image",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "urlencoding",
  "webrtc",
  "windows-sys 0.59.0",
 ]
@@ -753,6 +773,7 @@ dependencies = [
  "anyhow",
  "blake3",
  "bytes",
+ "c_remote_browser_core",
  "c_remote_core",
  "c_remote_drive",
  "futures-util",

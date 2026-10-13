@@ -8,7 +8,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::{ChildStdin, ChildStdout};
 use tokio::sync::{Mutex, oneshot};
 
-use crate::browser_state;
+use c_remote_browser_core::browser_state;
 
 pub const BRIDGE_VERSION: u8 = 1;
 const MAX_FRAME: u32 = 16 * 1024 * 1024;

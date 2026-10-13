@@ -46,6 +46,7 @@ class UiSiteTxEditor extends StatefulWidget {
     this.txId,
     this.onSaved,
     this.posEntry = false,
+    this.orderFulfillmentEnabled = true,
   });
 
   final int siteIid;
@@ -55,6 +56,7 @@ class UiSiteTxEditor extends StatefulWidget {
   final ValueChanged<Tx>? onSaved;
   /// Full-screen POS route (Sites picker / hints), not nested under Orders tab.
   final bool posEntry;
+  final bool orderFulfillmentEnabled;
 
   @override
   State<UiSiteTxEditor> createState() => _UiSiteTxEditorState();
@@ -83,7 +85,11 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
   @override
   void initState() {
     super.initState();
-    _posQueueStore = PosQueueStore(txApi: _txApi, siteIid: widget.siteIid);
+    _posQueueStore = PosQueueStore(
+      txApi: _txApi,
+      siteIid: widget.siteIid,
+      orderFulfillmentEnabled: widget.orderFulfillmentEnabled,
+    );
     _syncTabController();
     widget.api.conn.status.addListener(_onConnStatus);
     _posQueueStore.addListener(_onPosQueueCounts);
@@ -119,6 +125,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
   }
 
   Future<void> _openPosQueue(PosQueueMode mode) async {
+    if (mode == PosQueueMode.orders && !widget.orderFulfillmentEnabled) return;
     await showPosQueueSheet(
       context: context,
       mode: mode,
@@ -707,23 +714,24 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
                 );
               },
             ),
-            ListenableBuilder(
-              listenable: _posQueueStore,
-              builder: (context, _) {
-                final count = _posQueueStore.orderCount;
-                return IconButton(
-                  tooltip: count > 0 ? 'Orders ($count)' : 'Orders',
-                  icon: Badge.count(
-                    count: count,
-                    isLabelVisible: count > 0,
-                    backgroundColor: const Color(0xFFF59E0B),
-                    textColor: Colors.black,
-                    child: const Icon(Icons.restaurant_menu_outlined),
-                  ),
-                  onPressed: () => _openPosQueue(PosQueueMode.orders),
-                );
-              },
-            ),
+            if (widget.orderFulfillmentEnabled)
+              ListenableBuilder(
+                listenable: _posQueueStore,
+                builder: (context, _) {
+                  final count = _posQueueStore.orderCount;
+                  return IconButton(
+                    tooltip: count > 0 ? 'Orders ($count)' : 'Orders',
+                    icon: Badge.count(
+                      count: count,
+                      isLabelVisible: count > 0,
+                      backgroundColor: const Color(0xFFF59E0B),
+                      textColor: Colors.black,
+                      child: const Icon(Icons.restaurant_menu_outlined),
+                    ),
+                    onPressed: () => _openPosQueue(PosQueueMode.orders),
+                  );
+                },
+              ),
           ],
           ListenableBuilder(
             listenable: TxParkedOrders.instance,

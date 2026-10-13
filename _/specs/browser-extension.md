@@ -24,16 +24,20 @@ Server stores **signaling + ICE only** on the data plane. The MV3 extension does
 ## Process architecture
 
 ```text
-Flutter app  <-- WebRTC (unchanged) -->  alienai_remote_browser.exe (Rust)
+Flutter app  <-- WebRTC (unchanged) -->  desktop or browser agent (Rust)
                                               ^ Native Messaging (stdio JSON)
 Google Chrome (default profile)  +  MV3 extension (tab capture, tabs, input)
 ```
 
+**Unified desktop (target):** `alienai_remote_windows.exe` hosts NM + extension IPC + `__c35_browser__` on the same WS session as shell/Remote. Plan: [2026-10-12-unified-desktop-browser-agent-multitask.md](plans/2026-10-12-unified-desktop-browser-agent-multitask.md).
+
+**Standalone browser binary (shipped today):** `alienai_remote_browser.exe` remains valid for browser-only pairing until app UI deprecates it.
+
 | Component | Responsibility |
 |-----------|----------------|
 | **MV3 extension** | Pair UX, active-tab capture → JPEG, tab list/activate, input scripting; **no** `session_key`, **no** direct cluster API |
-| **Native messaging host** | Chrome ↔ Rust bridge; name **`com.alienai.c35.remote`** (Windows registry manifest) |
-| **`c_remote_browser` (Rust)** | Same binary as Playwright mode: pair loop, `session_key`, agent WS, WebRTC encode, OTA; **skips** Node `browser_engine` when `browser_engine=extension` |
+| **Native messaging host** | Chrome ↔ Rust bridge; name **`com.alienai.c35.remote`** (Windows registry manifest); target path = desktop or browser exe |
+| **`c_remote_browser` / desktop agent (Rust)** | Pair loop, `session_key`, agent WS, WebRTC encode, OTA; extension mode **skips** Node `browser_engine` |
 | **Playwright `browser_engine`** | **Not used** for extension devices — coexistence: one user may have both a Playwright browser device and an extension browser device |
 
 ### Video path (locked)

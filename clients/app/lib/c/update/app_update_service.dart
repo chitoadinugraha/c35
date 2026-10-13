@@ -37,6 +37,9 @@ class AppUpdateService {
   AppUpdateService._();
   static final AppUpdateService instance = AppUpdateService._();
 
+  static const _pollPending = Duration(seconds: 45);
+  static const _pollUpToDate = Duration(hours: 6);
+
   final ValueNotifier<AppUpdateState> state = ValueNotifier(const AppUpdateState());
   Timer? _timer;
   Timer? _idleTimer;
@@ -44,10 +47,12 @@ class AppUpdateService {
   var _countdownActive = false;
   DateTime _lastUserActivity = DateTime.now();
   Future<void> Function()? _androidCheck;
+  Future<void> Function(int version)? _androidInstall;
   bool Function()? _isBusy;
   void Function(AppRelease release)? _autoUpdatePrompt;
 
   void registerAndroidCheck(Future<void> Function()? check) => _androidCheck = check;
+  void registerAndroidInstall(Future<void> Function(int version)? install) => _androidInstall = install;
   void registerBusyCheck(bool Function()? isBusy) => _isBusy = isBusy;
   void registerAutoUpdatePrompt(void Function(AppRelease release)? prompt) => _autoUpdatePrompt = prompt;
 
@@ -65,13 +70,42 @@ class AppUpdateService {
 
   void start() {
     if (kIsWeb || kDebugMode) return;
-    if (!Platform.isWindows) return;
-    _timer?.cancel();
     _idleTimer?.cancel();
+    if (Platform.isAndroid) {
+      _idleTimer = Timer.periodic(const Duration(seconds: 10), (_) => _checkIdleAutoUpdate());
+      return;
+    }
+    if (!Platform.isWindows) return;
     unawaited(checkNow());
-    _timer = Timer.periodic(const Duration(hours: 6), (_) => checkNow());
-    _idleTimer = Timer.periodic(const Duration(seconds: 10), (_) => _checkIdleAutoUpdate());
+    _rescheduleWindowsPoll();
   }
+
+  void _rescheduleWindowsPoll() {
+    if (kIsWeb || kDebugMode || !Platform.isWindows) return;
+    _timer?.cancel();
+    final period = _windowsPollInterval(state.value.phase);
+    _timer = Timer.periodic(period, (_) => checkNow());
+  }
+
+  static Duration _windowsPollInterval(AppUpdatePhase phase) => switch (phase) {
+        AppUpdatePhase.checking || AppUpdatePhase.downloading || AppUpdatePhase.ready || AppUpdatePhase.forceRequired => _pollPending,
+        _ => _pollUpToDate,
+      };
+
+  void setAndroidApkUpToDate(AppRelease release) => _setState(AppUpdateState(phase: AppUpdatePhase.upToDate, release: release));
+
+  void setAndroidApkForceRequired(AppRelease release) => _setState(AppUpdateState(phase: AppUpdatePhase.forceRequired, release: release, progress: 0));
+
+  void setAndroidApkDownloading(AppRelease release, {required bool force}) =>
+      _setState(AppUpdateState(phase: force ? AppUpdatePhase.forceRequired : AppUpdatePhase.downloading, release: release, progress: 0));
+
+  void setAndroidApkProgress(AppRelease release, double progress, {required bool force}) =>
+      _setState(AppUpdateState(phase: force ? AppUpdatePhase.forceRequired : AppUpdatePhase.downloading, release: release, progress: progress));
+
+  void setAndroidApkReady(AppRelease release, {required bool force}) =>
+      _setState(AppUpdateState(phase: force ? AppUpdatePhase.forceRequired : AppUpdatePhase.ready, release: release, progress: 1));
+
+  void setAndroidApkFailed(AppRelease release, String error) => _setState(AppUpdateState(phase: AppUpdatePhase.failed, release: release, error: error));
 
   void dispose() {
     _timer?.cancel();
@@ -79,6 +113,7 @@ class AppUpdateService {
   }
 
   void _checkIdleAutoUpdate() {
+    if (!Platform.isAndroid) return;
     if (_countdownActive) return;
     final s = state.value;
     if (s.phase != AppUpdatePhase.ready || s.release == null) return;
@@ -96,7 +131,11 @@ class AppUpdateService {
 
   void _setState(AppUpdateState next) {
     if (state.value == next) return;
+    final prevPhase = state.value.phase;
     state.value = next;
+    if (!kIsWeb && Platform.isWindows && prevPhase != next.phase) {
+      _rescheduleWindowsPoll();
+    }
   }
 
   String statusLabel() {
@@ -171,6 +210,10 @@ class AppUpdateService {
   Future<void> installNow() async {
     final release = state.value.release;
     if (release == null) return;
+    if (!kIsWeb && Platform.isAndroid) {
+      await _androidInstall?.call(release.version);
+      return;
+    }
     if (!appUpdateStagedReady(release.version)) {
       await _downloadRelease(release);
       if (!appUpdateStagedReady(release.version)) return;

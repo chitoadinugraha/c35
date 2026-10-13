@@ -15,6 +15,7 @@ mod tx_list;
 mod tx_preview;
 mod tx_delete;
 mod tx_owner_resolve;
+mod tx_fulfillment_gate;
 mod tx_put;
 
 pub use finalize::{acc_signed_amount, tx_finalize, tx_preview_coa_names};

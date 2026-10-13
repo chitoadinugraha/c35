@@ -685,7 +685,11 @@ class GuestSiteCartChrome extends StatelessWidget {
                   key: const Key('guest-cart-bar'),
                   color: const Color(0xFF18181B),
                   elevation: 8,
-                  borderRadius: BorderRadius.circular(16),
+                  shadowColor: Colors.black.withValues(alpha: 0.35),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     child: Row(
@@ -697,11 +701,20 @@ class GuestSiteCartChrome extends StatelessWidget {
                             children: [
                               Text(
                                 moneyFmtIdr(controller.total),
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
                               ),
                               Text(
                                 '${controller.count} item',
-                                style: const TextStyle(color: Color(0xFFA1A1AA), fontSize: 12),
+                                style: const TextStyle(
+                                  color: Color(0xFFA1A1AA),
+                                  fontSize: 12,
+                                  fontFeatures: [FontFeature.tabularFigures()],
+                                ),
                               ),
                             ],
                           ),

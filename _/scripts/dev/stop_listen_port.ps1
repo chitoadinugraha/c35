@@ -17,15 +17,37 @@ function Stop-ProcessTree([int]$ProcId) {
     & taskkill /F /T /PID $ProcId 2>$null | Out-Null
 }
 
-$pids = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
-    Select-Object -ExpandProperty OwningProcess -Unique |
-    Where-Object { $_ -gt 0 })
+function Get-ListenPidsForPort([int]$ListenPort) {
+    $found = @()
+    try {
+        $found = @(Get-NetTCPConnection -LocalPort $ListenPort -State Listen -ErrorAction Stop |
+            Select-Object -ExpandProperty OwningProcess -Unique |
+            Where-Object { $_ -gt 0 })
+    } catch {
+        $found = @()
+    }
+    if ($found.Count -gt 0) { return $found }
 
-foreach ($pid in $pids) {
-    $p = Get-Process -Id $pid -ErrorAction SilentlyContinue
-    if (-not $p) { continue }
-    if (-not $Quiet) { Write-Host "==> kill $($p.ProcessName) pid $pid (port $Port)" }
-    Stop-ProcessTree $pid
+    # NetTCPIP often fails to load on Windows PowerShell 5.1; netstat works everywhere.
+    $portPat = ":$ListenPort\s"
+    netstat -ano | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -notmatch 'LISTENING') { return }
+        if ($line -notmatch $portPat) { return }
+        $parts = $line -split '\s+' | Where-Object { $_ -ne '' }
+        if ($parts.Count -lt 1) { return }
+        $op = 0
+        if ([int]::TryParse($parts[-1], [ref]$op) -and $op -gt 0) { $op }
+    } | Select-Object -Unique
 }
 
-if ($pids.Count -gt 0) { Start-Sleep -Milliseconds 300 }
+$pids = @(Get-ListenPidsForPort -ListenPort $Port)
+
+foreach ($owningPid in $pids) {
+    $p = Get-Process -Id $owningPid -ErrorAction SilentlyContinue
+    if (-not $p) { continue }
+    if (-not $Quiet) { Write-Host "==> kill $($p.ProcessName) pid $owningPid (port $Port)" }
+    Stop-ProcessTree $owningPid
+}
+
+if ($pids.Count -gt 0) { Start-Sleep -Milliseconds 500 }

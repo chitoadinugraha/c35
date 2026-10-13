@@ -1,6 +1,8 @@
 mod account;
+mod billing_voucher;
 mod bot_draft;
 mod bot_inbox;
+mod bot_put;
 mod browser;
 mod captcha;
 mod captcha_billing;
@@ -8,6 +10,7 @@ mod chat_history;
 mod consumption;
 mod delegate;
 mod device;
+mod device_manage;
 mod doc_extract;
 mod drive;
 mod expense;
@@ -30,6 +33,7 @@ mod staff;
 mod staff_debug;
 mod task;
 mod vid_generate;
+mod viz_chart;
 mod web_research;
 mod web_search;
 mod web_visit;
@@ -39,11 +43,16 @@ pub use account::{
     AccountReferralStatsTool, AccountSnapshotTool, BotListTool, ClientListTool, DeviceListTool,
     SiteListTool,
 };
+pub use billing_voucher::{
+    billing_redeem_tool_exec, billing_voucher_tool_exec, BillingRedeemTool, BillingVoucherTool,
+};
 pub use bot_draft::BotDraftTool;
 pub use bot_inbox::BotInboxQueryTool;
+pub use bot_put::BotPutTool;
 pub use captcha::CaptchaSolveTool;
 pub use browser::{
-    BrowserAgentRestartTool, BrowserExtensionTool, BrowserFileUploadTool, BrowserPageActTool,
+    BrowserAgentRestartTool, BrowserEnsureTool, BrowserExtensionTool, BrowserFileUploadTool,
+    BrowserPageActTool,
     BrowserPageExtractTool, BrowserPageObserveTool, BrowserPageScreenshotTool,
     BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRangeReadTool,
     BrowserCaptchaApplyTool, BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool,
@@ -58,6 +67,10 @@ pub use delegate::{
 pub use device::{
     DeviceFsListTool, DeviceFsReadTool, DeviceInputTool, DevicePairTool, DeviceScreenshotTool,
     ShellRunTool,
+};
+pub use device_manage::{
+    device_list_exec, DeviceArchiveTool, DeviceGetTool, DevicePinTool, DeviceRenameTool,
+    DeviceUnpairTool,
 };
 pub use doc_extract::DocExtractTool;
 pub use drive::{DriveListTool, DriveReadTool};
@@ -107,6 +120,7 @@ pub use task::{
     TaskRunStartTool, TaskRunStatusTool,
 };
 pub use vid_generate::VidGenerateTool;
+pub use viz_chart::VizChartTool;
 pub use web_research::WebResearchTool;
 pub use web_search::WebSearchTool;
 pub use web_visit::WebVisitTool;

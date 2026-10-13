@@ -197,6 +197,14 @@ class RemoteSession {
 
   static RemoteSession? get(int deviceIid) => _sessions[deviceIid];
 
+  /// True when the user has an active remote desktop session with control enabled.
+  static bool anyControllingDevice() {
+    for (final s in _sessions.values) {
+      if (s.connected.value && s.isControlEnabled.value) return true;
+    }
+    return false;
+  }
+
   static Future<void> dispose(int deviceIid) async {
     final s = _sessions.remove(deviceIid);
     if (s != null) {

@@ -21,6 +21,8 @@ pub struct WsQuery {
     #[serde(alias = "v")]
     pub build: Option<i64>,
     pub version_name: Option<String>,
+    /// Client platform id (3 = Windows desktop app).
+    pub platform: Option<i32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +31,11 @@ pub struct AgentWsQuery {
     #[serde(alias = "v")]
     pub build: Option<i64>,
     pub version_name: Option<String>,
+    pub browser_ready: Option<bool>,
+    pub browser_engine: Option<String>,
+    pub extension_install_version: Option<String>,
+    #[serde(alias = "browser_install_version")]
+    pub browser_install_version: Option<String>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -59,10 +66,23 @@ async fn agent_ws_handler(
     }
     let agent_build = q.build.unwrap_or(0);
     let agent_version_name = q.version_name.clone().unwrap_or_default();
+    let browser_meta = c35_mod_device::agent_browser_meta_from_json(&serde_json::json!({
+        "browser_ready": q.browser_ready,
+        "browser_engine": q.browser_engine,
+        "extension_install_version": q.extension_install_version,
+        "browser_install_version": q.browser_install_version,
+    }));
     match agent_session_resolve(&state.pool, &session_key).await {
         Ok(Some(_)) => ws
             .on_upgrade(move |socket| {
-                agent_session::handle(socket, state, session_key, agent_build, agent_version_name)
+                agent_session::handle(
+                    socket,
+                    state,
+                    session_key,
+                    agent_build,
+                    agent_version_name,
+                    browser_meta,
+                )
             })
             .into_response(),
         Ok(None) => axum::http::StatusCode::UNAUTHORIZED.into_response(),

@@ -3,6 +3,12 @@
 # =============================================================================
 .cache/
 **/.cache/
+# Stray scratch under workspaces (canonical: repo-root .cache/ only — _/specs/server.md)
+servers/.cache-*
+remotes/.cache-*
+servers/tmp-*
+remotes/tmp-*
+**/*_test_log.txt
 _cache/
 **/_cache/
 **/target/

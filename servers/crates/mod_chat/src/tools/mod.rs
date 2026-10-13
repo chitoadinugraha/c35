@@ -35,18 +35,22 @@ use builtin::{
     AdminChatSearchTool, AdminClientListTool, AdminDeviceListTool, AdminLogTailTool,
     AdminMsgFindTool, AdminMsgGetTool, AdminTaskListTool, AdminTraceGetTool,
     AdminUserRegistrationsListTool, AdminUserSearchTool,
-    BillingTopupListTool, BillingTopupReviewTool, BillingWithdrawListTool,
-    BillingWithdrawReviewTool, BotDraftTool, BotInboxQueryTool, BotListTool,
-    BrowserAgentRestartTool, BrowserCaptchaApplyTool, BrowserExtensionTool, BrowserFileUploadTool,
+    BillingRedeemTool, BillingTopupListTool, BillingTopupReviewTool, BillingVoucherTool,
+    BillingWithdrawListTool, BillingWithdrawReviewTool, BotDraftTool, BotInboxQueryTool, BotListTool,
+    BotPutTool,
+    BrowserAgentRestartTool, BrowserCaptchaApplyTool, BrowserEnsureTool, BrowserExtensionTool,
+    BrowserFileUploadTool,
     CaptchaSolveTool,
     BrowserPageActTool,
     BrowserPageExtractTool, BrowserPageObserveTool, BrowserPageScreenshotTool,
     BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRangeReadTool,
     BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool, ChatMessagesTool, ChatSearchTool,
     ClientListTool, ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool,
-    ConsumptionTodayTool, ConsumptionUpdateTool, DelegateRunTool, DeviceFsListTool,
-    DeviceFsReadTool, DeviceInputTool, DeviceListTool, DevicePairTool, DeviceScreenshotTool,
-    DocExtractTool, DriveListTool, DriveReadTool, ExpenseAddTool, ExpenseDeleteTool,
+    ConsumptionTodayTool, ConsumptionUpdateTool, DelegateRunTool, DeviceArchiveTool,
+    DeviceFsListTool, DeviceFsReadTool, DeviceGetTool, DeviceInputTool,
+    DeviceListTool, DevicePairTool, DevicePinTool, DeviceRenameTool, DeviceScreenshotTool,
+    DeviceUnpairTool,
+    DocExtractTool, DriveListTool, DriveReadTool, ExpenseAddTool, ExpenseDeleteTool, VizChartTool,
     ExpenseSummaryTool, GsheetAppendTool, GsheetReadTool, GsheetUpdateTool, ImgEditTool,
     ImgGenerateTool, MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool,
     MailMarkReadTool, MailSendTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
@@ -152,6 +156,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(GsheetAppendTool));
     dispatcher.register(Arc::new(GsheetUpdateTool));
     dispatcher.register(Arc::new(BotDraftTool));
+    dispatcher.register(Arc::new(BotPutTool));
     dispatcher.register(Arc::new(BotInboxQueryTool));
     dispatcher.register(Arc::new(WebSearchTool));
     dispatcher.register(Arc::new(WebVisitTool));
@@ -176,6 +181,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ExpenseAddTool));
     dispatcher.register(Arc::new(ExpenseSummaryTool));
     dispatcher.register(Arc::new(ExpenseDeleteTool));
+    dispatcher.register(Arc::new(VizChartTool));
     dispatcher.register(Arc::new(BrowserTaskRunTool));
     dispatcher.register(Arc::new(CaptchaSolveTool));
     dispatcher.register(Arc::new(BrowserPageObserveTool));
@@ -185,6 +191,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(BrowserCaptchaApplyTool));
     dispatcher.register(Arc::new(BrowserTabsTool));
     dispatcher.register(Arc::new(BrowserAgentRestartTool));
+    dispatcher.register(Arc::new(BrowserEnsureTool));
     dispatcher.register(Arc::new(BrowserExtensionTool));
     dispatcher.register(Arc::new(BrowserSheetsAppendRowTool));
     dispatcher.register(Arc::new(BrowserSheetsCellSetTool));
@@ -192,6 +199,11 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(BrowserSheetsRangeReadTool));
     dispatcher.register(Arc::new(BrowserFileUploadTool));
     dispatcher.register(Arc::new(DevicePairTool));
+    dispatcher.register(Arc::new(DeviceGetTool));
+    dispatcher.register(Arc::new(DeviceRenameTool));
+    dispatcher.register(Arc::new(DevicePinTool));
+    dispatcher.register(Arc::new(DeviceArchiveTool));
+    dispatcher.register(Arc::new(DeviceUnpairTool));
     dispatcher.register(Arc::new(ShellRunTool));
     dispatcher.register(Arc::new(DeviceFsListTool));
     dispatcher.register(Arc::new(DeviceFsReadTool));
@@ -231,6 +243,8 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(ReferralCodeListTool));
     dispatcher.register(Arc::new(ReferralCodeDeleteTool));
     dispatcher.register(Arc::new(ReferralTreeGetTool));
+    dispatcher.register(Arc::new(BillingVoucherTool));
+    dispatcher.register(Arc::new(BillingRedeemTool));
     dispatcher.register(Arc::new(MailMailboxListTool));
     dispatcher.register(Arc::new(MailListTool));
     dispatcher.register(Arc::new(NotifyScheduleTool));

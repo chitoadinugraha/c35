@@ -17,6 +17,9 @@ bool txQueueIsOpenOrder(Tx tx) {
   return tx.state == TxState.TX_STATE_PENDING;
 }
 
+TxState txQueueStateAfterPaymentConfirm({required bool orderFulfillment}) =>
+    orderFulfillment ? TxState.TX_STATE_PENDING : TxState.TX_STATE_OK;
+
 bool txQueueMatchesMode(Tx tx, PosQueueMode mode) => switch (mode) {
       PosQueueMode.paymentVerification => txQueueIsPaymentVerification(tx),
       PosQueueMode.orders => txQueueIsOpenOrder(tx),

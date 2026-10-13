@@ -1,10 +1,15 @@
+import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
 import 'package:alienai_c35/guest_site/guest_site_product.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('guestProductPriceLabel', () {
     test('contact sentinel', () {
-      expect(guestProductPriceLabel(guestProductPriceContact), 'Contact Us');
+      expect(guestProductPriceLabel(guestProductPriceContact), 'Contact us');
+      expect(
+        guestProductPriceLabel(guestProductPriceContact, i18n: const GuestSiteI18n(indonesian: true)),
+        'Hubungi kami',
+      );
     });
 
     test('zero and negative hide price', () {

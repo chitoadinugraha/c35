@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:path/path.dart' as p;
 import 'package:postgres/postgres.dart';
 
 import '../deploy_lib.dart';
@@ -95,7 +96,7 @@ Future<void> publishPlatformAppVersion({
   stdout.writeln('✓ GET /version $p → $version ($versionName) min≥$appReleaseMinBuild');
 }
 
-Future<void> publishWindowsAppVersion({required int version, required String hash, required int size, int min = 0}) async {
+Future<void> publishWindowsAppVersion({required int version, required String hash, required int size, int min = 0, bool skipNats = false}) async {
   if (deployEnv('PLATFORM_APP_VERSION_PUBLISH', '1') == '0') {
     stdout.writeln('[skip] PLATFORM_APP_VERSION_PUBLISH=0 — not publishing /version');
     return;
@@ -112,6 +113,45 @@ Future<void> publishWindowsAppVersion({required int version, required String has
     }
     rethrow;
   }
+
+  if (skipNats || deployEnv('C35_SKIP_NATS_BROADCAST', '0') == '1') {
+    stdout.writeln('SKIP NATS broadcast (C35_SKIP_NATS_BROADCAST=1 or --skip-nats)');
+    return;
+  }
+
+  final (major, _) = versionReadPubspec(repoRoot());
+  final versionName = '$major.$version.0';
+  await runStep('Broadcast Windows app release over NATS', () async {
+    final script = p.join(repoRoot(), '_', 'scripts', 'deploy', 'deploy_app', 'nats_broadcast_windows_app_release.ps1');
+    if (!File(script).existsSync()) {
+      stdout.writeln('WARN: $script missing — skip NATS');
+      return;
+    }
+    final proc = await Process.run(
+      'powershell',
+      [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        script,
+        '-Version',
+        '$version',
+        '-VersionName',
+        versionName,
+        '-Hash',
+        h,
+        '-Size',
+        '$size',
+      ],
+      runInShell: false,
+    );
+    stdout.write(proc.stdout);
+    stderr.write(proc.stderr);
+    if (proc.exitCode != 0) {
+      stdout.writeln('WARN: NATS broadcast failed (${proc.exitCode}) — OTA still available via GET /version/windows');
+    }
+  });
 }
 
 Future<void> publishPlatformAppVersionWindows({required int version, required String hash, required int size, int min = 0}) async {
@@ -154,10 +194,11 @@ Future<void> publishAppReleaseProd({
   String windowsHash = '',
   int windowsSize = 0,
   bool includeWeb = false,
+  bool skipWindowsNats = false,
 }) async {
   await publishAndroidAppVersion(version, apkHash: apkHash, apkSize: apkSize);
   if (windowsHash.isNotEmpty && windowsSize > 0) {
-    await publishWindowsAppVersion(version: version, hash: windowsHash, size: windowsSize);
+    await publishWindowsAppVersion(version: version, hash: windowsHash, size: windowsSize, skipNats: skipWindowsNats);
   }
   if (includeWeb) await publishWebAppVersion(version);
 }

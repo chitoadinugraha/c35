@@ -615,6 +615,15 @@ const InvokeReq$json = {
       '9': 0,
       '10': 'adminDiskClean'
     },
+    {
+      '1': 'admin_user_registrations_list',
+      '3': 146,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqAdminUserRegistrationsList',
+      '9': 0,
+      '10': 'adminUserRegistrationsList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -716,7 +725,9 @@ final $typed_data.Uint8List invokeReqDescriptor = $convert.base64Decode(
     'YXRmb3JtVXNlck1ldHJpY3NIAFIYYWRtaW5QbGF0Zm9ybVVzZXJNZXRyaWNzEkwKE2RldmljZV'
     '9lZ3Jlc3NfbGVhc2UYkAEgASgLMhkuYzM1LlJlcURldmljZUVncmVzc0xlYXNlSABSEWRldmlj'
     'ZUVncmVzc0xlYXNlEkMKEGFkbWluX2Rpc2tfY2xlYW4YkQEgASgLMhYuYzM1LlJlcUFkbWluRG'
-    'lza0NsZWFuSABSDmFkbWluRGlza0NsZWFuQgYKBGJvZHk=');
+    'lza0NsZWFuSABSDmFkbWluRGlza0NsZWFuEmgKHWFkbWluX3VzZXJfcmVnaXN0cmF0aW9uc19s'
+    'aXN0GJIBIAEoCzIiLmMzNS5SZXFBZG1pblVzZXJSZWdpc3RyYXRpb25zTGlzdEgAUhphZG1pbl'
+    'VzZXJSZWdpc3RyYXRpb25zTGlzdEIGCgRib2R5');
 
 @$core.Deprecated('Use invokeResDescriptor instead')
 const InvokeRes$json = {
@@ -1310,6 +1321,15 @@ const InvokeRes$json = {
       '9': 0,
       '10': 'adminDiskClean'
     },
+    {
+      '1': 'admin_user_registrations_list',
+      '3': 146,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResAdminUserRegistrationsList',
+      '9': 0,
+      '10': 'adminUserRegistrationsList'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -1410,7 +1430,9 @@ final $typed_data.Uint8List invokeResDescriptor = $convert.base64Decode(
     'xhdGZvcm1Vc2VyTWV0cmljc0gAUhhhZG1pblBsYXRmb3JtVXNlck1ldHJpY3MSTAoTZGV2aWNl'
     'X2VncmVzc19sZWFzZRiQASABKAsyGS5jMzUuUmVzRGV2aWNlRWdyZXNzTGVhc2VIAFIRZGV2aW'
     'NlRWdyZXNzTGVhc2USQwoQYWRtaW5fZGlza19jbGVhbhiRASABKAsyFi5jMzUuUmVzQWRtaW5E'
-    'aXNrQ2xlYW5IAFIOYWRtaW5EaXNrQ2xlYW5CBgoEYm9keQ==');
+    'aXNrQ2xlYW5IAFIOYWRtaW5EaXNrQ2xlYW4SaAodYWRtaW5fdXNlcl9yZWdpc3RyYXRpb25zX2'
+    'xpc3QYkgEgASgLMiIuYzM1LlJlc0FkbWluVXNlclJlZ2lzdHJhdGlvbnNMaXN0SABSGmFkbWlu'
+    'VXNlclJlZ2lzdHJhdGlvbnNMaXN0QgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsReqDescriptor instead')
 const WsReq$json = {
@@ -2866,6 +2888,24 @@ const WsReq$json = {
       '9': 0,
       '10': 'sessionFocus'
     },
+    {
+      '1': 'site_assistant_get',
+      '3': 225,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteAssistantGet',
+      '9': 0,
+      '10': 'siteAssistantGet'
+    },
+    {
+      '1': 'site_assistant_ensure',
+      '3': 226,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ReqSiteAssistantEnsure',
+      '9': 0,
+      '10': 'siteAssistantEnsure'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -3070,8 +3110,10 @@ final $typed_data.Uint8List wsReqDescriptor = $convert.base64Decode(
     'NlRWdyZXNzRGF0YRJTChdyZXFfZGV2aWNlX2VncmVzc19jbG9zZRjcASABKAsyGS5jMzUuUmVx'
     'RGV2aWNlRWdyZXNzQ2xvc2VIAFIUcmVxRGV2aWNlRWdyZXNzQ2xvc2USOQoMcm9vdF9jb25zb2'
     'xlGN0BIAEoCzITLmMzNS5SZXFSb290Q29uc29sZUgAUgtyb290Q29uc29sZRI8Cg1zZXNzaW9u'
-    'X2ZvY3VzGOABIAEoCzIULmMzNS5SZXFTZXNzaW9uRm9jdXNIAFIMc2Vzc2lvbkZvY3VzQgYKBG'
-    'JvZHk=');
+    'X2ZvY3VzGOABIAEoCzIULmMzNS5SZXFTZXNzaW9uRm9jdXNIAFIMc2Vzc2lvbkZvY3VzEkkKEn'
+    'NpdGVfYXNzaXN0YW50X2dldBjhASABKAsyGC5jMzUuUmVxU2l0ZUFzc2lzdGFudEdldEgAUhBz'
+    'aXRlQXNzaXN0YW50R2V0ElIKFXNpdGVfYXNzaXN0YW50X2Vuc3VyZRjiASABKAsyGy5jMzUuUm'
+    'VxU2l0ZUFzc2lzdGFudEVuc3VyZUgAUhNzaXRlQXNzaXN0YW50RW5zdXJlQgYKBGJvZHk=');
 
 @$core.Deprecated('Use wsResDescriptor instead')
 const WsRes$json = {
@@ -4645,6 +4687,33 @@ const WsRes$json = {
       '9': 0,
       '10': 'sessionSuperseded'
     },
+    {
+      '1': 'site_assistant_get',
+      '3': 225,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteAssistantGet',
+      '9': 0,
+      '10': 'siteAssistantGet'
+    },
+    {
+      '1': 'site_assistant_ensure',
+      '3': 226,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.ResSiteAssistantEnsure',
+      '9': 0,
+      '10': 'siteAssistantEnsure'
+    },
+    {
+      '1': 'app_release_nudge',
+      '3': 227,
+      '4': 1,
+      '5': 11,
+      '6': '.c35.AppReleaseNudge',
+      '9': 0,
+      '10': 'appReleaseNudge'
+    },
   ],
   '8': [
     {'1': 'body'},
@@ -4864,8 +4933,26 @@ final $typed_data.Uint8List wsResDescriptor = $convert.base64Decode(
     'aWJlSABSDnN0YXRzU3Vic2NyaWJlEjkKDHJvb3RfY29uc29sZRjeASABKAsyEy5jMzUuUmVzUm'
     '9vdENvbnNvbGVIAFILcm9vdENvbnNvbGUSPAoNc2Vzc2lvbl9mb2N1cxjfASABKAsyFC5jMzUu'
     'UmVzU2Vzc2lvbkZvY3VzSABSDHNlc3Npb25Gb2N1cxJIChJzZXNzaW9uX3N1cGVyc2VkZWQY4A'
-    'EgASgLMhYuYzM1LlNlc3Npb25TdXBlcnNlZGVkSABSEXNlc3Npb25TdXBlcnNlZGVkQgYKBGJv'
-    'ZHk=');
+    'EgASgLMhYuYzM1LlNlc3Npb25TdXBlcnNlZGVkSABSEXNlc3Npb25TdXBlcnNlZGVkEkkKEnNp'
+    'dGVfYXNzaXN0YW50X2dldBjhASABKAsyGC5jMzUuUmVzU2l0ZUFzc2lzdGFudEdldEgAUhBzaX'
+    'RlQXNzaXN0YW50R2V0ElIKFXNpdGVfYXNzaXN0YW50X2Vuc3VyZRjiASABKAsyGy5jMzUuUmVz'
+    'U2l0ZUFzc2lzdGFudEVuc3VyZUgAUhNzaXRlQXNzaXN0YW50RW5zdXJlEkMKEWFwcF9yZWxlYX'
+    'NlX251ZGdlGOMBIAEoCzIULmMzNS5BcHBSZWxlYXNlTnVkZ2VIAFIPYXBwUmVsZWFzZU51ZGdl'
+    'QgYKBGJvZHk=');
+
+@$core.Deprecated('Use appReleaseNudgeDescriptor instead')
+const AppReleaseNudge$json = {
+  '1': 'AppReleaseNudge',
+  '2': [
+    {'1': 'platform', '3': 1, '4': 1, '5': 9, '10': 'platform'},
+    {'1': 'version', '3': 2, '4': 1, '5': 3, '10': 'version'},
+  ],
+};
+
+/// Descriptor for `AppReleaseNudge`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List appReleaseNudgeDescriptor = $convert.base64Decode(
+    'Cg9BcHBSZWxlYXNlTnVkZ2USGgoIcGxhdGZvcm0YASABKAlSCHBsYXRmb3JtEhgKB3ZlcnNpb2'
+    '4YAiABKANSB3ZlcnNpb24=');
 
 @$core.Deprecated('Use notifyItemDescriptor instead')
 const NotifyItem$json = {

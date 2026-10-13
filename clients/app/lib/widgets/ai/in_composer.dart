@@ -221,7 +221,14 @@ class _InComposerState extends State<InComposer> {
 
   List<SlashCommand> get _slashCommands => [
         ..._slashCommandsBase,
-        if (widget.viewerIsRoot)
+        if (widget.viewerIsRoot) ...[
+          const SlashCommand(
+            id: 'som',
+            label: '/som',
+            description: 'Set-of-Mark screenshot (no LLM)',
+            icon: Icons.grid_on_outlined,
+            rootOnly: true,
+          ),
           const SlashCommand(
             id: 'test-multitask',
             label: '/test-multitask',
@@ -229,6 +236,7 @@ class _InComposerState extends State<InComposer> {
             icon: Icons.hub_outlined,
             rootOnly: true,
           ),
+        ],
       ];
 
   bool get _hasText => composerMentionTextNonempty(_textWithoutActiveMentionDraft) || _attachments.isNotEmpty;
@@ -288,6 +296,9 @@ class _InComposerState extends State<InComposer> {
     } else if (cmd.id == 'clear') {
       _controller.clear();
       widget.onNewChat?.call();
+    } else if (cmd.id == 'som') {
+      _controller.text = '/som ';
+      _controller.selection = const TextSelection.collapsed(offset: 5);
     } else if (cmd.id == 'test-multitask') {
       _controller.clear();
       widget.onTestMultitask?.call();
@@ -550,7 +561,15 @@ class _InComposerState extends State<InComposer> {
   }
 
   void _pickMention(CatalogMention m) {
-    if (m.isRootCommand && widget.onTestMultitask != null) {
+    if (m.id == 'som') {
+      _dismissMentionPicker();
+      _controller.text = '/som ';
+      _controller.selection = const TextSelection.collapsed(offset: 5);
+      _focus.requestFocus();
+      setState(() {});
+      return;
+    }
+    if (m.id == 'test_multitask' && widget.onTestMultitask != null) {
       _dismissMentionPicker();
       widget.onTestMultitask!();
       return;

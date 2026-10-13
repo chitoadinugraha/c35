@@ -5,6 +5,5 @@
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://REPLACE_WITH_EXTENSION_ID/"
-  ],
-  "args": ["--chrome-native-host"]
+  ]
 }

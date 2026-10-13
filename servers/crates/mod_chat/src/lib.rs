@@ -17,6 +17,7 @@ mod bot_session;
 mod channel_prompt_turn;
 mod data_source_rpc;
 mod device_context;
+mod device_som;
 mod inbox;
 mod log_list;
 pub mod compose;
@@ -56,6 +57,7 @@ mod site_commerce_compose;
 mod site_guest_cart;
 mod site_guest_turn;
 mod tx_browse_render;
+mod viz_chart;
 mod site_query_export;
 mod site_query_present;
 pub mod memory;
@@ -126,7 +128,7 @@ pub use chat_sync::{chat_fanout, chat_title_set, chat_touch};
 pub use device_context::{
     bound_device_prompt_prepare, chat_device_context_create, chat_device_context_list,
     chat_mention_context_commit, BROWSER_DEVICE_TOOL_EXCLUDE, DEVICE_SIGNAL_ANDROID,
-    DEVICE_SIGNAL_WINDOWS,
+    DEVICE_SIGNAL_BROWSER, DEVICE_SIGNAL_WINDOWS,
 };
 pub use bot_session::{bot_session_billing_snapshot, bot_session_on_turn, bot_prompt_runtime};
 pub use channel_prompt_turn::channel_prompt_turn;
@@ -141,6 +143,7 @@ pub use inst_admin::{
     inst_delete, inst_get, inst_list, inst_publish_invalidation, inst_put, InstAdminError,
     NATS_SUBJECT_PREFIX,
 };
+pub use device_som::{mcp_device_som, som_command_invoked, som_command_parse, SOM_SLASH_CMD};
 pub use mcp_agent::{
     mcp_agent_allowed_owners, mcp_agent_owner_allowed, mcp_prompt_compose, mcp_prompt_run,
     mcp_tool_exec, DEFAULT_DEBUG_OWNER_IID, DEFAULT_TEST_OWNER_IID,
@@ -168,8 +171,8 @@ pub use context_idle::{context_idle_compact_enabled, ContextIdleFetchTask};
 pub use context_pack::{context_window_options, context_window_resolve, model_context_limit, token_estimate};
 pub use memory::{
     memory_bundle_warmup, memory_delete, memory_list_active, memory_prompt_merge, memory_put,
-    memory_retrieve, memory_skip_site_scoped, retrieval_query_embed, MemoryRetrieveResult,
-    RETRIEVAL_EMBED_DIMS,
+    memory_retrieve, memory_skip_site_scoped, retrieval_query_embed, unified_query_embed,
+    MemoryRetrieveResult, UnifiedPromptEmbed, RETRIEVAL_EMBED_DIMS,
 };
 pub use memory_rpc::{memory_delete_rpc, memory_list_rpc};
 pub use scope_instruction::{

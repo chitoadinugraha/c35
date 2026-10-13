@@ -24,6 +24,8 @@ import 'package:alienai_c35/c/site/site_schedule.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
+import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
+import 'package:alienai_c35/guest_site/guest_site_layout.dart';
 import 'package:alienai_c35/guest_site/guest_site_modal.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/guest_site/guest_site_product.dart';
@@ -570,6 +572,47 @@ class _GuestProductInCartBadge extends StatelessWidget {
   }
 }
 
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? accent.withValues(alpha: 0.12) : _guestTextPrimary.withValues(alpha: 0.04),
+      shape: StadiumBorder(
+        side: BorderSide(
+          color: selected ? accent.withValues(alpha: 0.45) : _guestTextSecondary.withValues(alpha: 0.28),
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const StadiumBorder(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? accent : _guestTextPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class GuestSiteProductGridBlock extends StatefulWidget {
   const GuestSiteProductGridBlock({
     super.key,
@@ -608,6 +651,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       ? null
       : widget.initialNextCursor?.trim();
   var _loadingMore = false;
+  String? _categoryFilter;
 
   @override
   void didUpdateWidget(covariant GuestSiteProductGridBlock oldWidget) {
@@ -652,13 +696,35 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     }
   }
 
+  List<String> _categoryChips(List<Map<String, dynamic>> rows) {
+    final blockCategory = widget.props['category']?.toString().trim() ?? '';
+    if (blockCategory.isNotEmpty) return const [];
+    final cats = <String>{};
+    for (final p in rows) {
+      final c = p['category']?.toString().trim() ?? '';
+      if (c.isNotEmpty) cats.add(c);
+    }
+    if (cats.length < 2) return const [];
+    return cats.toList()..sort();
+  }
+
+  List<Map<String, dynamic>> _filteredRows(List<Map<String, dynamic>> rows) {
+    final f = _categoryFilter?.trim();
+    if (f == null || f.isEmpty) return rows;
+    return rows.where((p) => (p['category']?.toString().trim() ?? '') == f).toList(growable: false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final title = widget.props['title']?.toString() ?? 'Katalog & Layanan';
+    final i18n = GuestSiteI18n.fromMeta(widget.catalogMeta);
+    final title = widget.props['title']?.toString() ?? i18n.catalogDefaultTitle;
     final rows = _rows.isNotEmpty
         ? _rows
         : List.generate(3, (i) => {'name': 'Item ${i + 1}', 'pic': '', 'price': 0});
+    final chips = _categoryChips(rows);
+    final visible = _filteredRows(rows);
     final catalogDisplay = productGridDisplay(widget.props, meta: widget.catalogMeta);
+    final layout = guestLayoutMode(widget.catalogMeta, productCount: rows.length);
 
     final sectionFg = widget.foreground ?? _guestTextPrimary;
     return Container(
@@ -677,7 +743,28 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
+          if (chips.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _CategoryChip(
+                  label: i18n.filterAll,
+                  selected: (_categoryFilter ?? '').isEmpty,
+                  accent: widget.accent,
+                  onTap: () => setState(() => _categoryFilter = null),
+                ),
+                for (final c in chips)
+                  _CategoryChip(
+                    label: c,
+                    selected: _categoryFilter == c,
+                    accent: widget.accent,
+                    onTap: () => setState(() => _categoryFilter = c),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+          ],
           LayoutBuilder(
             builder: (context, constraints) {
               // Phone site preview (~400px): list rows read better than tall 2-col cards (CSA parity).
@@ -685,25 +772,26 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               if (useList) {
                 return Column(
                   children: [
-                    for (final p in rows)
+                    for (final p in visible)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: _productListRow(widget.accent, widget.productDesign, p),
+                        child: _productListRow(widget.accent, widget.productDesign, p, i18n: i18n),
                       ),
                   ],
                 );
               }
+              final crossAxis = guestProductGridCrossAxisCount(constraints.maxWidth, layout);
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxis,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
                   childAspectRatio: 0.72,
                 ),
-                itemCount: rows.length,
-                itemBuilder: (_, i) => _productCard(widget.accent, widget.productDesign, rows[i]),
+                itemCount: visible.length,
+                itemBuilder: (_, i) => _productCard(widget.accent, widget.productDesign, visible[i], i18n: i18n),
               );
             },
           ),
@@ -712,7 +800,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
             Align(
               child: TextButton(
                 onPressed: _loadingMore ? null : _loadMore,
-                child: Text(_loadingMore ? 'Memuat…' : 'Muat lebih banyak'),
+                child: Text(_loadingMore ? i18n.loading : i18n.loadMore),
               ),
             ),
           ],
@@ -721,7 +809,12 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     );
   }
 
-  Widget _productListRow(Color accent, SiteProductDesignDraft design, Map<String, dynamic> p) {
+  Widget _productListRow(
+    Color accent,
+    SiteProductDesignDraft design,
+    Map<String, dynamic> p, {
+    GuestSiteI18n i18n = GuestSiteI18n.english,
+  }) {
     final name = p['name']?.toString() ?? 'Product';
     final desc = p['desc']?.toString() ?? p['description']?.toString() ?? '';
     final pic = p['pic']?.toString() ?? '';
@@ -747,6 +840,8 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       fallbackColor: sub,
       fallbackSize: 13,
       fallbackWeight: FontWeight.w700,
+    ).copyWith(
+      fontFeatures: const [FontFeature.tabularFigures()],
     );
     final stock = guestProductVisibleStock(p);
 
@@ -771,7 +866,8 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       cart.openOrder(productId: pid, name: name, price: price, pic: pic, desc: desc, stockMax: stock);
     }
 
-    final priceLabel = guestProductPriceLabel(price);
+    final priceLabel = guestProductPriceLabel(price, i18n: i18n);
+    final quoteOnly = price == guestProductPriceContact;
 
     final row = Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -811,10 +907,21 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  if (priceLabel.isNotEmpty) Text(priceLabel, style: priceStyle),
+                  if (!quoteOnly && priceLabel.isNotEmpty) Text(priceLabel, style: priceStyle),
+                  if (quoteOnly)
+                    TextButton(
+                      onPressed: () => _openProductDetail(p),
+                      style: TextButton.styleFrom(
+                        foregroundColor: accent,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: Text(i18n.tileContactCta, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    ),
                   IconButton(
                     key: ValueKey('guest-product-info-${p['product_id']}'),
-                    tooltip: 'Detail',
+                    tooltip: i18n.detailAria,
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
@@ -829,7 +936,12 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     return _wrapProductTile(onProductTap, row);
   }
 
-  Widget _productCard(Color accent, SiteProductDesignDraft design, Map<String, dynamic> p) {
+  Widget _productCard(
+    Color accent,
+    SiteProductDesignDraft design,
+    Map<String, dynamic> p, {
+    GuestSiteI18n i18n = GuestSiteI18n.english,
+  }) {
     final name = p['name']?.toString() ?? 'Product';
     final desc = p['desc']?.toString() ?? p['description']?.toString() ?? '';
     final pic = p['pic']?.toString() ?? '';
@@ -855,8 +967,11 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       fallbackColor: widget.accent,
       fallbackSize: 13,
       fallbackWeight: FontWeight.w700,
+    ).copyWith(
+      fontFeatures: const [FontFeature.tabularFigures()],
     );
-    final priceLabel = guestProductPriceLabel(price);
+    final priceLabel = guestProductPriceLabel(price, i18n: i18n);
+    final quoteOnly = price == guestProductPriceContact;
     final stock = guestProductVisibleStock(p);
 
     void onProductTap() {
@@ -922,10 +1037,29 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  if (priceLabel.isNotEmpty) Expanded(child: Text(priceLabel, style: priceStyle)),
+                  if (quoteOnly)
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.tonal(
+                          onPressed: () => _openProductDetail(p),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: accent,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          child: Text(i18n.tileContactCta, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    )
+                  else if (priceLabel.isNotEmpty)
+                    Expanded(child: Text(priceLabel, style: priceStyle)),
                   IconButton(
                     key: ValueKey('guest-product-info-${p['product_id']}'),
-                    tooltip: 'Detail',
+                    tooltip: i18n.detailAria,
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 28, minHeight: 28),

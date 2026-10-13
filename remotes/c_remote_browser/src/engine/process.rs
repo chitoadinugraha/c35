@@ -7,7 +7,31 @@ use tokio::process::{Child, Command};
 use tracing::{info, warn};
 
 use super::ipc::{stdout_reader_loop, EngineBridge};
-use crate::browser_state::BrowserState;
+use c_remote_browser_core::browser_state::BrowserState;
+use std::sync::Mutex;
+
+static PLAYWRIGHT_ENGINE: Mutex<Option<EngineProcess>> = Mutex::new(None);
+
+pub async fn shutdown_playwright_engine() {
+    if let Ok(mut guard) = PLAYWRIGHT_ENGINE.lock() {
+        if let Some(mut e) = guard.take() {
+            shutdown_engine(&mut e).await;
+        }
+    }
+}
+
+pub fn playwright_engine_is_none() -> bool {
+    PLAYWRIGHT_ENGINE
+        .lock()
+        .map(|g| g.is_none())
+        .unwrap_or(true)
+}
+
+pub fn set_playwright_engine(proc: EngineProcess) {
+    if let Ok(mut guard) = PLAYWRIGHT_ENGINE.lock() {
+        *guard = Some(proc);
+    }
+}
 
 pub struct EngineProcess {
     pub child: Child,
@@ -115,7 +139,7 @@ async fn launch_browser(bridge: &EngineBridge, headless: bool, profile: &Path, d
 }
 
 pub async fn spawn_engine(headless: bool, slot_id: &str) -> Result<EngineProcess> {
-    if crate::mode::is_extension_engine()
+    if c_remote_browser_core::mode::is_extension_engine()
         || std::env::var("C35_NATIVE_MESSAGING_HOST").as_deref() == Ok("1")
     {
         anyhow::bail!(
@@ -184,15 +208,15 @@ pub async fn ensure_engine(
     headless: bool,
     slot_id: &str,
 ) -> Result<Arc<EngineBridge>> {
-    if crate::mode::is_extension_engine() {
+    if c_remote_browser_core::mode::is_extension_engine() {
         anyhow::bail!(
             "Playwright browser_engine is disabled in chrome extension mode; use your existing Chrome window"
         );
     }
     let slot_id = sanitize_slot_id(slot_id);
+    let _ = state;
     let (needs_spawn, old) = {
-        let mut guard = state
-            .engine
+        let mut guard = PLAYWRIGHT_ENGINE
             .lock()
             .map_err(|_| anyhow::anyhow!("engine lock"))?;
         let mut stale = false;
@@ -215,15 +239,13 @@ pub async fn ensure_engine(
         }
         let proc = spawn_engine(headless, &slot_id).await?;
         let bridge = proc.bridge.clone();
-        state
-            .engine
+        PLAYWRIGHT_ENGINE
             .lock()
             .map_err(|_| anyhow::anyhow!("engine lock"))?
             .replace(proc);
         return Ok(bridge);
     }
-    let guard = state
-        .engine
+    let guard = PLAYWRIGHT_ENGINE
         .lock()
         .map_err(|_| anyhow::anyhow!("engine lock"))?;
     Ok(guard

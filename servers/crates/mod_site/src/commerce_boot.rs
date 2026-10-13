@@ -6,13 +6,16 @@ use crate::guest_product::{guest_product_list, pic_url, product_row_json};
 use crate::rows::col_text;
 use crate::site_config::{site_capability_enabled, site_capabilities_get};
 
-pub fn order_progress_steps_json() -> Value {
-    json!([
-        { "state": "waiting_payment", "label": "Menunggu pembayaran" },
-        { "state": "pending", "label": "Diproses" },
-        { "state": "ok", "label": "Selesai" },
-        { "state": "cancelled", "label": "Dibatalkan" },
-    ])
+pub fn order_progress_steps_json(fulfillment: bool) -> Value {
+    let mut steps = vec![
+        json!({ "state": "waiting_payment", "label": "Menunggu pembayaran" }),
+    ];
+    if fulfillment {
+        steps.push(json!({ "state": "pending", "label": "Diproses" }));
+    }
+    steps.push(json!({ "state": "ok", "label": "Selesai" }));
+    steps.push(json!({ "state": "cancelled", "label": "Dibatalkan" }));
+    Value::Array(steps)
 }
 
 fn taxes_from_meta(meta: &Value) -> Vec<Value> {
@@ -188,6 +191,21 @@ mod tests {
         let methods = payment_methods_from_meta(&json!({}));
         assert_eq!(methods.len(), 3);
         assert_eq!(methods[0]["id"], "cash");
+    }
+
+    #[test]
+    fn order_progress_steps_omit_pending_when_fulfillment_off() {
+        let steps = order_progress_steps_json(false);
+        let arr = steps.as_array().expect("array");
+        assert_eq!(arr.len(), 3);
+        assert!(!arr.iter().any(|s| s.get("state") == Some(&json!("pending"))));
+    }
+
+    #[test]
+    fn order_progress_steps_include_pending_when_fulfillment_on() {
+        let steps = order_progress_steps_json(true);
+        let arr = steps.as_array().expect("array");
+        assert_eq!(arr.len(), 4);
     }
 
     #[test]

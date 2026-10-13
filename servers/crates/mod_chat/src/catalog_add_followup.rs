@@ -90,6 +90,7 @@ pub async fn chat_last_assistant_snapshot(pool: &sqlx::PgPool, chat_id: i64) -> 
     }
 }
 
+#[allow(dead_code)]
 pub async fn chat_last_assistant_content(pool: &sqlx::PgPool, chat_id: i64) -> Option<String> {
     chat_last_assistant_snapshot(pool, chat_id).await.content
 }

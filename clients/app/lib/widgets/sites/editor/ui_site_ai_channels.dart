@@ -199,7 +199,7 @@ class _ChannelRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final display = channelDisplay(channel);
+    final (label, icon, accent) = channelDisplay(channel);
     final active = channelIsActive(channel);
     return Material(
       color: siteEditorCardBg,
@@ -214,13 +214,13 @@ class _ChannelRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              Icon(display.\, size: 18, color: display.\),
+              Icon(icon, size: 18, color: accent),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(display.\, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text(label, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600)),
                     Text(active ? 'Connected' : channel.status, style: const TextStyle(color: _muted, fontSize: 11)),
                   ],
                 ),

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:alienai_c35/c/update/app_update_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -8,7 +10,9 @@ class UiUpdateChrome extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode || defaultTargetPlatform != TargetPlatform.windows) return const SizedBox.shrink();
+    if (kDebugMode) return const SizedBox.shrink();
+    final showChrome = defaultTargetPlatform == TargetPlatform.windows || (!kIsWeb && Platform.isAndroid);
+    if (!showChrome) return const SizedBox.shrink();
     return RepaintBoundary(
       key: _chromeKey,
       child: ValueListenableBuilder<AppUpdateState>(
@@ -16,9 +20,15 @@ class UiUpdateChrome extends StatelessWidget {
         builder: (_, s, __) {
           final show = s.phase == AppUpdatePhase.ready || s.phase == AppUpdatePhase.forceRequired || s.phase == AppUpdatePhase.downloading;
           if (!show) return const SizedBox.shrink();
-          final label = s.phase == AppUpdatePhase.downloading
-              ? 'Downloading ${s.release?.label ?? 'update'}… ${(s.progress * 100).round()}%'
-              : 'Update ${s.release?.label ?? ''} ready';
+          final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+          final label = switch (s.phase) {
+            AppUpdatePhase.downloading => 'Downloading ${s.release?.label ?? 'update'}… ${(s.progress * 100).round()}%',
+            AppUpdatePhase.forceRequired => s.progress < 1 ? 'Update required… ${(s.progress * 100).round()}%' : 'Update required — ${s.release?.label ?? ''}',
+            _ => isAndroid ? 'Update ${s.release?.label ?? ''} ready' : 'Restart to update — ${s.release?.label ?? ''}',
+          };
+          final actionLabel = isAndroid
+              ? 'Install'
+              : (s.phase == AppUpdatePhase.forceRequired && s.progress < 1 ? 'Update' : 'Restart to update');
           return Padding(
             padding: const EdgeInsets.only(right: 6),
             child: DecoratedBox(
@@ -41,9 +51,12 @@ class UiUpdateChrome extends StatelessWidget {
                         child: InkWell(
                           onTap: () => AppUpdateService.instance.installNow(),
                           borderRadius: BorderRadius.circular(4),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            child: Text('Restart', style: TextStyle(color: Color(0xFF052E1C), fontSize: 10, fontWeight: FontWeight.w600)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Text(
+                              actionLabel,
+                              style: const TextStyle(color: Color(0xFF052E1C), fontSize: 10, fontWeight: FontWeight.w600),
+                            ),
                           ),
                         ),
                       ),
@@ -64,7 +77,9 @@ class UiUpdateForceGate extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode || defaultTargetPlatform != TargetPlatform.windows) return child;
+    if (kDebugMode) return child;
+    final gate = defaultTargetPlatform == TargetPlatform.windows || (!kIsWeb && Platform.isAndroid);
+    if (!gate) return child;
     return ValueListenableBuilder<AppUpdateState>(
       valueListenable: AppUpdateService.instance.state,
       builder: (_, s, __) {
@@ -86,7 +101,11 @@ class UiUpdateForceGate extends StatelessWidget {
                   FilledButton(
                     onPressed: () => AppUpdateService.instance.installNow(),
                     style: FilledButton.styleFrom(backgroundColor: const Color(0xFF34D399), foregroundColor: const Color(0xFF052E1C)),
-                    child: Text(s.progress < 1 ? 'Downloading… ${(s.progress * 100).round()}%' : 'Update now'),
+                    child: Text(
+                      s.progress < 1
+                          ? 'Downloading… ${(s.progress * 100).round()}%'
+                          : (defaultTargetPlatform == TargetPlatform.android ? 'Install now' : 'Update now'),
+                    ),
                   ),
                 ]),
               ),

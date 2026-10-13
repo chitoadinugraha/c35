@@ -100,6 +100,14 @@ While the Home app WebSocket is connected, the pod that owns the connection keep
 
 **Warmup trace:** one `ai.log` row per warmup completion — `kind=system`, `topic=trace_session_warmup`, `class=trace` (ops only; no NATS user fanout). See [log.md](log.md).
 
+### Prompt Prepare Pipeline & Unified MRL Embedding
+
+To maintain prompt prepare latency under 300ms:
+- **Unified Matryoshka Query Embedding:** Single 768-dim embedding request per turn. Tool RAG uses 768 dimensions; Memory and User Asset RAG slice the first 256 dimensions and L2-normalize. Eliminates duplicate external embedding WAN calls.
+- **Early Prefetch:** The unified embedding future is dispatched at turn entry ($t=0$), overlapping with message persist and Stage 1 reads.
+- **Event-Driven Bundle Readiness:** `OwnerPromptSession` uses a `Notify` primitive instead of polling loops to unblock turns immediately when warmup finishes.
+- **Session State Reuse:** Stage 1 reads `user_ctx` directly from the warm session state, bypassing redundant Postgres queries.
+
 ---
 
 ## Kind: `prompt` (personal AI)
@@ -113,7 +121,7 @@ chat_member: one row (member_iid = owner)
 
 - User ↔ AI; assistant uses `role=assistant`.
 - Assistant **markdown** in the app (`UiMarkdownBody`) renders GFM plus LaTeX (`$…$`, `$$…$$`, `\(\)`, `\[ \]`) via `flutter_math_fork` — no WebView; LaTeX stays in `content`.
-- Canvas / UI blocks on assistant messages (`blocks_json`) including native slide decks (`presentation.deck`), food nutrition cards, and expense receipts (see [presentation.md](presentation.md)).
+- Canvas / UI blocks on assistant messages (`blocks_json`) including native slide decks (`presentation.deck`), **`viz.chart`** (bar / line / pie via `viz.chart` tool or a ` ```chart` ` JSON fence), food nutrition cards, and expense receipts (see [presentation.md](presentation.md)).
 - Assistant markdown code blocks for `slide`, `slides`, `presentation`, `marp`, and `slide-patch` automatically render as native interactive `UiSlideDeckCard` components.
 - Billing trace on assistant turns (see [billing.md](billing.md)).
 - No `ai_reply_enabled` (abort in-flight turn only).
