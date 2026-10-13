@@ -1,9 +1,10 @@
 use c35_mod_chat::compose::{
     compose_force_account_tool_call, compose_force_catalog_menu_tool_call, compose_force_consumption_coach_tool_call,
-    compose_force_presentation_tool_call, compose_force_site_builder_tool_call, compose_force_site_query_tool_call,
-    compose_force_tool_call, compose_force_viz_chart_tool_call, compose_suppress_general_web_when_viz_chart,
-    compose_force_web_tool_call, compose_tools_and_inst, site_builder_bootstrap_catalog,
-    site_builder_ready_to_create, tool_mention_eligible, ComposeTurnOpts,
+    compose_force_device_operate_tool_call, compose_force_presentation_tool_call,
+    compose_force_site_builder_tool_call, compose_force_site_query_tool_call, compose_force_tool_call,
+    compose_force_viz_chart_tool_call, compose_suppress_general_web_when_viz_chart, compose_force_web_tool_call,
+    compose_tools_and_inst, site_builder_bootstrap_catalog, site_builder_ready_to_create, tool_mention_eligible,
+    ComposeTurnOpts,
 };
 use c35_mod_chat::BROWSER_DEVICE_TOOL_EXCLUDE;
 use c35_mod_chat::inst_macro::{
@@ -1543,6 +1544,82 @@ fn compose_android_device_signal_matches_inst_device_android() {
         out.tools.iter().any(|t| t.name == "device.fs.list"),
         "android inst should keep device.fs.list eligible"
     );
+}
+
+fn inst_device_operate() -> InstRow {
+    InstRow {
+        id: "inst.device.operate".into(),
+        scope: SCOPE_GLOBAL.into(),
+        kind: "task".into(),
+        topic_id: "device".into(),
+        topics: vec!["device".into()],
+        inst: "[DEVICE OPERATE]".into(),
+        phrases: vec!["buat form".into(), "google form".into(), "create a form".into()],
+        triggers: vec![
+            "tool_include:device.screenshot".into(),
+            "tool_include:device.input".into(),
+            "tool_include:computer_use.delegate".into(),
+            "tool_include:shell.run".into(),
+        ],
+        include_tools: vec![
+            "device.screenshot".into(),
+            "device.input".into(),
+            "computer_use.delegate".into(),
+            "shell.run".into(),
+        ],
+        exclude_tools: vec![],
+        requires_global_roles: vec![],
+        priority: 155,
+    }
+}
+
+#[test]
+fn compose_device_operate_feds_input_delegate_and_forces_hop1() {
+    let tools = cluster_tools();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![98063412749627392],
+        bots: vec![],
+        default_site_iid: None,
+    };
+    let out = compose_tools_and_inst(
+        &[inst_core_assistant(), inst_device_operate()],
+        "@VM1 buat google form baru judul Test Pendaftaran field nama gender alamat",
+        tools,
+        &[],
+        &[],
+        &["device".into()],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(
+        out.matched_ids.contains(&"inst.device.operate".into()),
+        "form create phrase should match inst.device.operate"
+    );
+    assert!(
+        out.tools.iter().any(|t| t.name == "device.input"),
+        "device.input must be fed on @device operate turns"
+    );
+    assert!(
+        out.tools.iter().any(|t| t.name == "computer_use.delegate"),
+        "computer_use.delegate must be fed"
+    );
+    assert!(
+        compose_force_device_operate_tool_call(&out.matched_ids, &out.tools),
+        "hop 1 should force computer_use.delegate"
+    );
+    let input_fed = out
+        .trace
+        .candidates
+        .iter()
+        .find(|c| c.tool_id == "device.input")
+        .map(|c| c.fed)
+        .unwrap_or(false);
+    assert!(input_fed, "trace should mark device.input as fed");
 }
 
 #[test]

@@ -30,5 +30,9 @@ subtle = "2"
 reqwest = { workspace = true }
 hickory-resolver = { version = "0.24", default-features = false, features = ["tokio-runtime", "system-config"] }
 
+[[bin]]
+name = "site_assistant_bot_backfill_once"
+path = "src/bin/site_assistant_bot_backfill_once.rs"
+
 [dev-dependencies]
 tokio = { workspace = true }

@@ -33,7 +33,7 @@ When code and specs disagree, fix the code to match these specs (or explicitly r
 | [ui.md](ui.md) | Flutter shell, pages, navigation |
 | [roadmap.md](roadmap.md) | Phase 0→9 start/end goals |
 | [skill.md](skill.md) | Skill scope, catalog, automation |
-| [remote.md](remote.md) | Remote device: agent control session + WebRTC data plane (files, screen, media) |
+| [remote.md](remote.md) | Remote device: agent control session + WebRTC data plane (files, screen, media); UAC options: [remote-windows-uac-future-options.md](remote-windows-uac-future-options.md) |
 | [browser-remote.md](browser-remote.md) | Remote browser (`type=browser`) — Rust agent + Playwright sidecar, WebRTC stream; plans: [phase 1](plans/2026-09-29-remote-browser-multitask.md), [phase 2](plans/2026-09-29-remote-browser-phase2-multitask.md) |
 | [browser-extension.md](browser-extension.md) | Chrome extension remote (daily profile) — native host `com.alienai.c35.remote`; plans: [chrome-extension multitask](plans/2026-09-29-chrome-extension-remote-multitask.md), [unified desktop+browser agent](plans/2026-10-12-unified-desktop-browser-agent-multitask.md) |
 | [inst.md](inst.md) | Instruction macros (`ai.inst`) — phrase steering + tool include/exclude |

@@ -1,11 +1,16 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/conn/server_host.dart';
-import 'package:alienai_c35/c/parts/version_label.dart';
+import 'package:alienai_c35/c/parts/app_bar_version_subtitle.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/c/update/app_release.dart';
+import 'package:alienai_c35/c/update/app_update_web_refresh.dart';
+import 'package:alienai_c35/c/nav.dart';
 import 'package:alienai_c35/widgets/ui/ui_app_bar_chip.dart';
+import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
 import 'package:alienai_c35/widgets/ui/ui_server_host_menu.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 const _bg = Color(0xFF18181B);
@@ -50,7 +55,7 @@ String contextWindowChoiceLabel(int tokens) => switch (tokens) {
       _ => tokens >= 1024 ? '${(tokens / 1024).round()}K' : '$tokens',
     };
 
-/// App bar label beside [UiContextMeter] — API server picker (dev) or build id.
+/// App bar label beside [UiContextMeter] — build id; web menu for refresh / update / API host (root).
 class UiAppBarVersionLabel extends StatefulWidget {
   const UiAppBarVersionLabel({super.key});
 
@@ -59,13 +64,21 @@ class UiAppBarVersionLabel extends StatefulWidget {
 }
 
 class _UiAppBarVersionLabelState extends State<UiAppBarVersionLabel> {
+  static const _menuRefresh = '__refresh__';
+
   final _anchorKey = GlobalKey();
   String _serverHost = serverHostProductionUrl;
+  AppRelease? _remoteRelease;
   var _menuOpen = false;
   DateTime? _menuClosedAt;
+  Timer? _releasePoll;
 
   static const _labelStyle = TextStyle(color: _muted, fontSize: 10, fontWeight: FontWeight.w500, height: 1.0);
   static const _subStyle = TextStyle(color: _muted, fontSize: 9, height: 1.0, fontFeatures: [FontFeature.tabularFigures()]);
+  static const _subNewStyle = TextStyle(color: Color(0xFF34D399), fontSize: 9, fontWeight: FontWeight.w600, height: 1.0, fontFeatures: [FontFeature.tabularFigures()]);
+
+  static const _menuText = TextStyle(fontSize: 12, color: Color(0xFFE4E4E7));
+  static const _menuMuted = TextStyle(fontSize: 12, color: Color(0xFFA1A1AA));
 
   @override
   void initState() {
@@ -73,10 +86,13 @@ class _UiAppBarVersionLabelState extends State<UiAppBarVersionLabel> {
     sessionTick.addListener(_onSession);
     serverHostTick.addListener(_onServerHost);
     unawaited(_loadHost());
+    unawaited(_checkRelease());
+    _releasePoll = Timer.periodic(const Duration(hours: 6), (_) => unawaited(_checkRelease()));
   }
 
   @override
   void dispose() {
+    _releasePoll?.cancel();
     sessionTick.removeListener(_onSession);
     serverHostTick.removeListener(_onServerHost);
     super.dispose();
@@ -85,42 +101,173 @@ class _UiAppBarVersionLabelState extends State<UiAppBarVersionLabel> {
   void _onSession() {
     if (mounted) setState(() {});
     unawaited(_loadHost());
+    unawaited(_checkRelease());
   }
 
-  void _onServerHost() => unawaited(_loadHost());
+  void _onServerHost() {
+    unawaited(_loadHost());
+    unawaited(_checkRelease());
+  }
 
   Future<void> _loadHost() async {
-    if (!serverHostPickerVisible()) return;
+    if (!_hostMenuVisible()) return;
     final v = await serverHostActiveBase();
     if (mounted) setState(() => _serverHost = v);
   }
 
-  Widget _lines({required String subtitle}) => DefaultTextStyle.merge(
-        style: const TextStyle(height: 1.0, leadingDistribution: TextLeadingDistribution.even),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Alien AI', textAlign: TextAlign.right, style: _labelStyle),
-            Text(subtitle, textAlign: TextAlign.right, style: _subStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
-          ],
-        ),
-      );
+  Future<void> _checkRelease() async {
+    final base = await serverHostActiveBase();
+    final remote = await appReleaseGet(base, platform: appReleasePlatformForDevice());
+    if (!mounted) return;
+    setState(() => _remoteRelease = remote != null && remote.version > 0 ? remote : null);
+  }
 
-  Future<void> _openServerMenu() async {
+  bool _hostMenuVisible() => kDebugMode || Session.instance.hasRootRole;
+
+  bool _menuEnabled() => kIsWeb || serverHostPickerVisible();
+
+  bool _updatePending() {
+    final remote = _remoteRelease;
+    if (remote == null) return false;
+    return appReleaseNeedsUpdate(local: appReleaseLocalVersion(), remote: remote);
+  }
+
+  String _subtitle() => appBarVersionSubtitle(localBuild: appReleaseLocalVersion(), remote: _remoteRelease);
+
+  Widget _lines() {
+    final subtitle = _subtitle();
+    final pending = _updatePending();
+    return DefaultTextStyle.merge(
+      style: const TextStyle(height: 1.0, leadingDistribution: TextLeadingDistribution.even),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Alien AI', textAlign: TextAlign.right, style: _labelStyle),
+          Text(
+            subtitle,
+            textAlign: TextAlign.right,
+            style: pending ? _subNewStyle : _subStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openMenu() async {
     if (_menuOpen) return;
     final closedAt = _menuClosedAt;
     if (closedAt != null && DateTime.now().difference(closedAt) < const Duration(milliseconds: 250)) return;
     final box = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return;
+
+    if (kIsWeb) {
+      await _openWebMenu(box);
+      return;
+    }
+    if (serverHostPickerVisible()) {
+      _menuOpen = true;
+      try {
+        final selected = await uiServerHostMenuPick(anchor: box, activeHost: _serverHost);
+        if (selected != null) {
+          final next = await serverHostSet(selected);
+          if (mounted) setState(() => _serverHost = next);
+        }
+      } finally {
+        _menuOpen = false;
+        _menuClosedAt = DateTime.now();
+      }
+    }
+  }
+
+  Future<void> _openWebMenu(RenderBox anchor) async {
+    final nav = c35NavigatorKey.currentState;
+    if (nav == null || !nav.mounted || nav.overlay == null || !nav.overlay!.mounted) return;
+    final menuCtx = nav.context;
+    final pending = _updatePending();
+    final remote = _remoteRelease;
+    final refreshLabel = pending && remote != null ? 'Update to v${remote.version}' : 'Refresh app';
+
     _menuOpen = true;
     try {
-      final selected = await uiServerHostMenuPick(anchor: box, activeHost: _serverHost);
-      if (selected != null) {
-        final next = await serverHostSet(selected);
-        if (mounted) setState(() => _serverHost = next);
+      final selected = await showMenu<String>(
+        context: menuCtx,
+        color: const Color(0xFF18181B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Color(0xFF27272A)),
+        ),
+        position: uiMenuPositionBelow(menuCtx, anchor, gap: -8),
+        items: [
+          PopupMenuItem(
+            value: _menuRefresh,
+            height: 36,
+            child: Text(refreshLabel, style: _menuText),
+          ),
+          if (_hostMenuVisible()) ...[
+            const PopupMenuDivider(height: 1),
+            const PopupMenuItem<String>(
+              enabled: false,
+              height: 28,
+              child: Text('API server', style: _menuMuted),
+            ),
+            ...serverHostOptions.map(
+              (o) => PopupMenuItem(
+                value: o,
+                height: 32,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      child: serverHostNormalize(o) == serverHostNormalize(_serverHost)
+                          ? const Icon(Icons.check, size: 14, color: Color(0xFFA1A1AA))
+                          : null,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(serverHostLabelFromUrl(o), style: _menuText),
+                  ],
+                ),
+              ),
+            ),
+            if (Session.instance.hasRootRole) ...[
+              const PopupMenuDivider(height: 1),
+              PopupMenuItem<String>(
+                enabled: false,
+                height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: ValueListenableBuilder<int>(
+                  valueListenable: sessionTick,
+                  builder: (context, _, __) {
+                    final enabled = Session.instance.rootAccessEnabled;
+                    return Row(
+                      children: [
+                        const Expanded(child: Text('Root access', style: _menuMuted)),
+                        Switch.adaptive(
+                          value: enabled,
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          onChanged: (v) => Session.instance.rootAccessPut(v),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ],
+        ],
+      );
+
+      if (selected == null) return;
+      if (selected == _menuRefresh) {
+        await appUpdateWebHardRefresh();
+        return;
       }
+      final next = await serverHostSet(selected);
+      if (mounted) setState(() => _serverHost = next);
+      await appUpdateWebHardRefresh();
     } finally {
       _menuOpen = false;
       _menuClosedAt = DateTime.now();
@@ -129,16 +276,14 @@ class _UiAppBarVersionLabelState extends State<UiAppBarVersionLabel> {
 
   @override
   Widget build(BuildContext context) {
-    if (!serverHostPickerVisible()) {
-      return _lines(subtitle: 'Version ${csaiVersionBuild()}');
-    }
-    final subtitle = serverHostLabelFromUrl(_serverHost);
+    final lines = _lines();
+    if (!_menuEnabled()) return lines;
     return UiAppBarChip(
       key: _anchorKey,
-      tooltip: 'API server',
+      tooltip: kIsWeb ? 'App version' : 'API server',
       padding: const EdgeInsets.fromLTRB(6, 4, 4, 4),
-      onTap: _openServerMenu,
-      child: _lines(subtitle: subtitle),
+      onTap: _openMenu,
+      child: lines,
     );
   }
 }

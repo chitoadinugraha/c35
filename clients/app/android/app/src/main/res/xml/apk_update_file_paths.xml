@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Flutter app_flutter (applicationSupportDirectory on Android) -->
+    <!-- Flutter applicationSupportDirectory -> .../app_flutter/ -->
     <files-path name="app_flutter" path="../app_flutter/" />
+    <files-path name="updates" path="../app_flutter/alienai-updates/" />
 </paths>

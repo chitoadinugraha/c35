@@ -236,12 +236,19 @@ class AuthService extends ChangeNotifier {
     try {
       final authBase = C35Config.providerAuthBase;
       final clientId = const Uuid().v4();
+      final mobileOAuth = !kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS);
       final uri = Uri.parse('$authBase/a/auth/google').replace(queryParameters: {
         'return': C35AppId.oauthReturn,
         'public_origin': authBase,
         'client_id': clientId,
+        if (mobileOAuth) 'launch': 'custom_tab',
       });
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        uri,
+        mode: mobileOAuth ? LaunchMode.inAppBrowserView : LaunchMode.externalApplication,
+      );
       if (!launched) throw ApiException('Could not open browser for Google sign-in.');
       for (var i = 0; i < 90; i++) {
         if (i > 0) await Future<void>.delayed(const Duration(seconds: 1));

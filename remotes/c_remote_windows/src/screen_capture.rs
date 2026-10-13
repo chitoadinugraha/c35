@@ -12,9 +12,12 @@ use windows::Win32::Graphics::Gdi::{
     DIB_RGB_COLORS, HBITMAP, HDC, HALFTONE, SRCCOPY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN,
+    GetDesktopWindow, GetSystemMetrics, SM_CXSCREEN, SM_CYSCREEN,
     SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN,
 };
+
+/// SRCCOPY with CAPTUREBLT — needed for layered windows on some VMs.
+const SRCCOPY_CAPTURE: u32 = SRCCOPY.0 | 0x4000_0000;
 
 static CAPTURE_ACTIVE: AtomicBool = AtomicBool::new(false);
 static CAPTURE_FAIL_COUNT: AtomicU32 = AtomicU32::new(0);
@@ -161,7 +164,28 @@ unsafe fn gdi_read_bgra(hdc_screen: HDC, src_w: i32, src_h: i32, dst_w: u32, dst
     let old_full = SelectObject(hdc_full, hbm_full);
     let vx = GetSystemMetrics(SM_XVIRTUALSCREEN);
     let vy = GetSystemMetrics(SM_YVIRTUALSCREEN);
-    if BitBlt(hdc_full, 0, 0, src_w, src_h, hdc_screen, vx, vy, SRCCOPY).is_err() {
+    let blt_ok = BitBlt(hdc_full, 0, 0, src_w, src_h, hdc_screen, vx, vy, SRCCOPY).is_ok()
+        || BitBlt(
+            hdc_full,
+            0,
+            0,
+            src_w,
+            src_h,
+            hdc_screen,
+            vx,
+            vy,
+            windows::Win32::Graphics::Gdi::ROP_CODE(SRCCOPY_CAPTURE),
+        )
+        .is_ok();
+    if !blt_ok {
+        let pw = GetSystemMetrics(SM_CXSCREEN);
+        let ph = GetSystemMetrics(SM_CYSCREEN);
+        if pw > 0 && ph > 0 && (pw != src_w || ph != src_h || vx != 0 || vy != 0) {
+            let _ = SelectObject(hdc_full, old_full);
+            let _ = DeleteObject(hbm_full);
+            let _ = DeleteDC(hdc_full);
+            return gdi_read_bgra(hdc_screen, pw, ph, dst_w, dst_h);
+        }
         let _ = SelectObject(hdc_full, old_full);
         let _ = DeleteObject(hbm_full);
         let _ = DeleteDC(hdc_full);
@@ -277,13 +301,14 @@ pub fn capture_screen_gdi_raw(max_w: u32) -> Result<(u32, u32, Vec<u8>)> {
             (src_w as u32, src_h as u32)
         };
 
-        let hdc_screen: HDC = GetDC(HWND::default());
+        let hwnd = GetDesktopWindow();
+        let hdc_screen: HDC = GetDC(hwnd);
         if hdc_screen.is_invalid() {
             bail!("failed to get screen HDC");
         }
 
         let capture_res = gdi_read_bgra(hdc_screen, src_w, src_h, dst_w, dst_h);
-        let _ = ReleaseDC(HWND::default(), hdc_screen);
+        let _ = ReleaseDC(hwnd, hdc_screen);
         let bgra_buf = capture_res?;
 
         Ok((dst_w, dst_h, bgra_buf))
@@ -318,13 +343,14 @@ pub fn capture_screen_gdi(
             (src_w as u32, src_h as u32)
         };
 
-        let hdc_screen: HDC = GetDC(HWND::default());
+        let hwnd = GetDesktopWindow();
+        let hdc_screen: HDC = GetDC(hwnd);
         if hdc_screen.is_invalid() {
             bail!("failed to get screen HDC");
         }
 
         let mut bgra_buf = gdi_read_bgra(hdc_screen, src_w, src_h, dst_w, dst_h)?;
-        let _ = ReleaseDC(HWND::default(), hdc_screen);
+        let _ = ReleaseDC(hwnd, hdc_screen);
 
         let mut axtree = String::new();
         if som {
@@ -646,6 +672,23 @@ pub fn capture_screen_diff_opt(
             if force {
                 if let Some(res) = try_reuse_last_dxgi_frame(max_w, quality, prev_hash, force, marker, som) {
                     return res;
+                }
+                if let Some((w, h, bgra)) = crate::dxgi_capture::shared_last_bgra_clone() {
+                    if let Ok(out) = encode_bgra_screenshot(
+                        w,
+                        h,
+                        bgra,
+                        max_w,
+                        quality,
+                        prev_hash,
+                        force,
+                        marker,
+                        som,
+                        true,
+                    ) {
+                        warn!("GDI capture failed ({e:#}); using last DXGI frame");
+                        return Ok(out);
+                    }
                 }
             }
             Err(e)

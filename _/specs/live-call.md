@@ -220,6 +220,23 @@ OpenAI and Grok reuse hydrated `user_ctx` from the ticket when available.
 - **Gemini ↔ server** remains Google’s JSON + base64; stripping happens only on the cluster→app hop.
 - Legacy clients may still see raw PCM binary (no magic) from older servers; new clients accept magic+proto or raw PCM.
 
+### Client playout (cellular / jitter)
+
+Assistant PCM is queued in **`LivePcmJitterBuffer`** (`clients/app/lib/c/live/live_pcm_jitter_buffer.dart`):
+
+- Adaptive prebuffer **250–1200 ms** from downlink inter-arrival jitter (p95).
+- Storage capped at **1200 ms** of PCM; underruns logged as `live_audio_underrun` in debug.
+
+**Android:** streaming **`AudioTrack`** (`LivePcmAudioOut` + method channel `id.alienai/live_pcm_audio`).
+
+**Web:** **`AudioContext`** scheduled buffers (`live_pcm_playout_web.dart`). Connect must call **`unlockWebAudioPlayback`** (user gesture) before downlink audio.
+
+**Desktop (Windows / macOS / Linux):** fallback **dual `audioplayers`** ping-pong with **~120 ms** WAV chunks.
+
+WAV is **not** sent on the WebSocket; it is only a local fallback playback wrapper.
+
+**Not yet shipped:** Opus on the app WebSocket hop (see `_/specs/plans/2026-10-13-live-call-cellular-audio-multitask.md`).
+
 ## Realtime smoke (dev)
 
 Binary `live_realtime_smoke` sends one PCM clip to Gemini Live, ChatGPT Realtime, and Grok Voice in parallel.

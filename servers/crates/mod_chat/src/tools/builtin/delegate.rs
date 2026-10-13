@@ -16,10 +16,33 @@ use crate::prompt_run::{
 };
 use crate::mention_registry::mention_ref_iid;
 use crate::mention_context::{device_iid_resolve, json_device_iid_field};
+use crate::prompt::computer_use::{
+    computer_use_final_text_acceptable, computer_use_goal_met_with_goal,
+    COMPUTER_USE_PARENT_INCOMPLETE_HINT,
+};
+use crate::prompt::google_forms::{
+    google_forms_playbook_block, user_text_looks_like_google_forms,
+};
+
+fn delegate_json_goal_met(v: &Value) -> bool {
+    v.get("goal_met")
+        .and_then(|x| x.as_bool())
+        .unwrap_or_else(|| v.get("ok").and_then(|x| x.as_bool()).unwrap_or(false))
+}
 use crate::tool;
 use crate::tools::ToolContext;
 
 const DELEGATE_WAIT_SECS: u64 = 300;
+
+fn delegate_goal_augment_for_computer_use(kind: &str, goal: &str) -> String {
+    if kind != "computer_use" || !user_text_looks_like_google_forms(goal) {
+        return goal.to_string();
+    }
+    if goal.contains("[GOOGLE FORMS TAB RESUME]") {
+        return goal.to_string();
+    }
+    format!("{goal}\n\n{}", google_forms_playbook_block())
+}
 
 pub fn delegate_child_row(
     child_req_id: &str,
@@ -75,9 +98,16 @@ pub fn delegate_child_row(
 }
 
 pub fn delegate_result_json(child: &PromptRunRow, summary: &str, tool_name: &str) -> Value {
-    let ok = child.status == "done";
-    json!({
+    let goal_met =
+        computer_use_goal_met_with_goal(&child.kind, &child.status, summary, &child.text);
+    let ok = goal_met;
+    let incomplete = child.kind == "computer_use"
+        && child.status == "done"
+        && !computer_use_final_text_acceptable(summary);
+    let mut out = json!({
         "ok": ok,
+        "goal_met": goal_met,
+        "incomplete": incomplete,
         "runner": "cluster",
         "tool": tool_name,
         "summary": summary,
@@ -90,7 +120,12 @@ pub fn delegate_result_json(child: &PromptRunRow, summary: &str, tool_name: &str
         "cost_usd": child.cost_usd,
         "fail_class": child.fail_class,
         "fail_reason": child.fail_reason,
-    })
+    });
+    if incomplete {
+        out["incomplete_reason"] = json!("child_summary_handoff_or_give_up");
+        out["parent_reply_rule"] = json!(COMPUTER_USE_PARENT_INCOMPLETE_HINT);
+    }
+    out
 }
 
 pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
@@ -99,12 +134,14 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
     if topic_id.is_empty() || goal.is_empty() {
         bail!("topic_id and goal are required");
     }
+    let kind_raw = args["kind"].as_str().map(str::trim).unwrap_or("");
+    let kind_preview = prompt_run_kind_normalize(kind_raw, topic_id);
+    let goal_stored = delegate_goal_augment_for_computer_use(&kind_preview, goal);
     let parent_req_id = ctx.req_id.trim();
     if parent_req_id.is_empty() {
         bail!("delegate.run requires parent req_id");
     }
-    let kind_raw = args["kind"].as_str().map(str::trim).unwrap_or("");
-    let kind = prompt_run_kind_normalize(kind_raw, topic_id);
+    let kind = kind_preview;
     let label = args["label"].as_str().unwrap_or_default().trim();
     let direct = json_device_iid_field(args, "device_iid");
     let device_iid = if direct > 0
@@ -136,7 +173,7 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
         parent_req_id,
         ctx,
         topic_id,
-        goal,
+        &goal_stored,
         kind,
         label,
         device_iid,
@@ -178,6 +215,18 @@ pub async fn computer_use_delegate_exec(ctx: &ToolContext, args: &Value) -> anyh
     wrapped["kind"] = json!("computer_use");
     wrapped["device_iid"] = json!(device_iid);
     let out = delegate_run_exec(ctx, &wrapped).await?;
+    let out = if !delegate_json_goal_met(&out) {
+        let retry_goal = format!(
+            "{goal}\n\n[RETRY] The previous computer-use run did not finish. \
+Reuse the existing Chrome Google Forms tab shown in screenshot (do not open forms.new again). \
+Close duplicate Forms tabs only if they block Blank. device.screenshot som=true, then finish every step (no human handoff)."
+        );
+        wrapped["goal"] = json!(retry_goal);
+        wrapped["label"] = json!("computer_use_retry");
+        delegate_run_exec(ctx, &wrapped).await?
+    } else {
+        out
+    };
     if let Some(obj) = out.as_object() {
         let mut map = obj.clone();
         map.insert("tool".into(), json!("computer_use.delegate"));

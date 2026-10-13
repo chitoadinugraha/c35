@@ -15,8 +15,34 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private val livePcmOut = LivePcmAudioOut()
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LIVE_PCM_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "start" -> {
+                    val rate = call.argument<Int>("sampleRate") ?: 24000
+                    livePcmOut.start(rate)
+                    result.success(null)
+                }
+                "write" -> {
+                    val bytes = when (val raw = call.arguments) {
+                        is ByteArray -> raw
+                        else -> byteArrayArg(call, "bytes")
+                    }
+                    if (bytes != null && bytes.isNotEmpty()) {
+                        livePcmOut.write(bytes)
+                    }
+                    result.success(null)
+                }
+                "stop" -> {
+                    livePcmOut.stop()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, THERMAL_BT_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "bluetoothEnabled" -> result.success(ThermalBluetoothPrint.bluetoothEnabled())
@@ -53,6 +79,15 @@ class MainActivity : FlutterActivity() {
                     val path = call.argument<String>("path") ?: ""
                     val ok = ApkUpdateInstaller.install(this, File(path))
                     result.success(ok)
+                }
+                "getBuildNumber" -> {
+                    val info = packageManager.getPackageInfo(packageName, 0)
+                    val code = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        info.longVersionCode
+                    } else {
+                        info.versionCode.toLong()
+                    }
+                    result.success(code.toInt())
                 }
                 else -> result.notImplemented()
             }
@@ -252,5 +287,6 @@ class MainActivity : FlutterActivity() {
         private const val CHANNEL = "id.alienai/pos_shortcut"
         private const val THERMAL_BT_CHANNEL = "id.alienai/thermal_bluetooth"
         private const val APP_UPDATE_CHANNEL = "id.alienai/app_update"
+        private const val LIVE_PCM_CHANNEL = "id.alienai/live_pcm_audio"
     }
 }

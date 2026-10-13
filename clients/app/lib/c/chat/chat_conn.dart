@@ -116,7 +116,7 @@ class ChatConn {
   void _statusSet(ChatConnStatus next) {
     if (status.value == next) return;
     status.value = next;
-    if (next == ChatConnStatus.reconnecting || next == ChatConnStatus.disconnected) {
+    if (next == ChatConnStatus.disconnected && _manualDisconnect) {
       if (_promptPending.isNotEmpty) _failAll(uiConnectionFailed);
     }
   }
@@ -356,13 +356,17 @@ class ChatConn {
   void _onWsError(Object e, int gen) {
     if (gen != _socketGen) return;
     lError('chat ws: $e');
-    _failAll(uiPromptErrorMessage('$e'));
+    if (_manualDisconnect) {
+      _failAll(uiPromptErrorMessage('$e'));
+    }
     _scheduleReconnectIfNeeded();
   }
 
   void _onWsDone(int gen) {
     if (gen != _socketGen) return;
-    _failAll(uiConnectionFailed);
+    if (_manualDisconnect) {
+      _failAll(uiConnectionFailed);
+    }
     _scheduleReconnectIfNeeded();
   }
 

@@ -39,7 +39,7 @@ remotes/
 | **Crash Recovery Supervisor** | Core Pattern | **YES** | Main loop wraps execution in `catch_unwind` with exponential backoff rate limiter. |
 | **Screen Capture** | No | **YES** | Windows: DXGI / GDI. macOS: ScreenCaptureKit. Linux: PipeWire / X11. Android: MediaProjection. |
 | **Audio Capture** | No | **YES** | Windows: WASAPI Loopback. macOS: CoreAudio. Linux: Pulse/PipeWire. Android: AudioPlaybackCapture. |
-| **Input Injection** | No | **YES** | Windows: `SendInput`. macOS: `CGEventPost`. Linux: `uinput`/`libei`. Android: AccessibilityService. |
+| **Input Injection** | No | **YES** | Windows: `SendInput` (optional virtual HID — see [remote-windows-uac-future-options.md](remote-windows-uac-future-options.md)). macOS: `CGEventPost`. Linux: `uinput`/`libei`. Android: AccessibilityService. |
 | **Boot Auto-Start** | No | **YES** | Windows: Registry `Run`. macOS: LaunchAgent. Linux: Systemd. Android: BOOT_COMPLETED. |
 | **Sleep / Standby Prevention** | No | **YES** | Windows: `SetThreadExecutionState`. macOS: `IOPMAssertion`. Linux: `systemd-inhibit`. |
 

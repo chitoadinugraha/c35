@@ -133,10 +133,51 @@ fn delegate_result_json_shape() {
     };
     let out = delegate_result_json(&child, "Child finished.", "delegate.run");
     assert_eq!(out["ok"], true);
+    assert_eq!(out["goal_met"], true);
     assert_eq!(out["child_req_id"], "child-1");
     assert_eq!(out["summary"], "Child finished.");
     assert_eq!(out["tokens_in"], 100);
     assert_eq!(out["cost_usd"], 0.02);
+}
+
+#[test]
+fn delegate_computer_use_incomplete_summary_not_ok() {
+    let child = PromptRunRow {
+        req_id: "child-cu".into(),
+        chat_id: 1,
+        owner_iid: 2,
+        parent_req_id: Some("parent-1".into()),
+        kind: "computer_use".into(),
+        status: "done".into(),
+        topic_id: "computer_use".into(),
+        device_iid: 98063412749627392,
+        text: "goal".into(),
+        mention_ids_json: Json(json!([])),
+        tool_mode: "agent".into(),
+        model: String::new(),
+        attachments_json: "[]".into(),
+        locale: "en".into(),
+        cancel_requested: false,
+        turn_count: 5,
+        max_turns: 100,
+        fail_class: None,
+        fail_reason: None,
+        checkpoint_json: Json(json!({})),
+        budget_usd_cap: 0.20,
+        accumulated_cost_usd: 0.05,
+        tokens_in: 1000,
+        tokens_out: 200,
+        cost_usd: 0.10,
+        duration_ms: 30_000,
+        lease_pod: None,
+        delivery_count: 0,
+    };
+    let summary = "Please click the Blank form option to start.";
+    let out = delegate_result_json(&child, summary, "computer_use.delegate");
+    assert_eq!(out["ok"], false);
+    assert_eq!(out["goal_met"], false);
+    assert_eq!(out["incomplete"], true);
+    assert!(out.get("parent_reply_rule").is_some());
 }
 
 #[tokio::test]

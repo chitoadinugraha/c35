@@ -21,4 +21,9 @@ void main() {
     expect(appUpdateChannelParse('play'), AppUpdateChannel.play);
     expect(appUpdateChannelParse(null), AppUpdateChannel.play);
   });
+
+  test('appUpdateChannelStorageValue', () {
+    expect(appUpdateChannelStorageValue(AppUpdateChannel.apk), 'apk');
+    expect(appUpdateChannelStorageValue(AppUpdateChannel.play), 'play');
+  });
 }

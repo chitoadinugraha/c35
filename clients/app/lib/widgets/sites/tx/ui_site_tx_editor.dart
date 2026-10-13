@@ -28,6 +28,7 @@ import 'package:alienai_c35/widgets/sites/tx/pos_queue/pos_queue_store.dart';
 import 'package:alienai_c35/widgets/sites/tx/pos_queue/show_pos_queue_sheet.dart';
 import 'package:alienai_c35/widgets/sites/tx/tx_parked_orders.dart';
 import 'package:alienai_c35/widgets/sites/tx/ui_tx_save_menu.dart';
+import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
 
@@ -110,6 +111,10 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
   }
 
   void _onConnStatus() {
+    final offline = widget.api.conn.status.value != ChatConnStatus.connected;
+    if (_catalogOffline != offline && mounted) {
+      setState(() => _catalogOffline = offline);
+    }
     if (widget.api.conn.status.value != ChatConnStatus.connected) return;
     unawaited(_syncOfflineQueue());
     if (widget.posEntry) unawaited(_posQueueStore.refreshCounts());
@@ -288,7 +293,7 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
         if (stillQueued && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Tersimpan offline — No. Nota tetap sama; akan disinkron saat online.'),
+              content: Text('Tersimpan offline — akan disinkron otomatis saat online.'),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -679,6 +684,11 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
               )
             : null,
         actions: [
+          UiConnWifi(
+            conn: widget.api.conn,
+            showLabel: true,
+            alwaysVisible: widget.posEntry,
+          ),
           if (compactPosCart)
             Builder(
               builder: (context) {
@@ -798,12 +808,12 @@ class _UiSiteTxEditorState extends State<UiSiteTxEditor> with TickerProviderStat
         color: const Color(0xFF422006),
         child: const Row(
           children: [
-            Icon(Icons.cloud_off_outlined, size: 16, color: Color(0xFFFBBF24)),
+            Icon(Icons.wifi_off_rounded, size: 16, color: Color(0xFFFBBF24)),
             SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Offline — katalog dari cache. Penjualan disimpan lokal (tx id tetap) dan disinkron saat online.',
-                style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12),
+                'Offline Mode — Penjualan disimpan dan akan disinkron otomatis saat online.',
+                style: TextStyle(color: Color(0xFFFDE68A), fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ),
           ],

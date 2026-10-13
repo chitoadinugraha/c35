@@ -73,11 +73,20 @@ class AppUpdateService {
     _idleTimer?.cancel();
     if (Platform.isAndroid) {
       _idleTimer = Timer.periodic(const Duration(seconds: 10), (_) => _checkIdleAutoUpdate());
+      unawaited(checkNow());
+      _rescheduleAndroidPoll();
       return;
     }
     if (!Platform.isWindows) return;
     unawaited(checkNow());
     _rescheduleWindowsPoll();
+  }
+
+  void _rescheduleAndroidPoll() {
+    if (kIsWeb || kDebugMode || !Platform.isAndroid) return;
+    _timer?.cancel();
+    final period = _androidPollInterval(state.value.phase);
+    _timer = Timer.periodic(period, (_) => checkNow());
   }
 
   void _rescheduleWindowsPoll() {
@@ -86,6 +95,8 @@ class AppUpdateService {
     final period = _windowsPollInterval(state.value.phase);
     _timer = Timer.periodic(period, (_) => checkNow());
   }
+
+  static Duration _androidPollInterval(AppUpdatePhase phase) => _windowsPollInterval(phase);
 
   static Duration _windowsPollInterval(AppUpdatePhase phase) => switch (phase) {
         AppUpdatePhase.checking || AppUpdatePhase.downloading || AppUpdatePhase.ready || AppUpdatePhase.forceRequired => _pollPending,
@@ -133,8 +144,9 @@ class AppUpdateService {
     if (state.value == next) return;
     final prevPhase = state.value.phase;
     state.value = next;
-    if (!kIsWeb && Platform.isWindows && prevPhase != next.phase) {
-      _rescheduleWindowsPoll();
+    if (!kIsWeb && prevPhase != next.phase) {
+      if (Platform.isWindows) _rescheduleWindowsPoll();
+      if (Platform.isAndroid) _rescheduleAndroidPoll();
     }
   }
 

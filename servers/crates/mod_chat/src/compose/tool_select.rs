@@ -45,6 +45,31 @@ pub fn compose_force_bot_web(eligible: &[ToolDef], force_include: &mut Vec<Strin
     }
 }
 
+/// Desktop UI automation on @device — always feed the full operate stack (not only RAG top-5).
+pub const DEVICE_OPERATE_FORCE_TOOLS: &[&str] = &[
+    "computer_use.delegate",
+    "device.screenshot",
+    "device.input",
+    "shell.run",
+];
+
+pub fn compose_inject_device_operate_tools(
+    matched_ids: &[String],
+    force_include: &mut Vec<String>,
+) {
+    let operate = matched_ids.iter().any(|id| {
+        id == "inst.device.operate" || id == "inst.device.google_forms"
+    });
+    if !operate {
+        return;
+    }
+    for name in DEVICE_OPERATE_FORCE_TOOLS {
+        if !force_include.iter().any(|x| x == name) {
+            force_include.push((*name).into());
+        }
+    }
+}
+
 /// Keep inst- or mention-forced tools in the eligible set even when topic/RAG filters would drop them.
 pub fn compose_inject_force_tools(
     catalog: &[ToolDef],

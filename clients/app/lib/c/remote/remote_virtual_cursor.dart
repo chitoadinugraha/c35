@@ -6,13 +6,19 @@ class UiRemoteVirtualCursor extends StatelessWidget {
 
   final String shape;
 
+  /// Visual scale (hotspot stays top-left of the unscaled layout box).
+  static const _scale = 0.68;
+
   static const _shadow = [
-    Shadow(color: Color(0xCC000000), blurRadius: 2, offset: Offset(0, 1)),
+    Shadow(color: Color(0xCC000000), blurRadius: 1.5, offset: Offset(0, 0.5)),
   ];
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
-        child: switch (shape) {
+        child: Transform.scale(
+          scale: _scale,
+          alignment: Alignment.topLeft,
+          child: switch (shape) {
           'text' => const _IBeamCursor(),
           'click' => Icon(
               Icons.back_hand_outlined,
@@ -84,7 +90,8 @@ class UiRemoteVirtualCursor extends StatelessWidget {
               size: Size(20, 24),
               painter: _ArrowCursorPainter(),
             ),
-        },
+          },
+        ),
       );
 }
 

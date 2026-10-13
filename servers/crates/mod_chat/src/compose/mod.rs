@@ -33,7 +33,8 @@ pub use mention_gate::{
 pub use staff_gate::tool_staff_eligible;
 pub use tool_select::{
     compose_bot_web_tools_inject, compose_force_bot_web, compose_force_general_web,
-    compose_inject_force_tools, tool_turn_eligible, tools_for_turn,
+    compose_inject_device_operate_tools, compose_inject_force_tools, tool_turn_eligible,
+    tools_for_turn,
 };
 pub use topic::{tool_topic_eligible, topic_resolve};
 
@@ -249,6 +250,12 @@ pub fn compose_force_browser_ensure_tool_call(matched_ids: &[String], tools: &[T
         && tools.iter().any(|t| t.name == "browser.ensure")
 }
 
+/// @device UI operate / Google Forms — hop 1 must call computer_use.delegate (not prose handoff).
+pub fn compose_force_device_operate_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
+    matched_ids.iter().any(|id| id == "inst.device.operate" || id == "inst.device.google_forms")
+        && tools_has(tools, "computer_use.delegate")
+}
+
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
     compose_force_web_tool_call(matched_ids, tools, "", &[])
         || compose_force_presentation_tool_call(matched_ids, tools)
@@ -259,6 +266,7 @@ pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> boo
         || compose_force_catalog_menu_tool_call(matched_ids, tools)
         || compose_force_site_query_tool_call(matched_ids, tools)
         || compose_force_browser_ensure_tool_call(matched_ids, tools)
+        || compose_force_device_operate_tool_call(matched_ids, tools)
 }
 
 pub fn compose_force_tool_call_with_text(
@@ -276,6 +284,7 @@ pub fn compose_force_tool_call_with_text(
         || compose_force_site_query_tool_call(matched_ids, tools)
         || compose_force_site_builder_tool_call(matched_ids, tools, user_text)
         || compose_force_browser_ensure_tool_call(matched_ids, tools)
+        || compose_force_device_operate_tool_call(matched_ids, tools)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -503,6 +512,14 @@ fn compose_prepare_scoped(
     let primary_topic = topic_refs.first().map(|t| *t).unwrap_or("general");
     let matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
     let mut inst_block = inst_matched_prompt(&matched);
+    if matched_ids.iter().any(|id| id == "inst.device.google_forms")
+        || crate::prompt::google_forms::user_text_looks_like_google_forms(text)
+    {
+        if !inst_block.is_empty() {
+            inst_block.push_str("\n\n");
+        }
+        inst_block.push_str(crate::prompt::google_forms::google_forms_playbook_block());
+    }
     if !opts.extra_inst_suffix.trim().is_empty() {
         if !inst_block.is_empty() {
             inst_block.push_str("\n\n");
@@ -538,6 +555,14 @@ fn compose_prepare_scoped(
     for t in skill_tools {
         if !t.is_empty() && !force_include.iter().any(|x| x == t) {
             force_include.push(t.clone());
+        }
+    }
+    compose_inject_device_operate_tools(&matched_ids, &mut force_include);
+    if matched_ids.iter().any(|id| {
+        id == "inst.device.operate" || id == "inst.device.google_forms"
+    }) {
+        for name in tool_select::DEVICE_OPERATE_FORCE_TOOLS {
+            tool_exclude.retain(|x| x != *name);
         }
     }
 
@@ -625,6 +650,19 @@ fn compose_finish(
         prep.rag_skipped,
         vector_find,
     );
+    let mut tools = tools;
+    if prep.matched_ids.iter().any(|id| {
+        id == "inst.device.operate" || id == "inst.device.google_forms"
+    }) {
+        for name in tool_select::DEVICE_OPERATE_FORCE_TOOLS {
+            if tools.iter().any(|t| t.name == *name) {
+                continue;
+            }
+            if let Some(t) = prep.eligible.iter().find(|t| t.name == *name) {
+                tools.push(t.clone());
+            }
+        }
+    }
     let selected_tools: Vec<String> = tools.iter().map(|t| t.name.clone()).collect();
     let selected_set: std::collections::HashSet<&str> =
         selected_tools.iter().map(|s| s.as_str()).collect();

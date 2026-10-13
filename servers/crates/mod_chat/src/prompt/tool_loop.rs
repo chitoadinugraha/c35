@@ -15,7 +15,10 @@ use super::web_grounding::{
     search_payload, web_grounding_append_user_context,
 };
 use super::computer_use::{
-    reply_looks_like_computer_use_handoff, COMPUTER_USE_CONTINUE_HINT,
+    computer_use_final_text_acceptable, computer_use_stopped_incomplete_message,
+    parent_reply_after_incomplete_delegate, DELEGATE_INCOMPLETE_CHECKPOINT_KEY,
+    COMPUTER_USE_CONTINUE_HINT, COMPUTER_USE_FORCE_TOOL_HINT, COMPUTER_USE_INCOMPLETE_FAIL_CLASS,
+    COMPUTER_USE_PARENT_INCOMPLETE_HINT,
 };
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_query_arms_web, catalog_web_after_stock, CatalogWebPhase};
@@ -56,6 +59,15 @@ pub fn tool_calls_dup(
             .iter()
             .zip(current)
             .all(|(a, b)| a.0 == b.0 && a.1 == b.1)
+}
+
+fn tool_name_key(name: &str) -> String {
+    name.replace('.', "_")
+}
+
+fn is_long_running_delegate_tool(name: &str) -> bool {
+    let k = tool_name_key(name);
+    k == "computer_use_delegate" || k == "delegate_run"
 }
 
 fn append_block(blocks_json: &str, block: Value) -> String {
@@ -211,6 +223,7 @@ pub async fn prompt_cluster_turn(
     }
 
     let mut prev_calls: Vec<(String, Value, Option<String>)> = Vec::new();
+    let mut cu_text_rejects: u8 = 0;
     let mut used_tool = false;
     let mut web_grounded = false;
     let mut stock_returned = false;
@@ -403,8 +416,13 @@ pub async fn prompt_cluster_turn(
                     async move {
                         let tool_started = Instant::now();
                         let tool_call_id = snowflake_id().to_string();
+                        let tool_timeout_secs = if is_long_running_delegate_tool(name) {
+                            320
+                        } else {
+                            60
+                        };
                         let tool_res = tokio::time::timeout(
-                            Duration::from_secs(60),
+                            Duration::from_secs(tool_timeout_secs),
                             cluster_tool_exec(
                                 client,
                                 name,
@@ -419,7 +437,7 @@ pub async fn prompt_cluster_turn(
                             Err(_) => (
                                 serde_json::json!({
                                     "ok": false,
-                                    "error": format!("tool {name} timed out after 60s")
+                                    "error": format!("tool {name} timed out after {tool_timeout_secs}s")
                                 }),
                                 0.0,
                             ),
@@ -591,6 +609,22 @@ pub async fn prompt_cluster_turn(
 
                 truncate_large_tool_payload(&mut llm_result, 24_000);
 
+                if is_long_running_delegate_tool(&name) {
+                    let incomplete = result
+                        .get("incomplete")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                        || (result.get("ok").and_then(|v| v.as_bool()) == Some(false)
+                            && result.get("kind").and_then(|v| v.as_str()) == Some("computer_use"));
+                    if incomplete {
+                        if let Some(ctx) = turn_ctx.as_deref_mut() {
+                            if let Some(cp) = ctx.checkpoint.as_deref_mut() {
+                                cp[DELEGATE_INCOMPLETE_CHECKPOINT_KEY] = json!(true);
+                            }
+                        }
+                    }
+                }
+
                 let mut function_response = json!({
                     "name": name.replace('.', "_"),
                     "response": llm_result
@@ -701,17 +735,96 @@ pub async fn prompt_cluster_turn(
                 req.force_web_tool_call && reply_looks_like_web_placeholder(&out.text);
             let reject_deferral =
                 req.force_web_tool_call && web_grounded && reply_looks_like_web_deferral(&out.text);
-            let reject_cu_handoff = run_kind == "computer_use"
-                && !wrap
-                && reply_looks_like_computer_use_handoff(&out.text);
-            if reject_cu_handoff {
+            let delegate_incomplete = turn_ctx
+                .as_ref()
+                .and_then(|t| t.checkpoint.as_ref())
+                .and_then(|cp| {
+                    cp.get(DELEGATE_INCOMPLETE_CHECKPOINT_KEY)
+                        .and_then(|v| v.as_bool())
+                })
+                .unwrap_or(false);
+            let reject_parent_delegate = run_kind != "computer_use"
+                && delegate_incomplete
+                && !computer_use_final_text_acceptable(&out.text);
+            if reject_parent_delegate {
                 contents.push(json!({
                     "role": "model",
                     "parts": [{ "text": out.text }]
                 }));
                 contents.push(json!({
                     "role": "user",
-                    "parts": [{ "text": COMPUTER_USE_CONTINUE_HINT }]
+                    "parts": [{ "text": COMPUTER_USE_PARENT_INCOMPLETE_HINT }]
+                }));
+                if let Some(buf) = delta_buf.as_mut() {
+                    buf.clear();
+                }
+                if wrap || round + 1 >= rounds_max {
+                    let locale = turn_ctx
+                        .as_ref()
+                        .map(|t| t.locale)
+                        .unwrap_or("en");
+                    text = parent_reply_after_incomplete_delegate(locale);
+                    return Ok(ChatRes {
+                        text,
+                        thought,
+                        blocks_json,
+                        tokens_in,
+                        tokens_out,
+                        model_used,
+                        tools_cost_usd,
+                    });
+                }
+                continue;
+            }
+            let reject_cu_bad = run_kind == "computer_use"
+                && !wrap
+                && !computer_use_final_text_acceptable(&out.text);
+            if reject_cu_bad {
+                cu_text_rejects = cu_text_rejects.saturating_add(1);
+                let hint = if cu_text_rejects >= 3 {
+                    COMPUTER_USE_FORCE_TOOL_HINT
+                } else {
+                    COMPUTER_USE_CONTINUE_HINT
+                };
+                if wrap || round + 1 >= rounds_max {
+                    if let Some(ctx) = turn_ctx.as_deref_mut() {
+                        if let Some(cp) = ctx.checkpoint.as_deref_mut() {
+                            checkpoint_set_fatal(
+                                cp,
+                                COMPUTER_USE_INCOMPLETE_FAIL_CLASS,
+                                "computer use ended without completing goal",
+                            );
+                        }
+                    }
+                    hop_checkpoint(
+                        turn_ctx.as_deref(),
+                        &on_hop,
+                        hop as i32,
+                        hop as i32,
+                        tokens_in,
+                        tokens_out,
+                        tools_cost_usd,
+                        &blocks_json,
+                        COMPUTER_USE_INCOMPLETE_FAIL_CLASS,
+                    );
+                    text = computer_use_stopped_incomplete_message();
+                    return Ok(ChatRes {
+                        text,
+                        thought,
+                        blocks_json,
+                        tokens_in,
+                        tokens_out,
+                        model_used,
+                        tools_cost_usd,
+                    });
+                }
+                contents.push(json!({
+                    "role": "model",
+                    "parts": [{ "text": out.text }]
+                }));
+                contents.push(json!({
+                    "role": "user",
+                    "parts": [{ "text": hint }]
                 }));
                 if let Some(buf) = delta_buf.as_mut() {
                     buf.clear();

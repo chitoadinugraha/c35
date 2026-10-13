@@ -38,6 +38,17 @@ const _trackpadLongPressDuration = Duration(milliseconds: 380);
 const _trackpadDragSlop = 5.0;
 const _mouseMoveThrottleIntervalMs = 16;
 
+/// Trackpad mode accepts touch and desktop pointer kinds (mouse + precision trackpad).
+bool remoteTrackpadAcceptsPointer(PointerEvent e, {required bool trackpadMode}) =>
+    !trackpadMode ||
+    e.kind == PointerDeviceKind.touch ||
+    e.kind == PointerDeviceKind.mouse ||
+    e.kind == PointerDeviceKind.trackpad;
+
+bool remoteTrackpadIsDesktopPointer(PointerEvent e) =>
+    e.kind == PointerDeviceKind.mouse ||
+    e.kind == PointerDeviceKind.trackpad;
+
 enum RemoteInteractMode { view, mouse, trackpad }
 
 extension RemoteInteractModeUi on RemoteInteractMode {
@@ -350,6 +361,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   Offset? _trackpadLastTapPos;
   var _trackpadDragLock = false;
   var _trackpadIsDoubleTapDown = false;
+  var _trackpadTwoFingerScrolled = false;
+  double _trackpadWheelAccum = 0;
   int _lastDoubleClickMs = 0;
   Timer? _trackpadLongPressTimer;
 
@@ -374,9 +387,17 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   bool _canvasDragPans({required bool ctrl, required bool middle}) =>
       _viewPanMode || (!_trackpadMode && (ctrl || middle));
   bool _trackpadGesturePointer(PointerEvent e) =>
-      !_trackpadMode ||
-      e.kind == PointerDeviceKind.touch ||
-      e.kind == PointerDeviceKind.mouse;
+      remoteTrackpadAcceptsPointer(e, trackpadMode: _trackpadMode);
+
+  void _trackpadSendWheelDelta(double units) {
+    if (units == 0) return;
+    _trackpadWheelAccum += units;
+    final delta = _trackpadWheelAccum.round();
+    if (delta == 0) return;
+    _trackpadWheelAccum -= delta;
+    _trackpadTwoFingerScrolled = true;
+    _sendPointerNorm('wheel', _virtualCursorNorm, deltaY: delta);
+  }
 
   void _trackpadSetSurfaceCursorHidden(bool hidden) {
     if (_trackpadSurfaceCursorHiddenNotifier.value == hidden) return;
@@ -384,7 +405,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
   }
 
   void _trackpadSyncSurfaceCursor(PointerEvent e) {
-    if (!_trackpadMode || e.kind != PointerDeviceKind.mouse) return;
+    if (!_trackpadMode || !remoteTrackpadIsDesktopPointer(e)) return;
     _trackpadSetSurfaceCursorHidden(
       e.buttons != 0 && (_touchMoved || _trackpadDragLock),
     );
@@ -1592,6 +1613,8 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     _touchMoved = false;
                                     _maxPointersInGesture = 1;
                                     _tapClickDispatched = false;
+                                    _trackpadTwoFingerScrolled = false;
+                                    _trackpadWheelAccum = 0;
                                   } else if (_activePointers.length >
                                       _maxPointersInGesture) {
                                     _maxPointersInGesture =
@@ -1721,12 +1744,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                       _twoFingerPrevPos = currentCenter;
                                       if (dy.abs() > 1.0) {
                                         _touchMoved = true;
-                                        final delta = (dy / 5.0).round();
-                                        if (delta != 0) {
-                                          _sendPointerNorm(
-                                              'wheel', _virtualCursorNorm,
-                                              deltaY: delta);
-                                        }
+                                        _trackpadSendWheelDelta(dy / 5.0);
                                       }
                                       return;
                                     }
@@ -1755,7 +1773,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
 
                                   if (widget.interactMode ==
                                       RemoteInteractMode.trackpad) {
-                                    if (e.kind == PointerDeviceKind.mouse &&
+                                    if (remoteTrackpadIsDesktopPointer(e) &&
                                         e.buttons == 0) {
                                       return;
                                     }
@@ -1776,7 +1794,7 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                             button: 0);
                                       }
                                     }
-                                    if (e.kind == PointerDeviceKind.mouse &&
+                                    if (remoteTrackpadIsDesktopPointer(e) &&
                                         e.buttons != 0 &&
                                         (_touchMoved || _trackpadDragLock)) {
                                       if (!_trackpadCursorClip.isConfined) {
@@ -1871,6 +1889,18 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     }
                                     _trackpadIsDoubleTapDown = false;
 
+                                    if (hadTwoOrMorePointers &&
+                                        (_trackpadTwoFingerScrolled ||
+                                            _touchMoved)) {
+                                      if (_activePointers.isEmpty) {
+                                        _trackpadTwoFingerScrolled = false;
+                                        _trackpadWheelAccum = 0;
+                                      }
+                                      _flushPendingMouseMove();
+                                      _heldButtons = e.buttons;
+                                      return;
+                                    }
+
                                     // 3. Normal tap without move:
                                     if (!_touchMoved && !_tapClickDispatched) {
                                       _tapClickDispatched = true;
@@ -1888,6 +1918,10 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                       _trackpadTapUp(
                                           button: btn,
                                           localPos: e.localPosition);
+                                    } else if (_touchMoved && !_trackpadDragLock) {
+                                      _flushPendingMouseMove();
+                                      _sendPointerNorm(
+                                          'mouse_move', _virtualCursorNorm);
                                     }
                                     _heldButtons = e.buttons;
                                     return;
@@ -1941,16 +1975,17 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                     }
 
                                     // Invert dy: Flutter scroll-down is positive dy, Win32 WHEEL_DELTA requires negative for down
-                                    final delta =
-                                        (-e.scrollDelta.dy / 20).round();
-                                    if (delta != 0) {
-                                      if (widget.interactMode ==
-                                          RemoteInteractMode.trackpad) {
-                                        _sendPointerNorm(
-                                            'wheel', _virtualCursorNorm,
-                                            deltaY: delta);
-                                      } else {
-                                        _sendPointer('wheel', e.localPosition,
+                                    if (widget.interactMode ==
+                                        RemoteInteractMode.trackpad) {
+                                      _trackpadSendWheelDelta(
+                                          -e.scrollDelta.dy / 20);
+                                    } else {
+                                      final delta =
+                                          (-e.scrollDelta.dy / 20).round();
+                                      if (delta != 0) {
+                                        _sendPointer(
+                                            'wheel',
+                                            e.localPosition,
                                             renderSize,
                                             deltaY: delta);
                                       }
@@ -2005,9 +2040,9 @@ class _UiRemoteDeviceState extends State<UiRemoteDevice> {
                                           );
                                           return Positioned(
                                             left: pos.dx.clamp(
-                                                -20.0, renderSize.width),
+                                                -14.0, renderSize.width),
                                             top: pos.dy.clamp(
-                                                -24.0, renderSize.height),
+                                                -17.0, renderSize.height),
                                             child: UiRemoteVirtualCursor(
                                                 shape: remoteShape),
                                           );

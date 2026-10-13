@@ -3,9 +3,10 @@ use c_remote_core::c35_proto::RemoteInputEvent;
 use tracing::{info, warn};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, INPUT_MOUSE, KEYBDINPUT, KEYEVENTF_EXTENDEDKEY,
-    KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC, MapVirtualKeyW, MOUSEEVENTF_LEFTDOWN,
-    MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP, MOUSEEVENTF_RIGHTDOWN,
-    MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_WHEEL, MOUSEINPUT, VIRTUAL_KEY,
+    KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MAPVK_VK_TO_VSC, MapVirtualKeyW, MOUSEEVENTF_ABSOLUTE,
+    MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP, MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP,
+    MOUSEEVENTF_MOVE, MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP, MOUSEEVENTF_VIRTUALDESK,
+    MOUSEEVENTF_WHEEL, MOUSEINPUT, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
@@ -71,26 +72,18 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             }
         }
         "mouse_move" => {
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
         }
         "mouse_down" => {
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             send_mouse_event(mouse_down_flag(evt.button), 0);
         }
         "mouse_up" => {
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             send_mouse_event(mouse_up_flag(evt.button), 0);
         }
         "mouse_click" => {
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             send_mouse_event(mouse_down_flag(evt.button), 0);
             send_mouse_event(mouse_up_flag(evt.button), 0);
         }
@@ -107,12 +100,9 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             }
             LAST_DOUBLE_CLICK_MS.store(now, Ordering::Relaxed);
 
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             let btn_down = mouse_down_flag(evt.button);
             let btn_up = mouse_up_flag(evt.button);
-            send_mouse_event(btn_up, 0);
             send_mouse_event(btn_down, 0);
             send_mouse_event(btn_up, 0);
             std::thread::sleep(std::time::Duration::from_millis(50));
@@ -120,9 +110,7 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             send_mouse_event(btn_up, 0);
         }
         "triple_click" => {
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             let btn_down = mouse_down_flag(evt.button);
             let btn_up = mouse_up_flag(evt.button);
             for i in 0..3 {
@@ -134,16 +122,12 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             }
         }
         "right_click" => {
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             send_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0);
             send_mouse_event(MOUSEEVENTF_RIGHTUP, 0);
         }
         "middle_click" => {
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             send_mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0);
             send_mouse_event(MOUSEEVENTF_MIDDLEUP, 0);
         }
@@ -152,13 +136,12 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             let btn_up = mouse_up_flag(evt.button);
             send_mouse_event(btn_down, 0);
             std::thread::sleep(std::time::Duration::from_millis(20));
-            unsafe {
-                let _ = SetCursorPos(px, py);
-            }
+            sync_remote_pointer(px, py);
             std::thread::sleep(std::time::Duration::from_millis(40));
             send_mouse_event(btn_up, 0);
         }
         "wheel" => {
+            sync_remote_pointer(px, py);
             send_mouse_event(MOUSEEVENTF_WHEEL, evt.delta_y * 120);
         }
         "key_down" => {
@@ -268,6 +251,9 @@ fn should_probe_cursor(evt_type: &str) -> bool {
                 | "wheel"
         )
     {
+        if matches!(evt.event_type.as_str(), "mouse_move" | "wheel") {
+            nudge_pointer_hit_test(px, py, w, h);
+        }
         c_remote_core::webrtc::input_cursor_publish(crate::cursor_shape::probe());
     }
     crate::screen_capture::mark_screen_dirty();
@@ -362,6 +348,37 @@ fn mouse_up_flag(button: i32) -> windows::Win32::UI::Input::KeyboardAndMouse::MO
         1 => MOUSEEVENTF_MIDDLEUP,
         2 => MOUSEEVENTF_RIGHTUP,
         _ => MOUSEEVENTF_LEFTUP,
+    }
+}
+
+fn sync_remote_pointer(px: i32, py: i32) {
+    unsafe {
+        let _ = SetCursorPos(px, py);
+    }
+}
+
+/// Absolute move nudge so Windows hit-tests HWND under the remote pointer (I-beam, etc.).
+fn nudge_pointer_hit_test(px: i32, py: i32, screen_w: i32, screen_h: i32) {
+    if screen_w <= 1 || screen_h <= 1 {
+        return;
+    }
+    let dx = (px as i64 * 65535 / (screen_w as i64 - 1)) as i32;
+    let dy = (py as i64 * 65535 / (screen_h as i64 - 1)) as i32;
+    let input = INPUT {
+        r#type: INPUT_MOUSE,
+        Anonymous: INPUT_0 {
+            mi: MOUSEINPUT {
+                dx,
+                dy,
+                mouseData: 0,
+                dwFlags: MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    };
+    unsafe {
+        SendInput(&[input], std::mem::size_of::<INPUT>() as i32);
     }
 }
 

@@ -184,8 +184,8 @@ tool! {
     name: "device.input",
     aliases: ["device_input", "device_computer_use"],
     description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Chrome extension browser devices use CDP trusted keys/clicks (not OS SendKeys); pass tab_id for the target tab. For Google Sheets prefer browser.sheets.* tools. Desktop agents use OS input. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
-    topics: ["computer_use"],
-    always: ["computer_use"],
+    topics: ["device", "computer_use"],
+    always: ["device", "computer_use"],
     ui_calling_key: "tool.device.input.calling",
     ui_done_key: "tool.device.input.done",
     parameters: {
@@ -549,7 +549,7 @@ tool! {
 }
 
 const SHELL_RUN_DESC_WINDOWS: &str =
-    "Run PowerShell or cmd on a paired Windows PC. Use for ping, scripts, bulk file work, and stdout/stderr. To open a GUI app (Chrome, Edge, Notepad), use a simple launch such as `chrome` or `Start-Process chrome` — the agent opens it directly like a double-click (no shell window). Use device.input only when the UI has no direct launch path.";
+    "Run PowerShell or cmd on a paired Windows PC. Use for ping, scripts, bulk file work, and stdout/stderr. To open a GUI app (Chrome, Edge, Notepad), use a simple launch such as `chrome` or `Start-Process chrome` — the agent opens it directly like a double-click (no shell window). Before launching Chrome for Google Forms, prefer device.screenshot: reuse an existing Forms tab instead of opening forms.new again. Use device.input when the UI is already on screen.";
 
 const SHELL_RUN_DESC_ANDROID: &str =
     "Run an allowlisted `/system/bin/sh -c` command on a paired Android remote agent (not PowerShell). Only approved diagnostics are permitted (e.g. getprop, pm list packages, df, id, ls on paths the FS layer cannot reach). Arbitrary root, package install, or destructive commands are denied. Prefer device.fs.list / device.fs.read for files and device.input for UI taps, swipes, and text.";

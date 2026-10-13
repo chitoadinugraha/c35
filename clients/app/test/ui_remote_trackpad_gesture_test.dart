@@ -2,10 +2,42 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/remote/remote_session.dart';
 import 'package:alienai_c35/c/remote/remote_trackpad_cursor_clip.dart';
 import 'package:alienai_c35/widgets/devices/ui_remote_device.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('remoteTrackpadAcceptsPointer filters pointer kinds in trackpad mode', () {
+    const center = Offset(10, 10);
+    expect(
+      remoteTrackpadAcceptsPointer(
+        TestPointer(1, PointerDeviceKind.touch).down(center),
+        trackpadMode: true,
+      ),
+      isTrue,
+    );
+    expect(
+      remoteTrackpadAcceptsPointer(
+        TestPointer(2, PointerDeviceKind.mouse).down(center),
+        trackpadMode: true,
+      ),
+      isTrue,
+    );
+    expect(
+      remoteTrackpadAcceptsPointer(
+        TestPointer(3, PointerDeviceKind.stylus).down(center),
+        trackpadMode: true,
+      ),
+      isFalse,
+    );
+    expect(
+      remoteTrackpadIsDesktopPointer(
+        TestPointer(4, PointerDeviceKind.mouse).down(center),
+      ),
+      isTrue,
+    );
+  });
+
   test('RemoteTrackpadCursorClip instantiates and safely handles confine and release', () {
     final clipper = RemoteTrackpadCursorClip();
     expect(clipper.isConfined, isFalse);

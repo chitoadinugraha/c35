@@ -2,16 +2,14 @@ import 'dart:io';
 
 import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/log.dart';
-import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/update/app_release.dart';
+import 'package:alienai_c35/c/update/app_update_local_build.dart';
 import 'package:alienai_c35/c/update/app_update_channel.dart';
 import 'package:alienai_c35/c/update/app_update_download.dart';
 import 'package:alienai_c35/c/update/app_update_install_android.dart';
 import 'package:alienai_c35/c/update/app_update_paths_android.dart';
 import 'package:alienai_c35/c/update/app_update_prefs.dart';
 import 'package:alienai_c35/c/update/app_update_service.dart';
-
-int appUpdateApkLocalBuild() => int.tryParse(csaiVersion.trim()) ?? 0;
 
 Future<void> appUpdateApkOtaCheck({
   required Future<bool> Function({required bool force, required bool apkSideload}) askToUpdate,
@@ -20,7 +18,7 @@ Future<void> appUpdateApkOtaCheck({
   final remote = await appReleaseGet(base, platform: 'android');
   if (remote == null || remote.apkUrl.isEmpty) return;
 
-  final local = appUpdateApkLocalBuild();
+  final local = await appUpdateLocalBuild();
   if (!appReleaseNeedsUpdate(local: local, remote: remote)) {
     AppUpdateService.instance.setAndroidApkUpToDate(remote);
     return;

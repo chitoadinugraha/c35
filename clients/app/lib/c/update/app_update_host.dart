@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/update/app_release.dart';
 import 'package:alienai_c35/c/update/app_update_android.dart';
 import 'package:alienai_c35/c/update/app_update_apk_ota.dart';
 import 'package:alienai_c35/c/update/app_update_service.dart';
+import 'package:alienai_c35/widgets/ui/ui_update_banner.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -168,5 +169,21 @@ class _AppUpdateHostState extends State<AppUpdateHost> with WidgetsBindingObserv
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return widget.child;
+    return Stack(
+      children: [
+        widget.child,
+        const SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: UiUpdateChrome(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

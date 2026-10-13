@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:alienai_c35/c/audio/mic_stream_candidates.dart';
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/live/live_pcm_jitter_buffer.dart';
+import 'package:alienai_c35/c/live/live_pcm_playout.dart';
 import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
@@ -53,9 +55,17 @@ class LiveCallSession {
   AudioPlayer get _playerB => _pB ??= AudioPlayer();
   int _playbackEpoch = 0;
   Timer? _bufferJitterTimer;
-  final BytesBuilder _incomingPcm = BytesBuilder(copy: false);
+  final LivePcmJitterBuffer _downlinkPcm = LivePcmJitterBuffer(
+    sampleRateHz: 24000,
+    onUnderrun: () => debugPrint('[LiveCallSession] live_audio_underrun'),
+  );
   int _audioSampleRate = 24000;
   var _playBusy = false;
+  var _usePlayerA = true;
+  LivePcmPlayout? _streamPlayout;
+  Timer? _streamPlayoutTimer;
+  static const double _fallbackChunkSec = 0.12;
+  static const int _streamFrameMs = 20;
   var _disposed = false;
   var _userHungUp = false;
   var _outboundLiveBusyTracked = false;
@@ -65,7 +75,6 @@ class LiveCallSession {
   static const int _vadBytesPerMs = (_vadSampleRate * 2) ~/ 1000; // 32 bytes per ms
   static const int _preSpeechBufferMaxBytes = 150 * _vadBytesPerMs; // 4800 bytes (150ms rolling window)
   static const int _hangoverDurationMs = 1000; // 1000ms generous hangover window
-  static const double _initialBufferSec = 0.45; // Coalesce small Gemini chunks to avoid clicky playback
   static const double _vadThresholdMin = 70.0; // Gentle sensitive speech floor (captures normal/soft voice)
   static const double _vadThresholdMax = 150.0; // Safe upper ceiling
   /// While assistant audio plays, ignore uplink below this RMS (speaker echo often looks like speech).
@@ -104,6 +113,7 @@ class LiveCallSession {
   Future<void> unlockWebAudioPlayback() async {
     if (!kIsWeb) return;
     try {
+      await LivePcmPlayout.warmUpForUserGesture();
       await initAudioContext();
       final silence = Uint8List(1600);
       final wav = SttService.pcmToWav(silence, sampleRate: 16000, channels: 1);
@@ -254,14 +264,20 @@ class LiveCallSession {
   void dispatchWsMessageForTesting(dynamic data) => _onMessage(data);
 
   void _schedulePlaybackDrain({bool flush = false}) {
-    final minBytes = (_audioSampleRate * 2 * _initialBufferSec).toInt();
-    if (_incomingPcm.length >= minBytes || flush) {
+    if (_streamPlayout != null) {
+      unawaited(_pumpStreamPlayout(flush: flush));
+      return;
+    }
+    final targetSec = _downlinkPcm.targetBufferMs / 1000.0;
+    final minBytes = (_audioSampleRate * 2 * targetSec).toInt();
+    if (_downlinkPcm.length >= minBytes || flush) {
       _bufferJitterTimer?.cancel();
       unawaited(_drainPlayback(flush: flush));
-    } else if (_incomingPcm.isNotEmpty && !_playBusy) {
+    } else if (_downlinkPcm.isNotEmpty && !_playBusy) {
       _bufferJitterTimer?.cancel();
-      _bufferJitterTimer = Timer(const Duration(milliseconds: 400), () {
-        if (!_disposed && !_playBusy && _incomingPcm.isNotEmpty) {
+      final waitMs = max(50, _downlinkPcm.targetBufferMs ~/ 2);
+      _bufferJitterTimer = Timer(Duration(milliseconds: waitMs), () {
+        if (!_disposed && !_playBusy && _downlinkPcm.isNotEmpty) {
           unawaited(_drainPlayback(flush: true));
         }
       });
@@ -274,17 +290,19 @@ class LiveCallSession {
         final audio = LiveWsAudio.fromBuffer(bytes.sublist(2));
         if (audio.sampleRateHz > 0) {
           _audioSampleRate = audio.sampleRateHz;
+          _downlinkPcm.setSampleRateHz(_audioSampleRate);
         }
         final pcm = Uint8List.fromList(audio.pcmS16le);
         if (pcm.isEmpty) return;
-        _incomingPcm.add(pcm);
+        _downlinkPcm.write(pcm);
         _schedulePlaybackDrain();
         return;
       } catch (e) {
         debugPrint('[LiveCallSession] LiveWsAudio decode failed: $e');
       }
     }
-    _incomingPcm.add(bytes);
+    _downlinkPcm.setSampleRateHz(_audioSampleRate);
+    _downlinkPcm.write(bytes);
     _schedulePlaybackDrain();
   }
 
@@ -301,6 +319,7 @@ class LiveCallSession {
     if (text == null || text.isEmpty) return;
     if (text.contains('"live":"ready"') || text.contains('"live": "ready"')) {
       if (!_disposed) ready.value = true;
+      unawaited(_initStreamPlayout());
       return;
     }
     if (text.contains('"live":"hangup"') || text.contains('"live": "hangup"')) {
@@ -368,6 +387,7 @@ class LiveCallSession {
     }
     if (text.contains('setupComplete')) {
       if (!_disposed) ready.value = true;
+      unawaited(_initStreamPlayout());
     }
     try {
       final v = jsonDecode(text);
@@ -393,7 +413,7 @@ class LiveCallSession {
 
   void _handleInterruption() {
     _playbackEpoch++;
-    _incomingPcm.clear();
+    _downlinkPcm.clear();
     _bufferJitterTimer?.cancel();
     _playBusy = false;
     unawaited(_pA?.stop());
@@ -602,12 +622,13 @@ class LiveCallSession {
         if (b64 == null || b64.isEmpty) continue;
         final mime = inline['mimeType']?.toString() ?? inline['mime_type']?.toString() ?? 'audio/pcm;rate=24000';
         _audioSampleRate = int.tryParse(RegExp(r'rate=(\d+)').firstMatch(mime)?.group(1) ?? '') ?? 24000;
+        _downlinkPcm.setSampleRateHz(_audioSampleRate);
         final pcm = base64Decode(b64);
-        _incomingPcm.add(pcm);
+        _downlinkPcm.write(pcm);
       }
     }
     final turnEnded = v['serverContent']?['turnComplete'] == true || v['serverContent']?['generationComplete'] == true;
-    if (_incomingPcm.isNotEmpty) {
+    if (_downlinkPcm.isNotEmpty) {
       _schedulePlaybackDrain(flush: turnEnded);
     }
   }
@@ -618,16 +639,60 @@ class LiveCallSession {
   }
 
   Uint8List _extractPlaybackChunk({double maxDurationSec = 3.0}) {
-    final allBytes = _incomingPcm.takeBytes();
-    if (allBytes.isEmpty) return Uint8List(0);
     final maxBytes = (_audioSampleRate * 2 * maxDurationSec).toInt();
-    if (allBytes.length <= maxBytes) {
-      return allBytes;
+    return _downlinkPcm.takeForPlayback(maxBytes);
+  }
+
+  Future<void> _initStreamPlayout() async {
+    if (_disposed || _streamPlayout != null) return;
+    final playout = await LivePcmPlayout.tryCreate();
+    if (playout == null || _disposed) return;
+    try {
+      await playout.start(_audioSampleRate);
+      _streamPlayout = playout;
+      _streamPlayoutTimer?.cancel();
+      _streamPlayoutTimer = Timer.periodic(const Duration(milliseconds: _streamFrameMs), (_) {
+        unawaited(_pumpStreamPlayout());
+      });
+      debugPrint('[LiveCallSession] stream playout active @ ${_audioSampleRate}Hz');
+    } catch (e) {
+      debugPrint('[LiveCallSession] stream playout init failed: $e');
     }
-    final chunk = Uint8List.sublistView(allBytes, 0, maxBytes);
-    final remaining = Uint8List.sublistView(allBytes, maxBytes);
-    _incomingPcm.add(remaining);
-    return chunk;
+  }
+
+  Future<void> _pumpStreamPlayout({bool flush = false}) async {
+    final playout = _streamPlayout;
+    if (_disposed || playout == null) return;
+    final frameBytes = (_audioSampleRate * 2 * _streamFrameMs) ~/ 1000;
+    if (frameBytes <= 0) return;
+    final minBytes = (_audioSampleRate * 2 * _downlinkPcm.targetBufferMs) ~/ 1000;
+    if (!flush && _downlinkPcm.length < minBytes) {
+      _playBusy = _downlinkPcm.bufferedMs() > 30;
+      return;
+    }
+    final chunk = _downlinkPcm.takeForPlayback(frameBytes);
+    if (chunk.isNotEmpty) {
+      try {
+        await playout.write(chunk);
+        _playBusy = true;
+      } catch (e) {
+        debugPrint('[LiveCallSession] stream write failed: $e');
+      }
+    } else {
+      _playBusy = _downlinkPcm.isNotEmpty;
+    }
+  }
+
+  Future<void> _stopStreamPlayout() async {
+    _streamPlayoutTimer?.cancel();
+    _streamPlayoutTimer = null;
+    final playout = _streamPlayout;
+    _streamPlayout = null;
+    if (playout != null) {
+      try {
+        await playout.stop();
+      } catch (_) {}
+    }
   }
 
   Future<void> _awaitPlayerDone(AudioPlayer player, int durMs) async {
@@ -640,24 +705,26 @@ class LiveCallSession {
   }
 
   Future<void> _drainPlayback({bool flush = false}) async {
-    if (_playBusy || _incomingPcm.isEmpty || _disposed) return;
+    if (_playBusy || _downlinkPcm.isEmpty || _disposed) return;
     _playBusy = true;
     final epoch = ++_playbackEpoch;
-    final minBytes = (_audioSampleRate * 2 * _initialBufferSec).toInt();
+    final targetSec = _downlinkPcm.targetBufferMs / 1000.0;
+    final minBytes = (_audioSampleRate * 2 * targetSec).toInt();
 
     try {
-      while (_incomingPcm.isNotEmpty && !_disposed && _playbackEpoch == epoch) {
-        if (!flush && _incomingPcm.length < minBytes) break;
-        final chunk = _extractPlaybackChunk();
+      while (_downlinkPcm.isNotEmpty && !_disposed && _playbackEpoch == epoch) {
+        if (!flush && _downlinkPcm.length < minBytes) break;
+        final chunk = _extractPlaybackChunk(maxDurationSec: _fallbackChunkSec);
         if (chunk.isEmpty) break;
         final durMs = _chunkDurationMs(chunk.length);
         final wav = SttService.pcmToWav(chunk, sampleRate: _audioSampleRate, channels: 1);
 
-        final player = _playerA;
+        final player = _usePlayerA ? _playerA : _playerB;
         await player.play(BytesSource(wav));
         if (_disposed || _playbackEpoch != epoch) break;
         await _awaitPlayerDone(player, durMs);
         if (_disposed || _playbackEpoch != epoch) break;
+        _usePlayerA = !_usePlayerA;
         flush = false;
       }
     } catch (e) {
@@ -668,8 +735,8 @@ class LiveCallSession {
     } finally {
       if (_playbackEpoch == epoch) {
         _playBusy = false;
-        if (!_disposed && _incomingPcm.isNotEmpty) {
-          if (_incomingPcm.length >= minBytes) {
+        if (!_disposed && _downlinkPcm.isNotEmpty) {
+          if (_downlinkPcm.length >= minBytes) {
             unawaited(_drainPlayback());
           }
         }
@@ -900,10 +967,18 @@ class LiveCallSession {
       speakerOn.value = true;
     }
     await stopCamera();
+    if (kDebugMode) {
+      debugPrint(
+        '[LiveCallSession] audio stats: underruns=${_downlinkPcm.underrunCount} '
+        'targetMs=${_downlinkPcm.targetBufferMs} stream=${_streamPlayout != null}',
+      );
+    }
+    await _stopStreamPlayout();
+    await LivePcmPlayout.disposePlatformAudio();
     _bufferJitterTimer?.cancel();
     _bufferJitterTimer = null;
     _playbackEpoch++;
-    _incomingPcm.clear();
+    _downlinkPcm.clear();
     _playBusy = false;
     _preSpeechRingBuffer.clear();
     _preSpeechBufferBytes = 0;
@@ -979,7 +1054,7 @@ class LiveCallSession {
   void processMicChunkWithVad(Uint8List pcm16k) => _processMicChunkWithVad(pcm16k);
 
   @visibleForTesting
-  int get incomingPcmBytes => _incomingPcm.length;
+  int get incomingPcmBytes => _downlinkPcm.length;
 
   @visibleForTesting
   Uint8List extractPlaybackChunkForTesting({double maxDurationSec = 3.0}) =>
@@ -989,7 +1064,7 @@ class LiveCallSession {
   int chunkDurationMsForTesting(int bytesLength) => _chunkDurationMs(bytesLength);
 
   @visibleForTesting
-  void addIncomingPcmForTesting(Uint8List bytes) => _incomingPcm.add(bytes);
+  void addIncomingPcmForTesting(Uint8List bytes) => _downlinkPcm.write(bytes);
 
   @visibleForTesting
   void setAudioSampleRateForTesting(int rate) => _audioSampleRate = rate;

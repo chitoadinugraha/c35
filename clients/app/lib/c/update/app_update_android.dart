@@ -1,13 +1,11 @@
 import 'package:alienai_c35/c/conn/server_host.dart';
-import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/update/app_release.dart';
+import 'package:alienai_c35/c/update/app_update_local_build.dart';
 import 'package:alienai_c35/c/update/app_update_apk_ota.dart';
 import 'package:alienai_c35/c/update/app_update_channel.dart';
 import 'package:alienai_c35/c/update/app_update_prefs.dart';
 import 'package:flutter/services.dart';
 import 'package:in_app_update/in_app_update.dart';
-
-int _localBuild() => int.tryParse(csaiVersion.trim()) ?? 0;
 
 bool appUpdatePlayNotOwned(Object error) {
   if (error is! PlatformException) return false;
@@ -57,7 +55,7 @@ Future<void> appUpdateAndroidCheck({
   try {
     final base = await serverHostActiveBase();
     final remote = await appReleaseGet(base, platform: 'android');
-    if (remote != null && remote.min > 0) force = _localBuild() < remote.min;
+    if (remote != null && remote.min > 0) force = (await appUpdateLocalBuild()) < remote.min;
   } catch (_) {}
 
   final accepted = await askToUpdate(force: force, apkSideload: false);

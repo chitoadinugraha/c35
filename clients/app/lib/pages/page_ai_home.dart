@@ -363,6 +363,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   void _promptCutOnDisconnect() {
+    if (_conn.status.value == ChatConnStatus.reconnecting) return;
     final cid = _store.promptChatId ?? _store.activeChatId;
     if (cid == null || !_store.promptBusyFor(cid)) return;
     _promptConnGuardUnbind();
@@ -672,7 +673,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final cid = _store.activeChatId;
     if (cid == null || cid <= 0) return;
     final locale = CatalogTranslationCache.instance.lang;
-    final pullForce = force && !_store.promptBusyFor(cid);
+    final pullForce = force || _store.promptBusyFor(cid);
     try {
       await _store.msgsPullFromServer(_conn, cid, locale: locale, force: pullForce);
       if (_store.promptBusyFor(cid)) await _store.feedbackPull(_conn, cid, locale: locale);
@@ -977,7 +978,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _store.chatNew();
     _mentionIds.clear();
     _composerReset();
-    _canvasStore.close();
+    _canvasStore.clear();
     _timeline.scrollToBottom(force: true);
     _closeHistoryDrawerIfNarrow();
   }
@@ -1013,7 +1014,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     unawaited(_conn.sessionFocus(chatId: id, lastSeenMsgId: lastSeenMsgId).catchError((_) => ResSessionFocus()));
     _composerReset();
     _mentionContextSyncFromChat(restoreComposer: true);
-    _canvasStore.close();
+    _canvasStore.clear();
     final locale = CatalogTranslationCache.instance.lang;
     try {
       await _store.msgsPullFromServer(_conn, id, locale: locale);

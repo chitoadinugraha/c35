@@ -7,11 +7,13 @@ import android.content.pm.PackageInstaller
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileInputStream
 
 object ApkUpdateInstaller {
+    private const val TAG = "ApkUpdateInstaller"
     fun canInstall(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
         return context.packageManager.canRequestPackageInstalls()
@@ -31,8 +33,9 @@ object ApkUpdateInstaller {
 
     fun install(context: Context, apkFile: File): Boolean {
         if (!apkFile.isFile) return false
-        if (tryPackageInstaller(context, apkFile)) return true
-        return installViaIntent(context, apkFile)
+        // System package UI is more reliable for same-app upgrades (emulator + OEM).
+        if (installViaIntent(context, apkFile)) return true
+        return tryPackageInstaller(context, apkFile)
     }
 
     private fun tryPackageInstaller(context: Context, apkFile: File): Boolean {
@@ -41,7 +44,8 @@ object ApkUpdateInstaller {
             val installer = context.packageManager.packageInstaller
             val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+                params.setAppPackageName(context.packageName)
+                params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED)
             }
             val sessionId = installer.createSession(params)
             val session = installer.openSession(sessionId)

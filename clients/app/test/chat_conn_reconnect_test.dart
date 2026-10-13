@@ -82,6 +82,40 @@ void main() {
       await tester.pump();
       expect(callCount, 2);
     });
+
+    testWidgets('shows wifi icon when connected and alwaysVisible is true', (tester) async {
+      final conn = ChatConn();
+      conn.status.value = ChatConnStatus.connected;
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: UiConnWifi(
+            conn: conn,
+            alwaysVisible: true,
+          ),
+        ),
+      ));
+
+      expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
+    });
+
+    testWidgets('becomes Offline Mode pill when disconnected and showLabel is true', (tester) async {
+      final conn = ChatConn();
+      conn.status.value = ChatConnStatus.disconnected;
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: UiConnWifi(
+            conn: conn,
+            showLabel: true,
+            alwaysVisible: true,
+          ),
+        ),
+      ));
+
+      expect(find.text('Offline Mode'), findsOneWidget);
+      expect(find.byIcon(Icons.wifi_off_rounded), findsOneWidget);
+    });
   });
 
   group('ChatConn reconnect after a failed handshake', () {

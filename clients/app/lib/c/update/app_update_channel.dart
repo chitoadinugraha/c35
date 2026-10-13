@@ -3,8 +3,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 enum AppUpdateChannel { play, apk }
 
 const _channelKey = 'app_update_channel';
+const _channelCompile = String.fromEnvironment('C35_UPDATE_CHANNEL', defaultValue: '');
 
 Future<AppUpdateChannel> appUpdateChannelGet() async {
+  final compile = _channelCompile.trim().toLowerCase();
+  if (compile == 'apk') return AppUpdateChannel.apk;
+  if (compile == 'play') return AppUpdateChannel.play;
   final p = await SharedPreferences.getInstance();
   final raw = (p.getString(_channelKey) ?? 'play').trim().toLowerCase();
   if (raw == 'apk') return AppUpdateChannel.apk;

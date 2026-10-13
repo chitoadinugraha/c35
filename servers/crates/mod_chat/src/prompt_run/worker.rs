@@ -171,7 +171,7 @@ async fn process_prompt_job(
         if let Some(reason) = prompt_run_should_stop(&row) {
             if matches!(
                 reason,
-                "fatal" | "fatal_checkpoint" | "fatal_repeat" | "stuck_ui"
+                "fatal" | "fatal_checkpoint" | "fatal_repeat" | "stuck_ui" | "fatal_incomplete"
             ) {
                 let fc = row
                     .fail_class
@@ -382,7 +382,7 @@ async fn process_prompt_job(
                 if hop.fail_class.starts_with("fatal_")
                     || matches!(
                         hop.fail_class.as_str(),
-                        "fatal_repeat" | "stuck_ui" | "turn_cap"
+                        "fatal_repeat" | "stuck_ui" | "turn_cap" | "fatal_incomplete"
                     )
                 {
                     cancel_hop.cancel();

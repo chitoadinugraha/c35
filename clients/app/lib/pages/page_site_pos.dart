@@ -150,9 +150,9 @@ class _PageSitePosState extends State<PageSitePos> {
     }
     if (_blockReason == 'offline') {
       return UiEmptyState(
-        icon: Icons.cloud_off_outlined,
-        title: 'Offline',
-        subtitle: 'Connect once while online to cache products for POS, then you can sell offline.',
+        icon: Icons.wifi_off_rounded,
+        title: 'Offline Mode',
+        subtitle: 'Buka POS saat online terlebih dahulu untuk memuat produk, lalu Anda dapat berjualan secara offline.',
         actionHint: 'Go back',
       );
     }

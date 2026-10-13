@@ -8,6 +8,7 @@ pub mod time;
 
 pub use date_range::{date_range_prompt_block, DATE_RANGE_INST};
 pub mod computer_use;
+pub mod google_forms;
 pub mod tool_loop;
 pub mod user_context;
 pub mod user_me_enrich;

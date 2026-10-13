@@ -357,6 +357,17 @@ Both Human remote interaction and Alien AI automation converge on the exact same
        (Win32 SendInput / mouse_event / keybd_event)
 ```
 
+### UAC / secure desktop (Windows)
+
+Today DXGI capture and `SendInput` are **not reliable** on the Winlogon **secure desktop** (elevation consent). Unattended tasks can **deadlock** if a prompt appears with no human at the PC.
+
+| Track | Doc |
+|-------|-----|
+| **Near-term (when scheduled)** | FakerInput install, elevation detection, `RemoteSessionPush`, Remote tab banner — [plan](plans/2026-10-13-windows-uac-elevation-remote.md) |
+| **Future options (catalog)** | Signed own driver, RDP, spacedesk/LizardByte SDK, elevation broker, fleet GPO — [remote-windows-uac-future-options.md](remote-windows-uac-future-options.md) |
+
+Locked until implemented: do not claim full unattended arbitrary-UAC support without the near-term track or an option from the catalog.
+
 ### Dynamic Device Mentions (@DeviceName)
 
 - **Composer:** Typing `@` suggests user's online remote devices from `ai.identity` (e.g. `@Chito-PC`) alongside static topics (`@research`).
@@ -376,6 +387,8 @@ When a user mentions a device (e.g. `@Chito-PC`) or when computer use is needed,
 - **`shell.run`**: Executes PowerShell commands directly on the remote agent with a configurable timeout (`timeout_sec`), returning structured `stdout`, `stderr`, and `exit_code`. **Preferred for bulk data** (export, join, transform, spreadsheet load); UI clicks are for gates only (login, export button, captcha).
 
 **Bulk data (locked steering):** Topic `computer_use` instructs the subagent to **plan first** (keys, volume, phases), use **bulk extract + `shell.run` scripts** when row count is large or work is repetitive, **pilot** a small sample, and use **row-by-row UI lookup only** when no export/API/script path exists. See [`../schemas/topic.sql`](../schemas/topic.sql) seed `computer_use`.
+
+**Completion semantics (`computer_use.delegate`):** The child `prompt_run` must end with an assistant summary that passes server-side acceptance (no user handoff or give-up phrasing). Tool result JSON includes `goal_met`, `incomplete`, and `ok` (`ok` requires `goal_met`). Parents must not echo child click steps when `incomplete` is true (`inst.device.operate`). Child turns that exhaust rounds with bad final text set `fail_class=fatal_incomplete`.
 
 #### 2. Set-of-Mark (SoM) & Windows UI Automation (UIA) Engine
 

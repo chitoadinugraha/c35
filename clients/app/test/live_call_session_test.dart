@@ -142,25 +142,20 @@ void main() {
   });
 
   group('LiveCallSession - Track E: Playback Buffer & Ping-Pong', () {
-    test('extracts burst accumulation segments up to 3 seconds', () {
+    test('extracts playback chunks up to max duration', () {
       final session = LiveCallSession();
       session.setAudioSampleRateForTesting(24000); // 24kHz = 48000 bytes/sec
 
-      // Add 5 seconds of audio (240000 bytes)
-      final fiveSeconds = Uint8List(240000);
-      session.addIncomingPcmForTesting(fiveSeconds);
-      expect(session.incomingPcmBytes, 240000);
+      // 800ms of PCM fits under the jitter buffer 1200ms storage ceiling.
+      session.addIncomingPcmForTesting(Uint8List(38400));
+      expect(session.incomingPcmBytes, 38400);
 
-      // Extract chunk with max 3.0 seconds
-      final chunk1 = session.extractPlaybackChunkForTesting(maxDurationSec: 3.0);
-      // 3.0 sec * 48000 bytes/sec = 144000 bytes
-      expect(chunk1.length, 144000);
-      // Remaining bytes in buffer: 240000 - 144000 = 96000 (2.0 seconds)
-      expect(session.incomingPcmBytes, 96000);
+      final chunk1 = session.extractPlaybackChunkForTesting(maxDurationSec: 0.5);
+      expect(chunk1.length, 24000);
+      expect(session.incomingPcmBytes, 14400);
 
-      // Extract next chunk
       final chunk2 = session.extractPlaybackChunkForTesting(maxDurationSec: 3.0);
-      expect(chunk2.length, 96000);
+      expect(chunk2.length, 14400);
       expect(session.incomingPcmBytes, 0);
     });
 

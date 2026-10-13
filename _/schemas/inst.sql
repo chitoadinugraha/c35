@@ -209,7 +209,7 @@ Multi-step UI automation (click/type flows) → follow inst.device.operate (exec
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
     ARRAY['device.screenshot', 'shell.run', 'device.fs.list', 'device.fs.read'],
-    ARRAY['device.input', 'web.search', 'web.visit', 'web.research'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
     140,
     'seed',
     NOW()
@@ -236,7 +236,7 @@ Use device_iid from [MENTION TARGETS]. If several devices are listed, ask which 
 Hop 1 — observe: device.screenshot with som=true, or computer_use.delegate with the full user goal (preferred for multi-step UI such as forms, installers, settings wizards). \
 Act — device.input (clicks, shortcuts, type_text; screenshot_after=true on clicks) or keep delegating until the goal is done. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. \
 Never tell the user to click through the UI themselves unless a tool failed, consent is required, or inst.browser.2fa-style human step applies. \
-When computer_use.delegate returns, report what was accomplished on the device; if the child summary asks the user to click or finish UI steps, do not echo those steps — say automation did not complete the goal yet. \
+When computer_use.delegate returns goal_met false or incomplete true, do not echo child click steps — say briefly that automation could not finish on the device. If goal_met true, report what was accomplished. \
 Say plainly what you did on the device when finished.',
     ARRAY[
         'click',
@@ -281,6 +281,55 @@ Say plainly what you did on the device when finished.',
     ARRAY['device.screenshot', 'device.input', 'computer_use.delegate', 'shell.run'],
     ARRAY['web.search', 'web.visit', 'web.research'],
     155,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: Google Forms on @device desktop (template gallery + editor)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.google_forms',
+    'global',
+    'task',
+    'device',
+    ARRAY['device']::TEXT[],
+    '[GOOGLE FORMS ON DEVICE] Multi-step create/edit on the @mentioned PC. device_iid from [MENTION TARGETS]. \
+Prefer computer_use.delegate with the full user goal, or screenshot (som=true) + device.input. \
+Tab resume: always screenshot first; if Chrome already has forms.google.com or an open editor, reuse that tab/window — do NOT shell.run forms.new or open another Forms URL. \
+Launch Chrome to https://forms.google.com only when screenshot shows no Forms tab. \
+Template gallery: select Blank (not opening the URL). If Blank does not respond, focus the existing Forms tab, retry Tab/Enter on Blank, or close duplicate Forms tabs (not the only working tab). \
+Editor: set form title, add each requested question (Short answer / Multiple choice as appropriate), verify with a final screenshot. \
+Never tell the user to click through the UI themselves.',
+    ARRAY[
+        'google form',
+        'google forms',
+        'forms.google',
+        'form baru',
+        'buat form',
+        'create a form',
+        'create new form',
+        'test pendaftaran'
+    ],
+    ARRAY[
+        'tool_include:device.screenshot',
+        'tool_include:device.input',
+        'tool_include:computer_use.delegate',
+        'tool_include:shell.run'
+    ],
+    ARRAY['device.screenshot', 'device.input', 'computer_use.delegate', 'shell.run'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    158,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -632,8 +681,9 @@ INSERT INTO ai.inst (
 1. Observe first: device.screenshot with som=true; use axtree_text and numbered badges — do not guess coords when elements are tagged. \
 2. Act stepwise: device.input (mouse_click, shortcut, type_text; screenshot_after=true on clicks). shell.run only launches apps/URLs — all editor UI (forms, dialogs, settings) is device.input. \
 3. Verify: follow-up screenshot and click marker; if UI unchanged, retry coords or keyboard (Tab, Enter, Space). \
-4. Finish only when the full goal is done (e.g. form created, title set, every field added). Forbidden final replies: "please click", "you can manually", "once you open", "using the sidebar", or numbered steps for the user. \
-5. Brief confirmation of what you completed on the device.',
+4. Finish only when the full goal is done (e.g. form created, title set, every field added). Forbidden final replies: handoffs, give-up ("blocked by", "not responding", "multiple tabs"), or numbered steps for the user. \
+5. Google Forms: one Chrome window — if the tab strip is cluttered, close extra tabs or open a fresh window before the template gallery; use som=true; click Blank via badge or Tab+Enter if clicks miss twice; opening forms.google.com is not completion. \
+6. Brief confirmation of what you completed on the device.',
     ARRAY[]::TEXT[],
     ARRAY[
         'tool_include:device.screenshot',

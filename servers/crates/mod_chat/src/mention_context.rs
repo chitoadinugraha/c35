@@ -160,17 +160,9 @@ pub fn json_device_iid_field(args: &serde_json::Value, key: &str) -> i64 {
         Some(v) if v.is_i64() => v.as_i64().filter(|i| *i > 0).unwrap_or(0),
         Some(v) if v.is_u64() => v.as_u64().map(|u| u as i64).filter(|i| *i > 0).unwrap_or(0),
         Some(v) if v.is_f64() => {
-            let f = v.as_f64().unwrap_or(0.0);
-            if f <= 0.0 {
-                0
-            } else {
-                let n = f as i64;
-                if (n as f64) == f && n > 0 {
-                    n
-                } else {
-                    0
-                }
-            }
+            // JSON numbers from LLM/clients are IEEE doubles — snowflakes are never exact.
+            let _ = v.as_f64();
+            0
         }
         _ => 0,
     }
