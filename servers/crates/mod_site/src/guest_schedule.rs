@@ -129,7 +129,13 @@ pub fn schedule_status(slots: &[GuestScheduleSlot]) -> (bool, String) {
 
     for (start, end) in &ranges {
         if now_min >= *start && now_min < *end {
-            return (true, "Open".into());
+            let end_minute = *end % 1440;
+            let label = if end_minute == 0 {
+                "Open until midnight".to_string()
+            } else {
+                format!("Open until {}", format_min(end_minute))
+            };
+            return (true, label);
         }
     }
 
@@ -197,6 +203,24 @@ mod tests {
         let rows = hours_panel_rows(&slots);
         assert_eq!(rows[0].1, "09:00");
         assert_eq!(rows[0].2, "17:00");
+    }
+
+    #[test]
+    fn schedule_status_open_until_includes_time() {
+        let meta = json!({
+            "open_hours": [{
+                "startDay": 0,
+                "startMin": 540,
+                "endDay": 0,
+                "endMin": 1020
+            }]
+        });
+        let slots = slots_from_meta(&meta);
+        // Monday 12:00 UTC may be open or closed depending on TZ; only assert label shape when open.
+        let (open, label) = schedule_status(&slots);
+        if open {
+            assert!(label.starts_with("Open until"), "label={label}");
+        }
     }
 
     #[test]

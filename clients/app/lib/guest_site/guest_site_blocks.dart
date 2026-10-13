@@ -182,6 +182,8 @@ class GuestSiteHeroBlock extends StatelessWidget {
     this.foreground,
     this.muted,
     this.avatarKey,
+    this.openHours = const [],
+    this.hoursPrimaryCta = false,
   });
 
   final Map<String, dynamic> props;
@@ -192,6 +194,8 @@ class GuestSiteHeroBlock extends StatelessWidget {
   final Color? foreground;
   final Color? muted;
   final Key? avatarKey;
+  final List<SiteScheduleSlot> openHours;
+  final bool hoursPrimaryCta;
 
   @override
   Widget build(BuildContext context) {
@@ -215,14 +219,19 @@ class GuestSiteHeroBlock extends StatelessWidget {
     final bioFamily = profile?.bioFontFamily.trim() ?? '';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+      padding: const EdgeInsets.fromLTRB(18, 32, 18, 28),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [accent.withValues(alpha: 0.14), Colors.transparent],
+          colors: [
+            accent.withValues(alpha: 0.22),
+            accent.withValues(alpha: 0.06),
+            Colors.transparent,
+          ],
+          stops: const [0, 0.45, 1],
         ),
-        border: Border(bottom: BorderSide(color: fg.withValues(alpha: 0.09))),
+        border: Border(bottom: BorderSide(color: fg.withValues(alpha: 0.06))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -265,15 +274,60 @@ class GuestSiteHeroBlock extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(6)),
-            child: Text(
-              ctaLabel,
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-          ),
+          if (hoursPrimaryCta && openHours.isNotEmpty)
+            GuestSiteHoursCompact(
+              openHours: openHours,
+              fg: fg,
+              muted: sub,
+              primaryHubCta: true,
+              accent: accent,
+            )
+          else
+            _GuestHubContactCta(label: ctaLabel, accent: accent, href: _guestHubCtaHref(props)),
         ],
+      ),
+    );
+  }
+}
+
+String? _guestHubCtaHref(Map<String, dynamic> props) {
+  final href = props['cta_href']?.toString().trim() ?? props['cta_url']?.toString().trim() ?? '';
+  return href.isEmpty ? null : href;
+}
+
+class _GuestHubContactCta extends StatelessWidget {
+  const _GuestHubContactCta({required this.label, required this.accent, this.href});
+
+  final String label;
+  final Color accent;
+  final String? href;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Text(
+        label,
+        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+      ),
+    );
+    final decoration = BoxDecoration(
+      color: accent,
+      borderRadius: BorderRadius.circular(12),
+      boxShadow: [BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 2))],
+    );
+    if (href == null) {
+      return DecoratedBox(decoration: decoration, child: child);
+    }
+    return Material(
+      color: accent,
+      elevation: 0,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => unawaited(guestSiteLaunchUrl(href!)),
+        borderRadius: BorderRadius.circular(12),
+        child: child,
       ),
     );
   }
@@ -1090,14 +1144,21 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     }
     return Material(
       color: Colors.white.withValues(alpha: 0.04),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _guestBorder),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _guestBorder.withValues(alpha: 0.45)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           clipBehavior: rounded ? Clip.antiAlias : Clip.none,
           child: child,
@@ -1298,26 +1359,54 @@ class GuestSiteLinksBlock extends StatelessWidget {
           if (titleProp.isNotEmpty) ...[
             Text(
               titleProp,
-              style: TextStyle(color: fg, fontSize: 16, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: fg.withValues(alpha: 0.55),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.1,
+              ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
           ],
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final item in items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _guestLinkTile(item, fg: fg, bare: bare),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: fg.withValues(alpha: 0.03),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: fg.withValues(alpha: 0.07)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
-            ],
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  _guestLinkTile(
+                    items[i],
+                    fg: fg,
+                    bare: bare,
+                    listInset: true,
+                    showDivider: i < items.length - 1,
+                  ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _guestLinkTile(Map<String, dynamic> item, {required Color fg, required bool bare}) {
+  Widget _guestLinkTile(
+    Map<String, dynamic> item, {
+    required Color fg,
+    required bool bare,
+    bool listInset = false,
+    bool showDivider = false,
+  }) {
     final mode = siteLinkDisplayNormalize(item['display']?.toString() ?? '');
     final iconId = (item['icon']?.toString().trim().isNotEmpty ?? false) ? item['icon']!.toString() : 'website';
     final label = item['label']?.toString() ?? item['title']?.toString() ?? 'Link';
@@ -1360,9 +1449,11 @@ class GuestSiteLinksBlock extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: listInset ? 16 : 4, vertical: listInset ? 14 : 10),
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: _guestBorder.withValues(alpha: 0.65))),
+          border: showDivider || !listInset
+              ? Border(bottom: BorderSide(color: _guestBorder.withValues(alpha: listInset ? 0.35 : 0.65)))
+              : null,
         ),
         child: row,
       ),
@@ -1481,6 +1572,8 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
           foreground: foreground,
           muted: muted,
           avatarKey: const Key('guest-profile-avatar'),
+          openHours: openHours,
+          hoursPrimaryCta: showHours,
         ),
         if (showLocation)
           Padding(
@@ -1507,15 +1600,6 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ),
-        if (showHours)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: GuestSiteHoursCompact(
-              openHours: openHours,
-              fg: foreground ?? _guestTextPrimary,
-              muted: sub,
             ),
           ),
       ],

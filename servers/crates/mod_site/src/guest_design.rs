@@ -267,7 +267,7 @@ impl GuestDesign {
             None => (String::new(), String::new()),
             Some(chrome) => (
                 format!(
-                    r#"<div class="card" data-card="{id}" style="--card-radius:{radius};--card-bg:{bg};--card-border:{border}">"#,
+                    r#"<div class="card" data-card="{id}" style="--card-radius:{radius};--card-bg:{bg};--card-border:{border};--card-shadow:var(--card-shadow);--card-border-width:var(--card-border-width);--card-border-opacity:var(--card-border-opacity)">"#,
                     id = chrome.id,
                     radius = chrome.radius_css,
                     bg = chrome.bg,
@@ -567,9 +567,9 @@ fn normalize_item_mode(raw: &str) -> String {
 
 fn default_radius(id: &str) -> f64 {
     match id {
-        "outlined" => 10.0,
-        "elevated" | "glass" => 12.0,
-        _ => 8.0,
+        "outlined" => 12.0,
+        "elevated" | "glass" => 16.0,
+        _ => 16.0,
     }
 }
 

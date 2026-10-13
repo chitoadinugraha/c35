@@ -14,7 +14,7 @@ int siteScheduleDayFromDateTime(DateTime now) => (now.weekday + 6) % 7;
 int siteScheduleNowWeekMin(DateTime now) =>
     siteScheduleWeekMin(siteScheduleDayFromDateTime(now), now.hour * 60 + now.minute);
 
-/// Compact guest label: `Open` | `Open in 1 hour` | `Open next Friday`.
+/// Compact guest label: `Open until HH:MM` | `Open in 1 hour` | `Open next Friday`.
 SiteScheduleStatus siteScheduleStatus(List<SiteScheduleSlot> slots, [DateTime? at]) {
   if (slots.isEmpty) return const SiteScheduleStatus(open: false, label: 'Closed');
   final nowMin = siteScheduleNowWeekMin(at ?? DateTime.now());
@@ -25,7 +25,13 @@ SiteScheduleStatus siteScheduleStatus(List<SiteScheduleSlot> slots, [DateTime? a
   ]..sort((a, b) => a.start.compareTo(b.start));
 
   for (final r in ranges) {
-    if (nowMin >= r.start && nowMin < r.end) return const SiteScheduleStatus(open: true, label: 'Open');
+    if (nowMin >= r.start && nowMin < r.end) {
+      final endMinute = r.end % 1440;
+      final label = endMinute == 0
+          ? 'Open until midnight'
+          : 'Open until ${siteScheduleFormatMin(endMinute)}';
+      return SiteScheduleStatus(open: true, label: label);
+    }
   }
 
   SiteMinuteRange? next;
@@ -44,4 +50,11 @@ SiteScheduleStatus siteScheduleStatus(List<SiteScheduleSlot> slots, [DateTime? a
     return SiteScheduleStatus(open: false, label: h == 1 ? 'Open in 1 hour' : 'Open in $h hours');
   }
   return SiteScheduleStatus(open: false, label: 'Open next ${siteScheduleWeekdayLabelsLong[(next.start ~/ 1440) % 7]}');
+}
+
+String siteScheduleFormatMin(int min) {
+  final m = min.clamp(0, 1439);
+  final h = m ~/ 60;
+  final mm = m % 60;
+  return '${h.toString().padLeft(2, '0')}:${mm.toString().padLeft(2, '0')}';
 }

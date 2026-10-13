@@ -1245,7 +1245,8 @@
         section.querySelectorAll('.guest-product-tile').forEach(function (tile) {
           const cat = tile.getAttribute('data-product-category') || '';
           const show = !filter || cat === filter;
-          tile.style.display = show ? '' : 'none';
+          tile.hidden = !show;
+          tile.classList.toggle('is-filtered-out', !show);
         });
       });
     });
@@ -1272,7 +1273,7 @@
       ctaEl.hidden = false;
     }
     function onScroll() {
-      const show = window.scrollY > 120;
+      const show = window.scrollY > 72;
       bar.hidden = !show;
       bar.setAttribute('aria-hidden', show ? 'false' : 'true');
       bar.classList.toggle('is-visible', show);

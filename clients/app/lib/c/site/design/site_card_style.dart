@@ -37,8 +37,8 @@ class SiteCardStylePreset {
   final List<SiteCardStyleParam> params;
 }
 
-const _radius = SiteCardStyleParam(key: 'radius', label: 'Roundness', min: 6, max: 24, step: 1, defaultValue: 8);
-const _shadow = SiteCardStyleParam(key: 'shadow', label: 'Shadow', min: 0, max: 3, step: 1, defaultValue: 1);
+const _radius = SiteCardStyleParam(key: 'radius', label: 'Roundness', min: 6, max: 24, step: 1, defaultValue: 16);
+const _shadow = SiteCardStyleParam(key: 'shadow', label: 'Shadow', min: 0, max: 3, step: 1, defaultValue: 2);
 const _elevShadow = SiteCardStyleParam(key: 'shadow', label: 'Shadow', min: 0, max: 4, step: 1, defaultValue: 3);
 const _borderW = SiteCardStyleParam(key: 'borderWidth', label: 'Border width', min: 0, max: 3, step: 0.5, defaultValue: 1);
 const _borderOp = SiteCardStyleParam(key: 'borderOpacity', label: 'Border strength', min: 0.15, max: 1, step: 0.05, defaultValue: 0.55);

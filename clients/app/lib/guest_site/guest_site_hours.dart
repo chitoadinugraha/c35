@@ -14,12 +14,17 @@ class GuestSiteHoursCompact extends StatefulWidget {
     this.fg = _guestTextPrimary,
     this.muted = _guestTextSecondary,
     this.alignment = Alignment.center,
+    this.primaryHubCta = false,
+    this.accent = const Color(0xFFF97316),
   });
 
   final List<SiteScheduleSlot> openHours;
   final Color fg;
   final Color muted;
   final Alignment alignment;
+  /// When true, summary is styled as the hub accent CTA pill (hours replace Hubungi Kami).
+  final bool primaryHubCta;
+  final Color accent;
 
   @override
   State<GuestSiteHoursCompact> createState() => _GuestSiteHoursCompactState();
@@ -36,6 +41,7 @@ class _GuestSiteHoursCompactState extends State<GuestSiteHoursCompact> {
     final statusColor = status.open ? const Color(0xFF16A34A) : muted;
     final columns = siteScheduleSummarySplit(widget.openHours);
     final twoCol = columns.left.isNotEmpty && columns.right.isNotEmpty;
+    final primary = widget.primaryHubCta;
 
     return Align(
       alignment: widget.alignment,
@@ -48,29 +54,70 @@ class _GuestSiteHoursCompactState extends State<GuestSiteHoursCompact> {
             Align(
               alignment: widget.alignment,
               child: IntrinsicWidth(
-                child: _HoursMetaChip(
-                  muted: muted,
-                  fg: widget.fg,
-                  onTap: () => setState(() => _expanded = !_expanded),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                child: primary
+                    ? Material(
+                        color: widget.accent,
+                        elevation: 0,
+                        borderRadius: BorderRadius.circular(12),
+                        clipBehavior: Clip.antiAlias,
+                        child: InkWell(
+                          onTap: () => setState(() => _expanded = !_expanded),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: status.open ? const Color(0xFFBBF7D0) : Colors.white.withValues(alpha: 0.85),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  status.label,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                Icon(
+                                  _expanded ? Icons.expand_less : Icons.expand_more,
+                                  size: 18,
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    : _HoursMetaChip(
+                        muted: muted,
+                        fg: widget.fg,
+                        onTap: () => setState(() => _expanded = !_expanded),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.schedule_outlined, size: 14, color: statusColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              status.label,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: statusColor),
+                            ),
+                            Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 16, color: muted),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 6),
-                      Icon(Icons.schedule_outlined, size: 14, color: statusColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        status.label,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: statusColor),
-                      ),
-                      Icon(_expanded ? Icons.expand_less : Icons.expand_more, size: 16, color: muted),
-                    ],
-                  ),
-                ),
               ),
             ),
             if (_expanded) ...[

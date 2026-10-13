@@ -577,15 +577,9 @@ fn product_grid_category_filters_html(
     )
 }
 
-fn hub_hours_compact_html(meta: &Value) -> String {
-    use crate::guest_schedule::{hours_panel_rows, schedule_status, slots_from_meta};
-    let slots = slots_from_meta(meta);
-    if slots.is_empty() {
-        return String::new();
-    }
-    let (open, label) = schedule_status(&slots);
-    let status_class = if open { "is-open" } else { "is-closed" };
-    let panel = hours_panel_rows(&slots)
+fn hub_hours_panel_html(slots: &[crate::guest_schedule::GuestScheduleSlot]) -> String {
+    use crate::guest_schedule::hours_panel_rows;
+    hours_panel_rows(slots)
         .iter()
         .map(|(day, open_t, close_t)| {
             format!(
@@ -596,13 +590,63 @@ fn hub_hours_compact_html(meta: &Value) -> String {
             )
         })
         .collect::<Vec<_>>()
-        .join("");
+        .join("")
+}
+
+fn hub_hours_primary_cta_html(meta: &Value) -> Option<String> {
+    use crate::guest_schedule::{schedule_status, slots_from_meta};
+    let slots = slots_from_meta(meta);
+    if slots.is_empty() {
+        return None;
+    }
+    let (open, label) = schedule_status(&slots);
+    let status_class = if open { "is-open" } else { "is-closed" };
+    let panel = hub_hours_panel_html(&slots);
+    Some(format!(
+        r#"<details class="guest-hub-hours-primary"><summary class="guest-hub-cta guest-hub-cta--hours"><span class="guest-hub-hours-dot {status_class}" aria-hidden="true"></span><span class="guest-hub-hours-status {status_class}">{label}</span></summary><div class="guest-hub-hours-panel guest-hub-hours-panel--primary">{panel}</div></details>"#,
+        status_class = esc_attr(status_class),
+        label = esc(&label),
+        panel = panel,
+    ))
+}
+
+fn hub_hours_compact_html(meta: &Value) -> String {
+    use crate::guest_schedule::{schedule_status, slots_from_meta};
+    let slots = slots_from_meta(meta);
+    if slots.is_empty() {
+        return String::new();
+    }
+    let (open, label) = schedule_status(&slots);
+    let status_class = if open { "is-open" } else { "is-closed" };
+    let panel = hub_hours_panel_html(&slots);
     format!(
         r#"<div class="hub-hours-compact"><details class="guest-hub-hours-chip"><summary><span class="guest-hub-hours-dot {status_class}" aria-hidden="true"></span><span class="guest-hub-hours-icon" aria-hidden="true">&#9201;</span><span class="guest-hub-hours-status {status_class}">{label}</span></summary><div class="guest-hub-hours-panel">{panel}</div></details></div>"#,
         status_class = esc_attr(status_class),
         label = esc(&label),
         panel = panel,
     )
+}
+
+fn hub_contact_cta_html(props: &Value, default_label: &str) -> String {
+    let cta = props
+        .get("cta_label")
+        .or_else(|| props.get("cta"))
+        .and_then(|x| x.as_str())
+        .unwrap_or(default_label);
+    let href = props
+        .get("cta_href")
+        .or_else(|| props.get("cta_url"))
+        .and_then(|x| x.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+    match href {
+        Some(h) => format!(
+            r#"<a class="guest-hub-cta" href="{}">{}</a>"#,
+            esc_attr(h),
+            esc(cta)
+        ),
+        None => format!(r#"<div class="guest-hub-cta"><span>{}</span></div>"#, esc(cta)),
+    }
 }
 
 fn hours_row_html(row: &Value) -> String {
@@ -632,6 +676,16 @@ fn hours_row_html(row: &Value) -> String {
     )
 }
 
+fn card_shadow_css(level: f64) -> &'static str {
+    match level.round().clamp(0.0, 4.0) as i32 {
+        0 => "none",
+        1 => "0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.05)",
+        2 => "0 1px 2px rgba(15,23,42,0.04), 0 12px 32px rgba(15,23,42,0.07)",
+        3 => "0 2px 4px rgba(15,23,42,0.06), 0 16px 40px rgba(15,23,42,0.1)",
+        _ => "0 4px 8px rgba(15,23,42,0.08), 0 24px 48px rgba(15,23,42,0.12)",
+    }
+}
+
 pub fn guest_root_css(design: &GuestDesign) -> String {
     let p = &design.profile;
     let prod = &design.product;
@@ -647,8 +701,25 @@ pub fn guest_root_css(design: &GuestDesign) -> String {
         .get("priceFontSize")
         .and_then(|v| v.as_f64())
         .unwrap_or(13.0);
+    let title_transform = prod
+        .get("titleTransform")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or("none");
+    let shadow_level = design.card_params.get("shadow").copied().unwrap_or(2.0);
+    let border_w = design.card_params.get("borderWidth").copied().unwrap_or(0.0);
+    let border_op = design
+        .card_params
+        .get("borderOpacity")
+        .copied()
+        .unwrap_or(0.4);
+    let font_stack = if design.dark {
+        "Outfit, Inter, system-ui, sans-serif"
+    } else {
+        "Inter, system-ui, sans-serif"
+    };
     format!(
-        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};--hub-title-size:{hub_title};--hub-bio-size:{hub_bio};--hub-avatar-size:{hub_avatar};--product-title-size:{product_title};--product-subtitle-size:{product_subtitle};--product-price-size:{product_price};}}",
+        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};--card-shadow:{card_shadow};--card-border-width:{border_w}px;--card-border-opacity:{border_op};--guest-font:{font_stack};--hub-title-size:{hub_title};--hub-bio-size:{hub_bio};--hub-avatar-size:{hub_avatar};--product-title-size:{product_title};--product-subtitle-size:{product_subtitle};--product-price-size:{product_price};--product-title-transform:{title_transform};}}",
         accent = design.accent,
         page_bg = design.page_bg,
         fg = design.fg,
@@ -656,12 +727,17 @@ pub fn guest_root_css(design: &GuestDesign) -> String {
         radius = design.card_radius_css(),
         card_bg = design.card_bg,
         card_border = design.card_border,
+        card_shadow = card_shadow_css(shadow_level),
+        border_w = border_w,
+        border_op = border_op,
+        font_stack = font_stack,
         hub_title = css_px(p.title_font_size),
         hub_bio = css_px(p.bio_font_size),
         hub_avatar = css_px(p.avatar_size),
         product_title = css_px(product_title),
         product_subtitle = css_px(product_subtitle),
         product_price = css_px(product_price),
+        title_transform = title_transform,
     )
 }
 
@@ -799,6 +875,14 @@ pub fn guest_site_favicon_url(site_meta: &Value, doc: &SiteDoc, identity_pic: &s
     String::new()
 }
 
+pub fn guest_fonts_head_markup(dark: bool) -> &'static str {
+    if dark {
+        r#"<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap"/>"#
+    } else {
+        r#"<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>"#
+    }
+}
+
 pub fn guest_favicon_head_markup(favicon_url: &str) -> String {
     let url = favicon_url.trim();
     if url.is_empty() {
@@ -816,15 +900,11 @@ fn guest_hub_hero_inner_html(
     profile: &ProfileDesign,
     design: &GuestDesign,
     site_meta: &Value,
+    hours_primary_cta: bool,
 ) -> String {
     let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
     let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
     let pic_use = profile_pic_url(props, site_meta);
-    let cta = props
-        .get("cta_label")
-        .or_else(|| props.get("cta"))
-        .and_then(|x| x.as_str())
-        .unwrap_or("Hubungi Kami");
     let avatar = if !profile.show_avatar || pic_use.is_empty() {
         String::new()
     } else {
@@ -871,10 +951,12 @@ fn guest_hub_hero_inner_html(
     } else {
         String::new()
     };
-    let cta_html = format!(
-        r#"<div class="guest-hub-cta"><span>{}</span></div>"#,
-        esc(cta)
-    );
+    let cta_html = if hours_primary_cta {
+        hub_hours_primary_cta_html(site_meta)
+            .unwrap_or_else(|| hub_contact_cta_html(props, "Hubungi Kami"))
+    } else {
+        hub_contact_cta_html(props, "Hubungi Kami")
+    };
     format!(
         "{avatar}{title_html}{bio_html}{cta_html}",
         avatar = avatar,
@@ -901,7 +983,7 @@ pub fn block_html_render(
     match block_type {
         "hero" => {
             // Match Flutter `GuestSiteHeroBlock` — compact hub strip, not legacy full-bleed `.hero` banner.
-            let inner = guest_hub_hero_inner_html(props, &flutter_hero_profile(), design, site_meta);
+            let inner = guest_hub_hero_inner_html(props, &flutter_hero_profile(), design, site_meta, false);
             format!(
                 r#"<section class="block hub-profile" data-guest="hero"><div class="guest-hub-hero">{inner}</div></section>"#,
                 inner = inner,
@@ -1137,7 +1219,10 @@ pub fn block_html_render(
             let location_label = props.get("location_label").and_then(|x| x.as_str()).unwrap_or("");
             let show_hours = props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false);
             let profile = &design.profile;
-            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta);
+            let hours_primary = profile.show_hours
+                && show_hours
+                && !crate::guest_schedule::slots_from_meta(site_meta).is_empty();
+            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta, hours_primary);
             let location_html = if profile.show_location && !location_label.trim().is_empty() {
                 format!(
                     r#"<div class="hub-location"><span class="hub-location-icon" aria-hidden="true">&#128205;</span><span class="hub-location-label">{}</span></div>"#,
@@ -1146,7 +1231,9 @@ pub fn block_html_render(
             } else {
                 String::new()
             };
-            let hours_html = if profile.show_hours && show_hours {
+            let hours_html = if hours_primary {
+                String::new()
+            } else if profile.show_hours && show_hours {
                 hub_hours_compact_html(site_meta)
             } else {
                 String::new()
@@ -1266,7 +1353,11 @@ pub async fn page_html_render(
         .find(|p| p.path == page_path || (page_path == "/" && p.path == "/"))
         .or_else(|| doc.pages.first())
         .ok_or_else(|| anyhow!("page not found"))?;
-    let design = GuestDesign::from_theme_json(&doc.theme_json);
+    let theme_modern = crate::guest_theme_modernize::modernize_theme_for_render(
+        &serde_json::from_str(&doc.theme_json).unwrap_or(serde_json::Value::Null),
+    );
+    let theme_json = theme_modern.to_string();
+    let design = GuestDesign::from_theme_json(&theme_json);
     let featured = featured_contacts_load(pool, site_iid).await?;
     let caps = site_capabilities(pool, site_iid).await;
     let hub_links = site_link_boot_rows(pool, site_iid).await?;
@@ -1344,11 +1435,16 @@ pub async fn page_html_render(
     let image = page_bg_image_html(&design);
     let identity_pic = site_identity_pic(pool, site_iid).await;
     let favicon_tags = guest_favicon_head_markup(&guest_site_favicon_url(&site_meta, doc, &identity_pic));
+    let tone_class = if design.dark {
+        " guest-tone-dark"
+    } else {
+        " guest-tone-light"
+    };
     Ok(format!(
-        r#"<!DOCTYPE html><html lang="{html_lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}<style>
+        r#"<!DOCTYPE html><html lang="{html_lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}{fonts}<style>
 {root}
 {layout_root}
-body{{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
+body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-feature-settings:"liga" 1,"calt" 1;-webkit-font-smoothing:antialiased;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
 .wrap{{max-width:var(--guest-page-max,720px);margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
 .block{{margin:0 0 24px}}
 .hero{{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,var(--accent),#111);color:#fff;padding:48px 24px}}
@@ -1407,15 +1503,17 @@ body{{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI"
 .product-reserve-placeholder{{margin-top:16px;padding:14px;background:var(--card-bg,#fff);border-radius:12px;color:var(--muted,#71717a);font-size:14px;border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent))}}
 .embed iframe{{display:block;border-radius:12px}}
 .md{{line-height:1.6}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}">{image}<main class="wrap guest-page-main">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}">{image}<main class="wrap guest-page-main">{body}</main>
 {chrome}
 {client_js}</body></html>"#,
         esc(&doc_title),
         html_lang = i18n.html_lang(),
         favicon = favicon_tags,
+        fonts = guest_fonts_head_markup(design.dark),
         root = root,
         layout_root = layout_root,
         layout = layout,
+        tone_class = tone_class,
         bd = design.backdrop_id,
         image = image,
         body = body,
@@ -1720,7 +1818,11 @@ async fn guest_storefront_page_html(
     document_title: &str,
     body: &str,
 ) -> Result<String> {
-    let design = GuestDesign::from_theme_json(&doc.theme_json);
+    let theme_modern = crate::guest_theme_modernize::modernize_theme_for_render(
+        &serde_json::from_str(&doc.theme_json).unwrap_or(serde_json::Value::Null),
+    );
+    let theme_json = theme_modern.to_string();
+    let design = GuestDesign::from_theme_json(&theme_json);
     let root = guest_root_css(&design);
     let image = page_bg_image_html(&design);
     let effects = theme_effects(&doc.theme_json);

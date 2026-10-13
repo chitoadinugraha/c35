@@ -210,6 +210,8 @@ fn guest_root_css_includes_typography_tokens() {
     assert!(css.contains("--product-title-size:"));
     assert!(css.contains("--product-subtitle-size:"));
     assert!(css.contains("--product-price-size:"));
+    assert!(css.contains("--card-shadow:"));
+    assert!(css.contains("--product-title-transform:"));
 }
 
 #[test]
