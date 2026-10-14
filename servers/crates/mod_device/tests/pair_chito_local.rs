@@ -15,6 +15,7 @@ async fn pair_chito_local_machine() {
         ReqDevicePairRegister {
             device_name: "Chito".into(),
             device_type: "windows".into(),
+            meta_json: String::new(),
         },
     )
     .await

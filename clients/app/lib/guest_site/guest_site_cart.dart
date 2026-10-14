@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:alienai_c35/c/site/guest_assistant_api.dart';
 import 'package:alienai_c35/c/site/guest_order_api.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/guest_site/guest_site_commerce_boot.dart';
-import 'package:alienai_c35/guest_site/guest_site_modal.dart';
+import 'package:alienai_c35/guest_site/guest_site_member.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -607,6 +609,7 @@ class GuestSiteCartController extends ChangeNotifier {
         paymentId: _paymentId,
         paymentMethods: _paymentMethods,
       );
+      final visitorId = await GuestAssistantApi.visitorIdForSite(siteIid);
       final res = await GuestOrderApi.orderPut(
         siteIid: siteIid,
         customerName: customerName.trim(),
@@ -614,6 +617,7 @@ class GuestSiteCartController extends ChangeNotifier {
         note: orderNote,
         items: [for (final l in lines) l.orderItemJson()],
         reservations: [for (final l in lines) ...l.reservationJson()],
+        visitorId: visitorId,
       );
       final tx = res['tx'];
       final txId = tx is Map ? (tx['tx_id'] as num?)?.toInt() : null;
@@ -1474,45 +1478,10 @@ class _GuestSiteOrdersChipState extends State<GuestSiteOrdersChip> {
     setState(() => _count = list.length);
   }
 
-  Future<void> _openSheet() async {
-    final orders = await GuestSiteMemberStore.ordersList(widget.siteIid);
-    if (!mounted) return;
-    await guestSiteShowModalBottomSheet<void>(
-      context: context,
-      backgroundColor: const Color(0xFF18181B),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Pesanan saya', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              if (orders.isEmpty)
-                const Text('Belum ada pesanan', style: TextStyle(color: Colors.white54))
-              else
-                Expanded(
-                  child: ListView(
-                    children: [
-                      for (final o in orders)
-                        ListTile(
-                          title: Text('#${o['tx_id']}', style: const TextStyle(color: Colors.white)),
-                          subtitle: Text('IDR ${o['total']}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                        ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-    await _reload();
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_count <= 0) return const SizedBox.shrink();
+    final showPortal = sessionAuthToken().isNotEmpty;
+    if (_count <= 0 && !showPortal) return const SizedBox.shrink();
     return Positioned(
       top: 12,
       right: 12,
@@ -1520,11 +1489,14 @@ class _GuestSiteOrdersChipState extends State<GuestSiteOrdersChip> {
         color: const Color(0xCC18181B),
         borderRadius: BorderRadius.circular(999),
         child: InkWell(
-          onTap: _openSheet,
+          onTap: () => guestSiteShowMemberPortal(context: context, siteIid: widget.siteIid, accent: widget.accent),
           borderRadius: BorderRadius.circular(999),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Text('Pesanan saya ($_count)', style: TextStyle(color: widget.accent, fontWeight: FontWeight.w600, fontSize: 12)),
+            child: Text(
+              _count > 0 ? 'Pesanan saya ($_count)' : 'Akun',
+              style: TextStyle(color: widget.accent, fontWeight: FontWeight.w600, fontSize: 12),
+            ),
           ),
         ),
       ),

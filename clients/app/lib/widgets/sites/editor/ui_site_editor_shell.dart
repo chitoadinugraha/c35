@@ -506,8 +506,16 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           api: widget.api,
           siteIid: _siteIid,
           onCapabilitiesSaved: _onCapabilitiesSaved,
+          onOpenPublish: () => _openSection('publish'),
         ),
-      'publish' => UiSitePublishEditor(row: _row, onPublish: _confirmPublish, publishing: _publishing, publishPending: _publishPending),
+      'publish' => UiSitePublishEditor(
+          row: _row,
+          api: widget.api,
+          siteIid: _siteIid,
+          onPublish: _confirmPublish,
+          publishing: _publishing,
+          publishPending: _publishPending,
+        ),
       'products' => UiSiteProductsEditor(
           api: widget.api,
           siteIid: _siteIid,

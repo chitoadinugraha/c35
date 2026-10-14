@@ -94,6 +94,12 @@ After a bought hostname verifies, mail is onboarded (see [mail.md](mail.md)). BY
 - **Never store TLS PEM or private keys in Yugabyte.** `site.domain` holds **`tls_status`**, **`verify_error`**, **`tls_error`**, **`last_verify_ts`** — status and errors for the app UI, not secret material.
 - `tls_status`: `pending` | `ready` | `failed` | `disabled` (synced from cluster when TLS sync runs).
 
+### Site editor (domains UI)
+
+- **Publish** is the primary screen for custom domains (add, buy, DNS verify dialog, HTTPS status). **Capabilities** holds feature toggles only; it links to Publish for domains.
+- BYO flow: add hostname → DNS instructions (CNAME to `site.alienai.id`, grey Cloudflare cloud) → `site_domain_verify`. Apex hostnames may use A/AAAA or CNAME flatten per the customer DNS table above.
+- After DNS verifies, the Flutter client may poll `site_domain_verify` / `tls_status` until HTTPS is ready, failed, or disabled — no PEM in the app or DB.
+
 ### Server env (`c35-server`)
 
 | Variable | Default | Role |

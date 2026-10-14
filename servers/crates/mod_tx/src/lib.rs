@@ -9,6 +9,8 @@ mod ts;
 mod tx_data;
 mod tx_debt_pay;
 mod guest_order;
+mod guest_order_list;
+mod guest_tx_meta;
 mod tx_get;
 mod tx_json;
 mod tx_list;
@@ -19,7 +21,8 @@ mod tx_fulfillment_gate;
 mod tx_put;
 
 pub use finalize::{acc_signed_amount, tx_finalize, tx_preview_coa_names};
-pub use guest_order::{guest_order_get, guest_order_put};
+pub use guest_order::{guest_order_get, guest_order_put, GuestOrderPutContext};
+pub use guest_order_list::{guest_member_merge, guest_order_list};
 pub use tx_json::{
     tx_debt_payment_json_parse, tx_header_compact_json, tx_json_parse, tx_result_json, tx_to_json,
 };

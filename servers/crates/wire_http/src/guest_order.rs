@@ -7,7 +7,9 @@ use axum::{
     Router,
 };
 use c35_ctx::AppState;
+use c35_mod_identity::auth_session_caller_iid;
 use c35_proto::{ReqSiteGuestOrderGet, ReqSiteGuestOrderPut, Tx};
+use c35_mod_tx::GuestOrderPutContext;
 use prost::Message;
 
 use crate::site_order_push::guest_order_notify_app;
@@ -62,7 +64,17 @@ async fn guest_order_put_handler(
         return text_response(StatusCode::BAD_REQUEST, "protobuf or json decode error".into());
     };
 
-    match c35_mod_tx::guest_order_put(&st.pool, req).await {
+    let buyer = auth_session_caller_iid(&st.pool, &headers, None).await.unwrap_or(0);
+    let visitor_id = headers
+        .get("x-visitor-id")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("")
+        .to_string();
+    let ctx = GuestOrderPutContext {
+        buyer_user_iid: buyer,
+        visitor_id,
+    };
+    match c35_mod_tx::guest_order_put(&st.pool, req, ctx).await {
         Ok(res) => {
             if let (Some(nats), Some(tx)) = (st.nats.as_ref(), res.tx.as_ref()) {
                 guest_order_notify_app(nats, &st.pool, tx.site_iid, tx).await;
@@ -117,7 +129,11 @@ async fn guest_order_get_handler(
     } else {
         return text_response(StatusCode::BAD_REQUEST, "protobuf or json decode error".into());
     };
-    match c35_mod_tx::guest_order_get(&st.pool, req).await {
+    let buyer = auth_session_caller_iid(&st.pool, &headers, None).await;
+    let visitor_id = headers
+        .get("x-visitor-id")
+        .and_then(|h| h.to_str().ok());
+    match c35_mod_tx::guest_order_get(&st.pool, req, buyer, visitor_id).await {
         Ok(res) => {
             if res.tx.is_none() {
                 return text_response(StatusCode::NOT_FOUND, "order not found".into());

@@ -162,6 +162,7 @@ pub async fn handle(
             let subject = format!("c35.signal.device.{device_iid}");
             if let Ok(mut sub) = nats_sub.subscribe(subject).await {
                 while let Some(msg) = sub.next().await {
+                    c35_mod_device::remote_signal_device_process(device_iid, &msg.payload);
                     if tx.send(msg.payload.to_vec()).is_err() {
                         break;
                     }

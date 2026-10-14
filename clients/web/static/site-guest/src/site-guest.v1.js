@@ -288,6 +288,29 @@
       : '';
   }
 
+  function guestAuthTokenKey(siteIid) {
+    return 'c35.guest.auth.v1.' + siteIid;
+  }
+
+  function guestAuthHeaders(extra) {
+    const h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+    try {
+      const g = window.__SITE_GUEST__ || {};
+      const siteIid = g.site_iid || 0;
+      const tok = localStorage.getItem(guestAuthTokenKey(siteIid));
+      if (tok) h.Authorization = 'Bearer ' + tok;
+      let vid = '';
+      if (window.c35GuestAssistant && typeof window.c35GuestAssistant.visitorId === 'function') {
+        vid = window.c35GuestAssistant.visitorId();
+      }
+      if (!vid && siteIid) {
+        vid = localStorage.getItem('c35.guest.visitor.v1.' + siteIid) || '';
+      }
+      if (vid) h['x-visitor-id'] = vid;
+    } catch (e) { /* ignore */ }
+    return h;
+  }
+
   function siteIidFrom(el) {
     const section = el && el.closest ? el.closest('section[data-site-iid]') : null;
     if (section) {
@@ -631,7 +654,7 @@
       try {
         const resp = await fetch(apiBase() + '/v1/site/guest-order/get', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: guestAuthHeaders(),
           body: JSON.stringify({ site_iid: siteIid, tx_id: txId }),
         });
         if (!resp.ok) throw new Error((await resp.text()) || 'Pesanan tidak ditemukan');
@@ -1269,7 +1292,7 @@
           const fullNote = payLine ? (merged ? (merged + '\n' + payLine) : payLine) : merged;
           const resp = await fetch(apiBase() + '/v1/site/guest-order/put', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: guestAuthHeaders(),
             body: JSON.stringify({
               site_iid: siteIid,
               customer_name: name,
@@ -2464,6 +2487,121 @@
     };
   })();
 
+  window.c35GuestMember = window.c35GuestMember || (function () {
+    function portalEnabled() {
+      const g = window.__SITE_GUEST__ || {};
+      if (g.member_portal_enabled === false) return false;
+      return true;
+    }
+
+    function captureTokenFromUrl() {
+      try {
+        const g = window.__SITE_GUEST__ || {};
+        const siteIid = g.site_iid || 0;
+        if (!siteIid) return;
+        const q = new URLSearchParams(location.search);
+        const tok = q.get('token');
+        if (tok && q.get('google_auth') === 'ok') {
+          localStorage.setItem(guestAuthTokenKey(siteIid), tok);
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    function signIn() {
+      const g = window.__SITE_GUEST__ || {};
+      const alienId = (g.alien_id || '').trim();
+      const returnTo = location.origin + '/' + alienId + location.pathname.replace(/^\//, alienId ? '' : '');
+      const base = apiBase() || 'https://api.alienai.id';
+      const url = base + '/v1/auth/google?return_to=' + encodeURIComponent(location.href.split('?')[0]);
+      location.href = url;
+    }
+
+    async function mergeLocalOrders(siteIid) {
+      const list = loadOrders(siteIid);
+      if (!list.length) return;
+      const tok = localStorage.getItem(guestAuthTokenKey(siteIid));
+      if (!tok) return;
+      let vid = '';
+      if (window.c35GuestAssistant && typeof window.c35GuestAssistant.visitorId === 'function') {
+        vid = window.c35GuestAssistant.visitorId();
+      }
+      await fetch(apiBase() + '/v1/site/guest-member/merge', {
+        method: 'POST',
+        headers: guestAuthHeaders(),
+        body: JSON.stringify({
+          site_iid: siteIid,
+          visitor_id: vid,
+          order_ids: list.map(function (o) { return o.tx_id; }),
+        }),
+      });
+    }
+
+    async function fetchOrders(siteIid) {
+      const resp = await fetch(apiBase() + '/v1/site/guest-order/list', {
+        method: 'POST',
+        headers: guestAuthHeaders(),
+        body: JSON.stringify({ site_iid: siteIid }),
+      });
+      const data = await resp.json().catch(function () { return {}; });
+      if (!resp.ok) throw new Error(data.error || 'Gagal memuat pesanan');
+      return data.orders || [];
+    }
+
+    function openPortal() {
+      const g = window.__SITE_GUEST__ || {};
+      const siteIid = g.site_iid || 0;
+      if (!siteIid || !portalEnabled()) return;
+      const tok = localStorage.getItem(guestAuthTokenKey(siteIid));
+      const modal = document.getElementById('c35-guest-modal');
+      if (!modal) return;
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden', 'false');
+      modal.innerHTML = '<div class="guest-sheet"><div class="guest-sheet-header"><strong>Akun</strong><button type="button" class="guest-icon-btn" id="c35-member-close">×</button></div><div class="guest-sheet-body" id="c35-member-body">Memuat…</div></div>';
+      document.getElementById('c35-member-close').onclick = function () {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+      };
+      const body = document.getElementById('c35-member-body');
+      if (!tok) {
+        body.innerHTML = '<p>Masuk dengan akun Alien untuk melihat pesanan di semua perangkat.</p><button type="button" class="guest-btn-primary" id="c35-member-signin">Masuk</button>';
+        document.getElementById('c35-member-signin').onclick = signIn;
+        return;
+      }
+      (async function () {
+        try {
+          await mergeLocalOrders(siteIid);
+          const orders = await fetchOrders(siteIid);
+          if (!orders.length) {
+            body.textContent = 'Belum ada pesanan';
+            return;
+          }
+          body.innerHTML = orders.map(function (o) {
+            return '<button type="button" class="guest-order-row" data-tx="' + o.tx_id + '">#' + o.tx_id + ' · ' + (o.progress_label || o.state || '') + '</button>';
+          }).join('');
+          body.querySelectorAll('.guest-order-row').forEach(function (btn) {
+            btn.onclick = function () {
+              const txId = parseInt(btn.getAttribute('data-tx') || '0', 10);
+              if (txId && window.c35GuestOrder) {
+                modal.style.display = 'none';
+                const fakeSection = document.createElement('section');
+                fakeSection.className = 'order-track';
+                fakeSection.innerHTML = '<input class="order-track-tx" value="' + txId + '"><div class="order-track-status"></div><button type="button" class="order-track-poll">Track</button>';
+                document.body.appendChild(fakeSection);
+                const pollBtn = fakeSection.querySelector('.order-track-poll');
+                window.c35GuestOrder.poll(pollBtn);
+                fakeSection.remove();
+              }
+            };
+          });
+        } catch (err) {
+          body.textContent = err.message || String(err);
+        }
+      })();
+    }
+
+    return { init: captureTokenFromUrl, open: openPortal, signIn: signIn };
+  })();
+
   window.c35GuestOrders = window.c35GuestOrders || {
     refreshChip() {
       const g = window.__SITE_GUEST__ || {};
@@ -2471,21 +2609,11 @@
       const chip = document.getElementById('c35-guest-orders-chip');
       if (!chip || !siteIid) return;
       const n = loadOrders(siteIid).length;
-      chip.style.display = n > 0 ? 'block' : 'none';
-      chip.textContent = n > 0 ? 'Pesanan saya (' + n + ')' : 'Pesanan saya';
+      chip.style.display = n > 0 || g.member_portal_enabled ? 'block' : 'none';
+      chip.textContent = n > 0 ? 'Pesanan saya (' + n + ')' : 'Akun';
     },
     open() {
-      const g = window.__SITE_GUEST__ || {};
-      const siteIid = g.site_iid || 0;
-      const list = loadOrders(siteIid);
-      if (!list.length) {
-        alert('Belum ada pesanan');
-        return;
-      }
-      const lines = list
-        .map((o) => '#' + o.tx_id + (o.total ? ' · ' + formatOrderTotal(o.total) : ''))
-        .join('\n');
-      alert('Pesanan tersimpan:\n' + lines);
+      if (window.c35GuestMember) window.c35GuestMember.open();
     },
   };
 
@@ -2493,6 +2621,7 @@
     window.c35GuestCatalogUi.init();
     window.c35GuestReserve.init();
     window.c35GuestPost.init();
+    if (window.c35GuestMember) window.c35GuestMember.init();
     window.c35GuestOrders.refreshChip();
     if (window.c35GuestAssistant) window.c35GuestAssistant.init();
     if (window.c35GuestAnalytics) window.c35GuestAnalytics.start();

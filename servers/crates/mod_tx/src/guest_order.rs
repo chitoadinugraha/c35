@@ -15,7 +15,17 @@ use crate::load::tx_load;
 use crate::persist::{tx_acc_counts, tx_children_del, tx_children_put, tx_header_put};
 use crate::stock_apply::product_stock_apply;
 
-pub async fn guest_order_put(pool: &PgPool, req: ReqSiteGuestOrderPut) -> Result<ResSiteGuestOrderPut> {
+#[derive(Debug, Clone, Default)]
+pub struct GuestOrderPutContext {
+    pub buyer_user_iid: i64,
+    pub visitor_id: String,
+}
+
+pub async fn guest_order_put(
+    pool: &PgPool,
+    req: ReqSiteGuestOrderPut,
+    ctx: GuestOrderPutContext,
+) -> Result<ResSiteGuestOrderPut> {
     let site_iid = req.site_iid;
     if site_iid <= 0 {
         return Err(anyhow!("site_iid required"));
@@ -38,22 +48,46 @@ pub async fn guest_order_put(pool: &PgPool, req: ReqSiteGuestOrderPut) -> Result
         product_stock_apply(&mut db, site_iid, &[], &tx.stocks).await?;
     }
     db.commit().await?;
+    crate::guest_tx_meta::guest_tx_meta_patch(
+        pool,
+        site_iid,
+        tx.tx_id,
+        ctx.buyer_user_iid,
+        &ctx.visitor_id,
+    )
+    .await?;
     let saved = tx_load(pool, site_iid, tx.tx_id).await?;
     Ok(ResSiteGuestOrderPut { tx: saved })
 }
 
-pub async fn guest_order_get(pool: &PgPool, req: ReqSiteGuestOrderGet) -> Result<ResSiteGuestOrderGet> {
+pub async fn guest_order_get(
+    pool: &PgPool,
+    req: ReqSiteGuestOrderGet,
+    buyer_user_iid: Option<i64>,
+    visitor_id: Option<&str>,
+) -> Result<ResSiteGuestOrderGet> {
     let site_iid = req.site_iid;
     if site_iid <= 0 || req.tx_id <= 0 {
         return Err(anyhow!("site_iid and tx_id required"));
     }
     let _ = guest_site_owner(pool, site_iid).await?;
+    if !crate::guest_order_list::guest_order_get_allowed(
+        pool,
+        site_iid,
+        req.tx_id,
+        buyer_user_iid,
+        visitor_id,
+    )
+    .await?
+    {
+        return Err(anyhow!("order not found"));
+    }
     let tx = tx_load(pool, site_iid, req.tx_id).await?;
     let tx = tx.filter(|t| t.input_source == i32::from(TxInputSource::Web));
     Ok(ResSiteGuestOrderGet { tx })
 }
 
-async fn guest_site_owner(pool: &PgPool, site_iid: i64) -> Result<i64> {
+pub async fn guest_site_owner(pool: &PgPool, site_iid: i64) -> Result<i64> {
     if !site_published(pool, site_iid).await? {
         return Err(anyhow!("site not published"));
     }

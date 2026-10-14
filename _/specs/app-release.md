@@ -72,6 +72,8 @@ Standalone scripts bump once each. Set `DEPLOY_SKIP_VERSION_BUMP=1` to skip (orc
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | Play upload | Inline JSON (alternative to file) |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON_PATH` | Play upload | Path to service account JSON |
 | `PLAY_STORE_PACKAGE_NAME` | No | `id.alienai` |
+| `DEPLOY_ANDROID_BUILD_CORES` | No | Deploy-time Android/Windows compile parallelism. Default **`auto`**: logical CPUs − 1, clamped **4–16**. Integer cap, or **`0`** = uncapped (CMake/Ninja/Gradle workers not limited). Alias: `ANDROID_BUILD_CORES`. |
+| `DEPLOY_ANDROID_GRADLE_STOP` | No | `1` runs `gradlew --stop` before release APK/AAB (clean; slower). Default **`0`** keeps the Gradle daemon warm between publishes on this machine. |
 | `DEPLOY_SKIP_VERSION_BUMP` | No | `1` skips pubspec bump |
 | `PLATFORM_APP_VERSION_PUBLISH` | No | `0` skips `/version` publish (debug) |
 | `C35_SKIP_NATS_BROADCAST` | No | `1` skips `c35.release.windows` kubectl broadcast (config + CAS still run) |

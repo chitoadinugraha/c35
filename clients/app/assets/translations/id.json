@@ -491,7 +491,25 @@
             "hostnameHint": "www.example.com",
             "invalidHostname": "Masukkan hostname seperti www.example.com",
             "removeTitle": "Hapus domain?",
-            "removeBody": "Hapus {domain} dari situs ini? Pembelian tidak dikembalikan."
+            "removeBody": "Pengunjung tidak bisa lagi membuka situs Anda di domain ini. Ketik {domain} untuk konfirmasi.",
+            "removeBodySimple": "Hapus {domain} dari situs ini? Pembelian tidak dikembalikan.",
+            "domainLabel": "Domain",
+            "dnsTitle": "Konfigurasi DNS",
+            "dnsBody": "Arahkan CNAME (atau ALIAS/ANAME) dari {domain} ke {target}, lalu ketuk Verifikasi jika sudah.\n\nCloudflare: gunakan DNS only (awan abu). Proxied (awan oranye) menyembunyikan CNAME dan Verifikasi akan gagal.",
+            "dnsType": "Tipe",
+            "dnsHost": "Host",
+            "dnsTarget": "Target",
+            "dnsApexHint": "Untuk apex ({domain}), Anda bisa memakai rekaman A/AAAA ke alamat yang sama dengan {target}, atau CNAME flattening jika penyedia DNS mendukung.",
+            "cnameNotFound": "Rekaman CNAME tidak ditemukan. Arahkan domain Anda ke {target} dan coba lagi.",
+            "cnameHint": "Domain kustom: CNAME ke {target} (abu-abu / DNS only).",
+            "copyTooltip": "Salin",
+            "addExpiresHint": "Verifikasi DNS dalam 24 jam atau domain ini dihapus otomatis.",
+            "dnsInstructions": "Instruksi DNS",
+            "movedToPublish": "Tambah, beli, dan verifikasi domain kustom di layar Publish.",
+            "openPublish": "Buka Publish",
+            "publishIntro": "Terbitkan draft saat ini ke situs live. Pengunjung di domain kustom melihat versi yang sudah diterbitkan.",
+            "publicUrl": "URL publik",
+            "sectionTitle": "Domain kustom"
         }
     },
     "legal": {

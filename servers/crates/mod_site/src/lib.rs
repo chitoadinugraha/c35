@@ -26,6 +26,7 @@ pub mod render;
 mod rows;
 mod site_config;
 mod site_contact;
+mod site_customer;
 mod site_link;
 mod site_post;
 mod dns_verify;
@@ -60,8 +61,9 @@ pub use collection_def::{collection_def_list, collection_def_list_rpc, collectio
 pub use http::{host_is_api, host_is_primary, site_render_router, try_custom_domain_root};
 pub use site_config::{
     site_capability_check, site_capability_enabled, site_capabilities_get, site_config_put,
-    site_order_fulfillment_enabled,
+    site_member_portal_enabled, site_order_fulfillment_enabled,
 };
+pub use site_customer::{site_customer_profile, site_customer_upsert, SiteCustomerProfile};
 pub use site_contact::{guest_contact_put, site_contact_list, site_contact_put, site_contact_upsert};
 pub use site_link::{
     site_link_boot_rows, site_link_delete, site_link_list, site_link_put, site_link_upsert,

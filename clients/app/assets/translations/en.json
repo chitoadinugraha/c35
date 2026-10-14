@@ -491,7 +491,25 @@
             "hostnameHint": "www.example.com",
             "invalidHostname": "Enter a hostname like www.example.com",
             "removeTitle": "Remove domain?",
-            "removeBody": "Remove {domain} from this site? This does not refund a purchase."
+            "removeBody": "Visitors will no longer reach your site on this domain. Type {domain} to confirm.",
+            "removeBodySimple": "Remove {domain} from this site? This does not refund a purchase.",
+            "domainLabel": "Domain",
+            "dnsTitle": "DNS configuration",
+            "dnsBody": "Point a CNAME (or ALIAS/ANAME) from {domain} to {target}, then tap Verify when done.\n\nCloudflare: use DNS only (grey cloud). Proxied (orange cloud) hides the CNAME and Verify will fail.",
+            "dnsType": "Type",
+            "dnsHost": "Host",
+            "dnsTarget": "Target",
+            "dnsApexHint": "For the apex ({domain}), you can use A/AAAA records to the same addresses as {target}, or CNAME flattening if your DNS provider supports it.",
+            "cnameNotFound": "CNAME record not found. Point your domain to {target} and try again.",
+            "cnameHint": "Custom domains: CNAME to {target} (grey / DNS only).",
+            "copyTooltip": "Copy",
+            "addExpiresHint": "Verify DNS within 24 hours or this domain is removed automatically.",
+            "dnsInstructions": "DNS instructions",
+            "movedToPublish": "Add, buy, and verify custom domains on the Publish screen.",
+            "openPublish": "Open Publish",
+            "publishIntro": "Push the current draft to your live site. Visitors on custom domains see the published version.",
+            "publicUrl": "Public URL",
+            "sectionTitle": "Custom domains"
         }
     },
     "legal": {

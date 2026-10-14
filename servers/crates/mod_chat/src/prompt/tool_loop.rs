@@ -77,15 +77,16 @@ fn append_block(blocks_json: &str, block: Value) -> String {
 }
 
 /// Prune previous desktop screenshots from conversation context so only the latest
-/// observation is retained, avoiding token optimization during multi-step Computer Use.
-fn prune_previous_screenshots(contents: &mut [Value]) {
+/// observation is retained. Ensures the model is never confused by stale desktop states
+/// and prevents base64 network payload bloat across multi-turn computer use sessions.
+pub fn prune_previous_screenshots(contents: &mut [Value]) {
     for msg in contents.iter_mut() {
         if let Some(parts) = msg.get_mut("parts").and_then(|p| p.as_array_mut()) {
             for part in parts.iter_mut() {
                 if let Some(inline) = part.get("inlineData") {
                     if inline.get("mimeType").and_then(|m| m.as_str()) == Some("image/jpeg") {
                         *part = json!({
-                            "text": "[Previous desktop screenshot omitted for token optimization; state superseded by recent action]"
+                            "text": "[Previous desktop screenshot omitted; current state in latest observation]"
                         });
                     }
                 }
@@ -643,7 +644,7 @@ pub async fn prompt_cluster_turn(
             }));
 
             if let Some(img_b64) = latest_img_b64 {
-                // Optimize context window: prune older screenshots so only the latest desktop state is in context
+                // Strictly retain only latest desktop screenshot; prune previous ones to text placeholders
                 prune_previous_screenshots(&mut contents);
                 contents.push(json!({
                     "role": "user",
@@ -1180,5 +1181,51 @@ mod tests {
         assert!(user_wants_search(
             "film apa saja di bioskop malang hari ini ?"
         ));
+    }
+
+    #[test]
+    fn prune_previous_screenshots_keeps_append_only_under_threshold() {
+        let mut contents = vec![
+            json!({
+                "role": "user",
+                "parts": [
+                    { "text": "Visual desktop observation from device:" },
+                    {
+                        "inlineData": {
+                            "mimeType": "image/jpeg",
+                            "data": "base64image1"
+                        }
+                    }
+                ]
+            }),
+            json!({
+                "role": "model",
+                "parts": [{ "text": "Clicked button" }]
+            }),
+        ];
+
+        prune_previous_screenshots(&mut contents);
+
+        // Previous screenshot is pruned immediately to an omission note
+        let text = contents[0]["parts"][1].get("text").and_then(|v| v.as_str());
+        assert!(text.is_some(), "previous screenshot must be converted to text omission");
+        assert!(text.unwrap().contains("[Previous desktop screenshot omitted"));
+        assert!(contents[0]["parts"][1].get("inlineData").is_none());
+
+        // When appending the new observation, only the latest screenshot has inlineData
+        contents.push(json!({
+            "role": "user",
+            "parts": [
+                {
+                    "inlineData": {
+                        "mimeType": "image/jpeg",
+                        "data": "latest_base64_img"
+                    }
+                }
+            ]
+        }));
+        let latest_inline = contents[2]["parts"][0].get("inlineData");
+        assert!(latest_inline.is_some());
+        assert_eq!(latest_inline.unwrap()["data"].as_str(), Some("latest_base64_img"));
     }
 }

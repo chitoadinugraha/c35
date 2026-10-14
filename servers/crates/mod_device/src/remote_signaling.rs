@@ -5,6 +5,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 use c35_proto::{
     pb_decode, pb_encode, ActDeviceTaskRun, RemoteConnectionMode, RemoteFsListRes, RemoteFsReadRes,
@@ -30,6 +31,19 @@ static PENDING_FS_LIST: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<Re
     OnceLock::new();
 static PENDING_FS_READ: OnceLock<DashMap<String, tokio::sync::oneshot::Sender<RemoteFsReadRes>>> =
     OnceLock::new();
+static REMOTE_ALLOWED_CACHE: OnceLock<DashMap<(i64, i64), Instant>> = OnceLock::new();
+static AGENT_ONLINE_CACHE: OnceLock<DashMap<i64, Instant>> = OnceLock::new();
+
+pub const REMOTE_ALLOWED_CACHE_TTL: Duration = Duration::from_secs(300);
+pub const AGENT_ONLINE_CACHE_TTL: Duration = Duration::from_secs(10);
+
+pub(crate) fn remote_allowed_cache() -> &'static DashMap<(i64, i64), Instant> {
+    REMOTE_ALLOWED_CACHE.get_or_init(DashMap::new)
+}
+
+pub(crate) fn agent_online_cache() -> &'static DashMap<i64, Instant> {
+    AGENT_ONLINE_CACHE.get_or_init(DashMap::new)
+}
 
 const FS_READ_LLM_MAX: i32 = 256 * 1024;
 const FS_RPC_TIMEOUT_SEC: u64 = 30;
@@ -93,12 +107,16 @@ pub fn remote_signaling_agent_register(
 ) -> u64 {
     let conn_id = AGENT_CONN_SEQ.fetch_add(1, Ordering::Relaxed);
     hub().agents.insert(device_iid, AgentRoute { conn_id, out_tx });
+    agent_online_cache().insert(device_iid, Instant::now());
     conn_id
 }
 
 /// Drop this socket's route only. A newer agent WS for the same device keeps its route.
 pub fn remote_signaling_agent_unregister(device_iid: i64, conn_id: u64) {
     hub().agents.remove_if(&device_iid, |_, route| route.conn_id == conn_id);
+    if !hub().agents.contains_key(&device_iid) {
+        agent_online_cache().remove(&device_iid);
+    }
 }
 
 pub fn remote_signaling_agent_connected(device_iid: i64) -> bool {
@@ -155,6 +173,13 @@ pub(crate) async fn device_remote_allowed(
     if device_iid <= 0 {
         return Err("invalid device".into());
     }
+
+    if let Some(entry) = remote_allowed_cache().get(&(caller_iid, device_iid)) {
+        if entry.value().elapsed() < REMOTE_ALLOWED_CACHE_TTL {
+            return Ok(());
+        }
+    }
+
     if c35_mod_admin::require_root(pool, caller_iid).await.is_ok() {
         let owner: Option<i64> = sqlx::query_scalar(
             r#"
@@ -170,6 +195,7 @@ pub(crate) async fn device_remote_allowed(
         .map_err(|e| e.to_string())?;
         if let Some(device_owner_iid) = owner {
             device_root_remote_audit(pool, caller_iid, device_iid, device_owner_iid).await;
+            remote_allowed_cache().insert((caller_iid, device_iid), Instant::now());
             return Ok(());
         }
         return Err("invalid device".into());
@@ -193,8 +219,10 @@ pub(crate) async fn device_remote_allowed(
     .await
     .map_err(|e| e.to_string())?;
     if row.is_some() {
+        remote_allowed_cache().insert((caller_iid, device_iid), Instant::now());
         Ok(())
     } else {
+        remote_allowed_cache().remove(&(caller_iid, device_iid));
         Err("forbidden".into())
     }
 }
@@ -204,12 +232,20 @@ pub(crate) async fn agent_cluster_online(
     nats: Option<&async_nats::Client>,
     device_iid: i64,
 ) -> Result<bool, String> {
+    if let Some(entry) = agent_online_cache().get(&device_iid) {
+        if entry.value().elapsed() < AGENT_ONLINE_CACHE_TTL {
+            return Ok(true);
+        }
+    }
+
     if remote_signaling_agent_connected(device_iid) {
+        agent_online_cache().insert(device_iid, Instant::now());
         return Ok(true);
     }
     if let Some(client) = nats {
         if let Ok(store) = c35_nats::device_presence_kv_ensure(client).await {
             if c35_nats::device_presence_get(&store, device_iid).await {
+                agent_online_cache().insert(device_iid, Instant::now());
                 return Ok(true);
             }
         }
@@ -225,8 +261,35 @@ pub(crate) async fn agent_cluster_online(
                 let _ = c35_nats::device_presence_put(&store, device_iid).await;
             }
         }
+        agent_online_cache().insert(device_iid, Instant::now());
+    } else {
+        agent_online_cache().remove(&device_iid);
     }
     Ok(online)
+}
+
+/// Invalidate cached remote permissions and online presence for a device.
+pub fn remote_signaling_cache_invalidate(device_iid: i64) {
+    agent_online_cache().remove(&device_iid);
+    remote_allowed_cache().retain(|(_, dev_id), _| *dev_id != device_iid);
+}
+
+/// Invalidate permission cache for a specific caller and device.
+pub fn remote_allowed_cache_invalidate(caller_iid: i64, device_iid: i64) {
+    remote_allowed_cache().remove(&(caller_iid, device_iid));
+}
+
+/// Invalidate online presence cache for a specific device.
+pub fn agent_online_cache_invalidate(device_iid: i64) {
+    agent_online_cache().remove(&device_iid);
+}
+
+/// Hook called when NATS `c35.signal.device.{device_iid}` message is received.
+/// If the message is an unpair notification, invalidates permissions and online cache.
+pub fn remote_signal_device_process(device_iid: i64, payload: &[u8]) {
+    if payload == crate::DEVICE_UNPAIR_PUSH {
+        remote_signaling_cache_invalidate(device_iid);
+    }
 }
 
 fn agent_send(device_iid: i64, frame: WsReq) -> Result<(), String> {
@@ -709,6 +772,9 @@ pub async fn remote_agent_send_raw(
     device_iid: i64,
     payload: Vec<u8>,
 ) -> Result<(), String> {
+    if payload.as_slice() == crate::DEVICE_UNPAIR_PUSH {
+        remote_signaling_cache_invalidate(device_iid);
+    }
     if let Some(agent) = hub().agents.get(&device_iid) {
         if agent.out_tx.send(payload.clone()).is_ok() {
             return Ok(());
@@ -1281,4 +1347,91 @@ pub async fn remote_device_browser_invoke_app(
         }),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remote_allowed_cache_ttl_and_invalidation() {
+        let caller_iid = 8001;
+        let device_iid = 9001;
+
+        // Fresh cache insert
+        remote_allowed_cache().insert((caller_iid, device_iid), Instant::now());
+        assert!(remote_allowed_cache().contains_key(&(caller_iid, device_iid)));
+
+        // Caller-specific invalidation
+        remote_allowed_cache_invalidate(caller_iid, device_iid);
+        assert!(!remote_allowed_cache().contains_key(&(caller_iid, device_iid)));
+
+        // Invalidate by device_iid removes all entries for that device
+        remote_allowed_cache().insert((8001, device_iid), Instant::now());
+        remote_allowed_cache().insert((8002, device_iid), Instant::now());
+        remote_allowed_cache().insert((8001, 9999), Instant::now());
+
+        remote_signaling_cache_invalidate(device_iid);
+        assert!(!remote_allowed_cache().contains_key(&(8001, device_iid)));
+        assert!(!remote_allowed_cache().contains_key(&(8002, device_iid)));
+        assert!(remote_allowed_cache().contains_key(&(8001, 9999)));
+
+        // Cleanup
+        remote_allowed_cache_invalidate(8001, 9999);
+    }
+
+    #[test]
+    fn test_agent_online_cache_ttl_and_signal_process() {
+        let device_iid = 9002;
+
+        // Insert online cache
+        agent_online_cache().insert(device_iid, Instant::now());
+        assert!(agent_online_cache().contains_key(&device_iid));
+
+        // Signal with unpair payload invalidates both online and allowed caches
+        remote_allowed_cache().insert((8003, device_iid), Instant::now());
+        remote_signal_device_process(device_iid, crate::DEVICE_UNPAIR_PUSH);
+        assert!(!agent_online_cache().contains_key(&device_iid));
+        assert!(!remote_allowed_cache().contains_key(&(8003, device_iid)));
+
+        // Non-unpair payload leaves cache intact
+        agent_online_cache().insert(device_iid, Instant::now());
+        remote_signal_device_process(device_iid, b"some-other-nats-payload");
+        assert!(agent_online_cache().contains_key(&device_iid));
+
+        // Direct online cache invalidation
+        agent_online_cache_invalidate(device_iid);
+        assert!(!agent_online_cache().contains_key(&device_iid));
+    }
+
+    #[tokio::test]
+    async fn test_device_remote_allowed_cache_hit_bypasses_db() {
+        let caller_iid = 8010;
+        let device_iid = 9010;
+        let pool = sqlx::PgPool::connect_lazy("postgres://dummy:dummy@127.0.0.1:9999/dummy").unwrap();
+
+        // Without cache, connect_lazy would fail when querying DB
+        // With valid cache entry, it returns Ok(()) immediately
+        remote_allowed_cache().insert((caller_iid, device_iid), Instant::now());
+        let res = device_remote_allowed(&pool, caller_iid, device_iid).await;
+        assert!(res.is_ok());
+
+        // Cleanup
+        remote_allowed_cache_invalidate(caller_iid, device_iid);
+    }
+
+    #[tokio::test]
+    async fn test_agent_cluster_online_cache_hit_bypasses_queries() {
+        let device_iid = 9020;
+        let pool = sqlx::PgPool::connect_lazy("postgres://dummy:dummy@127.0.0.1:9999/dummy").unwrap();
+
+        // With valid cache entry, it returns Ok(true) immediately without NATS or DB queries
+        agent_online_cache().insert(device_iid, Instant::now());
+        let res = agent_cluster_online(&pool, None, device_iid).await;
+        assert_eq!(res, Ok(true));
+
+        // Cleanup
+        agent_online_cache_invalidate(device_iid);
+    }
+}
+
 

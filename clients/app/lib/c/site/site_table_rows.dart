@@ -7,7 +7,7 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/site/tx_format.dart';
 import 'package:fixnum/fixnum.dart';
 
-const _capabilityKeys = ['commerce', 'booking', 'queue', 'attendance', 'order_fulfillment'];
+const _capabilityKeys = ['commerce', 'booking', 'queue', 'attendance', 'order_fulfillment', 'member_portal'];
 
 /// Defaults for new encodes / missing keys (except [siteOrderFulfillmentFromJson] back-compat).
 const siteCapabilityDefaults = <String, bool>{
@@ -16,9 +16,18 @@ const siteCapabilityDefaults = <String, bool>{
   'queue': true,
   'attendance': false,
   'order_fulfillment': false,
+  'member_portal': true,
 };
 
 bool siteCapabilityDefault(String key) => siteCapabilityDefaults[key] ?? true;
+
+bool siteMemberPortalFromJson(Map<dynamic, dynamic> decoded) {
+  if (decoded['member_portal'] is bool) {
+    return decoded['member_portal'] as bool;
+  }
+  final commerce = decoded['commerce'] is bool ? decoded['commerce'] as bool : siteCapabilityDefault('commerce');
+  return commerce;
+}
 
 bool siteOrderFulfillmentFromJson(Map<dynamic, dynamic> decoded) {
   if (decoded['order_fulfillment'] is bool) {
@@ -45,7 +54,9 @@ Map<String, bool> siteCapabilitiesParse(String raw) {
       for (final k in _capabilityKeys)
         k: k == 'order_fulfillment'
             ? siteOrderFulfillmentFromJson(map)
-            : (decoded[k] is bool ? decoded[k] as bool : siteCapabilityDefault(k)),
+            : k == 'member_portal'
+                ? siteMemberPortalFromJson(map)
+                : (decoded[k] is bool ? decoded[k] as bool : siteCapabilityDefault(k)),
     };
   } catch (_) {
     return Map<String, bool>.from(siteCapabilityDefaults);

@@ -60,6 +60,7 @@ pub async fn device_unpair(
     )
     .await;
 
+    crate::remote_signaling::remote_signaling_cache_invalidate(device_iid);
     device_unpair_notify(nats, device_iid).await?;
     Ok(())
 }
@@ -68,6 +69,7 @@ pub async fn device_unpair_notify(
     nats: Option<&Client>,
     device_iid: i64,
 ) -> Result<(), String> {
+    crate::remote_signaling::remote_signaling_cache_invalidate(device_iid);
     remote_agent_send_raw(nats, device_iid, DEVICE_UNPAIR_PUSH.to_vec()).await?;
     Ok(())
 }

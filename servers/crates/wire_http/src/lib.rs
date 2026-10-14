@@ -7,6 +7,7 @@ mod catalog;
 mod device;
 mod guest_analytics;
 mod guest_contact;
+mod guest_member;
 mod guest_order;
 mod guest_reservation;
 mod site_order_push;
@@ -91,6 +92,7 @@ pub fn router(state: AppState) -> Router {
         .merge(c35_mod_mail::mail_router())
         .merge(guest_analytics::guest_analytics_router())
         .merge(guest_order::guest_order_router())
+        .merge(guest_member::guest_member_router())
         .merge(guest_reservation::guest_reservation_router())
         .merge(guest_contact::guest_contact_router())
         .merge(guest_product::guest_product_router())

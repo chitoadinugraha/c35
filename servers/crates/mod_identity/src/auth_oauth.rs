@@ -752,11 +752,10 @@ fn sanitize_return(return_path: Option<&str>) -> String {
         return "/".into();
     }
     if p.contains("://") {
-        return if is_app_oauth_return(p) {
-            p.to_string()
-        } else {
-            "/".into()
-        };
+        if is_app_oauth_return(p) || is_guest_site_https_return(p) {
+            return p.to_string();
+        }
+        return "/".into();
     }
     if !p.starts_with('/') || p.starts_with("//") {
         return "/".into();
@@ -787,6 +786,20 @@ fn is_app_oauth_return(return_path: &str) -> bool {
     }
     let scheme = p.split("://").next().unwrap_or("").to_ascii_lowercase();
     !scheme.is_empty() && scheme != "http" && scheme != "https"
+}
+
+fn is_guest_site_https_return(return_path: &str) -> bool {
+    let p = return_path.trim().to_ascii_lowercase();
+    if !p.starts_with("https://") && !p.starts_with("http://") {
+        return false;
+    }
+    if p.contains("localhost") || p.contains("127.0.0.1") {
+        return true;
+    }
+    p.starts_with("https://alienai.id/")
+        || p.starts_with("https://www.alienai.id/")
+        || p.starts_with("http://alienai.id/")
+        || p.starts_with("http://www.alienai.id/")
 }
 
 fn oauth_finish_redirect(

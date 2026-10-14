@@ -58,6 +58,7 @@ async fn device_unpair_e2e() {
         ReqDevicePairRegister {
             device_name: "e2e-unpair-pc".into(),
             device_type: "windows".into(),
+            meta_json: String::new(),
         },
     )
     .await

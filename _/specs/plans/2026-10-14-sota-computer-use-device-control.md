@@ -157,3 +157,24 @@ Alien AI Remote device control (`kind=computer_use`, `device.input`, `device.scr
   - `cargo build -p server_ai`
   - `cargo build -p c_remote_windows`
 - [ ] **Task G.3:** Run end-to-end golden verification on VM1 (`prompt_device_form_loop.ps1`) and assert multi-step completion without premature stop.
+
+---
+
+## Wave 4 — Turn Performance & Latency Acceleration
+
+### Track H: Strictly Latest Screenshot Retention & Prefix Cache Preservation (`tool_loop.rs`)
+- [x] **Task H.1:** Refactor `prune_previous_screenshots` in `tool_loop.rs` to strictly retain only the latest desktop screenshot across the entire conversation, pruning older screenshots to text omission tags (`"[Previous desktop screenshot omitted; current state in latest observation]"`). Keeps network upload payload at ~180KB and avoids vision model stale state hallucination while preserving the frozen head prefix (system prompt + tool schemas) for LLM context caching.
+- [x] **Task H.2:** Add unit tests in `tool_loop.rs` verifying previous screenshots are replaced with text omission markers and only the latest screenshot has `inlineData`.
+
+### Track I: In-Memory RBAC & Presence Caching (`remote_signaling.rs`)
+- [x] **Task I.1:** Add static `DashMap<(i64, i64), Instant>` cache for `device_remote_allowed` (300s TTL) with NATS unpair invalidation.
+- [x] **Task I.2:** Add static `DashMap<i64, Instant>` cache for `agent_cluster_online` (10s TTL), eliminating redundant DB queries on every tool hop.
+- [x] **Task I.3:** Add unit tests for cache hits and invalidation.
+
+### Track J: SoM A11y Tree Compression (`uia.rs`)
+- [x] **Task J.1:** Filter off-screen elements and empty-labeled non-inputs in `axtree_text`.
+- [x] **Task J.2:** Prioritize high-actionability controls to the front and cap output lines at 50, reducing prompt tokens from ~5,000 to ~600–800 tokens.
+
+### Track K: Multi-Action Batching & Adaptive Settle (`device.rs`)
+- [x] **Task K.1:** Add `actions: [...]` parameter to `DeviceInputTool` for turn fusion (multiple actions executed with 30ms pause and single follow-up screenshot).
+- [x] **Task K.2:** Implement adaptive `settle_ms` (150ms for pure typing vs 450ms for clicks/navigation).

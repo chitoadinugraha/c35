@@ -79,8 +79,8 @@ async fn delegate_child_row_links_parent_and_budget() {
     assert_eq!(row.checkpoint_json.0["label"], "Rust vs Go");
 }
 
-#[test]
-fn delegate_child_row_sets_mention_for_device_iid() {
+#[tokio::test]
+async fn delegate_child_row_sets_mention_for_device_iid() {
     let pool = PgPool::connect_lazy("postgres://unused").expect("lazy pool");
     let ctx = test_tool_ctx(pool, "parent-req-1");
     let row = delegate_child_row(

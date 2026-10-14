@@ -24,6 +24,7 @@ class UiSiteDomainSection extends StatelessWidget {
     required this.onVerify,
     required this.onFixHttps,
     required this.onRemove,
+    this.onDnsInstructions,
   });
 
   final List<SiteDomain> domains;
@@ -35,6 +36,7 @@ class UiSiteDomainSection extends StatelessWidget {
   final ValueChanged<SiteDomain> onVerify;
   final ValueChanged<SiteDomain> onFixHttps;
   final ValueChanged<SiteDomain> onRemove;
+  final ValueChanged<SiteDomain>? onDnsInstructions;
 
   bool get _pendingByo => domains.any(siteDomainPendingByo);
 
@@ -51,8 +53,9 @@ class UiSiteDomainSection extends StatelessWidget {
             fixing: fixingDomainId == domain.id.toInt(),
             actionsLocked: checkingDomainId != null || fixingDomainId != null,
             onVerify: () => onVerify(domain),
+            onDnsInstructions: onDnsInstructions == null ? null : () => onDnsInstructions!(domain),
             onFixHttps: () => onFixHttps(domain),
-            onRemove: () => onRemove(domain),
+            onRemove: onRemove,
           ),
           const SizedBox(height: 8),
         ],
@@ -90,6 +93,7 @@ class _DomainCard extends StatelessWidget {
     required this.fixing,
     required this.actionsLocked,
     required this.onVerify,
+    this.onDnsInstructions,
     required this.onFixHttps,
     required this.onRemove,
   });
@@ -100,8 +104,9 @@ class _DomainCard extends StatelessWidget {
   final bool fixing;
   final bool actionsLocked;
   final VoidCallback onVerify;
+  final VoidCallback? onDnsInstructions;
   final VoidCallback onFixHttps;
-  final VoidCallback onRemove;
+  final ValueChanged<SiteDomain> onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -141,12 +146,22 @@ class _DomainCard extends StatelessWidget {
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   icon: const Icon(Icons.close, size: 16, color: _muted),
-                  onPressed: busy ? null : () => _confirmRemove(context),
+                  onPressed: busy ? null : () => onRemove(domain),
                 ),
               ],
             ),
             if (!dnsOk) ...[
               Text(_pendingHint(), style: const TextStyle(color: _muted, fontSize: 12)),
+              if (onDnsInstructions != null && siteDomainIsByo(domain)) ...[
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: busy || actionsLocked ? null : onDnsInstructions,
+                    child: Text('site.domain.dnsInstructions'.tr()),
+                  ),
+                ),
+              ],
               if (domain.verifyError.trim().isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(domain.verifyError, style: const TextStyle(color: _err, fontSize: 12)),
@@ -199,28 +214,6 @@ class _DomainCard extends StatelessWidget {
     return 'site.domain.verifyWithinMinutes'.tr(namedArgs: {'minutes': '${left.inMinutes}'});
   }
 
-  Future<void> _confirmRemove(BuildContext context) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _dialog,
-        title: Text('site.domain.removeTitle'.tr(), style: const TextStyle(color: _text)),
-        content: Text(
-          'site.domain.removeBody'.tr(namedArgs: {'domain': domain.hostname}),
-          style: const TextStyle(color: _muted, fontSize: 13),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('common.cancel'.tr())),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: _err),
-            child: Text('common.delete'.tr()),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) onRemove();
-  }
 }
 
 Future<String?> ioSiteDomainAddDialogOpen(BuildContext context) => showDialog<String>(
@@ -275,6 +268,8 @@ class _AddDomainDialogState extends State<_AddDomainDialog> {
                 const SizedBox(height: 8),
                 Text(_message, style: const TextStyle(color: _err, fontSize: 12)),
               ],
+              const SizedBox(height: 6),
+              Text('site.domain.addExpiresHint'.tr(), style: const TextStyle(color: _muted, fontSize: 12)),
             ],
           ),
         ),

@@ -4,6 +4,7 @@ import 'package:archive/archive.dart';
 import 'package:path/path.dart' as p;
 
 import '../deploy_lib.dart';
+import 'deploy_build_parallel.dart';
 import 'hash_blake3.dart';
 import 'update_version.dart';
 
@@ -62,7 +63,12 @@ WindowsBuildResult buildWindowsRelease({String? serverUrl}) {
   final apiServer = serverUrl?.trim().isNotEmpty == true
       ? serverUrl!.trim()
       : (deployEnv('C35_SERVER', 'https://alienai.id'));
-  stdout.writeln('Building Windows release (version $version, server $apiServer)...');
+  final cores = resolveDeployBuildCores();
+  if (cores > 0) {
+    stdout.writeln('Building Windows release (version $version, server $apiServer, $cores compile jobs)...');
+  } else {
+    stdout.writeln('Building Windows release (version $version, server $apiServer)...');
+  }
 
   final clientApp = deployAppDir(root);
   deployRunSync('flutter_windows', () {
@@ -70,6 +76,7 @@ WindowsBuildResult buildWindowsRelease({String? serverUrl}) {
       'flutter',
       ['build', 'windows', '--release', '--dart-define=C35_SERVER=$apiServer'],
       workingDirectory: clientApp,
+      environment: deployNativeBuildProcessEnvironment(),
       runInShell: Platform.isWindows,
     );
     stdout.write(flutterProc.stdout);

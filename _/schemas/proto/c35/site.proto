@@ -17,6 +17,7 @@ message SitePage {
   string path = 1;              // e.g. "/" or "/about"
   string title = 2;
   repeated SiteBlock blocks = 3;
+  string audience = 4;        // public (default) | members — guest member portal
 }
 
 message SiteDoc {

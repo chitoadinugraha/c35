@@ -16,6 +16,7 @@ import 'package:alienai_c35/c/site/design/site_design_models.dart'
 import 'package:alienai_c35/c/site/design/site_design_resolve.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/site/guest_contact_api.dart';
+import 'package:alienai_c35/c/site/guest_assistant_api.dart';
 import 'package:alienai_c35/c/site/guest_order_api.dart';
 import 'package:alienai_c35/c/site/site_link_display.dart';
 import 'package:alienai_c35/c/site/site_preview_external_url.dart';
@@ -1790,7 +1791,8 @@ class _GuestSiteOrderTrackBlockState extends State<GuestSiteOrderTrackBlock> {
       _activeState = null;
     });
     try {
-      final res = await GuestOrderApi.orderGet(siteIid: widget.siteIid, txId: txId);
+      final visitorId = await GuestAssistantApi.visitorIdForSite(widget.siteIid);
+      final res = await GuestOrderApi.orderGet(siteIid: widget.siteIid, txId: txId, visitorId: visitorId);
       final tx = res['tx'];
       if (tx is! Map) throw StateError('Pesanan tidak ditemukan');
       final txMap = Map<String, dynamic>.from(tx);

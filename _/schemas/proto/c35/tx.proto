@@ -389,6 +389,44 @@ message ResSiteGuestOrderGet {
   Tx tx = 1;
 }
 
+message SiteGuestOrderSummary {
+  int64 tx_id = 1;
+  string state = 2;
+  int64 total = 3;
+  int64 time_ts_ms = 4;
+  string progress_label = 5;
+}
+
+message ReqSiteGuestOrderList {
+  int64 site_iid = 1;
+}
+
+message ResSiteGuestOrderList {
+  repeated SiteGuestOrderSummary orders = 1;
+}
+
+message ReqSiteGuestMemberMe {
+  int64 site_iid = 1;
+}
+
+message ResSiteGuestMemberMe {
+  int64 user_iid = 1;
+  string display_name = 2;
+  string pic = 3;
+  string email = 4;
+  int64 contact_id = 5;
+}
+
+message ReqSiteGuestMemberMerge {
+  int64 site_iid = 1;
+  string visitor_id = 2;
+  repeated int64 order_ids = 3;
+}
+
+message ResSiteGuestMemberMerge {
+  int32 merged_count = 1;
+}
+
 message ExpenseItemInput {
   string name = 1;
   string name_id = 2;

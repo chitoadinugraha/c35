@@ -25,14 +25,51 @@ pub struct Mark {
     pub bbox: [i32; 4], // [left, top, width, height]
 }
 
+pub const MAX_AXTREE_ITEMS: usize = 50;
+
 /// Formats the accessibility tree marks into a structured text prompt list for LLMs.
 pub fn axtree_text(marks: &[Mark], screen_w: u32, screen_h: u32) -> String {
-    if marks.is_empty() {
+    let mut filtered: Vec<&Mark> = marks
+        .iter()
+        .filter(|m| {
+            // Filter out elements whose bounding box/center is completely off-screen
+            let is_off_screen = m.center_x < 0
+                || m.center_y < 0
+                || (screen_w > 0 && m.center_x > screen_w as i32)
+                || (screen_h > 0 && m.center_y > screen_h as i32);
+            if is_off_screen {
+                return false;
+            }
+
+            // Filter out elements with empty names UNLESS control_type is Edit, ComboBox, or Document
+            let is_unlabeled_actionable = matches!(
+                m.control_type.as_str(),
+                "Edit" | "ComboBox" | "Document"
+            );
+            if m.name.trim().is_empty() && !is_unlabeled_actionable {
+                return false;
+            }
+
+            true
+        })
+        .collect();
+
+    if filtered.is_empty() {
         return "(no UIA interactive elements found in foreground window)".into();
     }
-    let mut lines = Vec::with_capacity(marks.len() + 1);
+
+    // Prioritize most interactive controls (Edit, Button, ComboBox, CheckBox, TabItem, Hyperlink)
+    filtered.sort_by_key(|m| {
+        match m.control_type.as_str() {
+            "Edit" | "Button" | "ComboBox" | "CheckBox" | "TabItem" | "Hyperlink" => 0,
+            _ => 1,
+        }
+    });
+
+    let max_items = filtered.len().min(MAX_AXTREE_ITEMS);
+    let mut lines = Vec::with_capacity(max_items + 1);
     lines.push("Interactive UI elements (use exact normalized x, y to click):".to_string());
-    for m in marks {
+    for m in filtered.into_iter().take(MAX_AXTREE_ITEMS) {
         let nx = if screen_w > 0 { (m.center_x as f64 / screen_w as f64).clamp(0.0, 1.0) } else { 0.0 };
         let ny = if screen_h > 0 { (m.center_y as f64 / screen_h as f64).clamp(0.0, 1.0) } else { 0.0 };
         lines.push(format!(
@@ -396,5 +433,206 @@ mod tests {
         assert!(!actionable(ControlType::Text));
         assert!(!actionable(ControlType::Pane));
         assert!(!actionable(ControlType::Window));
+    }
+
+    #[test]
+    fn test_axtree_text_filters_offscreen() {
+        let marks = vec![
+            Mark {
+                id: "@1".to_string(),
+                control_type: "Button".to_string(),
+                name: "OffScreen Left".to_string(),
+                auto_id: "".to_string(),
+                center_x: -10,
+                center_y: 200,
+                bbox: [-50, 180, 80, 40],
+            },
+            Mark {
+                id: "@2".to_string(),
+                control_type: "Button".to_string(),
+                name: "OffScreen Right".to_string(),
+                auto_id: "".to_string(),
+                center_x: 2000,
+                center_y: 200,
+                bbox: [1950, 180, 100, 40],
+            },
+            Mark {
+                id: "@3".to_string(),
+                control_type: "Button".to_string(),
+                name: "OffScreen Top".to_string(),
+                auto_id: "".to_string(),
+                center_x: 500,
+                center_y: -5,
+                bbox: [450, -30, 100, 50],
+            },
+            Mark {
+                id: "@4".to_string(),
+                control_type: "Button".to_string(),
+                name: "OffScreen Bottom".to_string(),
+                auto_id: "".to_string(),
+                center_x: 500,
+                center_y: 1200,
+                bbox: [450, 1180, 100, 40],
+            },
+            Mark {
+                id: "@5".to_string(),
+                control_type: "Button".to_string(),
+                name: "Visible Button".to_string(),
+                auto_id: "".to_string(),
+                center_x: 500,
+                center_y: 500,
+                bbox: [450, 480, 100, 40],
+            },
+        ];
+
+        let text = axtree_text(&marks, 1920, 1080);
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], "Interactive UI elements (use exact normalized x, y to click):");
+        assert!(lines[1].contains("Visible Button"));
+    }
+
+    #[test]
+    fn test_axtree_text_filters_empty_name_unless_actionable_input() {
+        let marks = vec![
+            Mark {
+                id: "@1".to_string(),
+                control_type: "Button".to_string(),
+                name: "".to_string(),
+                auto_id: "".to_string(),
+                center_x: 100,
+                center_y: 100,
+                bbox: [80, 80, 40, 40],
+            },
+            Mark {
+                id: "@2".to_string(),
+                control_type: "Button".to_string(),
+                name: "   ".to_string(),
+                auto_id: "".to_string(),
+                center_x: 200,
+                center_y: 100,
+                bbox: [180, 80, 40, 40],
+            },
+            Mark {
+                id: "@3".to_string(),
+                control_type: "Edit".to_string(),
+                name: "".to_string(),
+                auto_id: "txt_search".to_string(),
+                center_x: 300,
+                center_y: 100,
+                bbox: [250, 80, 100, 40],
+            },
+            Mark {
+                id: "@4".to_string(),
+                control_type: "ComboBox".to_string(),
+                name: "  ".to_string(),
+                auto_id: "cmb_select".to_string(),
+                center_x: 450,
+                center_y: 100,
+                bbox: [400, 80, 100, 40],
+            },
+            Mark {
+                id: "@5".to_string(),
+                control_type: "Document".to_string(),
+                name: "".to_string(),
+                auto_id: "doc_editor".to_string(),
+                center_x: 600,
+                center_y: 100,
+                bbox: [550, 80, 100, 40],
+            },
+            Mark {
+                id: "@6".to_string(),
+                control_type: "ListItem".to_string(),
+                name: "".to_string(),
+                auto_id: "".to_string(),
+                center_x: 750,
+                center_y: 100,
+                bbox: [700, 80, 100, 40],
+            },
+        ];
+
+        let text = axtree_text(&marks, 1920, 1080);
+        let lines: Vec<&str> = text.lines().collect();
+        // Header + 3 actionable empty-named text inputs (Edit, ComboBox, Document)
+        assert_eq!(lines.len(), 4);
+        assert!(lines[1].contains("Edit"));
+        assert!(lines[2].contains("ComboBox"));
+        assert!(lines[3].contains("Document"));
+    }
+
+    #[test]
+    fn test_axtree_text_prioritizes_interactive_controls() {
+        let marks = vec![
+            Mark {
+                id: "@1".to_string(),
+                control_type: "ListItem".to_string(),
+                name: "Row 1".to_string(),
+                auto_id: "".to_string(),
+                center_x: 100,
+                center_y: 100,
+                bbox: [80, 80, 100, 30],
+            },
+            Mark {
+                id: "@2".to_string(),
+                control_type: "Button".to_string(),
+                name: "Save".to_string(),
+                auto_id: "".to_string(),
+                center_x: 200,
+                center_y: 100,
+                bbox: [180, 80, 80, 30],
+            },
+            Mark {
+                id: "@3".to_string(),
+                control_type: "TreeItem".to_string(),
+                name: "Node 1".to_string(),
+                auto_id: "".to_string(),
+                center_x: 300,
+                center_y: 100,
+                bbox: [280, 80, 100, 30],
+            },
+            Mark {
+                id: "@4".to_string(),
+                control_type: "Hyperlink".to_string(),
+                name: "Help".to_string(),
+                auto_id: "".to_string(),
+                center_x: 400,
+                center_y: 100,
+                bbox: [380, 80, 60, 30],
+            },
+        ];
+
+        let text = axtree_text(&marks, 1920, 1080);
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 5);
+        // Priority 0: Button and Hyperlink (preserved order between them: Button, then Hyperlink)
+        assert!(lines[1].contains("@2 Button 'Save'"));
+        assert!(lines[2].contains("@4 Hyperlink 'Help'"));
+        // Priority 1: ListItem and TreeItem (preserved order: Row 1, Node 1)
+        assert!(lines[3].contains("@1 ListItem 'Row 1'"));
+        assert!(lines[4].contains("@3 TreeItem 'Node 1'"));
+    }
+
+    #[test]
+    fn test_axtree_text_capped_at_50() {
+        let mut marks = Vec::new();
+        for i in 1..=80 {
+            marks.push(Mark {
+                id: format!("@{i}"),
+                control_type: "Button".to_string(),
+                name: format!("Button {i}"),
+                auto_id: "".to_string(),
+                center_x: 100,
+                center_y: 100,
+                bbox: [80, 80, 50, 30],
+            });
+        }
+
+        let text = axtree_text(&marks, 1920, 1080);
+        let lines: Vec<&str> = text.lines().collect();
+        // 1 header line + 50 items = 51 lines
+        assert_eq!(lines.len(), 51);
+        assert_eq!(lines[0], "Interactive UI elements (use exact normalized x, y to click):");
+        assert!(lines[1].contains("@1 Button 'Button 1'"));
+        assert!(lines[50].contains("@50 Button 'Button 50'"));
     }
 }

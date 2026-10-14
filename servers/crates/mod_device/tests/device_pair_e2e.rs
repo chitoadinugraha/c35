@@ -49,6 +49,7 @@ async fn device_pair_register_poll_claim_e2e() {
         ReqDevicePairRegister {
             device_name: "e2e-pc".into(),
             device_type: "windows".into(),
+            meta_json: String::new(),
         },
     )
     .await

@@ -26,6 +26,14 @@ pub fn site_order_fulfillment_enabled(caps: &serde_json::Value) -> bool {
         .unwrap_or_else(|| site_capability_enabled(caps, "commerce"))
 }
 
+/// Customer member portal (sign-in, order history). Defaults on when commerce is on.
+pub fn site_member_portal_enabled(caps: &serde_json::Value) -> bool {
+    caps
+        .get("member_portal")
+        .and_then(|v| v.as_bool())
+        .unwrap_or_else(|| site_capability_enabled(caps, "commerce"))
+}
+
 pub async fn site_capabilities_get(pool: &PgPool, site_iid: i64) -> serde_json::Value {
     let row = sqlx::query(
         r#"

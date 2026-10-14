@@ -38,14 +38,16 @@ pub use release_config::{
 };
 pub use remote_ice_config::remote_ice_config;
 pub use remote_signaling::{
-    remote_agent_send_raw, remote_browser_device_iid_for_invoke, remote_device_agent_push,
+    agent_online_cache_invalidate, remote_agent_send_raw, remote_allowed_cache_invalidate,
+    remote_browser_device_iid_for_invoke, remote_device_agent_push,
     remote_device_browser_invoke,
     remote_device_browser_invoke_app, remote_device_command_run,
     remote_device_fs_list, remote_device_fs_read, remote_device_input_send,
     remote_device_screenshot_capture, remote_device_task_run_enqueue, remote_session_start,
-    remote_session_stop,
+    remote_session_stop, remote_signal_device_process,
     remote_signaling_agent_connected, remote_signaling_agent_frame, remote_signaling_agent_register,
     remote_signaling_agent_unregister, remote_signaling_app_conn_register,
-    remote_signaling_app_conn_unregister, rtc_signal_answer_from_app, rtc_signal_ice_from_app,
+    remote_signaling_app_conn_unregister, remote_signaling_cache_invalidate,
+    rtc_signal_answer_from_app, rtc_signal_ice_from_app,
     rtc_signal_offer_from_app,
 };

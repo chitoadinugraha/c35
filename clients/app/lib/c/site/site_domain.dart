@@ -43,6 +43,13 @@ bool siteDomainHostLooksValid(String host) {
   return RegExp(r'^[a-z0-9.-]+$').hasMatch(host);
 }
 
+/// Apex host (e.g. `example.com`) — not `www.example.com`.
+bool siteDomainIsApex(String hostname) {
+  final host = siteDomainNormalizeHost(hostname);
+  final parts = host.split('.');
+  return parts.length == 2 && parts.every((p) => p.isNotEmpty);
+}
+
 /// One quote amount, two decimal places. Empty when the registrar sent no cost.
 String siteDomainPriceAmount(String raw) {
   final t = raw.trim();

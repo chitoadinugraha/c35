@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import '../deploy_lib.dart';
+import 'deploy_build_parallel.dart';
 import 'hash_blake3.dart';
 import 'update_version.dart';
 
@@ -14,41 +15,11 @@ class AndroidApkResult {
   final int size;
 }
 
-const _defaultAndroidBuildCores = 4;
+int androidBuildCoreLimit() => resolveDeployBuildCores();
 
-int androidBuildCoreLimit() {
-  final raw = Platform.environment['ANDROID_BUILD_CORES']?.trim();
-  if (raw == null || raw.isEmpty) return _defaultAndroidBuildCores;
-  if (raw == '0' || raw.toLowerCase() == 'auto') return 0;
-  return int.tryParse(raw) ?? _defaultAndroidBuildCores;
-}
+int deployAndroidBuildCores() => resolveDeployBuildCores();
 
-int deployAndroidBuildCores() {
-  final deploy = Platform.environment['DEPLOY_ANDROID_BUILD_CORES']?.trim();
-  if (deploy != null && deploy.isNotEmpty) {
-    if (deploy == '0' || deploy.toLowerCase() == 'auto') return 0;
-    return int.tryParse(deploy) ?? _defaultAndroidBuildCores;
-  }
-  return _defaultAndroidBuildCores;
-}
-
-Map<String, String> androidBuildProcessEnvironment() {
-  final env = Map<String, String>.from(Platform.environment);
-  if (!env.containsKey('JAVA_HOME') && Platform.isWindows) {
-    const jbr = r'C:\Program Files\Android\Android Studio\jbr';
-    if (Directory(jbr).existsSync()) env['JAVA_HOME'] = jbr;
-  }
-  final limit = deployAndroidBuildCores();
-  if (limit <= 0) {
-    env.remove('CMAKE_BUILD_PARALLEL_LEVEL');
-    env.remove('NINJA_PARALLEL');
-    return env;
-  }
-  final s = limit.toString();
-  env['CMAKE_BUILD_PARALLEL_LEVEL'] = s;
-  env['NINJA_PARALLEL'] = s;
-  return env;
-}
+Map<String, String> androidBuildProcessEnvironment() => deployNativeBuildProcessEnvironment();
 
 void androidGradleStop(String clientApp) {
   final gradlew = Platform.isWindows ? p.join(clientApp, 'android', 'gradlew.bat') : p.join(clientApp, 'android', 'gradlew');
@@ -68,8 +39,12 @@ String buildAndroidAab({String? serverUrl}) {
       : (Platform.environment['C35_SERVER']?.trim().isNotEmpty == true ? Platform.environment['C35_SERVER']!.trim() : 'https://alienai.id');
   stdout.writeln('Building Flutter Android AAB from clients/app (version $version, server $apiServer)...');
   final cores = deployAndroidBuildCores();
-  if (cores > 0) stdout.writeln('Android build parallelism: $cores cores (Gradle workers + CMake/Ninja)');
-  androidGradleStop(clientApp);
+  if (cores > 0) {
+    stdout.writeln('Android build parallelism: $cores cores (${deployHostLogicalProcessors()} logical CPUs, Gradle + CMake/Ninja)');
+  } else {
+    stdout.writeln('Android build parallelism: uncapped (DEPLOY_ANDROID_BUILD_CORES=0)');
+  }
+  if (deployAndroidGradleStopBeforeBuild()) androidGradleStop(clientApp);
   return deployRunSync('android_aab', () {
     final proc = Process.runSync(
       'flutter',
@@ -143,8 +118,12 @@ AndroidApkResult buildAndroidApk({String? serverUrl, bool stampVersion = false})
   final apiServer = _androidApiServer(serverUrl);
   stdout.writeln('Building Flutter Android APK from clients/app (version $version, server $apiServer)...');
   final cores = deployAndroidBuildCores();
-  if (cores > 0) stdout.writeln('Android build parallelism: $cores cores (Gradle workers + CMake/Ninja)');
-  androidGradleStop(clientApp);
+  if (cores > 0) {
+    stdout.writeln('Android build parallelism: $cores cores (${deployHostLogicalProcessors()} logical CPUs, Gradle + CMake/Ninja)');
+  } else {
+    stdout.writeln('Android build parallelism: uncapped (DEPLOY_ANDROID_BUILD_CORES=0)');
+  }
+  if (deployAndroidGradleStopBeforeBuild()) androidGradleStop(clientApp);
   return deployRunSync('android_apk', () {
     final proc = Process.runSync(
       'flutter',

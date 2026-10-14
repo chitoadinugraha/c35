@@ -1680,6 +1680,7 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
         "knowledge": assistant.get("knowledge").cloned().unwrap_or_else(|| json!([])),
         "i18n": i18n.to_json(),
         "guest_layout": guest_layout_mode(&meta, commerce_product_count),
+        "member_portal_enabled": crate::site_config::site_member_portal_enabled(&caps),
     });
     let raw = serde_json::to_string(&guest).unwrap_or_else(|_| "{}".into());
     guest_client_script_markup(&raw, effects)

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:http/http.dart' as http;
 
 Map<String, dynamic> guestOrderPutBody({
@@ -47,10 +48,23 @@ Map<String, dynamic> _itemWithReservations(Map<String, dynamic> item, List<Map<S
 class GuestOrderApi {
   static String get _apiBase => C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
 
-  static Future<Map<String, dynamic>> orderGet({required int siteIid, required int txId}) async {
+  static Map<String, String> _headers({String visitorId = ''}) {
+    final token = sessionAuthToken();
+    return {
+      'Content-Type': 'application/json',
+      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      if (visitorId.isNotEmpty) 'x-visitor-id': visitorId,
+    };
+  }
+
+  static Future<Map<String, dynamic>> orderGet({
+    required int siteIid,
+    required int txId,
+    String visitorId = '',
+  }) async {
     final resp = await http.post(
       Uri.parse('$_apiBase/v1/site/guest-order/get'),
-      headers: const {'Content-Type': 'application/json'},
+      headers: _headers(visitorId: visitorId),
       body: jsonEncode({'site_iid': siteIid, 'tx_id': txId}),
     );
     if (resp.statusCode != 200) throw StateError(resp.body);
@@ -66,10 +80,11 @@ class GuestOrderApi {
     String note = '',
     required List<Map<String, dynamic>> items,
     List<Map<String, dynamic>> reservations = const [],
+    String visitorId = '',
   }) async {
     final resp = await http.post(
       Uri.parse('$_apiBase/v1/site/guest-order/put'),
-      headers: const {'Content-Type': 'application/json'},
+      headers: _headers(visitorId: visitorId),
       body: jsonEncode(guestOrderPutBody(
         siteIid: siteIid,
         customerName: customerName,

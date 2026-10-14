@@ -33,7 +33,9 @@ Skip Windows zip when APK + web are enough:
 
 **Does not** upload AAB or promote Play.
 
-**Order:** server → APK (no pubspec bump) → Windows zip (no bump) → web (single pubspec bump at end). Same pattern as `/publish-prod` without the Play steps (prod script still skips standalone Windows; this flow publishes Windows explicitly).
+**Order:** server → **APK + Windows zip in parallel** (no pubspec bump) → web (single pubspec bump at end). Same pattern as `/publish-prod` without the Play steps (prod script still skips standalone Windows; this flow publishes Windows explicitly).
+
+**Build speed (this PC):** deploy scripts default to **`auto` CPU parallelism** (see `DEPLOY_ANDROID_BUILD_CORES` in `_/specs/app-release.md`). Optional in `.env.local`: `DEPLOY_ANDROID_BUILD_CORES=12` to pin workers; `DEPLOY_ANDROID_GRADLE_STOP=1` only if you need a cold Gradle daemon.
 
 **Windows:** Flutter desktop app zip (OTA via `/version/windows`), not the remote agent (`publish_remote_agent.ps1`).
 

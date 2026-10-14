@@ -97,6 +97,11 @@ pub fn site_doc_from_json(v: &Value) -> SiteDoc {
                         path: p.get("path").and_then(|x| x.as_str()).unwrap_or("/").into(),
                         title: p.get("title").and_then(|x| x.as_str()).unwrap_or("").into(),
                         blocks,
+                        audience: p
+                            .get("audience")
+                            .and_then(|x| x.as_str())
+                            .unwrap_or("public")
+                            .into(),
                     }
                 })
                 .collect()
@@ -344,6 +349,7 @@ pub fn site_doc_ensure_product_grid(doc: &mut SiteDoc) -> bool {
                 path: "/".into(),
                 title: String::new(),
                 blocks: vec![],
+                audience: "public".into(),
             });
         }
         let home = &mut doc.pages[0];
@@ -390,6 +396,7 @@ mod migrate_legacy_tests {
                     r#type: "hero".into(),
                     props_json: r#"{"title":"T","cta_label":"X"}"#.into(),
                 }],
+                audience: "public".into(),
             }],
             theme_json: "{}".into(),
             meta_json: "{}".into(),
@@ -418,6 +425,7 @@ mod ensure_product_grid_tests {
                     r#type: "hero".into(),
                     props_json: r#"{"title":"Shop"}"#.into(),
                 }],
+                audience: "public".into(),
             }],
             theme_json: "{}".into(),
             meta_json: "{}".into(),
@@ -434,6 +442,7 @@ mod ensure_product_grid_tests {
             pages: vec![SitePage {
                 path: "/".into(),
                 title: "Shop".into(),
+                audience: "public".into(),
                 blocks: vec![SiteBlock {
                     id: "g1".into(),
                     r#type: "product_grid".into(),

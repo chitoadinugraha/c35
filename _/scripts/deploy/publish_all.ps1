@@ -42,43 +42,7 @@ function Get-AppPubspecVersionInfo([string]$Root) {
     return @{ build = $build; name = "$major.$build.0" }
 }
 
-function Start-PublishWaveProcess {
-    param(
-        [string]$Name,
-        [string]$ScriptPath,
-        [string[]]$ExtraArgs = @()
-    )
-    New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-    $outLog = Join-Path $logDir "publish-all-$Name.log"
-    $errLog = Join-Path $logDir "publish-all-$Name.err"
-    if (Test-Path $outLog) { Remove-Item $outLog -Force -ErrorAction SilentlyContinue }
-    if (Test-Path $errLog) { Remove-Item $errLog -Force -ErrorAction SilentlyContinue }
-    $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $ScriptPath) + $ExtraArgs
-    Write-Host ('==> start parallel wave: ' + $Name + ' ' + $ScriptPath)
-    $proc = Start-Process -FilePath 'powershell.exe' -WindowStyle Hidden -PassThru -WorkingDirectory $repoRoot -ArgumentList $argList -RedirectStandardOutput $outLog -RedirectStandardError $errLog
-    return @{ Name = $Name; Proc = $proc; OutLog = $outLog; ErrLog = $errLog }
-}
-
-function Wait-PublishWaveProcess {
-    param($Entry)
-    $proc = $Entry.Proc
-    $null = $proc.WaitForExit()
-    $proc.Refresh(); $code = $proc.ExitCode; if ($null -eq $code) { $code = 0 }
-    Write-Host ('==> wave ' + $Entry.Name + ' finished with code ' + $code + ' log ' + $Entry.OutLog)
-    if ($code -ne 0) {
-        if (Test-Path $Entry.OutLog) { Get-Content $Entry.OutLog -Tail 40 | ForEach-Object { Write-Host $_ } }
-        if (Test-Path $Entry.ErrLog) { Get-Content $Entry.ErrLog -Tail 20 | ForEach-Object { Write-Host $_ } }
-        throw ('publish wave failed: ' + $Entry.Name + ' code ' + $code)
-    }
-}
-
-function Merge-PublishPerfFromLogFile([string]$Path) {
-    if (-not (Test-Path $Path)) { return }
-    foreach ($line in Get-Content $Path) {
-        if ($line -notmatch 'C35_PUBLISH_PERF') { continue }
-        Merge-PublishPerfFromJsonLine $line
-    }
-}
+. (Join-Path $PSScriptRoot 'publish_wave.ps1')
 
 Read-DotEnvLine $envFile
 
@@ -108,12 +72,12 @@ $wave = @()
 $parallelSw = [System.Diagnostics.Stopwatch]::StartNew()
 
 if (-not $SkipServer) {
-    $wave += Start-PublishWaveProcess -Name 'server' -ScriptPath $serverScript
+    $wave += Start-PublishWaveProcess -Name 'server' -ScriptPath $serverScript -RepoRoot $repoRoot -LogDir $logDir
 }
 if (-not $SkipApp) {
     $appArgs = @()
     if (-not $SkipDartGet) { $appArgs += '-SkipDartGet' }
-    $wave += Start-PublishWaveProcess -Name 'app' -ScriptPath $appScript -ExtraArgs $appArgs
+    $wave += Start-PublishWaveProcess -Name 'app' -ScriptPath $appScript -RepoRoot $repoRoot -LogDir $logDir -ExtraArgs $appArgs
 }
 
 if ($wave.Count -eq 0) {

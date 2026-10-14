@@ -179,6 +179,81 @@ tool! {
     }
 }
 
+pub(crate) fn normalize_input_event_type(raw: &str) -> String {
+    let s = raw.trim().to_lowercase();
+    match s.as_str() {
+        "click" => "mouse_click".into(),
+        "doubleclick" => "double_click".into(),
+        "tripleclick" => "triple_click".into(),
+        "rightclick" => "right_click".into(),
+        "drag" => "mouse_drag".into(),
+        "hotkey" | "key_combo" => "shortcut".into(),
+        "click_and_type" | "clickandtype" => "click_and_type".into(),
+        "clear_text" | "cleartext" => "clear_text".into(),
+        _ => s,
+    }
+}
+
+pub(crate) fn parse_single_input_event(
+    val: &Value,
+    default_tab_id: &str,
+) -> Result<c35_proto::RemoteInputEvent, &'static str> {
+    let raw_type = val
+        .get("event_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    let event_type = normalize_input_event_type(raw_type);
+    if event_type.is_empty() {
+        return Err("event_type is required");
+    }
+
+    let x = val.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let y = val.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let text = val
+        .get("text")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default()
+        .to_string();
+    let key_code = val.get("key_code").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+    let button = val.get("button").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+    let delta_y = val.get("delta_y").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
+    let tab_id = val
+        .get("tab_id")
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or(default_tab_id)
+        .to_string();
+
+    Ok(c35_proto::RemoteInputEvent {
+        event_type,
+        x,
+        y,
+        button,
+        key_code,
+        text,
+        delta_y,
+        tab_id,
+    })
+}
+
+pub(crate) fn resolve_input_settle_ms(
+    explicit_settle_ms: Option<i64>,
+    is_batch: bool,
+    primary_event_type: &str,
+) -> u64 {
+    match explicit_settle_ms {
+        Some(ms) => ms.clamp(100, 2000) as u64,
+        None => {
+            if !is_batch && matches!(primary_event_type, "type_text" | "key_down" | "key_up") {
+                150
+            } else {
+                450
+            }
+        }
+    }
+}
+
 tool! {
     struct: DeviceInputTool,
     name: "device.input",
@@ -190,7 +265,8 @@ tool! {
     ui_done_key: "tool.device.input.done",
     parameters: {
         device_iid: (integer, "Target device identity ID", required),
-        event_type: (string, "Input event type: 'mouse_click', 'double_click', 'triple_click', 'right_click', 'middle_click', 'mouse_move', 'mouse_down', 'mouse_up', 'mouse_drag', 'wheel', 'type_text', 'click_and_type', 'clear_text', 'shortcut', 'key_down', 'key_up'", required),
+        event_type: (string, "Input event type: 'mouse_click', 'double_click', 'triple_click', 'right_click', 'middle_click', 'mouse_move', 'mouse_down', 'mouse_up', 'mouse_drag', 'wheel', 'type_text', 'click_and_type', 'clear_text', 'shortcut', 'key_down', 'key_up'", optional),
+        actions: (array, "Optional list of consecutive input events to execute in one turn, e.g. [{'event_type': 'click_and_type', 'x': 0.2, 'y': 0.3, 'text': '...'}, {'event_type': 'shortcut', 'text': 'tab'}]", optional),
         x: (number, "Normalized X coordinate (0.0 to 1.0, where 0.0 is left edge and 1.0 is right edge)", optional),
         y: (number, "Normalized Y coordinate (0.0 to 1.0, where 0.0 is top edge and 1.0 is bottom edge)", optional),
         text: (string, "Text string to type (for type_text or click_and_type) or key combo like 'ctrl+c', 'alt+tab', 'win+r' (for shortcut)", optional),
@@ -198,7 +274,7 @@ tool! {
         button: (integer, "Mouse button (0: left, 1: middle, 2: right)", optional),
         delta_y: (integer, "Wheel scroll delta (positive = up, negative = down)", optional),
         screenshot_after: (boolean, "If true, captures and returns a new screenshot with a red target marker showing where the click landed to verify action", optional),
-        settle_ms: (integer, "Settle delay in milliseconds before capturing screenshot_after (default 450, min 100, max 2000)", optional),
+        settle_ms: (integer, "Settle delay in milliseconds before capturing screenshot_after (default 150 for typing, 450 for click/nav/batch, min 100, max 2000)", optional),
         tab_id: (string, "Chrome extension remote browser: target tab id (empty = agent default tab)", optional),
     },
     execute: |args, ctx| {
@@ -206,59 +282,87 @@ tool! {
             Ok(iid) => iid,
             Err(v) => return Ok(v),
         };
-        let mut event_type = args["event_type"].as_str().unwrap_or_default().trim().to_lowercase();
-        if event_type.is_empty() {
-            return Ok(device_fail("event_type is required"));
-        }
-        if event_type == "click" { event_type = "mouse_click".into(); }
-        if event_type == "doubleclick" { event_type = "double_click".into(); }
-        if event_type == "tripleclick" { event_type = "triple_click".into(); }
-        if event_type == "rightclick" { event_type = "right_click".into(); }
-        if event_type == "drag" { event_type = "mouse_drag".into(); }
-        if event_type == "hotkey" || event_type == "key_combo" { event_type = "shortcut".into(); }
-        if event_type == "click_and_type" || event_type == "clickandtype" { event_type = "click_and_type".into(); }
-        if event_type == "clear_text" || event_type == "cleartext" { event_type = "clear_text".into(); }
 
-        let x = args["x"].as_f64().unwrap_or(0.0);
-        let y = args["y"].as_f64().unwrap_or(0.0);
-        let text = args["text"].as_str().unwrap_or_default().to_string();
-        let key_code = args["key_code"].as_i64().unwrap_or(0) as i32;
-        let button = args["button"].as_i64().unwrap_or(0) as i32;
-        let delta_y = args["delta_y"].as_i64().unwrap_or(0) as i32;
-        let screenshot_after = args["screenshot_after"].as_bool().unwrap_or(false);
+        let default_tab_id = args["tab_id"].as_str().unwrap_or_default().trim();
+        let actions_opt = args.get("actions").and_then(|v| v.as_array());
+        let is_batch = actions_opt.map(|a| !a.is_empty()).unwrap_or(false);
 
-        let tab_id = args["tab_id"].as_str().unwrap_or_default().trim().to_string();
-        let event = c35_proto::RemoteInputEvent {
-            event_type: event_type.clone(),
-            x,
-            y,
-            button,
-            key_code,
-            text,
-            delta_y,
-            tab_id,
+        let parsed_events: Vec<c35_proto::RemoteInputEvent> = if is_batch {
+            let actions = actions_opt.unwrap();
+            let mut evs = Vec::with_capacity(actions.len());
+            for (idx, act) in actions.iter().enumerate() {
+                match parse_single_input_event(act, default_tab_id) {
+                    Ok(ev) => evs.push(ev),
+                    Err(e) => return Ok(device_fail(format!("Action #{idx} invalid: {e}"))),
+                }
+            }
+            evs
+        } else {
+            match parse_single_input_event(&args, default_tab_id) {
+                Ok(ev) => vec![ev],
+                Err(e) => return Ok(device_fail(e)),
+            }
         };
 
-        if let Err(e) = remote_device_input_send(
-            &ctx.pool,
-            ctx.nats.as_ref(),
-            ctx.owner_iid,
-            device_iid,
-            event,
-        ).await {
-            return Ok(device_fail(format!("Failed to send input to device: {e}")));
+        for (idx, event) in parsed_events.iter().enumerate() {
+            if idx > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+            }
+            if let Err(e) = remote_device_input_send(
+                &ctx.pool,
+                ctx.nats.as_ref(),
+                ctx.owner_iid,
+                device_iid,
+                event.clone(),
+            ).await {
+                return Ok(device_fail(format!("Failed to send input to device: {e}")));
+            }
         }
 
-        let mut out = json!({ "ok": true, "status": "dispatched", "device_iid": device_iid, "event_type": event_type });
+        let mut out = if is_batch {
+            json!({
+                "ok": true,
+                "status": "dispatched",
+                "device_iid": device_iid,
+                "event_type": "batch",
+                "actions_count": parsed_events.len(),
+            })
+        } else {
+            json!({
+                "ok": true,
+                "status": "dispatched",
+                "device_iid": device_iid,
+                "event_type": parsed_events[0].event_type,
+            })
+        };
 
+        let screenshot_after = args["screenshot_after"].as_bool().unwrap_or(false);
         if screenshot_after {
-            let settle_ms = args["settle_ms"].as_i64().unwrap_or(450).clamp(100, 2000) as u64;
+            let explicit_settle_ms = args.get("settle_ms").and_then(|v| {
+                if let Some(n) = v.as_i64() {
+                    Some(n)
+                } else if let Some(s) = v.as_str() {
+                    s.parse::<i64>().ok()
+                } else {
+                    None
+                }
+            });
+            let settle_ms = resolve_input_settle_ms(
+                explicit_settle_ms,
+                is_batch,
+                &parsed_events[0].event_type,
+            );
             tokio::time::sleep(std::time::Duration::from_millis(settle_ms)).await;
-            let marker = if event_type.contains("click") || event_type.contains("move") || event_type.contains("drag") {
-                Some((x, y))
-            } else {
-                None
-            };
+            let marker = parsed_events
+                .iter()
+                .rev()
+                .find(|ev| {
+                    ev.event_type.contains("click")
+                        || ev.event_type.contains("move")
+                        || ev.event_type.contains("drag")
+                })
+                .map(|ev| (ev.x, ev.y));
+
             if let Ok(res) = remote_device_screenshot_capture(
                 &ctx.pool,
                 ctx.nats.as_ref(),
@@ -280,7 +384,10 @@ tool! {
                     out["height"] = json!(res.height);
                     out["image_base64"] = json!(b64);
                     out["mime_type"] = json!("image/jpeg");
-                    out["hint"] = json!(format!("Follow-up screenshot captured ({}x{}). Observation is attached with red action marker.", res.width, res.height));
+                    out["hint"] = json!(format!(
+                        "Follow-up screenshot captured ({}x{}). Observation is attached with red action marker.",
+                        res.width, res.height
+                    ));
                     let marker_used = marker.is_some();
                     device_screenshot_attach_artifact(
                         &ctx,
@@ -728,8 +835,72 @@ mod tests {
         assert_eq!(def.name, "device.input");
         let props = def.parameters["properties"].as_object().unwrap();
         assert!(props.contains_key("settle_ms"));
+        assert!(props.contains_key("actions"));
+        let actions_prop = &props["actions"];
+        assert_eq!(actions_prop["type"], "array");
+        assert_eq!(actions_prop["items"]["type"], "object");
         let event_type_desc = props["event_type"]["description"].as_str().unwrap();
         assert!(event_type_desc.contains("click_and_type"));
         assert!(event_type_desc.contains("clear_text"));
+    }
+
+    #[test]
+    fn test_resolve_input_settle_ms() {
+        // Explicit value takes precedence (clamped to [100, 2000])
+        assert_eq!(resolve_input_settle_ms(Some(300), false, "mouse_click"), 300);
+        assert_eq!(resolve_input_settle_ms(Some(50), false, "mouse_click"), 100);
+        assert_eq!(resolve_input_settle_ms(Some(5000), false, "mouse_click"), 2000);
+
+        // Pure typing defaults to 150ms when not explicit
+        assert_eq!(resolve_input_settle_ms(None, false, "type_text"), 150);
+        assert_eq!(resolve_input_settle_ms(None, false, "key_down"), 150);
+        assert_eq!(resolve_input_settle_ms(None, false, "key_up"), 150);
+
+        // Navigation, click, shortcut default to 450ms when not explicit
+        assert_eq!(resolve_input_settle_ms(None, false, "mouse_click"), 450);
+        assert_eq!(resolve_input_settle_ms(None, false, "click_and_type"), 450);
+        assert_eq!(resolve_input_settle_ms(None, false, "shortcut"), 450);
+        assert_eq!(resolve_input_settle_ms(None, false, "mouse_move"), 450);
+
+        // Batch always defaults to 450ms when not explicit
+        assert_eq!(resolve_input_settle_ms(None, true, "type_text"), 450);
+        assert_eq!(resolve_input_settle_ms(None, true, "mouse_click"), 450);
+    }
+
+    #[test]
+    fn test_parse_input_events_single_and_batch() {
+        // Single event
+        let single_val = json!({
+            "event_type": "click",
+            "x": 0.5,
+            "y": 0.25,
+        });
+        let ev = parse_single_input_event(&single_val, "").unwrap();
+        assert_eq!(ev.event_type, "mouse_click");
+        assert_eq!(ev.x, 0.5);
+        assert_eq!(ev.y, 0.25);
+
+        // Alias normalization
+        let hotkey_val = json!({
+            "event_type": "hotkey",
+            "text": "ctrl+c",
+        });
+        let ev = parse_single_input_event(&hotkey_val, "").unwrap();
+        assert_eq!(ev.event_type, "shortcut");
+        assert_eq!(ev.text, "ctrl+c");
+
+        let click_and_type_val = json!({
+            "event_type": "clickandtype",
+            "x": 0.1,
+            "y": 0.2,
+            "text": "test",
+        });
+        let ev = parse_single_input_event(&click_and_type_val, "").unwrap();
+        assert_eq!(ev.event_type, "click_and_type");
+        assert_eq!(ev.text, "test");
+
+        // Missing event_type errors
+        let empty_val = json!({});
+        assert!(parse_single_input_event(&empty_val, "").is_err());
     }
 }
