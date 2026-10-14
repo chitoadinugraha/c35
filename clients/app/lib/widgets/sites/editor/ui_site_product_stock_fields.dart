@@ -148,7 +148,9 @@ class SiteProductStockShowToCustomerSection extends StatelessWidget {
   }
 }
 
-const siteProductStockUnitFormatters = [LengthLimitingTextInputFormatter(6)];
+final siteProductStockUnitFormatters = <TextInputFormatter>[
+  LengthLimitingTextInputFormatter(6),
+];
 
 int siteProductParseQty(String raw) => moneyParseIdrInt(raw) ?? 0;
 
