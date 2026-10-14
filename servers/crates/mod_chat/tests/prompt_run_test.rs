@@ -111,11 +111,12 @@ fn checkpoint_error_repeat_marks_fatal() {
 }
 
 #[test]
-fn checkpoint_screenshot_stuck_detects_three_identical() {
+fn checkpoint_screenshot_stuck_detects_five_identical() {
     let mut ck = json!({});
-    checkpoint_record_screenshot_hash_hex(&mut ck, "abc");
-    checkpoint_record_screenshot_hash_hex(&mut ck, "abc");
-    assert!(!checkpoint_screenshot_stuck(&ck));
+    for _ in 0..4 {
+        checkpoint_record_screenshot_hash_hex(&mut ck, "abc");
+        assert!(!checkpoint_screenshot_stuck(&ck));
+    }
     checkpoint_record_screenshot_hash_hex(&mut ck, "abc");
     assert!(checkpoint_screenshot_stuck(&ck));
     let row = PromptRunRow {

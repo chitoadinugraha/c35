@@ -190,14 +190,15 @@ tool! {
     ui_done_key: "tool.device.input.done",
     parameters: {
         device_iid: (integer, "Target device identity ID", required),
-        event_type: (string, "Input event type: 'mouse_click', 'double_click', 'triple_click', 'right_click', 'middle_click', 'mouse_move', 'mouse_down', 'mouse_up', 'mouse_drag', 'wheel', 'type_text', 'shortcut', 'key_down', 'key_up'", required),
+        event_type: (string, "Input event type: 'mouse_click', 'double_click', 'triple_click', 'right_click', 'middle_click', 'mouse_move', 'mouse_down', 'mouse_up', 'mouse_drag', 'wheel', 'type_text', 'click_and_type', 'clear_text', 'shortcut', 'key_down', 'key_up'", required),
         x: (number, "Normalized X coordinate (0.0 to 1.0, where 0.0 is left edge and 1.0 is right edge)", optional),
         y: (number, "Normalized Y coordinate (0.0 to 1.0, where 0.0 is top edge and 1.0 is bottom edge)", optional),
-        text: (string, "Text string to type (for type_text) or key combo like 'ctrl+c', 'alt+tab', 'win+r' (for shortcut)", optional),
+        text: (string, "Text string to type (for type_text or click_and_type) or key combo like 'ctrl+c', 'alt+tab', 'win+r' (for shortcut)", optional),
         key_code: (integer, "Virtual key code (e.g. 13 for Enter, 27 for Escape, 9 for Tab)", optional),
         button: (integer, "Mouse button (0: left, 1: middle, 2: right)", optional),
         delta_y: (integer, "Wheel scroll delta (positive = up, negative = down)", optional),
         screenshot_after: (boolean, "If true, captures and returns a new screenshot with a red target marker showing where the click landed to verify action", optional),
+        settle_ms: (integer, "Settle delay in milliseconds before capturing screenshot_after (default 450, min 100, max 2000)", optional),
         tab_id: (string, "Chrome extension remote browser: target tab id (empty = agent default tab)", optional),
     },
     execute: |args, ctx| {
@@ -215,6 +216,8 @@ tool! {
         if event_type == "rightclick" { event_type = "right_click".into(); }
         if event_type == "drag" { event_type = "mouse_drag".into(); }
         if event_type == "hotkey" || event_type == "key_combo" { event_type = "shortcut".into(); }
+        if event_type == "click_and_type" || event_type == "clickandtype" { event_type = "click_and_type".into(); }
+        if event_type == "clear_text" || event_type == "cleartext" { event_type = "clear_text".into(); }
 
         let x = args["x"].as_f64().unwrap_or(0.0);
         let y = args["y"].as_f64().unwrap_or(0.0);
@@ -249,7 +252,8 @@ tool! {
         let mut out = json!({ "ok": true, "status": "dispatched", "device_iid": device_iid, "event_type": event_type });
 
         if screenshot_after {
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            let settle_ms = args["settle_ms"].as_i64().unwrap_or(450).clamp(100, 2000) as u64;
+            tokio::time::sleep(std::time::Duration::from_millis(settle_ms)).await;
             let marker = if event_type.contains("click") || event_type.contains("move") || event_type.contains("drag") {
                 Some((x, y))
             } else {
@@ -715,5 +719,17 @@ mod tests {
             Some("Desktop\\test.png")
         );
         assert_eq!(extract_user_subpath("C:\\foo"), None);
+    }
+
+    #[test]
+    fn test_device_input_tool_definition() {
+        use crate::tools::Tool;
+        let def = DeviceInputTool.definition();
+        assert_eq!(def.name, "device.input");
+        let props = def.parameters["properties"].as_object().unwrap();
+        assert!(props.contains_key("settle_ms"));
+        let event_type_desc = props["event_type"]["description"].as_str().unwrap();
+        assert!(event_type_desc.contains("click_and_type"));
+        assert!(event_type_desc.contains("clear_text"));
     }
 }

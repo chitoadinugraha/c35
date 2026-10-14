@@ -17,9 +17,11 @@ class GuestSiteChatPanel extends StatefulWidget {
     required this.placeholder,
     required this.onClose,
     this.cartPayload,
+    this.bootMode = 'published',
   });
 
   final int siteIid;
+  final String bootMode;
   final String intro;
   final String placeholder;
   final VoidCallback onClose;
@@ -69,6 +71,7 @@ class _GuestSiteChatPanelState extends State<GuestSiteChatPanel> {
         visitorId: visitorId,
         message: text,
         cart: widget.cartPayload,
+        bootMode: widget.bootMode,
       );
       if (!mounted) return;
       setState(() {

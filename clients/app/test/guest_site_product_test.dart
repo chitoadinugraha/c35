@@ -1,3 +1,4 @@
+import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
 import 'package:alienai_c35/guest_site/guest_site_product.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +34,16 @@ void main() {
 
     test('meta catalog_display list', () {
       expect(productGridDisplay({}, meta: {'catalog_display': 'list'}), 'list');
+    });
+  });
+
+  group('guestProductStockLabel', () {
+    test('unit suffix and max cap', () {
+      final p = {
+        'stock_qty': 12,
+        'product_json': '{"stock_show_to_customer":true,"stock_unit":"pcs","stock_show_max_qty":9}',
+      };
+      expect(guestProductStockLabel(p), 'Stock: 9+ pcs');
     });
   });
 

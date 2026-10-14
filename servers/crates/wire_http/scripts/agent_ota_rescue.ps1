@@ -21,7 +21,7 @@ function Stop-AgentProcesses {
     foreach ($name in @('alienai_remote_windows', 'c_remote_windows')) {
         Get-Process -Name $name -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     }
-    Start-Sleep -Milliseconds 400
+    Start-Sleep -Milliseconds 600
 }
 
 $ver = Invoke-RestMethod -Uri "$BaseUrl/version/remote-windows"

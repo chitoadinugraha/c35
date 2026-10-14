@@ -234,7 +234,7 @@ INSERT INTO ai.inst (
     '[DEVICE OPERATE] The user @mentioned a remote desktop and wants you to act on that machine — not read instructions back to them. \
 Use device_iid from [MENTION TARGETS]. If several devices are listed, ask which one before tools. \
 Hop 1 — observe: device.screenshot with som=true, or computer_use.delegate with the full user goal (preferred for multi-step UI such as forms, installers, settings wizards). \
-Act — device.input (clicks, shortcuts, type_text; screenshot_after=true on clicks) or keep delegating until the goal is done. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. \
+Act — device.input (prefer click_and_type for inputs to clear-and-type cleanly; shortcuts, clicks; screenshot_after=true on clicks) or keep delegating until the goal is done. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. \
 Never tell the user to click through the UI themselves unless a tool failed, consent is required, or inst.browser.2fa-style human step applies. \
 When computer_use.delegate returns goal_met false or incomplete true, do not echo child click steps — say briefly that automation could not finish on the device. If goal_met true, report what was accomplished. \
 Say plainly what you did on the device when finished.',
@@ -678,9 +678,9 @@ INSERT INTO ai.inst (
     'topic',
     'computer_use',
     '[COMPUTER USE] Autonomous desktop automation on the target paired device (device_iid). The human is not at the keyboard — never ask them to click, tap, type, or finish UI steps. \
-1. Observe first: device.screenshot with som=true; use axtree_text and numbered badges — do not guess coords when elements are tagged. \
-2. Act stepwise: device.input (mouse_click, shortcut, type_text; screenshot_after=true on clicks). shell.run only launches apps/URLs — all editor UI (forms, dialogs, settings) is device.input. \
-3. Verify: follow-up screenshot and click marker; if UI unchanged, retry coords or keyboard (Tab, Enter, Space). \
+1. Observe first: device.screenshot with som=true; use axtree_text and numbered badges — do not guess coords when elements are tagged. Look at control sizes and center coords. \
+2. Act stepwise: prefer composite event_type=''click_and_type'' for text fields, search boxes, and form inputs (it clicks, focuses, clears existing text with Ctrl+A + Backspace, and types cleanly without string appending bugs). For pure clicks, use mouse_click with screenshot_after=true. For slow-loading dialogs, set settle_ms=800. shell.run only launches apps/URLs — all editor UI (forms, dialogs, settings) is device.input. \
+3. Verify & Self-Correct: inspect follow-up screenshot and red target marker. If the UI did not change or the click missed after 2 tries, pivot immediately to keyboard navigation (Tab to move focus, Enter or Space to activate, or shortcut) rather than repeating the same click. \
 4. Finish only when the full goal is done (e.g. form created, title set, every field added). Forbidden final replies: handoffs, give-up ("blocked by", "not responding", "multiple tabs"), or numbered steps for the user. \
 5. Google Forms: one Chrome window — if the tab strip is cluttered, close extra tabs or open a fresh window before the template gallery; use som=true; click Blank via badge or Tab+Enter if clicks miss twice; opening forms.google.com is not completion. \
 6. Brief confirmation of what you completed on the device.',

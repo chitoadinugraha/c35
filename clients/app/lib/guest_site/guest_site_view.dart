@@ -187,6 +187,7 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
             accent: accent,
             siteName: boot.name,
             siteIid: boot.siteIid,
+            siteAlienId: boot.alienId,
             productDesign: boot.productDesign,
             productRows: boot.productsForBlock(blocks[i]['id']?.toString() ?? ''),
             commerceObjects: boot.commerceObjects,

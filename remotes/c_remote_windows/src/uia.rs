@@ -11,8 +11,8 @@ use uiautomation::types::Handle;
 use uiautomation::{UIAutomation, UIElement};
 use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
 
-const WALK_CAP: usize = 40;
-const WALK_DEPTH: i32 = 12;
+const WALK_CAP: usize = 200;
+const WALK_DEPTH: i32 = 20;
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Mark {
@@ -36,8 +36,8 @@ pub fn axtree_text(marks: &[Mark], screen_w: u32, screen_h: u32) -> String {
         let nx = if screen_w > 0 { (m.center_x as f64 / screen_w as f64).clamp(0.0, 1.0) } else { 0.0 };
         let ny = if screen_h > 0 { (m.center_y as f64 / screen_h as f64).clamp(0.0, 1.0) } else { 0.0 };
         lines.push(format!(
-            "{} {} '{}' -> center=({:.3}, {:.3}) pixel=({}, {})",
-            m.id, m.control_type, m.name, nx, ny, m.center_x, m.center_y
+            "{} {} '{}' -> center=({:.3}, {:.3}) pixel=({}, {}) size=({}x{})",
+            m.id, m.control_type, m.name, nx, ny, m.center_x, m.center_y, m.bbox[2], m.bbox[3]
         ));
     }
     lines.join("\n")
@@ -91,7 +91,7 @@ pub fn uia_walk() -> Vec<Mark> {
                         Ok(next) => cur = next,
                         Err(_) => break,
                     }
-                    if q.len() > 200 {
+                    if q.len() > 1000 {
                         break;
                     }
                 }
@@ -168,7 +168,7 @@ fn mark_from(el: &UIElement, n: u32) -> Option<Mark> {
     let top = rect.get_top();
     let w = rect.get_right() - left;
     let h = rect.get_bottom() - top;
-    if w < 8 || h < 8 || w > 3000 || h > 1800 {
+    if w < 6 || h < 6 || w > 3840 || h > 2160 {
         return None;
     }
     let name: String = el.get_name().unwrap_or_default().chars().take(80).collect();
@@ -326,5 +326,75 @@ pub fn draw_som_overlay(
                 char_x += 12;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_axtree_text_formatting_with_size() {
+        let marks = vec![
+            Mark {
+                id: "@1".to_string(),
+                control_type: "Button".to_string(),
+                name: "Submit".to_string(),
+                auto_id: "btn_submit".to_string(),
+                center_x: 864,
+                center_y: 345,
+                bbox: [804, 327, 120, 36],
+            },
+            Mark {
+                id: "@2".to_string(),
+                control_type: "Edit".to_string(),
+                name: "Username".to_string(),
+                auto_id: "txt_user".to_string(),
+                center_x: 500,
+                center_y: 200,
+                bbox: [400, 185, 200, 30],
+            },
+        ];
+
+        let text = axtree_text(&marks, 1920, 1080);
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], "Interactive UI elements (use exact normalized x, y to click):");
+        assert_eq!(
+            lines[1],
+            "@1 Button 'Submit' -> center=(0.450, 0.319) pixel=(864, 345) size=(120x36)"
+        );
+        assert_eq!(
+            lines[2],
+            "@2 Edit 'Username' -> center=(0.260, 0.185) pixel=(500, 200) size=(200x30)"
+        );
+    }
+
+    #[test]
+    fn test_axtree_text_empty() {
+        assert_eq!(
+            axtree_text(&[], 1920, 1080),
+            "(no UIA interactive elements found in foreground window)"
+        );
+    }
+
+    #[test]
+    fn test_actionable_controls() {
+        assert!(actionable(ControlType::Button));
+        assert!(actionable(ControlType::Edit));
+        assert!(actionable(ControlType::ComboBox));
+        assert!(actionable(ControlType::MenuItem));
+        assert!(actionable(ControlType::TabItem));
+        assert!(actionable(ControlType::Hyperlink));
+        assert!(actionable(ControlType::CheckBox));
+        assert!(actionable(ControlType::ListItem));
+        assert!(actionable(ControlType::TreeItem));
+        assert!(actionable(ControlType::Document));
+        assert!(actionable(ControlType::SplitButton));
+        assert!(actionable(ControlType::RadioButton));
+
+        assert!(!actionable(ControlType::Text));
+        assert!(!actionable(ControlType::Pane));
+        assert!(!actionable(ControlType::Window));
     }
 }

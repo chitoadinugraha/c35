@@ -215,6 +215,8 @@ WAVE 8  (ship)
 
 ## Wave 6 — Guest live call (server)
 
+> **Superseded detail:** full multitask plan — [`2026-10-14-site-guest-live-call-multitask.md`](2026-10-14-site-guest-live-call-multitask.md) (HTTP setup, WS guest auth, Flutter + web UI).
+
 - [ ] **L6.1** Guest live setup endpoint; reject when `call_enabled` false in published meta.
 - [ ] **L6.2** Reuse live-call audio path; inject same knowledge block as chat.
 - [ ] **L6.3** Billing: attribute usage to `owner_iid` with `scope=site_guest` in usage meta.

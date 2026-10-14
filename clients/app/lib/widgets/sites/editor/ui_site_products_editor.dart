@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
 import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
+import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
@@ -337,6 +338,21 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
     }
   }
 
+  Future<void> _setProductActive(SiteProduct product, bool active) async {
+    if (_busy) return;
+    final extras = siteProductExtrasRead(product).copyWith(active: active);
+    setState(() => _busy = true);
+    try {
+      final updated = await widget.api.productPut(widget.siteIid, siteProductApplyExtras(product, extras));
+      _productsById['${updated.productId}'] = updated;
+      _previewUpsert(updated);
+    } catch (e) {
+      if (mounted) setState(() => _error = uiFriendlyError(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _toggleArchive(SiteProduct product) async {
     if (_busy) return;
     final archive = !product.isArchived;
@@ -501,6 +517,9 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
         onProductArchiveToggle: _toggleArchive,
         onProductDelete: _deleteProduct,
         onProductDuplicate: _duplicateProduct,
+        booking: widget.booking,
+        showActiveSwitch: widget.masterDetail,
+        onProductActiveChanged: _setProductActive,
       );
 
   Widget _detailPane(String productId) {

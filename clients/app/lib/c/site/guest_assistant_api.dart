@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -24,14 +25,22 @@ class GuestAssistantApi {
     required String visitorId,
     required String message,
     Map<String, dynamic>? cart,
+    String bootMode = 'published',
   }) async {
+    final token = sessionAuthToken();
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+    final mode = bootMode.trim().toLowerCase();
     final resp = await http.post(
       Uri.parse('$_apiBase/v1/site/guest-assistant/chat'),
-      headers: const {'Content-Type': 'application/json'},
+      headers: headers,
       body: jsonEncode({
         'site_iid': siteIid,
         'visitor_id': visitorId,
         'message': message,
+        if (mode == 'draft') 'boot_mode': 'draft',
         if (cart != null) 'cart': cart,
       }),
     );

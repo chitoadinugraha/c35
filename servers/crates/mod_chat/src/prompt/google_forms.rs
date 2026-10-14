@@ -4,7 +4,53 @@ Always device.screenshot with som=true before any shell.run or chrome launch. \
 If Chrome already shows forms.google.com, the template gallery, or an open form editor, do NOT run shell.run to open forms.new or another forms URL - switch to that window (Alt+Tab if needed), click the existing Forms tab, and continue from the visible stage. \
 Open forms.google.com or a new blank form only when the screenshot shows no Forms tab. \
 Do not stack duplicate Forms tabs; close extras only if they block clicking Blank. \
-Opening a URL or a new tab is never task completion; finish title and every requested field, then verify with a final screenshot.";
+Opening a URL or a new tab is never task completion; finish title and every requested field, then verify with a final screenshot. \
+Multi-field builds need many device.input steps (title + each question) and at least two device.screenshot calls (before acting + final verify) — do not end with prose only.";
+
+/// Tool usage recorded on the child `prompt_run` req_id (from `ai.log`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ComputerUseToolCounts {
+    pub device_input: u32,
+    pub device_screenshot: u32,
+}
+
+/// Goals that ask to create/edit fields (not merely open Forms).
+pub fn google_forms_multi_field_build(goal: &str) -> bool {
+    let g = goal.to_ascii_lowercase();
+    google_forms_field_tokens_in_goal(goal).len() >= 2
+        || g.contains("field")
+        || g.contains("pertanyaan")
+        || g.contains("question")
+        || (g.contains("judul") || g.contains("title"))
+            && (g.contains("nama") || g.contains("gender") || g.contains("alamat"))
+}
+
+fn google_forms_field_tokens_in_goal(goal: &str) -> Vec<&'static str> {
+    let g = goal.to_ascii_lowercase();
+    ["nama", "gender", "alamat", "name", "address"]
+        .into_iter()
+        .filter(|t| g.contains(t))
+        .collect()
+}
+
+pub fn google_forms_min_tool_counts(goal: &str) -> ComputerUseToolCounts {
+    if !google_forms_multi_field_build(goal) {
+        return ComputerUseToolCounts::default();
+    }
+    let fields = google_forms_field_tokens_in_goal(goal).len().max(1);
+    ComputerUseToolCounts {
+        device_screenshot: 2,
+        device_input: (4 + fields * 2).min(16) as u32,
+    }
+}
+
+pub fn google_forms_tool_activity_sufficient(goal: &str, counts: ComputerUseToolCounts) -> bool {
+    let min = google_forms_min_tool_counts(goal);
+    if min.device_input == 0 && min.device_screenshot == 0 {
+        return true;
+    }
+    counts.device_input >= min.device_input && counts.device_screenshot >= min.device_screenshot
+}
 
 pub fn user_text_looks_like_google_forms(text: &str) -> bool {
     let t = text.to_ascii_lowercase();

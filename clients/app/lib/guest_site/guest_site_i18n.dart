@@ -25,4 +25,6 @@ class GuestSiteI18n {
   String get loading => indonesian ? 'Memuat…' : 'Loading…';
 
   String get detailAria => indonesian ? 'Detail produk' : 'Product details';
+
+  String get shareAria => indonesian ? 'Bagikan produk' : 'Share product';
 }

@@ -78,10 +78,52 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             };
             with_enigo(|e| {
                 e.move_mouse(px, py, Coordinate::Abs);
+                std::thread::sleep(std::time::Duration::from_millis(30));
                 let btn = mouse_button(&evt.button);
-                for _ in 0..clicks {
-                    e.button(btn, Direction::Click);
+                for i in 0..clicks {
+                    if i > 0 {
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                    }
+                    e.button(btn, Direction::Press);
+                    std::thread::sleep(std::time::Duration::from_millis(60));
+                    e.button(btn, Direction::Release);
                 }
+            });
+        }
+        "click_and_type" => {
+            with_enigo(|e| {
+                e.move_mouse(px, py, Coordinate::Abs);
+                std::thread::sleep(std::time::Duration::from_millis(30));
+                let btn = mouse_button(&evt.button);
+                e.button(btn, Direction::Press);
+                std::thread::sleep(std::time::Duration::from_millis(60));
+                e.button(btn, Direction::Release);
+                std::thread::sleep(std::time::Duration::from_millis(50));
+
+                if !evt.text.is_empty() {
+                    // Select all and clear existing input
+                    e.key(Key::Control, Direction::Press);
+                    std::thread::sleep(std::time::Duration::from_millis(15));
+                    e.key(Key::Unicode('a'), Direction::Click);
+                    std::thread::sleep(std::time::Duration::from_millis(15));
+                    e.key(Key::Control, Direction::Release);
+                    std::thread::sleep(std::time::Duration::from_millis(20));
+                    e.key(Key::Backspace, Direction::Click);
+                    std::thread::sleep(std::time::Duration::from_millis(30));
+
+                    let _ = e.text(&evt.text);
+                }
+            });
+        }
+        "clear_text" => {
+            with_enigo(|e| {
+                e.key(Key::Control, Direction::Press);
+                std::thread::sleep(std::time::Duration::from_millis(15));
+                e.key(Key::Unicode('a'), Direction::Click);
+                std::thread::sleep(std::time::Duration::from_millis(15));
+                e.key(Key::Control, Direction::Release);
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                e.key(Key::Backspace, Direction::Click);
             });
         }
         "right_click" => with_enigo(|e| {

@@ -105,3 +105,30 @@ pub fn pic_url_display(pic: &str) -> String {
 pub fn pic_url(pic: &str) -> String {
     pic_url_thumb(pic)
 }
+
+/// Guest-facing stock line when `stock_show_to_customer` is set (CSA / editor parity).
+pub fn guest_product_stock_customer_label(
+    show_to_customer: bool,
+    stock_qty: Option<i64>,
+    stock_unit: &str,
+    stock_show_max_qty: i64,
+) -> Option<String> {
+    if !show_to_customer {
+        return None;
+    }
+    let Some(qty) = stock_qty.filter(|q| *q > 0) else {
+        return None;
+    };
+    let unit = stock_unit.trim();
+    let unit_suffix = if unit.is_empty() {
+        String::new()
+    } else {
+        format!(" {}", unit)
+    };
+    let display = if stock_show_max_qty > 0 && qty > stock_show_max_qty {
+        format!("{}+", stock_show_max_qty)
+    } else {
+        qty.to_string()
+    };
+    Some(format!("Stock: {display}{unit_suffix}"))
+}

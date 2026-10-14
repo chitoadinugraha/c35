@@ -8,9 +8,13 @@ use serde_json::{json, Map, Value};
 use sqlx::{PgPool, Row};
 
 use crate::grant::site_grant_check;
+use crate::guest_product::guest_product_list;
+use crate::guest_product_display::guest_product_price_label;
 
 const KNOWLEDGE_BOOT_MAX_ITEMS: usize = 50;
 const KNOWLEDGE_BOOT_MAX_CHARS: usize = 32_000;
+pub const GUEST_PRODUCT_PROMPT_MAX_ITEMS: usize = 80;
+pub const GUEST_PRODUCT_PROMPT_MAX_CHARS: usize = 28_000;
 const CAP_KEY_ASSISTANT_BOT: &str = "assistant_bot_iid";
 
 pub fn site_assistant_capabilities_merge(caps: &Value, assistant_bot_iid: i64) -> Value {
@@ -72,6 +76,70 @@ pub fn site_assistant_boot_extras(meta: &Value) -> Map<String, Value> {
     m.insert("ai_assistant".into(), site_guest_ai_assistant_public(meta));
     m.insert("knowledge".into(), site_guest_knowledge_public(meta));
     m
+}
+
+/// Sellable catalog rows for guest assistant price / description answers.
+pub async fn site_guest_product_prompt_block(pool: &PgPool, site_iid: i64) -> String {
+    let res = guest_product_list(
+        pool,
+        site_iid,
+        "",
+        "",
+        "",
+        GUEST_PRODUCT_PROMPT_MAX_ITEMS as i32,
+    )
+    .await;
+    let rows = match res {
+        Ok(r) => r.items,
+        Err(_) => return String::new(),
+    };
+    if rows.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from(
+        "[SITE PRODUCTS]\nUse these rows for prices, descriptions, and cart tools (product_id). Do not invent items.\n",
+    );
+    let mut chars = out.len();
+    let mut count = 0usize;
+    for p in rows {
+        if count >= GUEST_PRODUCT_PROMPT_MAX_ITEMS {
+            break;
+        }
+        let price = guest_product_price_label(p.price);
+        let desc = p.desc.trim();
+        let desc_short = if desc.len() > 160 {
+            format!("{}…", desc.chars().take(160).collect::<String>())
+        } else {
+            desc.to_string()
+        };
+        let line = if desc_short.is_empty() {
+            format!(
+                "- product_id={} | {} | {}\n",
+                p.product_id,
+                p.name.trim(),
+                price
+            )
+        } else {
+            format!(
+                "- product_id={} | {} | {} | {}\n",
+                p.product_id,
+                p.name.trim(),
+                price,
+                desc_short
+            )
+        };
+        if chars + line.len() > GUEST_PRODUCT_PROMPT_MAX_CHARS && count > 0 {
+            break;
+        }
+        out.push_str(&line);
+        chars += line.len();
+        count += 1;
+    }
+    if count == 0 {
+        String::new()
+    } else {
+        out.trim_end().to_string()
+    }
 }
 
 pub async fn site_assistant_bot_iid_get(pool: &PgPool, site_iid: i64) -> Option<i64> {

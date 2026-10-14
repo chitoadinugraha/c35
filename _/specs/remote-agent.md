@@ -87,6 +87,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest https:
 
 **Also fine:** run `https://alienai.id/download/agent.exe` (Inno installer overwrites `%LOCALAPPDATA%\AlienAI\alienai_remote_windows.exe`; pairing data stays).
 
+**Windows full installer (`agent.exe`):** Production runs a **watchdog supervisor** plus a `--worker` child and holds `Local\AlienAI.RemoteAgent.Instance`, so Inno’s generic “close applications” step often fails while files under `%LOCALAPPDATA%\AlienAI` are locked (exe and `winfsp-x64.dll` when the virtual drive is up). The setup script stops all `alienai_remote_windows` / `c_remote_windows` processes in `PrepareToInstall` before copying. For day-to-day upgrades, prefer tray **Update** or `agent-update.ps1` over reinstalling the MSI-style setup.
+
+**Chrome on agent start:** Boot `bootstrap_desktop_extension` only syncs extension files and registers native messaging — it does **not** launch Chrome. Chat/tool repair may pass `open_chrome_ui: true` on `browser.ensure` to run `load_extension_in_chrome` / `chrome://extensions`.
+
 After you are on **build 8+**, routine OTA + tray **Check for update** should keep you current without reinstalling.
 
 ---
@@ -192,3 +196,10 @@ if evt.event_type == "apply_update" {
 }
 ```
 This ensures the on-screen **Update Agent** button in the Flutter appbar works identically across all operating systems.
+
+### 5. Input Execution Timing & Composite Actions
+Platform `execute_input` handlers must observe:
+- **Hover Settle Delay (30ms):** When moving pointers before a click, allow at least 30ms for OS and Chromium hit-testing queues to register hover state.
+- **Button Dwell Time (50–60ms):** Dwell at least 50–60ms between button down and button up (instant down/up causes dropped clicks in Chromium, Electron, and WPF).
+- **Composite `click_and_type`:** Move cursor, click with dwell, wait 50ms, clear existing text via `Ctrl+A` + `Backspace`, and type Unicode string cleanly in one roundtrip.
+- **`clear_text`:** Select all and delete (`Ctrl+A` + `Backspace`).

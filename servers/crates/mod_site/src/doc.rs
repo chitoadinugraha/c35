@@ -222,6 +222,7 @@ fn block_props_validate(block_type: &str, props: &Value) -> Result<()> {
                 if !matches!(
                     k.as_str(),
                     "title" | "subtitle" | "pic" | "location_label" | "location_href" | "show_hours"
+                        | "cta" | "cta_url" | "cta_label" | "cta_href"
                 ) {
                     return Err(anyhow!("hub_profile: unknown prop {k}"));
                 }
@@ -305,6 +306,35 @@ fn site_doc_ensure_catalog_display_default(doc: &mut SiteDoc) -> bool {
     true
 }
 
+const HERO_LEGACY_CTA_PROPS: &[&str] = &["cta", "cta_url", "cta_label", "cta_href", "align"];
+
+/// `hero` → `hub_profile` so guest hub hours/location parity applies (in-memory; safe on every render).
+pub fn site_doc_migrate_legacy_blocks(doc: &mut SiteDoc) -> bool {
+    let mut changed = false;
+    for page in &mut doc.pages {
+        for block in &mut page.blocks {
+            if block.r#type != "hero" {
+                continue;
+            }
+            block.r#type = "hub_profile".into();
+            changed = true;
+            let props: Value = if block.props_json.is_empty() {
+                Value::Object(Default::default())
+            } else {
+                serde_json::from_str(&block.props_json).unwrap_or(Value::Object(Default::default()))
+            };
+            if let Some(obj) = props.as_object() {
+                let mut next = obj.clone();
+                for k in HERO_LEGACY_CTA_PROPS {
+                    next.remove(*k);
+                }
+                block.props_json = Value::Object(next).to_string();
+            }
+        }
+    }
+    changed
+}
+
 /// Home-page `product_grid` + default `meta.catalog_display` (`grid` / `list` in Products → Design).
 pub fn site_doc_ensure_product_grid(doc: &mut SiteDoc) -> bool {
     let mut changed = false;
@@ -341,6 +371,34 @@ pub fn render_key_for_page(path: &str) -> String {
                 format!("/{p}")
             }
         )
+    }
+}
+
+#[cfg(test)]
+mod migrate_legacy_tests {
+    use super::*;
+    use c35_proto::{SiteBlock, SitePage};
+
+    #[test]
+    fn migrate_hero_to_hub_profile_strips_cta() {
+        let mut doc = SiteDoc {
+            pages: vec![SitePage {
+                path: "/".into(),
+                title: String::new(),
+                blocks: vec![SiteBlock {
+                    id: "hero1".into(),
+                    r#type: "hero".into(),
+                    props_json: r#"{"title":"T","cta_label":"X"}"#.into(),
+                }],
+            }],
+            theme_json: "{}".into(),
+            meta_json: "{}".into(),
+        };
+        assert!(site_doc_migrate_legacy_blocks(&mut doc));
+        assert_eq!(doc.pages[0].blocks[0].r#type, "hub_profile");
+        let props: Value = serde_json::from_str(&doc.pages[0].blocks[0].props_json).unwrap();
+        assert_eq!(props.get("title").and_then(|x| x.as_str()), Some("T"));
+        assert!(props.get("cta_label").is_none());
     }
 }
 

@@ -90,6 +90,14 @@ impl GuestI18n {
         }
     }
 
+    pub fn share_aria(&self) -> &'static str {
+        if self.indonesian {
+            "Bagikan produk"
+        } else {
+            "Share product"
+        }
+    }
+
     pub fn to_json(&self) -> Value {
         json!({
             "lang": self.html_lang(),
@@ -99,6 +107,7 @@ impl GuestI18n {
             "load_more": self.load_more(),
             "loading": self.loading(),
             "detail_aria": self.detail_aria(),
+            "share_aria": self.share_aria(),
         })
     }
 }

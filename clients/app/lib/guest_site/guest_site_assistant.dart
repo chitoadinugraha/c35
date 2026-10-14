@@ -77,7 +77,14 @@ class _GuestSiteAssistantLayerState extends State<GuestSiteAssistantLayer> {
                   alignment: Alignment.bottomRight,
                   child: GestureDetector(
                     onTap: () {},
-                    child: GuestSiteChatPanel(siteIid: widget.boot.siteIid, intro: _ai.chatIntro, placeholder: _ai.chatPlaceholder, onClose: _toggleChat, cartPayload: guestCartPayloadForChat(cart),),
+                    child: GuestSiteChatPanel(
+                      siteIid: widget.boot.siteIid,
+                      bootMode: widget.boot.mode,
+                      intro: _ai.chatIntro,
+                      placeholder: _ai.chatPlaceholder,
+                      onClose: _toggleChat,
+                      cartPayload: guestCartPayloadForChat(cart),
+                    ),
                   ),
                 ),
               ),

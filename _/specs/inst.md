@@ -139,7 +139,23 @@ Turn on/off, rename, or change instruction on an **existing** bot. Forces `bot.p
 
 ### Device topic (`topic_id=device`)
 
-When the user `@mentions` a paired device, compose resolves **`device`** as the active topic (`ai.topic` id `device`, extends `general`). **`kind=topic`** row **`inst.device.facts`** (priority 140) applies: **facts-only** — use **`device_iid`** from `[MENTION TARGETS]`; **`device.fs.list`** for normal directory paths; **`shell.run`** for Recycle Bin / Shell virtual folders and empty-bin requests; **`device.screenshot`** for on-screen layout; never guess. **`include_tools`:** `device.screenshot`, `shell.run`, `device.fs.list`; **`exclude_tools`:** `device.input`. Narrow phrase steering stays in **`inst.mention.device_read`** (screenshot-only task rows). Multi-step desktop automation is **`computer_use`** / **`computer_use.delegate`**, not the device facts topic.
+When the user `@mentions` a paired device, compose resolves **`device`** as the active topic (`ai.topic` id `device`, extends `general`).
+
+| Inst id | Kind | Role |
+|---------|------|------|
+| **`inst.device.facts`** | topic (140) | Read-only facts: paths, bin, on-screen layout — no multi-step UI |
+| **`inst.device.operate`** | task (155) | Click/type/create on the PC; hop 1 must use tools (see compose force below) |
+| **`inst.device.google_forms`** | task (158) | Google Forms on desktop Chrome — tab resume + editor playbook |
+
+**`inst.device.facts`:** **facts-only** — use **`device_iid`** from `[MENTION TARGETS]`; **`device.fs.list`** for normal directory paths; **`shell.run`** for Recycle Bin / Shell virtual folders and empty-bin requests; **`device.screenshot`** for on-screen layout; never guess. **`include_tools`:** `device.screenshot`, `shell.run`, `device.fs.list`, `device.fs.read`; **`exclude_tools`:** `web.search`, `web.visit`, `web.research` (not `device.input` — operate/forms rows own UI automation). Narrow phrase steering stays in **`inst.mention.device_read`** (screenshot-only task rows).
+
+**`inst.device.operate`:** Multi-step UI (forms, installers, settings). Prefer **`computer_use.delegate`** with the full goal, or **`device.screenshot`** (`som=true`) + **`device.input`**. **`shell.run`** may launch apps/URLs only — opening a link is not task completion. When **`computer_use.delegate`** returns `goal_met: false` or `incomplete: true`, the parent must not paste child click steps; state briefly that automation could not finish.
+
+**`inst.device.google_forms`:** Same tools as operate, plus explicit **tab resume**: screenshot before any Chrome launch; reuse an existing `forms.google.com` / editor tab; do not stack `forms.new` tabs. Seed: [`../schemas/inst.sql`](../schemas/inst.sql). Compose also appends the shared **`[GOOGLE FORMS TAB RESUME]`** block from `servers/crates/mod_chat/src/prompt/google_forms.rs` when this inst matches or the user text looks like Forms. Delegate child goals get the same block automatically.
+
+**Compose:** `compose_force_device_operate_tool_call` — when **`inst.device.operate`** or **`inst.device.google_forms`** matches and **`computer_use.delegate`** is in the catalog, hop 1 must call **`computer_use.delegate`** (not prose handoff). Operate tools are re-included even if **`inst.device.facts`** would otherwise narrow the tool list.
+
+**Live inst:** Git seed alone does not update cluster pods — use **`inst_put`** (MCP) or apply migration; NATS invalidation may fail from a laptop without cluster DNS while the DB row still updates.
 
 ---
 

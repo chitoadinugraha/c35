@@ -447,7 +447,7 @@ void main() {
               'capabilities': {'commerce': true},
               'product_preload': {
                 'p1': [
-                  {'product_id': 42, 'name': 'Americano', 'price': 20000, 'desc': 'Hot'},
+                  {'product_id': 42, 'name': 'Americano', 'price': -1, 'desc': 'Hot'},
                 ],
               },
               'commerce_boot': {'products': [], 'payment_methods': []},
@@ -457,7 +457,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('guest-product-info-42')));
+    await tester.tap(find.text('Americano'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('guest-product-detail')), findsOneWidget);
     expect(find.text('Americano'), findsWidgets);

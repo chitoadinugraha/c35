@@ -7,7 +7,10 @@ use chrono::Utc;
 use sqlx::{PgPool, Row};
 use tokio::sync::mpsc;
 
-use crate::doc::{site_doc_ensure_product_grid, site_doc_from_json, site_doc_to_json, site_doc_validate};
+use crate::doc::{
+    site_doc_ensure_product_grid, site_doc_from_json, site_doc_migrate_legacy_blocks, site_doc_to_json,
+    site_doc_validate,
+};
 use crate::grant::site_grant_check;
 use crate::site_config::{site_capabilities_get, site_capability_enabled};
 use crate::site_publish::site_publish_pending_for_draft;
@@ -21,6 +24,7 @@ fn ts_ms(t: Option<chrono::DateTime<Utc>>) -> i64 {
 /// In-memory only: home `product_grid` when commerce is on and sellable products exist.
 /// Matches editor preview (`siteEditorPreviewSyncCommerceCatalog`) without persisting draft.
 pub async fn site_draft_prepare_commerce_grid_doc(pool: &PgPool, site_iid: i64, doc: &mut SiteDoc) {
+    site_doc_migrate_legacy_blocks(doc);
     let caps = site_capabilities_get(pool, site_iid).await;
     if !site_capability_enabled(&caps, "commerce") {
         return;

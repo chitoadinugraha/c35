@@ -90,11 +90,11 @@ pub fn run(
     use windows::core::w;
     use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, POINT, RECT, WPARAM};
     use windows::Win32::Graphics::Gdi::{
-        BeginPaint, CreateFontW, CreatePen, CreateSolidBrush, DeleteObject, DrawTextW, Ellipse,
-        EndPaint, FillRect, InvalidateRect, RoundRect, SelectObject, SetBkMode,
-        SetTextColor, DEFAULT_CHARSET, DRAW_TEXT_FORMAT, DT_CENTER, DT_LEFT, DT_SINGLELINE,
-        DT_VCENTER, FW_NORMAL, FW_SEMIBOLD, HDC, HFONT, HGDIOBJ,
-        OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, TRANSPARENT,
+        BeginPaint, BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, CreateFontW, CreatePen,
+        CreateSolidBrush, DeleteDC, DeleteObject, DrawTextW, Ellipse, EndPaint, FillRect,
+        InvalidateRect, RoundRect, SelectObject, SetBkMode, SetTextColor, DEFAULT_CHARSET,
+        DRAW_TEXT_FORMAT, DT_CENTER, DT_LEFT, DT_SINGLELINE, DT_VCENTER, FW_NORMAL, FW_SEMIBOLD,
+        HDC, HFONT, HGDIOBJ, OUT_DEFAULT_PRECIS, PAINTSTRUCT, PS_SOLID, SRCCOPY, TRANSPARENT,
         CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, FF_DONTCARE,
     };
     use windows::Win32::Foundation::HANDLE;
@@ -109,7 +109,7 @@ pub fn run(
         CreateWindowExW, DefWindowProcW, DispatchMessageW, GetClientRect, GetMessageW,
         GetSystemMetrics, GetWindowLongPtrW, KillTimer, LoadCursorW, PostQuitMessage, SetTimer,
         RegisterClassExW, SendMessageW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
-        ShowWindow, TranslateMessage, CS_HREDRAW, CS_VREDRAW, GWLP_USERDATA, HICON, HMENU,
+        ShowWindow, TranslateMessage, GWLP_USERDATA, HICON, HMENU,
         HWND_TOP, ICON_BIG, ICON_SMALL, IDC_ARROW, IsWindowVisible, SM_CXSCREEN, SM_CYSCREEN,
         SW_HIDE, SW_SHOW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
         WM_CLOSE, WM_CREATE, WM_DESTROY, WM_ERASEBKGND,
@@ -233,6 +233,33 @@ pub fn run(
         tab_logs_hover: bool,
         drive_toggle_hover: bool,
         btn_footer_hover: [bool; 3],
+        last_paint_fp: u64,
+    }
+
+    fn status_fingerprint(snap: &StatusCopy, active_tab: u8) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut h = DefaultHasher::new();
+        snap.device.hash(&mut h);
+        snap.account.hash(&mut h);
+        snap.version.hash(&mut h);
+        snap.cloud_on.hash(&mut h);
+        snap.user_app_connected.hash(&mut h);
+        snap.webrtc_connecting.hash(&mut h);
+        snap.update_staged.hash(&mut h);
+        snap.update_check_msg.hash(&mut h);
+        snap.personal_package.hash(&mut h);
+        snap.device_package.hash(&mut h);
+        snap.drive_enabled.hash(&mut h);
+        snap.drive_storage.hash(&mut h);
+        active_tab.hash(&mut h);
+        if active_tab == TAB_LOGS {
+            snap.log_lines.len().hash(&mut h);
+            if let Some(last) = snap.log_lines.last() {
+                last.hash(&mut h);
+            }
+        }
+        h.finish()
     }
 
     unsafe fn ctx_get(hwnd: HWND) -> Option<&'static mut Ctx> {
@@ -642,10 +669,17 @@ pub fn run(
             return;
         }
         let mut ps = PAINTSTRUCT::default();
-        let hdc = BeginPaint(hwnd, &mut ps);
-        if hdc.is_invalid() {
+        let screen_dc = BeginPaint(hwnd, &mut ps);
+        if screen_dc.is_invalid() {
             return;
         }
+
+        let w = rc.right - rc.left;
+        let h = rc.bottom - rc.top;
+        let mem_dc = CreateCompatibleDC(screen_dc);
+        let mem_bmp = CreateCompatibleBitmap(screen_dc, w, h);
+        let old_bmp = SelectObject(mem_dc, HGDIOBJ(mem_bmp.0));
+        let hdc = mem_dc;
 
         let scale = &ctx.scale;
         let th = title_h(scale);
@@ -1004,6 +1038,11 @@ pub fn run(
             }
         }
 
+        SelectObject(mem_dc, old_bmp);
+        let _ = BitBlt(screen_dc, 0, 0, w, h, mem_dc, 0, 0, SRCCOPY);
+        let _ = DeleteObject(HGDIOBJ(mem_bmp.0));
+        let _ = DeleteDC(mem_dc);
+
         let _ = EndPaint(hwnd, &ps);
     }
 
@@ -1052,6 +1091,7 @@ pub fn run(
                     tab_logs_hover: false,
                     drive_toggle_hover: false,
                     btn_footer_hover: [false, false, false],
+                    last_paint_fp: 0,
                 });
                 SetWindowLongPtrW(hwnd, GWLP_USERDATA, Box::into_raw(ctx) as isize);
                 if WANT_SHOW.load(Ordering::SeqCst) {
@@ -1072,7 +1112,14 @@ pub fn run(
             }
             WM_TIMER if wparam.0 == TIMER_ID => {
                 if IsWindowVisible(hwnd).as_bool() {
-                    invalidate_all(hwnd);
+                    if let Some(ctx) = ctx_get(hwnd) {
+                        let snap = status_copy();
+                        let fp = status_fingerprint(&snap, ctx.active_tab);
+                        if fp != ctx.last_paint_fp {
+                            ctx.last_paint_fp = fp;
+                            invalidate_all(hwnd);
+                        }
+                    }
                 } else {
                     refresh_timer_stop(hwnd);
                 }
@@ -1333,7 +1380,7 @@ pub fn run(
         let app_icon: HICON = crate::icon::load_app_icon(32, 32);
         let wnd_class = WNDCLASSEXW {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
-            style: CS_HREDRAW | CS_VREDRAW,
+            style: Default::default(),
             lpfnWndProc: Some(wnd_proc),
             hInstance: hinstance.into(),
             hIcon: app_icon,

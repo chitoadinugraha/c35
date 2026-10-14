@@ -88,7 +88,13 @@ pub fn computer_use_final_text_acceptable(text: &str) -> bool {
 }
 
 pub fn computer_use_goal_met(kind: &str, status: &str, summary: &str) -> bool {
-    computer_use_goal_met_with_goal(kind, status, summary, "")
+    computer_use_goal_met_with_goal(
+        kind,
+        status,
+        summary,
+        "",
+        crate::prompt::google_forms::ComputerUseToolCounts::default(),
+    )
 }
 
 pub fn computer_use_goal_met_with_goal(
@@ -96,6 +102,7 @@ pub fn computer_use_goal_met_with_goal(
     status: &str,
     summary: &str,
     goal: &str,
+    tool_counts: crate::prompt::google_forms::ComputerUseToolCounts,
 ) -> bool {
     if status != "done" {
         return false;
@@ -105,7 +112,13 @@ pub fn computer_use_goal_met_with_goal(
             return false;
         }
         if crate::prompt::google_forms::user_text_looks_like_google_forms(goal) {
-            return crate::prompt::google_forms::google_forms_summary_sufficient(goal, summary);
+            if !crate::prompt::google_forms::google_forms_summary_sufficient(goal, summary) {
+                return false;
+            }
+            return crate::prompt::google_forms::google_forms_tool_activity_sufficient(
+                goal,
+                tool_counts,
+            );
         }
         true
     } else {

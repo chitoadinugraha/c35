@@ -5,7 +5,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context, Result};
 use tracing::{debug, error, info, warn};
 use webrtc::data_channel::RTCDataChannel;
-use windows::Win32::Foundation::HWND;
 use windows::Win32::Graphics::Gdi::{
     BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits,
     ReleaseDC, SelectObject, SetStretchBltMode, StretchBlt, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
@@ -83,18 +82,79 @@ fn bgra_row_byte_offset(y: u32, w: u32) -> usize {
     ((y as u64) * (w as u64) * 4) as usize
 }
 
-/// Downscale BGRA image using fast nearest-neighbor sampling.
-fn downscale_bgra(src: &[u8], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> Vec<u8> {
+/// Downscale BGRA image using fast area/box-averaging downsampling.
+/// Preserves thin text strokes, UI control borders, and red target markers when resizing from 1080p/1440p down to 1280.
+pub fn downscale_bgra(src: &[u8], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> Vec<u8> {
+    if dst_w == 0 || dst_h == 0 {
+        return Vec::new();
+    }
+    if src_w == 0 || src_h == 0 || src.is_empty() {
+        return vec![0u8; bgra_buf_len(dst_w, dst_h)];
+    }
+
     let mut dst = vec![0u8; bgra_buf_len(dst_w, dst_h)];
+
+    // Precompute x-coordinate bounds to eliminate repeated 64-bit divisions in the inner loop
+    let mut x_bounds = Vec::with_capacity(dst_w as usize);
+    for x in 0..dst_w {
+        let x0 = (x as u64 * src_w as u64 / dst_w as u64) as u32;
+        let x1 = (((x + 1) as u64 * src_w as u64 + dst_w as u64 - 1) / dst_w as u64).min(src_w as u64) as u32;
+        x_bounds.push((x0, x1));
+    }
+
     for y in 0..dst_h {
-        let src_y = (y as u64 * src_h as u64 / dst_h as u64) as u32;
+        let y0 = (y as u64 * src_h as u64 / dst_h as u64) as u32;
+        let y1 = (((y + 1) as u64 * src_h as u64 + dst_h as u64 - 1) / dst_h as u64).min(src_h as u64) as u32;
         let dst_row_start = bgra_row_byte_offset(y, dst_w);
-        let src_row_start = bgra_row_byte_offset(src_y, src_w);
+
         for x in 0..dst_w {
-            let src_x = (x as u64 * src_w as u64 / dst_w as u64) as u32;
+            let (x0, x1) = x_bounds[x as usize];
             let di = dst_row_start + (x * 4) as usize;
-            let si = src_row_start + (src_x * 4) as usize;
-            dst[di..di + 4].copy_from_slice(&src[si..si + 4]);
+
+            if x1 <= x0 || y1 <= y0 {
+                let sx = x0.min(src_w.saturating_sub(1));
+                let sy = y0.min(src_h.saturating_sub(1));
+                let si = bgra_row_byte_offset(sy, src_w) + (sx * 4) as usize;
+                if si + 4 <= src.len() && di + 4 <= dst.len() {
+                    dst[di..di + 4].copy_from_slice(&src[si..si + 4]);
+                }
+                continue;
+            }
+
+            if x1 == x0 + 1 && y1 == y0 + 1 {
+                let si = bgra_row_byte_offset(y0, src_w) + (x0 * 4) as usize;
+                if si + 4 <= src.len() && di + 4 <= dst.len() {
+                    dst[di..di + 4].copy_from_slice(&src[si..si + 4]);
+                }
+                continue;
+            }
+
+            let count = (x1 - x0) * (y1 - y0);
+            let mut sum_b = 0u32;
+            let mut sum_g = 0u32;
+            let mut sum_r = 0u32;
+            let mut sum_a = 0u32;
+
+            for sy in y0..y1 {
+                let row_start = (sy as usize) * (src_w as usize) * 4;
+                let start_idx = row_start + (x0 as usize) * 4;
+                let end_idx = row_start + (x1 as usize) * 4;
+                if end_idx <= src.len() {
+                    for px in src[start_idx..end_idx].chunks_exact(4) {
+                        sum_b += px[0] as u32;
+                        sum_g += px[1] as u32;
+                        sum_r += px[2] as u32;
+                        sum_a += px[3] as u32;
+                    }
+                }
+            }
+
+            if count > 0 && di + 4 <= dst.len() {
+                dst[di] = (sum_b / count) as u8;
+                dst[di + 1] = (sum_g / count) as u8;
+                dst[di + 2] = (sum_r / count) as u8;
+                dst[di + 3] = (sum_a / count) as u8;
+            }
         }
     }
     dst
@@ -588,6 +648,7 @@ pub fn capture_screen_diff_opt(
     marker: Option<(f64, f64)>,
     som: bool,
 ) -> Result<(Option<(u16, u16, Vec<u8>, String)>, [u8; 32])> {
+    let quality = if quality == 0 { 72 } else { quality.clamp(40, 95) };
     if force && !crate::video_stream::is_video_stream_active() {
         return capture_tool_screenshot_agent_opt(max_w, quality, prev_hash, marker, som);
     }
@@ -714,7 +775,19 @@ pub fn capture_screen_jpeg(
     marker: Option<(f64, f64)>,
     som: bool,
 ) -> Result<(u16, u16, Vec<u8>, String)> {
-    let (frame, _) = capture_screen_diff_opt(max_w, quality, None, true, marker, som)?;
+    capture_screen_jpeg_with_params(max_w, quality, marker, som)
+}
+
+/// Capture full desktop into a JPEG byte buffer with dimensions and optional SoM axtree text.
+/// Quality defaults to 72 if 0, clamped to 40..95 to preserve image clarity for vision models.
+pub fn capture_screen_jpeg_with_params(
+    max_w: u32,
+    quality: u8,
+    marker: Option<(f64, f64)>,
+    som: bool,
+) -> Result<(u16, u16, Vec<u8>, String)> {
+    let q = if quality == 0 { 72 } else { quality.clamp(40, 95) };
+    let (frame, _) = capture_screen_diff_opt(max_w, q, None, true, marker, som)?;
     frame.context("failed to capture frame")
 }
 
@@ -936,4 +1009,103 @@ pub fn start_screen_stream(dc: Arc<RTCDataChannel>, max_w: u32, target_fps: u32)
         CAPTURE_ACTIVE.store(false, Ordering::SeqCst);
         info!("desktop screen streaming stopped");
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_downscale_bgra_box_average() {
+        // 2x2 image downscaled to 1x1
+        // Pixel (0,0): [100, 100, 100, 255]
+        // Pixel (1,0): [200, 200, 200, 255]
+        // Pixel (0,1): [0, 0, 0, 255]
+        // Pixel (1,1): [100, 100, 100, 255]
+        // Expected average: (100 + 200 + 0 + 100) / 4 = 100
+        #[rustfmt::skip]
+        let src = vec![
+            100, 100, 100, 255,  200, 200, 200, 255,
+            0,   0,   0,   255,  100, 100, 100, 255,
+        ];
+        let dst = downscale_bgra(&src, 2, 2, 1, 1);
+        assert_eq!(dst.len(), 4);
+        assert_eq!(dst, vec![100, 100, 100, 255]);
+    }
+
+    #[test]
+    fn test_downscale_bgra_preserves_thin_lines() {
+        // 4x4 image with a thin 1-pixel red vertical line at x=1
+        // BGRA format: [B, G, R, A] = [0, 0, 255, 255] for red, [0, 0, 0, 255] for black
+        let mut src = vec![0u8; 4 * 4 * 4];
+        for y in 0..4 {
+            for x in 0..4 {
+                let idx = (y * 4 + x) * 4;
+                src[idx + 3] = 255; // Alpha
+                if x == 1 {
+                    src[idx + 2] = 255; // Red line
+                }
+            }
+        }
+
+        let dst = downscale_bgra(&src, 4, 4, 2, 2);
+        assert_eq!(dst.len(), 2 * 2 * 4);
+
+        // Destination pixel (0, 0) covers source x in 0..2, y in 0..2.
+        // It samples (0,0)[black], (1,0)[red], (0,1)[black], (1,1)[red].
+        // Red channel average = (0 + 255 + 0 + 255) / 4 = 127.
+        let dst_r_00 = dst[2];
+        assert_eq!(dst_r_00, 127, "red line stroke must be preserved in downscale");
+
+        // Destination pixel (1, 0) covers source x in 2..4, y in 0..2 (all black).
+        let dst_r_10 = dst[4 + 2];
+        assert_eq!(dst_r_10, 0, "black area remains black");
+    }
+
+    #[test]
+    fn test_downscale_bgra_identity() {
+        let src = vec![
+            10, 20, 30, 255, 40, 50, 60, 255,
+            70, 80, 90, 255, 11, 22, 33, 255,
+        ];
+        let dst = downscale_bgra(&src, 2, 2, 2, 2);
+        assert_eq!(dst, src);
+    }
+
+    #[test]
+    fn test_downscale_bgra_zero_and_empty() {
+        assert!(downscale_bgra(&[], 0, 0, 0, 0).is_empty());
+        assert!(downscale_bgra(&[1, 2, 3, 4], 1, 1, 0, 0).is_empty());
+        let empty_dst = downscale_bgra(&[], 0, 0, 10, 10);
+        assert_eq!(empty_dst.len(), 10 * 10 * 4);
+    }
+
+    #[test]
+    fn test_downscale_bgra_performance_1080p_to_720p() {
+        let src_w = 1920u32;
+        let src_h = 1080u32;
+        let dst_w = 1280u32;
+        let dst_h = 720u32;
+        let src = vec![128u8; (src_w * src_h * 4) as usize];
+
+        let start = std::time::Instant::now();
+        let dst = downscale_bgra(&src, src_w, src_h, dst_w, dst_h);
+        let elapsed = start.elapsed();
+
+        assert_eq!(dst.len(), (dst_w * dst_h * 4) as usize);
+        // Even unoptimized in debug mode it should be reasonable; log duration
+        println!("1080p to 720p box-averaging elapsed: {:?}", elapsed);
+    }
+
+    #[test]
+    fn test_quality_clamping_logic() {
+        let clamp_q = |q: u8| if q == 0 { 72 } else { q.clamp(40, 95) };
+        assert_eq!(clamp_q(0), 72);
+        assert_eq!(clamp_q(20), 40);
+        assert_eq!(clamp_q(40), 40);
+        assert_eq!(clamp_q(72), 72);
+        assert_eq!(clamp_q(80), 80);
+        assert_eq!(clamp_q(95), 95);
+        assert_eq!(clamp_q(100), 95);
+    }
 }

@@ -77,7 +77,9 @@ pub use site_domain_buy::{
     buy_quote_ok, domain_mail_after_verify, site_domain_buy, site_domain_check, site_domain_search,
 };
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
-pub use commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
+pub use commerce_boot::{
+    commerce_boot_build, order_progress_steps_json, site_draft_meta_json, site_published_meta_json,
+};
 pub use site_analytics::{
     normalize_analytics_path, site_analytics_day_bucket, site_analytics_enabled,
     site_analytics_link_click, site_analytics_ping, visitor_key_hash, SiteAnalyticsPing,
@@ -85,7 +87,7 @@ pub use site_analytics::{
 pub use site_assistant::{
     site_assistant_boot_extras, site_assistant_capabilities_merge, site_assistant_ensure,
     site_assistant_ensure_bot, site_assistant_get, site_assistant_bot_iid_get,
-    site_guest_ai_assistant_public, site_guest_knowledge_public,
+    site_guest_ai_assistant_public, site_guest_knowledge_public, site_guest_product_prompt_block,
 };
 pub use site_boot::{site_boot_get, site_boot_json_assemble};
 pub use site_editor_warm::{
@@ -149,7 +151,8 @@ pub use guest_product::{
 };
 pub use guest_product_display::{
     format_idr, guest_product_can_add_to_cart, guest_product_price_label,
-    guest_product_price_label_i18n, pic_url, pic_url_display, pic_url_thumb, product_grid_display,
+    guest_product_price_label_i18n, guest_product_stock_customer_label, pic_url, pic_url_display,
+    pic_url_thumb, product_grid_display,
     GUEST_PRODUCT_PRICE_CONTACT,
 };
 pub use guest_i18n::{

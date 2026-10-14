@@ -27,7 +27,7 @@ tool! {
     struct: SiteGuestCartPatchTool,
     name: "site.guest.cart.patch",
     aliases: ["site_guest_cart_patch"],
-    description: "Update the visitor cart session (lines with product_id, name, price, qty). Use merge=true to append lines.",
+    description: "Update the visitor cart session (lines with product_id, name, price, qty, optional note per line). Use merge=true to append lines.",
     topics: ["site.guest"],
     always: ["site.guest"],
     ui_calling_key: "tool.site.guest.cart.patch.calling",

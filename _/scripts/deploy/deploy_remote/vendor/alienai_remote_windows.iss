@@ -37,13 +37,17 @@ ArchitecturesInstallIn64BitMode=x64compatible
 UninstallDisplayIcon={app}\{#MyAppExeName}
 SetupIconFile={#StageDir}\alien_rounded.ico
 UninstallDisplayName={#MyAppName}
+; Match agent single-instance mutex (startup.rs) so Restart Manager can identify us when enabled.
+AppMutex=Local\AlienAI.RemoteAgent.Instance
+; We stop the agent in PrepareToInstall (supervisor + worker). RM-only close often fails and shows a blocking dialog.
+CloseApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "{#StageDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#StageDir}\{#WinFspDllName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#StageDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion restartreplace uninsrestartdelete
+Source: "{#StageDir}\{#WinFspDllName}"; DestDir: "{app}"; Flags: ignoreversion restartreplace
 Source: "{#StageDir}\vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: VCRedistNeeded
 Source: "{#StageDir}\{#WinFspMsiName}"; DestDir: "{tmp}"; Flags: deleteafterinstall; Check: WinFspNeeded
 
@@ -64,6 +68,22 @@ Filename: "netsh.exe"; Parameters: "advfirewall firewall add rule name=""AlienAI
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: postinstall nowait skipifsilent
 
 [Code]
+procedure StopRunningAgent;
+var
+  ResultCode: Integer;
+begin
+  { Kill all agent images (supervisor + --worker child) before replacing files under {app}. }
+  Exec('taskkill.exe', '/F /T /IM alienai_remote_windows.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /T /IM c_remote_windows.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(600);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  StopRunningAgent;
+  Result := '';
+end;
+
 function WinFspNeeded: Boolean;
 begin
   Result := not RegKeyExists(HKLM, 'SOFTWARE\WOW6432Node\WinFsp');

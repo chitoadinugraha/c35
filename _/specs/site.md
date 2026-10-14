@@ -178,7 +178,7 @@ See [`../schemas/site.sql`](../schemas/site.sql).
 | `site.publish` | partial | — | guest read |
 | `site.render` | no | — | server compile output |
 | `site.domain` | yes | Settings | DNS + TLS status |
-| `site.product` | yes | Products | + embed subtable |
+| `site.product` | yes | Products | + embed subtable; inventory extras in `product_json` (see below) |
 | `site.product_embed` | yes | (subtable) | alt labels |
 | `site.product_icon` | no | — | global name_key → iconify id for empty product photos. Not per site. Not `site.product_embed`. |
 | `site.contact` | yes | Contacts | tx subject |
@@ -190,6 +190,24 @@ See [`../schemas/site.sql`](../schemas/site.sql).
 | `site.presence_location` | yes | — | geo for Attendance later |
 
 Staff ACL: `identity_grant(resource_iid=site_iid, role=staff|manage|guest|owner)` — see **Team** below. Never a `site_member` table.
+
+### `site.product.product_json` (editor extras)
+
+Numeric stock lives on the product row (`stock_qty` / tx API). The JSON blob holds catalog UI and guest-display flags (CSA `SiteProductDraft` parity). Keys written by the site product editor (`site_product_json.dart`):
+
+| Key | Type | Role |
+|-----|------|------|
+| `active` | bool | Listed in catalog when true (else archived-style inactive) |
+| `sort_order` | int | Optional override when row `sort_order` is 0 |
+| `duration_value` / `duration_unit` | int / string | Reservation duration (e.g. `1` + `day`) |
+| `reservation_unit_selection` | string | `system` or `guest_picks` (batch unit picker) |
+| `stock_unit` | string | Suffix on guest stock line (`Stock: 4 pcs`) |
+| `stock_warning_enabled` / `stock_warning_qty` | bool / int | Editor reminder thresholds |
+| `stock_critical_enabled` / `stock_critical_qty` | bool / int | Editor critical thresholds |
+| `stock_show_to_customer` | bool | When true, guest Flutter + HTML show stock (capped by max) |
+| `stock_show_max_qty` | int | Display cap: show `{max}+` when qty exceeds max |
+
+Guest renderers also read `pics`, `barcodes`, and embed-related fields; see `site.product_embed` for search aliases.
 
 ## Default product icon
 

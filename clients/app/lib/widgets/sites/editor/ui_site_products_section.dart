@@ -1,6 +1,9 @@
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
+import 'package:alienai_c35/c/site/site_product_json.dart';
+import 'package:alienai_c35/c/site/site_product_list_labels.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_product_actions.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_toolbar.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
@@ -37,6 +40,9 @@ class UiSiteProductsSection extends StatelessWidget {
     this.onProductDuplicate,
     this.onListNearEnd,
     this.loadingMore = false,
+    this.booking = true,
+    this.showActiveSwitch = false,
+    this.onProductActiveChanged,
   });
 
   final TextEditingController searchController;
@@ -59,6 +65,9 @@ class UiSiteProductsSection extends StatelessWidget {
   final void Function(SiteProduct product)? onProductDuplicate;
   final VoidCallback? onListNearEnd;
   final bool loadingMore;
+  final bool booking;
+  final bool showActiveSwitch;
+  final void Function(SiteProduct product, bool active)? onProductActiveChanged;
 
   List<SiteProduct> get _filtered {
     final q = search.trim().toLowerCase();
@@ -119,12 +128,12 @@ class UiSiteProductsSection extends StatelessWidget {
                     }
                     final p = filtered[i];
                     final id = '${p.productId}';
-                    final active = selectedId == id;
+                    final selected = selectedId == id;
+                    final extras = siteProductExtrasRead(p);
                     final price = p.price <= Int64.ZERO ? '' : moneyFmtIdr(p.price.toInt());
-                    final subtitle = [if (p.category.isNotEmpty) p.category, if (price.isNotEmpty) price].join(' · ');
                     return Material(
                       key: ValueKey(id),
-                      color: active ? const Color(0xFF1A1F2E) : Colors.transparent,
+                      color: selected ? const Color(0xFF1A1F2E) : Colors.transparent,
                       child: InkWell(
                         onTap: () => onSelect(id),
                         onLongPress: onProductArchiveToggle == null
@@ -142,7 +151,7 @@ class UiSiteProductsSection extends StatelessWidget {
                           padding: const EdgeInsets.fromLTRB(4, 8, 10, 8),
                           decoration: BoxDecoration(
                             border: Border(
-                              left: BorderSide(color: active ? _accent : Colors.transparent, width: 3),
+                              left: BorderSide(color: selected ? _accent : Colors.transparent, width: 3),
                               bottom: BorderSide(color: _border.withValues(alpha: 0.55)),
                             ),
                           ),
@@ -158,29 +167,73 @@ class UiSiteProductsSection extends StatelessWidget {
                               UiSiteProductThumb(product: p, size: 44),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      p.name.isEmpty ? 'Product $id' : p.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: _text,
-                                        fontSize: 13,
-                                        fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                                      ),
-                                    ),
-                                    if (subtitle.isNotEmpty)
+                                child: Opacity(
+                                  opacity: extras.active ? 1 : 0.5,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
                                       Text(
-                                        subtitle,
+                                        p.name.isEmpty ? 'Product $id' : p.name,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(color: _muted, fontSize: 11),
+                                        style: TextStyle(
+                                          color: _text,
+                                          fontSize: 13,
+                                          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                                        ),
+                                      ),
+                                      if (p.desc.isNotEmpty)
+                                        Text(
+                                          p.desc,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: _muted, fontSize: 11),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Opacity(
+                                opacity: extras.active ? 1 : 0.5,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    if (price.isNotEmpty)
+                                      Text(
+                                        price,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12,
+                                          color: extras.active ? _accent : _muted,
+                                        ),
+                                      ),
+                                    if (p.trackStock)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          productListStockLabel(p, extras),
+                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: _muted),
+                                        ),
+                                      ),
+                                    if (booking && p.canReserve)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          productListDurationLabel(extras),
+                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: _muted),
+                                        ),
                                       ),
                                   ],
                                 ),
                               ),
+                              if (showActiveSwitch && onProductActiveChanged != null) ...[
+                                const SizedBox(width: 4),
+                                UiSiteCatalogActiveSwitch(
+                                  value: extras.active,
+                                  onChanged: (v) => onProductActiveChanged!(p, v),
+                                ),
+                              ],
                               if (p.isArchived)
                                 const Padding(
                                   padding: EdgeInsets.only(left: 4),

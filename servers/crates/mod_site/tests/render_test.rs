@@ -251,8 +251,11 @@ fn block_product_grid_renders_products() {
             reservation_capacity: 1,
             reservation_hold_ttl_seconds: 3600,
             icon: String::new(),
+            pics: vec![],
             stock_show_to_customer: false,
             stock_qty: None,
+            stock_unit: String::new(),
+            stock_show_max_qty: 0,
         },
         ProductRow {
             product_id: 102,
@@ -270,8 +273,11 @@ fn block_product_grid_renders_products() {
             reservation_capacity: 1,
             reservation_hold_ttl_seconds: 3600,
             icon: "mdi:tea".into(),
+            pics: vec![],
             stock_show_to_customer: false,
             stock_qty: None,
+            stock_unit: String::new(),
+            stock_show_max_qty: 0,
         },
     ];
     let grid_ctx = ProductGridCtx {
@@ -307,7 +313,8 @@ fn block_product_grid_renders_products() {
     assert!(html.contains("data-pid=\"102\""));
     assert!(html.contains("Teh"));
     assert!(html.contains("Rp 8.000"));
-    assert!(html.contains("guest-product-info-btn"));
+    assert!(!html.contains("guest-product-info-btn"));
+    assert!(!html.contains("guest-product-share-btn"));
     assert!(html.contains("guest-product-tile"));
     assert!(html.contains("product-grid-title"));
     assert!(html.contains("Katalog &amp; Layanan"));
@@ -334,8 +341,11 @@ fn sample_product(can_reserve: bool) -> ProductRow {
         reservation_capacity: 1,
         reservation_hold_ttl_seconds: 3600,
         icon: String::new(),
+        pics: vec![],
         stock_show_to_customer: false,
         stock_qty: None,
+        stock_unit: String::new(),
+        stock_show_max_qty: 0,
     }
 }
 
@@ -536,8 +546,16 @@ fn product_card_stock_line_follows_show_flag() {
     let mut shown = sample_product(false);
     shown.stock_show_to_customer = true;
     shown.stock_qty = Some(4);
+    shown.stock_unit = "pcs".into();
     let html = product_card_html(&shown, None);
-    assert!(html.contains("Stock: 4"));
+    assert!(html.contains("Stock: 4 pcs"));
+
+    let mut capped = sample_product(false);
+    capped.stock_show_to_customer = true;
+    capped.stock_qty = Some(50);
+    capped.stock_show_max_qty = 9;
+    let cap_html = product_card_html(&capped, None);
+    assert!(cap_html.contains("Stock: 9+"));
 
     let mut hidden = sample_product(false);
     hidden.stock_show_to_customer = false;

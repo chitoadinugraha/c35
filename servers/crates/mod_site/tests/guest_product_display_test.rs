@@ -1,6 +1,6 @@
 use c35_mod_site::{
-    guest_product_can_add_to_cart, guest_product_price_label, product_grid_display,
-    GUEST_PRODUCT_PRICE_CONTACT,
+    guest_product_can_add_to_cart, guest_product_price_label, guest_product_stock_customer_label,
+    product_grid_display, GUEST_PRODUCT_PRICE_CONTACT,
 };
 use serde_json::json;
 
@@ -12,6 +12,15 @@ fn guest_product_price_contact_us() {
     assert!(!guest_product_can_add_to_cart(GUEST_PRODUCT_PRICE_CONTACT));
     assert!(!guest_product_can_add_to_cart(0));
     assert!(guest_product_can_add_to_cart(1));
+}
+
+#[test]
+fn guest_product_stock_customer_label_unit_and_cap() {
+    assert_eq!(
+        guest_product_stock_customer_label(true, Some(12), "kg", 9),
+        Some("Stock: 9+ kg".into())
+    );
+    assert_eq!(guest_product_stock_customer_label(false, Some(3), "pcs", 0), None);
 }
 
 #[test]

@@ -707,12 +707,16 @@ tool! {
     parameters: {
         device_iid: (integer, "Target remote device identity ID (windows or browser)", required),
         run_repairs: (boolean, "When true (default), run automatic repair actions before re-probing", optional),
+        open_chrome_ui: (boolean, "When true, may open Chrome or chrome://extensions for load_extension repairs (default false — safe for background agent)", optional),
         actions: (array, "Optional subset of repair actions (install_chrome, sync_install, register_nm, open_extensions_page, load_extension_in_chrome, start_extension_agent)", optional),
     },
     execute: |args, ctx| {
         let mut params = json!({});
         if let Some(v) = args.get("run_repairs") {
             params["run_repairs"] = v.clone();
+        }
+        if let Some(v) = args.get("open_chrome_ui") {
+            params["open_chrome_ui"] = v.clone();
         }
         if let Some(v) = args.get("actions") {
             params["actions"] = v.clone();

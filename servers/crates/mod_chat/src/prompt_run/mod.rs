@@ -13,7 +13,9 @@ pub use checkpoint::{
     checkpoint_record_error, checkpoint_record_screenshot_hash,
     checkpoint_record_screenshot_hash_hex, checkpoint_record_tool, checkpoint_screenshot_stuck,
     checkpoint_set_fatal, checkpoint_tool_should_stop, prompt_run_max_concurrent,
-    prompt_run_max_concurrent_requested, prompt_run_should_stop, COMPUTER_USE_MAX_DEVICE_INPUT,
+    prompt_run_max_concurrent_requested, prompt_run_should_stop, CK_DEVICE_INPUT_COUNT,
+    CK_ERROR_COUNT, CK_ERROR_FINGERPRINT, CK_ERROR_HOP, CK_FAIL_CLASS, CK_FAIL_REASON,
+    CK_SCREENSHOT_COUNT, CK_SCREENSHOT_HASHES, COMPUTER_USE_MAX_DEVICE_INPUT,
     COMPUTER_USE_MAX_ROUNDS, COMPUTER_USE_MAX_SCREENSHOTS, FATAL_ERROR_THRESHOLD,
     PROMPT_RUN_MAX_CONCURRENT_DEFAULT, PROMPT_RUN_MAX_DELIVER, PROMPT_RUN_MAX_TURNS_DEFAULT,
     SCREENSHOT_STUCK_LEN,
@@ -37,6 +39,7 @@ pub use store::{
     prompt_run_kind_default, prompt_run_kind_normalize, prompt_run_lease_touch,
     prompt_run_list_active, prompt_run_list_queued, prompt_run_notify_install,
     prompt_run_over_max_deliver, prompt_run_row_channel, prompt_run_row_new, prompt_run_status_set,
-    prompt_run_summary, prompt_run_wait_terminal, PromptRunActiveDiag, PromptRunRow,
+    prompt_run_summary, prompt_run_tool_counts, prompt_run_wait_terminal, PromptRunActiveDiag,
+    PromptRunRow,
 };
 pub use worker::{prompt_run_enqueue, prompt_run_worker_start, PromptRunWorker};

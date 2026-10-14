@@ -242,6 +242,65 @@ fn ready_marker(version: i64) -> PathBuf {
     staging_dir(version).join(".ready")
 }
 
+fn auto_apply_backoff_path(version: i64) -> PathBuf {
+    staging_dir(version).join(".auto_apply_backoff_ms")
+}
+
+/// After an automatic apply attempt, wait before trying again (avoids kill/restart loops when install fails).
+const AUTO_APPLY_BACKOFF_SECS: u64 = 30 * 60;
+
+fn auto_apply_blocked(version: i64) -> bool {
+    let path = auto_apply_backoff_path(version);
+    let raw = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let ms = raw.trim().parse::<i64>().unwrap_or(0);
+    if ms <= 0 {
+        return false;
+    }
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    (now - ms) < (AUTO_APPLY_BACKOFF_SECS as i64 * 1000)
+}
+
+fn mark_auto_apply_attempt(version: i64) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as i64;
+    let path = auto_apply_backoff_path(version);
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(path, now.to_string());
+}
+
+pub fn clear_auto_apply_backoff(version: i64) {
+    let _ = std::fs::remove_file(auto_apply_backoff_path(version));
+}
+
+/// Drop staged builds that are not newer than the running agent (failed or partial OTA).
+pub fn update_prune_obsolete_staging() {
+    let build = agent_build();
+    let root = updates_root();
+    if !root.exists() {
+        return;
+    }
+    for ent in std::fs::read_dir(&root).into_iter().flatten().flatten() {
+        let name = ent.file_name().to_string_lossy().to_string();
+        if let Ok(v) = name.parse::<i64>() {
+            if v <= build {
+                let dir = ent.path();
+                info!(version = v, build, path = %dir.display(), "pruning obsolete staged update");
+                let _ = std::fs::remove_dir_all(&dir);
+            }
+        }
+    }
+}
+
 pub async fn update_poll(base_url: &str) -> Result<Option<ReleaseRes>, anyhow::Error> {
     let url = format!("{}/version/{}", base_url.trim_end_matches('/'), current_platform());
     let res = reqwest::Client::new().get(&url).send().await?;
@@ -393,12 +452,30 @@ pub fn ota_apply_skipped() -> bool {
 }
 
 pub fn update_apply(version: i64) -> Result<(), anyhow::Error> {
+    update_apply_inner(version, false)
+}
+
+/// User-initiated install from tray/status — ignores auto-apply backoff.
+pub fn update_apply_force(version: i64) -> Result<(), anyhow::Error> {
+    clear_auto_apply_backoff(version);
+    update_apply_inner(version, true)
+}
+
+fn update_apply_inner(version: i64, user_initiated: bool) -> Result<(), anyhow::Error> {
     if is_dev_mode() {
         info!(version, "Dev mode active; skipping update_apply to protect development environment");
         return Ok(());
     }
     if ota_apply_skipped() {
         info!(version, "OTA apply skipped (chrome extension / C35_SKIP_OTA)");
+        return Ok(());
+    }
+    if !user_initiated && auto_apply_blocked(version) {
+        warn!(
+            version,
+            backoff_secs = AUTO_APPLY_BACKOFF_SECS,
+            "skipping automatic OTA apply (recent attempt still in backoff)"
+        );
         return Ok(());
     }
 
@@ -510,6 +587,9 @@ exit 0
 
     #[cfg(target_os = "windows")]
     {
+        if !user_initiated {
+            mark_auto_apply_attempt(version);
+        }
         info!(version, "==> [AUTO-UPDATE APPLYING] Spawning update apply script and restarting");
         spawn_apply_script(&script)?;
         std::process::exit(0);
@@ -541,6 +621,9 @@ exit 0
         {
             use std::os::unix::fs::PermissionsExt;
             let _ = std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755));
+        }
+        if !user_initiated {
+            mark_auto_apply_attempt(version);
         }
         Command::new("sh").arg(script.to_str().unwrap()).spawn()?;
         std::process::exit(0);
@@ -633,7 +716,7 @@ pub fn update_apply_now() {
         crate::agent_ui::last_update_check_msg_set(msg);
         return;
     }
-    if let Err(e) = update_apply(v) {
+    if let Err(e) = update_apply_force(v) {
         warn!("update apply now failed: {e}");
         crate::agent_ui::last_update_check_msg_set(format!("Install failed: {e}"));
     }

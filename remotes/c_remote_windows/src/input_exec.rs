@@ -84,7 +84,10 @@ pub fn execute_input(evt: &RemoteInputEvent) {
         }
         "mouse_click" => {
             sync_remote_pointer(px, py);
+            nudge_pointer_hit_test(px, py, w, h);
+            std::thread::sleep(std::time::Duration::from_millis(30));
             send_mouse_event(mouse_down_flag(evt.button), 0);
+            std::thread::sleep(std::time::Duration::from_millis(60));
             send_mouse_event(mouse_up_flag(evt.button), 0);
         }
         "double_click" => {
@@ -101,16 +104,22 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             LAST_DOUBLE_CLICK_MS.store(now, Ordering::Relaxed);
 
             sync_remote_pointer(px, py);
+            nudge_pointer_hit_test(px, py, w, h);
+            std::thread::sleep(std::time::Duration::from_millis(30));
             let btn_down = mouse_down_flag(evt.button);
             let btn_up = mouse_up_flag(evt.button);
             send_mouse_event(btn_down, 0);
+            std::thread::sleep(std::time::Duration::from_millis(60));
             send_mouse_event(btn_up, 0);
             std::thread::sleep(std::time::Duration::from_millis(50));
             send_mouse_event(btn_down, 0);
+            std::thread::sleep(std::time::Duration::from_millis(60));
             send_mouse_event(btn_up, 0);
         }
         "triple_click" => {
             sync_remote_pointer(px, py);
+            nudge_pointer_hit_test(px, py, w, h);
+            std::thread::sleep(std::time::Duration::from_millis(30));
             let btn_down = mouse_down_flag(evt.button);
             let btn_up = mouse_up_flag(evt.button);
             for i in 0..3 {
@@ -118,18 +127,47 @@ pub fn execute_input(evt: &RemoteInputEvent) {
                     std::thread::sleep(std::time::Duration::from_millis(50));
                 }
                 send_mouse_event(btn_down, 0);
+                std::thread::sleep(std::time::Duration::from_millis(60));
                 send_mouse_event(btn_up, 0);
             }
         }
         "right_click" => {
             sync_remote_pointer(px, py);
+            nudge_pointer_hit_test(px, py, w, h);
+            std::thread::sleep(std::time::Duration::from_millis(30));
             send_mouse_event(MOUSEEVENTF_RIGHTDOWN, 0);
+            std::thread::sleep(std::time::Duration::from_millis(60));
             send_mouse_event(MOUSEEVENTF_RIGHTUP, 0);
         }
         "middle_click" => {
             sync_remote_pointer(px, py);
+            nudge_pointer_hit_test(px, py, w, h);
+            std::thread::sleep(std::time::Duration::from_millis(30));
             send_mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0);
+            std::thread::sleep(std::time::Duration::from_millis(60));
             send_mouse_event(MOUSEEVENTF_MIDDLEUP, 0);
+        }
+        "click_and_type" => {
+            sync_remote_pointer(px, py);
+            nudge_pointer_hit_test(px, py, w, h);
+            std::thread::sleep(std::time::Duration::from_millis(30));
+            let btn_down = mouse_down_flag(evt.button);
+            let btn_up = mouse_up_flag(evt.button);
+            send_mouse_event(btn_down, 0);
+            std::thread::sleep(std::time::Duration::from_millis(60));
+            send_mouse_event(btn_up, 0);
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            if !evt.text.is_empty() {
+                execute_shortcut("ctrl+a");
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                send_key_event(0x08, false);
+                std::thread::sleep(std::time::Duration::from_millis(15));
+                send_key_event(0x08, true);
+                std::thread::sleep(std::time::Duration::from_millis(30));
+                for c in evt.text.encode_utf16() {
+                    send_unicode_char(c);
+                }
+            }
         }
         "mouse_drag" => {
             let btn_down = mouse_down_flag(evt.button);
@@ -171,6 +209,13 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             for c in evt.text.encode_utf16() {
                 send_unicode_char(c);
             }
+        }
+        "clear_text" => {
+            execute_shortcut("ctrl+a");
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            send_key_event(0x08, false);
+            std::thread::sleep(std::time::Duration::from_millis(15));
+            send_key_event(0x08, true);
         }
         "clipboard_set_text" => {
             #[cfg(windows)]
@@ -246,8 +291,10 @@ fn should_probe_cursor(evt_type: &str) -> bool {
                 | "mouse_up"
                 | "mouse_click"
                 | "double_click"
+                | "triple_click"
                 | "right_click"
                 | "middle_click"
+                | "click_and_type"
                 | "wheel"
         )
     {

@@ -131,7 +131,12 @@ fn delegate_result_json_shape() {
         lease_pod: None,
         delivery_count: 0,
     };
-    let out = delegate_result_json(&child, "Child finished.", "delegate.run");
+    let out = delegate_result_json(
+        &child,
+        "Child finished.",
+        "delegate.run",
+        c35_mod_chat::prompt::google_forms::ComputerUseToolCounts::default(),
+    );
     assert_eq!(out["ok"], true);
     assert_eq!(out["goal_met"], true);
     assert_eq!(out["child_req_id"], "child-1");
@@ -173,7 +178,12 @@ fn delegate_computer_use_incomplete_summary_not_ok() {
         delivery_count: 0,
     };
     let summary = "Please click the Blank form option to start.";
-    let out = delegate_result_json(&child, summary, "computer_use.delegate");
+    let out = delegate_result_json(
+        &child,
+        summary,
+        "computer_use.delegate",
+        c35_mod_chat::prompt::google_forms::ComputerUseToolCounts::default(),
+    );
     assert_eq!(out["ok"], false);
     assert_eq!(out["goal_met"], false);
     assert_eq!(out["incomplete"], true);

@@ -207,6 +207,7 @@
       loadMore: i.load_more || 'Load more',
       loading: i.loading || 'Loading…',
       detailAria: i.detail_aria || 'Product details',
+      shareAria: i.share_aria || 'Share product',
     };
   }
 
@@ -313,17 +314,101 @@
     return ' data-product-category="' + escHtml(cat).replace(/"/g, '&quot;') + '"';
   }
 
+  function guestAlienId() {
+    const g = window.__SITE_GUEST__ || {};
+    return String(g.alien_id || g.alienId || '').trim();
+  }
+
+  function guestDraftQuery() {
+    const q = window.location.search || '';
+    return /(?:^|[?&])draft=(?:1|true|yes)(?:&|$)/i.test(q) ? '?draft=1' : '';
+  }
+
+  function guestProductPageUrl(productId) {
+    const draft = guestDraftQuery();
+    const aid = guestAlienId();
+    if (aid) {
+      return '/' + aid + '/products/' + productId + draft;
+    }
+    const path = window.location.pathname || '/';
+    const base = path.endsWith('/') ? path : path + '/';
+    return base + 'products/' + productId + draft;
+  }
+
+  function productGalleryPaths(product) {
+    const out = [];
+    const primary = String(product && product.pic || '').trim();
+    if (primary) out.push(primary);
+    const extras = product && product.pics;
+    if (Array.isArray(extras)) {
+      for (let i = 0; i < extras.length; i++) {
+        const e = String(extras[i] || '').trim();
+        if (e && out.indexOf(e) < 0) out.push(e);
+      }
+    }
+    return out;
+  }
+
+  function productPrimaryPic(product) {
+    const paths = productGalleryPaths(product);
+    return paths.length ? paths[0] : '';
+  }
+
+  function guestShareToast(msg) {
+    const el = document.getElementById('c35-guest-toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(function () { el.style.display = 'none'; }, 2800);
+  }
+
+  function shareProduct(productId, name) {
+    const url = new URL(guestProductPageUrl(productId), window.location.origin).href;
+    const title = String(name || '').trim() || 'Product';
+    if (navigator.share) {
+      navigator.share({ title: title, url: url }).catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { guestShareToast('Link copied'); });
+        }
+      });
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { guestShareToast('Link copied'); });
+      return;
+    }
+    window.prompt('Copy link:', url);
+  }
+
+  window.c35GuestShare = function () {
+    const url = window.location.href;
+    const title = document.title || 'Store';
+    if (navigator.share) {
+      navigator.share({ title: title, url: url }).catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { guestShareToast('Link copied'); });
+        }
+      });
+      return;
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { guestShareToast('Link copied'); });
+      return;
+    }
+    window.prompt('Copy link:', url);
+  };
+
   function productPurchaseAction(item) {
     const pid = item.product_id;
     const i18n = guestI18nStrings();
-    const info = '<button type="button" class="guest-product-info-btn" data-product-info="' + pid
-      + '" aria-label="' + escHtml(i18n.detailAria) + '">&#9432;</button>';
     const price = Math.round(item.price || 0);
     if (price === GUEST_PRODUCT_PRICE_CONTACT) {
-      return '<button type="button" class="guest-tile-cta" data-product-info="' + pid + '">'
-        + escHtml(i18n.tileContactCta) + '</button>' + info;
+      return '<button type="button" class="guest-tile-cta guest-product-info-btn" data-product-info="' + pid + '">'
+        + escHtml(i18n.tileContactCta) + '</button>';
     }
-    return info;
+    return '';
   }
 
   window.c35GuestCatalog = window.c35GuestCatalog || {
@@ -354,13 +439,18 @@
           + ' data-duration-unit="' + escHtml(item.duration_unit || 'day') + '"'
           + ' data-unit-selection="' + escHtml(item.reservation_unit_selection || 'system') + '"';
       }
+      const badgeHtml = canReserve
+        ? '<span class="guest-product-pill guest-product-pill--reserve">Reservasi</span>'
+        : (item.stock_show_to_customer && typeof item.stock_qty === 'number' && item.stock_qty > 0 && item.stock_qty <= 3)
+          ? '<span class="guest-product-pill guest-product-pill--stock">Sisa ' + item.stock_qty + '</span>'
+          : '';
       const priceLabel = guestProductPriceLabel(price);
       const quote = price === GUEST_PRODUCT_PRICE_CONTACT;
       const priceHtml = (!quote && priceLabel) ? '<span class="price">' + escHtml(priceLabel) + '</span>' : '';
       const bottomClass = quote ? ' product-bottom--quote' : '';
       const action = productPurchaseAction(item);
       return '<article class="product-card guest-product-tile" data-pid="' + pid + '"' + productCategoryAttr(item) + reserveAttr + '>'
-        + '<div class="guest-product-thumb-wrap">' + img + '<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div>'
+        + '<div class="guest-product-thumb-wrap">' + badgeHtml + img + '<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div>'
         + '<div class="product-info"><h3>' + name + '</h3><p>' + desc + '</p>'
         + '<div class="product-bottom' + bottomClass + '">' + priceHtml
         + action
@@ -929,9 +1019,10 @@
 
     function renderOrderSheetHtml() {
       const p = orderProduct;
-      const picUrl = picUrlDisplay(p.pic || '');
+      const picRaw = productPrimaryPic(p);
+      const picUrl = picUrlThumb(picRaw) || picUrlDisplay(picRaw) || picRaw;
       const pic = picUrl
-        ? '<img class="guest-order-pic guest-pic-preview" src="' + escHtml(picUrl) + '" alt="" data-pic-display="' + escHtml(picUrl) + '" role="button" tabindex="0"/>'
+        ? '<img class="guest-order-pic guest-pic-preview" src="' + escHtml(picUrl) + '" alt="" data-pic-display="' + escHtml(picUrlDisplay(picRaw) || picUrl) + '" role="button" tabindex="0"/>'
         : '<div class="guest-order-pic guest-order-pic-empty">\uD83D\uDECD\uFE0F</div>';
       const descText = productDescText(p);
       const desc = descText ? '<p class="guest-product-desc">' + escHtml(descText) + '</p>' : '';
@@ -1297,14 +1388,27 @@
         document.head.appendChild(st);
       }
       document.addEventListener('click', function (e) {
+        const shareBtn = e.target && e.target.closest
+          ? e.target.closest('.guest-product-share-btn')
+          : null;
+        if (shareBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const pid = shareBtn.getAttribute('data-product-share');
+          if (pid) {
+            const found = bootProducts().find(function (p) { return String(p.product_id) === String(pid); });
+            shareProduct(pid, found && found.name);
+          }
+          return;
+        }
         const detailBtn = e.target && e.target.closest
-          ? e.target.closest('.guest-product-info-btn, .guest-tile-cta')
+          ? e.target.closest('.guest-tile-cta[data-product-info]')
           : null;
         if (detailBtn) {
           e.preventDefault();
           e.stopPropagation();
           const pid = detailBtn.getAttribute('data-product-info');
-          if (pid) window.location.href = 'products/' + pid;
+          if (pid) window.location.href = guestProductPageUrl(pid);
           return;
         }
         const orderPic = e.target && e.target.closest ? e.target.closest('img.guest-order-pic') : null;
@@ -1862,6 +1966,18 @@
       }
     }
 
+    function assistantBootMode() {
+      const g = window.__SITE_GUEST__ || {};
+      const fromBoot = String(g.mode || g.boot_mode || '').trim().toLowerCase();
+      if (fromBoot === 'draft') return 'draft';
+      try {
+        const q = new URLSearchParams(window.location.search);
+        const d = String(q.get('draft') || '').trim().toLowerCase();
+        if (d === '1' || d === 'true' || d === 'yes') return 'draft';
+      } catch (e) { /* ignore */ }
+      return 'published';
+    }
+
     function cartSessionPayload() {
       if (!window.c35GuestCart || !window.c35GuestCart.checkoutLines) return null;
       try {
@@ -2172,6 +2288,7 @@
             message: msg,
             cart: cartSessionPayload(),
           };
+          if (assistantBootMode() === 'draft') payload.boot_mode = 'draft';
           const resp = await fetch(assistantApiBase() + '/v1/site/guest-assistant/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },

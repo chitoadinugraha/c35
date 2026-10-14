@@ -107,18 +107,14 @@ SiteDoc siteInfoApplyToDoc(SiteDoc doc, SiteInfoSnapshot snap) {
       if (block.type == 'hours') hoursIdx = i;
       if (block.type == 'hub_profile' || block.type == 'hero') {
         final props = _propsMap(block.propsJson);
+        props['title'] = snap.name;
+        props['subtitle'] = snap.tagline;
+        if (snap.pic.isNotEmpty) props['pic'] = snap.pic;
         if (block.type == 'hub_profile') {
-          props['title'] = snap.name;
-          props['subtitle'] = snap.tagline;
-          if (snap.pic.isNotEmpty) props['pic'] = snap.pic;
           props['location_label'] = snap.locationLabel;
           props['location_href'] = snap.locationHref;
-          props['show_hours'] = showHours;
-        } else {
-          props['title'] = snap.name;
-          props['subtitle'] = snap.tagline;
-          if (snap.pic.isNotEmpty) props['pic'] = snap.pic;
         }
+        props['show_hours'] = showHours;
         block.propsJson = jsonEncode(props);
       }
     }

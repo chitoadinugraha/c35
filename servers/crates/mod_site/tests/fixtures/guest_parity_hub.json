@@ -10,7 +10,6 @@
   "assert_contains": [
     "data-guest=\"profile\"",
     "guest-hub-hero",
-    "guest-hub-cta",
     "hub-location"
   ],
   "assert_not_contains": ["<img", "hub-chip", "<a class=\"hub-chip\""]

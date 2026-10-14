@@ -11,8 +11,8 @@ use std::time::Duration;
 use tracing::{info, warn};
 
 use crate::extension_ipc::{
-    extension_ipc_addr, extension_ipc_listener_pid, extension_ipc_port_in_use, kill_process_pid,
-    HostIpcClient,
+    extension_bridge_get, extension_ipc_addr, extension_ipc_listener_pid,
+    extension_ipc_port_in_use, extension_ipc_server_is_local, kill_process_pid, HostIpcClient,
 };
 
 fn ipc_reachable() -> bool {
@@ -35,6 +35,9 @@ pub fn embedded_agent_active() -> bool {
 }
 
 fn ipc_agent_healthy() -> bool {
+    if extension_ipc_server_is_local() {
+        return extension_bridge_get().is_some() || extension_ipc_port_in_use();
+    }
     if embedded_agent_active() {
         return true;
     }
@@ -72,7 +75,7 @@ pub fn ensure_extension_agent_running() {
         spawn_embedded_extension_agent();
         wait_for_extension_agent(Duration::from_secs(12));
     }
-    if !ipc_agent_healthy() {
+    if !ipc_agent_healthy() && !extension_ipc_server_is_local() {
         ensure_detached_extension_agent();
     }
 }

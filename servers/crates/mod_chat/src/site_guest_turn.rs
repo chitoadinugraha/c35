@@ -5,7 +5,9 @@ use std::time::Instant;
 use anyhow::{anyhow, Context, Result};
 use c35_mod_billing::{billing_resolve, billing_usage_report, TurnBillingCtx};
 use c35_mod_log::{log_put, LogPut};
-use c35_mod_site::{site_published, site_published_meta_json};
+use c35_mod_site::{
+    site_draft_meta_json, site_guest_product_prompt_block, site_published, site_published_meta_json,
+};
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 use tokio_util::sync::CancellationToken;
@@ -31,6 +33,19 @@ use crate::turn_tracer::TurnTracer;
 
 pub const GUEST_KNOWLEDGE_MAX_ITEMS: usize = 50;
 pub const GUEST_KNOWLEDGE_MAX_CHARS: usize = 30_000;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GuestSiteDataMode {
+    Published,
+    Draft,
+}
+
+pub fn guest_site_data_mode_from_boot_mode(raw: Option<&str>) -> GuestSiteDataMode {
+    match raw.map(|s| s.trim().to_lowercase()) {
+        Some(s) if s == "draft" => GuestSiteDataMode::Draft,
+        _ => GuestSiteDataMode::Published,
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct SiteGuestTurnResult {
@@ -118,11 +133,15 @@ struct GuestSiteRow {
     meta: Value,
 }
 
-async fn guest_site_row_load(pool: &PgPool, site_iid: i64) -> Result<GuestSiteRow> {
+async fn guest_site_row_load(
+    pool: &PgPool,
+    site_iid: i64,
+    data_mode: GuestSiteDataMode,
+) -> Result<GuestSiteRow> {
     if site_iid <= 0 {
         anyhow::bail!("site_iid required");
     }
-    if !site_published(pool, site_iid).await? {
+    if data_mode == GuestSiteDataMode::Published && !site_published(pool, site_iid).await? {
         anyhow::bail!("site not published");
     }
     let id_row = sqlx::query(
@@ -146,7 +165,10 @@ async fn guest_site_row_load(pool: &PgPool, site_iid: i64) -> Result<GuestSiteRo
     if owner_iid <= 0 {
         anyhow::bail!("site owner not configured");
     }
-    let meta = site_published_meta_json(pool, site_iid).await;
+    let meta = match data_mode {
+        GuestSiteDataMode::Published => site_published_meta_json(pool, site_iid).await,
+        GuestSiteDataMode::Draft => site_draft_meta_json(pool, site_iid).await,
+    };
     if !guest_chat_enabled(&meta) {
         anyhow::bail!("guest chat disabled");
     }
@@ -211,7 +233,18 @@ pub async fn site_guest_turn(
     message: &str,
     req_id: &str,
 ) -> Result<SiteGuestTurnResult> {
-    site_guest_turn_with_hooks(pool, nats, site_iid, visitor_id, message, req_id, None, None).await
+    site_guest_turn_with_hooks(
+        pool,
+        nats,
+        site_iid,
+        visitor_id,
+        message,
+        req_id,
+        GuestSiteDataMode::Published,
+        None,
+        None,
+    )
+    .await
 }
 
 pub async fn site_guest_turn_with_hooks(
@@ -221,6 +254,7 @@ pub async fn site_guest_turn_with_hooks(
     visitor_id: &str,
     message: &str,
     req_id: &str,
+    data_mode: GuestSiteDataMode,
     on_delta: Option<&mut (dyn FnMut(bool, String) + Send)>,
     on_blocks: Option<&mut (dyn FnMut(String) + Send)>,
 ) -> Result<SiteGuestTurnResult> {
@@ -235,7 +269,7 @@ pub async fn site_guest_turn_with_hooks(
     if text.is_empty() {
         anyhow::bail!("message required");
     }
-    let row = guest_site_row_load(pool, site_iid).await?;
+    let row = guest_site_row_load(pool, site_iid, data_mode).await?;
     let owner_iid = row.owner_iid;
     let _concurrency = prompt_run_concurrency_acquire()
         .await
@@ -310,6 +344,13 @@ pub async fn site_guest_turn_with_hooks(
     if !knowledge.is_empty() {
         system.push_str("\n\n");
         system.push_str(&knowledge);
+    }
+    if commerce {
+        let products = site_guest_product_prompt_block(pool, site_iid).await;
+        if !products.is_empty() {
+            system.push_str("\n\n");
+            system.push_str(&products);
+        }
     }
     if let Some(intro) = row
         .meta
@@ -513,6 +554,22 @@ mod tests {
         let tools = site_guest_tool_catalog(true);
         let names: Vec<_> = tools.iter().map(|t| t.name.clone()).collect();
         assert!(names.iter().any(|n| n == "site.tx.preview"));
+    }
+
+    #[test]
+    fn guest_site_data_mode_parses_draft() {
+        assert_eq!(
+            guest_site_data_mode_from_boot_mode(Some("draft")),
+            GuestSiteDataMode::Draft
+        );
+        assert_eq!(
+            guest_site_data_mode_from_boot_mode(Some("published")),
+            GuestSiteDataMode::Published
+        );
+        assert_eq!(
+            guest_site_data_mode_from_boot_mode(None),
+            GuestSiteDataMode::Published
+        );
     }
 
     #[test]

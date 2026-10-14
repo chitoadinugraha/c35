@@ -282,8 +282,11 @@ fn parity_product_detail_article_matches_preview_shape() {
         reservation_capacity: 1,
         reservation_hold_ttl_seconds: 3600,
         icon: "mdi:coffee".into(),
+        pics: vec![],
         stock_show_to_customer: true,
         stock_qty: Some(3),
+        stock_unit: String::new(),
+        stock_show_max_qty: 0,
     });
     assert!(html.contains("data-guest=\"site_product\""));
     assert!(html.contains("Stock: 3"));
@@ -314,8 +317,8 @@ fn parity_hub_profile_hero_cta_and_location() {
         &json!({}),
     );
     assert!(html.contains("guest-hub-hero"));
-    assert!(html.contains("guest-hub-cta"));
-    assert!(html.contains("Hubungi Kami"));
+    assert!(!html.contains("guest-hub-cta"));
+    assert!(!html.contains("Hubungi Kami"));
     assert!(html.contains("hub-location"));
 }
 

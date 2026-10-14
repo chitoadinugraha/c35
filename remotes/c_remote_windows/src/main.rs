@@ -17,6 +17,7 @@ fn init_drive_winfsp() {}
 
 async fn run() -> anyhow::Result<()> {
     bind_runtime();
+    c_remote_core::update::update_prune_obsolete_staging();
     init_drive_winfsp();
     let cli = std::env::args().any(|a| a == "--cli");
     let dev = is_dev_mode();
@@ -268,6 +269,12 @@ fn run_supervisor() {
 
         let mut cmd = std::process::Command::new(&exe);
         cmd.args(&child_args);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
 
         let mut child = match cmd.spawn() {
             Ok(c) => c,

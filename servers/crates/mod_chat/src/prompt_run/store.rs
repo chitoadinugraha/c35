@@ -582,6 +582,45 @@ pub fn prompt_run_kind_normalize(kind: &str, topic_id: &str) -> &'static str {
     prompt_run_kind_default(topic_id)
 }
 
+/// Count successful tool hops on a `prompt_run` req_id (`ai.log` meta.tool).
+pub async fn prompt_run_tool_counts(
+    pool: &PgPool,
+    req_id: &str,
+) -> Result<crate::prompt::google_forms::ComputerUseToolCounts> {
+    let device_input = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)::bigint
+        FROM ai.log
+        WHERE req_id = $1
+          AND deleted_ts IS NULL
+          AND kind = 'tool'
+          AND topic = 'tool_result'
+          AND meta->>'tool' = 'device.input'
+        "#,
+    )
+    .bind(req_id)
+    .fetch_one(pool)
+    .await?;
+    let device_screenshot = sqlx::query_scalar::<_, i64>(
+        r#"
+        SELECT COUNT(*)::bigint
+        FROM ai.log
+        WHERE req_id = $1
+          AND deleted_ts IS NULL
+          AND kind = 'tool'
+          AND topic = 'tool_result'
+          AND meta->>'tool' = 'device.screenshot'
+        "#,
+    )
+    .bind(req_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(crate::prompt::google_forms::ComputerUseToolCounts {
+        device_input: device_input.max(0) as u32,
+        device_screenshot: device_screenshot.max(0) as u32,
+    })
+}
+
 pub async fn prompt_run_summary(pool: &PgPool, req_id: &str) -> Result<String> {
     let msg = sqlx::query_scalar::<_, Option<String>>(
         r#"

@@ -134,8 +134,9 @@ pub use bot_session::{bot_session_billing_snapshot, bot_session_on_turn, bot_pro
 pub use channel_prompt_turn::channel_prompt_turn;
 pub use site_guest_cart::guest_cart_patch;
 pub use site_guest_turn::{
-    guest_chat_enabled, knowledge_prompt_block, site_guest_tool_catalog, site_guest_turn,
-    site_guest_turn_with_hooks, SiteGuestTurnResult,
+    guest_chat_enabled, guest_site_data_mode_from_boot_mode, knowledge_prompt_block,
+    site_guest_tool_catalog, site_guest_turn, site_guest_turn_with_hooks, GuestSiteDataMode,
+    SiteGuestTurnResult,
 };
 pub use inbox::{chat_msg_list, inbox_list};
 pub use log_list::log_list;

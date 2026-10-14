@@ -90,11 +90,19 @@ pub fn product_card_html_i18n(
     let stock = product_stock_line(p);
     let cat_attr = product_category_data_attr(p);
     let (price_row, bottom_class) = product_price_row_html(p, i18n, &price_attr);
+    let badge_html = if p.can_reserve {
+        r#"<span class="guest-product-pill guest-product-pill--reserve">Reservasi</span>"#.to_string()
+    } else if p.stock_show_to_customer && p.stock_qty.map(|q| q > 0 && q <= 3).unwrap_or(false) {
+        format!(r#"<span class="guest-product-pill guest-product-pill--stock">Sisa {}</span>"#, p.stock_qty.unwrap())
+    } else {
+        String::new()
+    };
     format!(
-        r#"<article class="product-card guest-product-tile" data-pid="{pid}"{cat_attr}{reserve_attr}><div class="guest-product-thumb-wrap">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom{bottom_class}">{price_row}{action}</div></div></article>"#,
+        r#"<article class="product-card guest-product-tile" data-pid="{pid}"{cat_attr}{reserve_attr}><div class="guest-product-thumb-wrap">{badge_html}{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom{bottom_class}">{price_row}{action}</div></div></article>"#,
         pid = p.product_id,
         cat_attr = cat_attr,
         reserve_attr = reserve_attr,
+        badge_html = badge_html,
         img = img,
         title_attr = title_attr,
         name = esc(&p.name),
@@ -170,13 +178,15 @@ pub fn product_list_row_html_i18n(
 }
 
 fn product_stock_line(p: &ProductRow) -> String {
-    if !p.stock_show_to_customer {
-        return String::new();
-    }
-    let Some(n) = p.stock_qty else {
-        return String::new();
-    };
-    format!(r#"<p class="product-stock">Stock: {n}</p>"#)
+    let label = crate::guest_product_display::guest_product_stock_customer_label(
+        p.stock_show_to_customer,
+        p.stock_qty,
+        &p.stock_unit,
+        p.stock_show_max_qty,
+    );
+    label
+        .map(|text| format!(r#"<p class="product-stock">{}</p>"#, esc(&text)))
+        .unwrap_or_default()
 }
 
 fn product_reserve_attrs(p: &ProductRow) -> String {
@@ -222,20 +232,14 @@ fn product_price_row_html(p: &ProductRow, i18n: &GuestI18n, price_attr: &str) ->
 }
 
 fn product_tile_actions(p: &ProductRow, i18n: &GuestI18n) -> String {
-    let info = format!(
-        r#"<button type="button" class="guest-product-info-btn" data-product-info="{}" aria-label="{}">&#9432;</button>"#,
-        p.product_id,
-        esc_attr(i18n.detail_aria()),
-    );
     if p.price == GUEST_PRODUCT_PRICE_CONTACT {
         return format!(
-            r#"<button type="button" class="guest-tile-cta" data-product-info="{}">{}</button>{}"#,
+            r#"<button type="button" class="guest-tile-cta guest-product-info-btn" data-product-info="{}">{}</button>"#,
             p.product_id,
             esc(i18n.tile_contact_cta()),
-            info,
         );
     }
-    info
+    String::new()
 }
 
 fn product_detail_actions(p: &ProductRow) -> String {
@@ -259,14 +263,12 @@ fn product_detail_actions(p: &ProductRow) -> String {
 
 /// Product detail article. Reservable products show Reservasi and omit + Pesan.
 pub fn product_detail_article_html(p: &ProductRow) -> String {
-    let img = if p.pic.is_empty() {
+    use crate::guest_product::product_gallery_paths;
+    let paths = product_gallery_paths(p);
+    let img = if paths.is_empty() {
         product_placeholder_html(&p.icon)
     } else {
-        format!(
-            r#"<img class="guest-pic-thumb product-detail-pic" src="{}" alt="" loading="lazy" data-pic-display="{}" role="button" tabindex="0"/>"#,
-            esc(&pic_url(&p.pic)),
-            esc_attr(&pic_url_display(&p.pic)),
-        )
+        post_detail_media_html(&paths)
     };
     format!(
         r#"<article class="product-detail block" data-guest="site_product" data-pid="{pid}"{reserve_attr}>{img}<h1>{name}</h1><p>{desc}</p>{stock}<p class="price">{price_str}</p>{action}</article>"#,
@@ -603,7 +605,7 @@ fn hub_hours_primary_cta_html(meta: &Value) -> Option<String> {
     let status_class = if open { "is-open" } else { "is-closed" };
     let panel = hub_hours_panel_html(&slots);
     Some(format!(
-        r#"<details class="guest-hub-hours-primary"><summary class="guest-hub-cta guest-hub-cta--hours"><span class="guest-hub-hours-dot {status_class}" aria-hidden="true"></span><span class="guest-hub-hours-status {status_class}">{label}</span></summary><div class="guest-hub-hours-panel guest-hub-hours-panel--primary">{panel}</div></details>"#,
+        r#"<details class="guest-hub-hours-primary"><summary class="guest-hub-cta guest-hub-cta--hours"><span class="guest-hub-hours-dot {status_class}" aria-hidden="true"></span><span class="guest-hub-hours-status {status_class}">{label}</span><span class="guest-hub-hours-chevron" aria-hidden="true">&#9662;</span></summary><div class="guest-hub-hours-panel guest-hub-hours-panel--primary">{panel}</div></details>"#,
         status_class = esc_attr(status_class),
         label = esc(&label),
         panel = panel,
@@ -620,7 +622,7 @@ fn hub_hours_compact_html(meta: &Value) -> String {
     let status_class = if open { "is-open" } else { "is-closed" };
     let panel = hub_hours_panel_html(&slots);
     format!(
-        r#"<div class="hub-hours-compact"><details class="guest-hub-hours-chip"><summary><span class="guest-hub-hours-dot {status_class}" aria-hidden="true"></span><span class="guest-hub-hours-icon" aria-hidden="true">&#9201;</span><span class="guest-hub-hours-status {status_class}">{label}</span></summary><div class="guest-hub-hours-panel">{panel}</div></details></div>"#,
+        r#"<div class="hub-hours-compact"><details class="guest-hub-hours-chip"><summary><span class="guest-hub-hours-dot {status_class}" aria-hidden="true"></span><span class="guest-hub-hours-icon" aria-hidden="true">&#9201;</span><span class="guest-hub-hours-status {status_class}">{label}</span><span class="guest-hub-hours-chevron" aria-hidden="true">&#9662;</span></summary><div class="guest-hub-hours-panel">{panel}</div></details></div>"#,
         status_class = esc_attr(status_class),
         label = esc(&label),
         panel = panel,
@@ -834,6 +836,7 @@ fn family_decl(family: &str) -> String {
 }
 
 /// Standalone `hero` block (Flutter `GuestSiteHeroBlock` defaults — not theme `profile` flags).
+#[allow(dead_code)]
 fn flutter_hero_profile() -> ProfileDesign {
     ProfileDesign {
         show_avatar: true,
@@ -992,14 +995,23 @@ fn guest_hub_hero_inner_html(
     } else {
         String::new()
     };
+    let hub_has_contact_href = props
+        .get("cta_href")
+        .or_else(|| props.get("cta_url"))
+        .and_then(|x| x.as_str())
+        .map(str::trim)
+        .is_some_and(|s| !s.is_empty());
     let cta_html = if hours_primary_cta {
-        hub_hours_primary_cta_html(site_meta)
-            .unwrap_or_else(|| hub_contact_cta_html(props, "Hubungi Kami"))
-    } else {
+        hub_hours_primary_cta_html(site_meta).unwrap_or_default()
+    } else if hub_has_contact_href {
         hub_contact_cta_html(props, "Hubungi Kami")
+    } else {
+        String::new()
     };
+    let share_btn = r#"<button type="button" class="guest-hero-share-btn" onclick="c35GuestShare()" aria-label="Share Store" title="Share">&#128279;</button>"#;
     format!(
-        "{avatar}{title_html}{bio_html}{cta_html}",
+        "{share_btn}{avatar}{title_html}{bio_html}{cta_html}",
+        share_btn = share_btn,
         avatar = avatar,
         title_html = title_html,
         bio_html = bio_html,
@@ -1023,8 +1035,13 @@ pub fn block_html_render(
 ) -> String {
     match block_type {
         "hero" => {
-            // Match Flutter `GuestSiteHeroBlock` — compact hub strip, not legacy full-bleed `.hero` banner.
-            let inner = guest_hub_hero_inner_html(props, &flutter_hero_profile(), design, site_meta, false);
+            // Match Flutter `GuestSiteHubProfileBlock` / `hub_profile` hours-primary CTA.
+            let show_hours = props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false);
+            let profile = &design.profile;
+            let hours_primary = profile.show_hours
+                && show_hours
+                && !crate::guest_schedule::slots_from_meta(site_meta).is_empty();
+            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta, hours_primary);
             format!(
                 r#"<section class="block hub-profile" data-guest="hero"><div class="guest-hub-hero">{inner}</div></section>"#,
                 inner = inner,
@@ -1159,29 +1176,50 @@ pub fn block_html_render(
                 .and_then(|x| x.as_array())
                 .cloned()
                 .unwrap_or_default();
-            let lis = if !items.is_empty() {
-                items
-                    .iter()
-                    .map(|item| link_item_html(item, design))
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<_>>()
-                    .join("")
+            let mut icon_lis = Vec::new();
+            let mut list_lis = Vec::new();
+            if !items.is_empty() {
+                for item in &items {
+                    let disp = item
+                        .get("display")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("list");
+                    let html = link_item_html(item, design);
+                    if !html.is_empty() {
+                        if site_link_display_normalize(disp) == "icon" {
+                            icon_lis.push(html);
+                        } else {
+                            list_lis.push(html);
+                        }
+                    }
+                }
             } else {
-                hub_links
-                    .iter()
-                    .map(|link| link_hub_html(link, design))
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<_>>()
-                    .join("")
-            };
-            if lis.is_empty() {
+                for link in hub_links {
+                    let html = link_hub_html(link, design);
+                    if !html.is_empty() {
+                        if site_link_display_normalize(&link.display) == "icon" {
+                            icon_lis.push(html);
+                        } else {
+                            list_lis.push(html);
+                        }
+                    }
+                }
+            }
+            if icon_lis.is_empty() && list_lis.is_empty() {
                 return String::new();
             }
             let heading = links_block_heading(title);
+            let icons_html = if !icon_lis.is_empty() {
+                format!(r#"<ul class="guest-links-icons">{}</ul>"#, icon_lis.join(""))
+            } else {
+                String::new()
+            };
+            let list_html = format!(r#"<ul class="guest-links-list">{}</ul>"#, list_lis.join(""));
             format!(
-                r#"<section class="block links-block" data-guest="link">{heading}<ul class="guest-links-list">{lis}</ul></section>"#,
+                r#"<section class="block links-block" data-guest="link">{heading}{icons_html}{list_html}</section>"#,
                 heading = heading,
-                lis = lis,
+                icons_html = icons_html,
+                list_html = list_html,
             )
         }
         "contact_form" => {
@@ -1530,9 +1568,9 @@ body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-fea
 .queue{{padding:16px;background:var(--card-bg,#fff);border-radius:var(--card-radius,14px);border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent))}}
 .guest-queue-btn,.guest-order-poll-btn{{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:8px 16px;font-weight:600;cursor:pointer;margin-top:8px}}
 .block.hub-profile{{margin:0 0 16px;padding:0}}
-.hub-avatar{{width:72px;height:72px;border-radius:50%;object-fit:cover;margin:0 auto 10px;display:block;box-shadow:0 4px 16px rgba(0,0,0,.08)}}
+.hub-avatar{{width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block;box-shadow:0 10px 30px rgba(0,0,0,.12),0 0 0 3px color-mix(in srgb,var(--card-bg,#fff) 85%,transparent);transition:transform .25s cubic-bezier(.16,1,.3,1)}}
 .hub-chips{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}}
-.hub-chip{{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:var(--card-bg,#fff);border:1px solid var(--card-border,color-mix(in srgb,var(--muted,#a1a1aa) 25%,transparent));font-size:12px;color:var(--fg,#18181b);text-decoration:none}}
+.hub-chip{{display:inline-flex;align-items:center;padding:6px 14px;border-radius:999px;background:var(--card-bg,#fff);border:1px solid var(--card-border,color-mix(in srgb,var(--muted,#a1a1aa) 22%,transparent));font-size:12px;color:var(--fg,#18181b);text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.03)}}
 .hub-chip-muted{{color:var(--muted,#71717a)}}
 .order-track label{{display:block;margin:12px 0}}
 .order-track input{{width:100%;padding:10px 12px;border:1px solid color-mix(in srgb,var(--muted,#a1a1aa) 35%,transparent);border-radius:10px;box-sizing:border-box;background:transparent;color:inherit}}
@@ -1622,9 +1660,19 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
         .and_then(|v| v.as_array())
         .map(|a| a.len())
         .unwrap_or(0);
+    let alien_id: String = sqlx::query_scalar(
+        r#"SELECT COALESCE(alien_id, '') FROM ai.identity WHERE id = $1 AND deleted_ts IS NULL"#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or_default();
     let guest = serde_json::json!({
         "site_iid": site_iid,
         "site_id": site_iid,
+        "alien_id": alien_id.trim(),
         "api_base": "",
         "commerce_boot": commerce,
         "order_progress_steps": order_progress_steps_json(order_fulfillment),

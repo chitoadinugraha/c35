@@ -19,10 +19,10 @@ pub const CK_FAIL_CLASS: &str = "fail_class";
 pub const CK_FAIL_REASON: &str = "fail_reason";
 
 pub const FATAL_ERROR_THRESHOLD: i32 = 2;
-pub const SCREENSHOT_STUCK_LEN: usize = 3;
-pub const COMPUTER_USE_MAX_ROUNDS: u8 = 16;
-pub const COMPUTER_USE_MAX_DEVICE_INPUT: i32 = 12;
-pub const COMPUTER_USE_MAX_SCREENSHOTS: i32 = 20;
+pub const SCREENSHOT_STUCK_LEN: usize = 5;
+pub const COMPUTER_USE_MAX_ROUNDS: u8 = 75;
+pub const COMPUTER_USE_MAX_DEVICE_INPUT: i32 = 60;
+pub const COMPUTER_USE_MAX_SCREENSHOTS: i32 = 80;
 
 pub fn chat_tool_rounds_max(run_kind: &str) -> u8 {
     if run_kind == "computer_use" {
@@ -106,10 +106,11 @@ pub fn checkpoint_screenshot_stuck(checkpoint: &Value) -> bool {
         return false;
     }
     let tail = &hashes[hashes.len() - SCREENSHOT_STUCK_LEN..];
-    let a = tail[0].as_str().filter(|s| !s.is_empty());
-    let b = tail[1].as_str();
-    let c = tail[2].as_str();
-    matches!((a, b, c), (Some(a), Some(b), Some(c)) if a == b && b == c)
+    let first = match tail.first().and_then(|v| v.as_str()).filter(|s| !s.is_empty()) {
+        Some(s) => s,
+        None => return false,
+    };
+    tail.iter().all(|v| v.as_str() == Some(first))
 }
 
 pub fn checkpoint_fatal_class(checkpoint: &Value) -> Option<&str> {
@@ -188,7 +189,7 @@ pub fn checkpoint_tool_should_stop(
         return Some(("fatal_repeat", "same tool error repeated twice"));
     }
     if checkpoint_screenshot_stuck(checkpoint) {
-        return Some(("stuck_ui", "desktop unchanged across last 3 screenshots"));
+        return Some(("stuck_ui", "desktop unchanged across last 5 screenshots"));
     }
     if kind != "computer_use" {
         return None;
@@ -261,12 +262,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn screenshot_stuck_after_three_identical_hashes() {
+    fn screenshot_stuck_after_five_identical_hashes() {
         let mut cp = json!({});
-        checkpoint_record_screenshot_hash_hex(&mut cp, "abc");
-        assert!(!checkpoint_screenshot_stuck(&cp));
-        checkpoint_record_screenshot_hash_hex(&mut cp, "abc");
-        assert!(!checkpoint_screenshot_stuck(&cp));
+        for _ in 0..4 {
+            checkpoint_record_screenshot_hash_hex(&mut cp, "abc");
+            assert!(!checkpoint_screenshot_stuck(&cp));
+        }
         checkpoint_record_screenshot_hash_hex(&mut cp, "abc");
         assert!(checkpoint_screenshot_stuck(&cp));
     }

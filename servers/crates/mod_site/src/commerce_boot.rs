@@ -177,6 +177,21 @@ pub async fn site_published_meta_json(pool: &PgPool, site_iid: i64) -> Value {
     meta_from_doc_json(row)
 }
 
+pub async fn site_draft_meta_json(pool: &PgPool, site_iid: i64) -> Value {
+    let row = sqlx::query_scalar::<_, serde_json::Value>(
+        r#"
+        SELECT doc_json FROM site.draft
+        WHERE site_iid = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(site_iid)
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten();
+    meta_from_doc_json(row)
+}
+
 fn meta_from_doc_json(doc: Option<serde_json::Value>) -> Value {
     doc.and_then(|d| d.get("meta").cloned())
         .unwrap_or_else(|| json!({}))

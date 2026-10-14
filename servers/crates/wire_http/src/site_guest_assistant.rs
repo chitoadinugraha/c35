@@ -12,7 +12,9 @@ use axum::{
     Json, Router,
 };
 use c35_ctx::AppState;
-use c35_mod_chat::{guest_cart_patch, site_guest_turn_with_hooks};
+use c35_mod_chat::{
+    guest_cart_patch, guest_site_data_mode_from_boot_mode, site_guest_turn_with_hooks,
+};
 use c35_store::snowflake_id;
 use serde::Deserialize;
 use serde_json::json;
@@ -82,7 +84,7 @@ fn with_cors(mut resp: Response, origin: &str) -> Response {
         );
         resp.headers_mut().insert(
             header::ACCESS_CONTROL_ALLOW_HEADERS,
-            HeaderValue::from_static("content-type, x-visitor-id"),
+            HeaderValue::from_static("content-type, x-visitor-id, authorization"),
         );
         resp.headers_mut()
             .insert(header::VARY, HeaderValue::from_static("Origin"));
@@ -113,6 +115,8 @@ struct GuestChatBody {
     #[serde(default)]
     stream: bool,
     cart: Option<serde_json::Value>,
+    /// `draft` uses `site.draft` meta (preview / `?draft=1`); default requires published snapshot.
+    boot_mode: Option<String>,
 }
 
 async fn guest_assistant_chat_post(
@@ -171,6 +175,7 @@ async fn guest_assistant_chat_post(
             origin,
         );
     }
+    let data_mode = guest_site_data_mode_from_boot_mode(body.boot_mode.as_deref());
     match site_guest_turn_with_hooks(
         &st.pool,
         st.nats.as_ref(),
@@ -178,6 +183,7 @@ async fn guest_assistant_chat_post(
         &visitor_id,
         &body.message,
         &req_id,
+        data_mode,
         None,
         None,
     )

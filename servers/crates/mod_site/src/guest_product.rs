@@ -24,10 +24,16 @@ pub struct ProductRow {
     pub reservation_capacity: i64,
     pub reservation_hold_ttl_seconds: i64,
     pub icon: String,
+    /// Extra gallery paths from `product_json.pics` (excluding primary `pic`).
+    pub pics: Vec<String>,
     /// From `product_json.stock_show_to_customer`. Absent or non-true stays false.
     pub stock_show_to_customer: bool,
     /// `site.product.stock_qty` when the guest query loaded it. `None` means no count to show.
     pub stock_qty: Option<i64>,
+    /// From `product_json.stock_unit` (short suffix, e.g. `pcs`).
+    pub stock_unit: String,
+    /// From `product_json.stock_show_max_qty` — cap shown count as `{max}+`.
+    pub stock_show_max_qty: i64,
 }
 
 fn guest_icon_svg(p: &ProductRow) -> &'static str {
@@ -42,6 +48,35 @@ fn guest_icon_svg(p: &ProductRow) -> &'static str {
     }
 }
 
+pub fn pics_from_product_json(v: &Value) -> Vec<String> {
+    let Some(arr) = v.get("pics").and_then(|x| x.as_array()) else {
+        return vec![];
+    };
+    arr.iter()
+        .filter_map(|x| x.as_str().map(str::trim).filter(|s| !s.is_empty()))
+        .map(|s| s.to_string())
+        .collect()
+}
+
+pub fn product_gallery_paths(p: &ProductRow) -> Vec<String> {
+    let mut out: Vec<String> = vec![];
+    let primary = p.pic.trim();
+    if !primary.is_empty() {
+        out.push(primary.to_string());
+    }
+    for extra in &p.pics {
+        let e = extra.trim();
+        if e.is_empty() {
+            continue;
+        }
+        if out.iter().any(|x| x == e) {
+            continue;
+        }
+        out.push(e.to_string());
+    }
+    out
+}
+
 pub fn product_row_json(p: &ProductRow) -> Value {
     serde_json::json!({
         "product_id": p.product_id,
@@ -49,6 +84,7 @@ pub fn product_row_json(p: &ProductRow) -> Value {
         "desc": p.desc,
         "price": p.price,
         "pic": pic_url(&p.pic),
+        "pics": p.pics,
         "icon": p.icon,
         "icon_svg": guest_icon_svg(p),
         "category": p.category,
@@ -173,6 +209,23 @@ fn stock_show_to_customer_from_product_json(v: &Value) -> bool {
         == Some(true)
 }
 
+fn stock_unit_from_product_json(v: &Value) -> String {
+    v.as_object()
+        .and_then(|map| map.get("stock_unit"))
+        .and_then(|x| x.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_default()
+}
+
+fn stock_show_max_qty_from_product_json(v: &Value) -> i64 {
+    v.as_object()
+        .and_then(|map| map.get("stock_show_max_qty"))
+        .and_then(|x| x.as_i64())
+        .filter(|n| *n > 0)
+        .unwrap_or(0)
+}
+
 fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
     let product_json: Value = r.get("product_json");
     let (duration_value, duration_unit, reservation_unit_selection) =
@@ -197,8 +250,11 @@ fn product_row_from_pg(r: &sqlx::postgres::PgRow) -> ProductRow {
         reservation_capacity,
         reservation_hold_ttl_seconds,
         icon: String::new(),
+        pics: pics_from_product_json(&product_json),
         stock_show_to_customer: stock_show_to_customer_from_product_json(&product_json),
         stock_qty: Some(i64::from(stock_qty)),
+        stock_unit: stock_unit_from_product_json(&product_json),
+        stock_show_max_qty: stock_show_max_qty_from_product_json(&product_json),
     }
 }
 

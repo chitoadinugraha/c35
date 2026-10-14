@@ -64,6 +64,15 @@ function Install-WinFspIfNeeded {
     }
 }
 
+function Stop-RemoteAgentProcesses {
+    param([switch]$Quiet)
+    foreach ($name in @('alienai_remote_windows', 'c_remote_windows')) {
+        Get-Process -Name $name -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 600
+    if (-not $Quiet) { Write-Host '==> Stopped running remote agent processes (if any).' }
+}
+
 function Register-RemoteAgentAutostart {
     param(
         [Parameter(Mandatory = $true)][string]$ExePath,

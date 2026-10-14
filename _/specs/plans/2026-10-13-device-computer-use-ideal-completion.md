@@ -1,8 +1,16 @@
 # @device computer use — ideal completion (no handoffs, honest status)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development or superpowers:executing-plans. Checkbox tasks (`- [ ]`) are the source of truth.
->
-> **Regression anchor:** Home prompt `@iid:98063412749627392` (VM1) — open Google Forms, create **Test Pendaftaran** with fields **nama**, **gender**, **alamat**. Parent `req_id` `103367660427071488`, child `103367679410491392` (Oct 13 2026): delegate **ok**, tools ran on correct `device_iid`, but child final text was a **give-up** (“Blank form … not responding”) that did **not** match `reply_looks_like_computer_use_handoff` → status **done** → parent echoed incomplete work as success.
+
+## Status (2026-10-13)
+
+**Shipped in tree (main):** `computer_use.rs` handoff/incomplete detection; `delegate.rs` `goal_met` / `incomplete`; `tool_loop.rs` long delegate timeout + parent incomplete hint; `google_forms.rs` tab-resume playbook (compose + delegate goal augment); `inst.device.google_forms` seed; `compose_force_device_operate`; VM1 screenshot fallback in remote agent v56; `prompt_device_form_loop.ps1`; tests `computer_use_completion_test`, `delegate_tool_test`, `compose_test`.
+
+**Verified locally:** MCP `prompt_compose` golden phrase → `inst.device.google_forms` + `computer_use.delegate` fed; `prompt_run` parent `103507325071310848` with child `103507681599733760` — child used `device.screenshot` + `device.input` (no child `shell.run` / `forms.new` in log); `inst_put` for `inst.device.google_forms` on live DB.
+
+**Still open:** Visual proof on VM1 every run; stricter `goal_met` (optional final-screenshot gate); cluster `server_ai` publish; Flutter connection-failed reconciliation (Track G); optional Chrome focus/tab helper on Windows agent.
+
+> **Regression anchor:** Home prompt `@iid:98063412749627392` (VM1) — open Google Forms, create **Test Pendaftaran** with fields **nama**, **gender**, **alamat**. Early Oct 13 failure: parent `103367660427071488`, child `103367679410491392` — give-up prose marked **done**. Later success path: parent `103507325071310848`, child `103507681599733760`.
 
 **Goal:** Multi-step @device UI goals (forms, wizards, installers) finish on the remote machine when physically possible, or fail with a **clear incomplete** outcome — never “please click” prose and never `ok: true` when the goal was not met.
 
@@ -64,6 +72,7 @@ Assert: `inst.device.operate` in `inst_ids`; `computer_use.delegate` **fed**; ch
 | File | Responsibility |
 |------|----------------|
 | `servers/crates/mod_chat/src/prompt/computer_use.rs` | Handoff + **incomplete/give-up** detection, shared hints |
+| `servers/crates/mod_chat/src/prompt/google_forms.rs` | Tab-resume playbook; Forms `goal_met` summary heuristics |
 | `servers/crates/mod_chat/src/prompt/tool_loop.rs` | Reject bad final text; cap handoff retries → force tool hop or fail |
 | `servers/crates/mod_chat/src/prompt_run/worker.rs` | On finish: block `done` if final msg incomplete (computer_use) |
 | `servers/crates/mod_chat/src/prompt_run/checkpoint.rs` | Optional: treat “N handoff rejects” like stuck_ui |
@@ -90,9 +99,9 @@ Assert: `inst.device.operate` in `inst_ids`; `computer_use.delegate` **fed**; ch
 - Produces: `reply_looks_like_computer_use_incomplete(text: &str) -> bool` (give-up: “blocked by”, “not responding”, “unable to”, “could not complete”, “multiple tabs”, “template is not”, Indonesian equivalents).
 - Produces: `computer_use_final_text_acceptable(text: &str) -> bool` = not handoff and not incomplete.
 
-- [ ] **Step 1:** Add failing tests for Oct 13 child snippet and for good completion sentence.
-- [ ] **Step 2:** Implement detectors; extend `reply_looks_like_computer_use_handoff` only where clearly user-directed (keep list maintainable — prefer `incomplete` for model give-up).
-- [ ] **Step 3:** `cargo test -p c35_mod_chat computer_use` from `servers/`.
+- [x] **Step 1:** Add failing tests for Oct 13 child snippet and for good completion sentence.
+- [x] **Step 2:** Implement detectors; extend `reply_looks_like_computer_use_handoff` only where clearly user-directed (keep list maintainable — prefer `incomplete` for model give-up).
+- [x] **Step 3:** `cargo test -p c35_mod_chat computer_use` from `servers/`.
 
 ### Track B: Child cannot finish “done” with bad text (`tool_loop.rs` + `worker.rs`)
 
@@ -130,9 +139,9 @@ Assert: `inst.device.operate` in `inst_ids`; `computer_use.delegate` **fed**; ch
 - `ok` = `status == "done" && goal_met`
 - `goal_met` = `computer_use_final_text_acceptable(summary)` when `kind == "computer_use"` (else `status == "done"`).
 
-- [ ] **Step 1:** Test `delegate_result_json` with handoff summary + `status=done` → `ok: false`.
-- [ ] **Step 2:** Implement; ensure `computer_use.delegate` and `delegate.run` share helper.
-- [ ] **Step 3:** `cargo test -p c35_mod_chat delegate`.
+- [x] **Step 1:** Test `delegate_result_json` with handoff summary + `status=done` → `ok: false`.
+- [x] **Step 2:** Implement; ensure `computer_use.delegate` and `delegate.run` share helper.
+- [x] **Step 3:** `cargo test -p c35_mod_chat delegate`.
 
 ---
 
@@ -142,7 +151,7 @@ Assert: `inst.device.operate` in `inst_ids`; `computer_use.delegate` **fed**; ch
 
 **Files:**
 - Modify: `_/schemas/inst.sql` — `inst.computer_use`, `inst.device.operate`
-- Optional new row: `inst.device.google_forms` (task, `topics: {device}`, phrases: `google form`, `forms.google`, `buat form`, priority 158)
+- **`inst.device.google_forms`** (task, `topics: {device}`, phrases: `google form`, `forms.google`, `buat form`, priority 158) — **seeded**
 
 **Inst content (English, seed):**
 - Before clicking templates: `device.screenshot` som=true; prefer **one** Chrome window — `shell.run` to focus or close extra tabs only when screenshot shows tab strip clutter.
@@ -151,8 +160,8 @@ Assert: `inst.device.operate` in `inst_ids`; `computer_use.delegate` **fed**; ch
 - Explicit: opening `forms.google.com` is **not** completion.
 
 **Deploy:**
-- [ ] Run seed migration path used by cluster OR document `inst_put` from pod with NATS (agent env failed before).
-- [ ] `prompt_compose` golden phrase → `inst.device.operate` + forms inst if added.
+- [x] Run seed migration path used by cluster OR document `inst_put` from pod with NATS (agent env failed before).
+- [x] `prompt_compose` golden phrase → `inst.device.operate` + forms inst if added.
 
 ### Track E: Parent hop after delegate (inst-only first; mechanical if needed)
 
@@ -194,7 +203,7 @@ Assert: `inst.device.operate` in `inst_ids`; `computer_use.delegate` **fed**; ch
 - [ ] `cd servers && cargo build -p server_ai && cargo test -p c35_mod_chat`
 - [ ] Restart local `server_ai` on `:10000`; MCP `prompt_run` golden phrase (99000).
 - [ ] Manual: VM1 desktop shows form or clear failure in chat.
-- [ ] Update `_/specs/remote.md` § computer use: `goal_met`, incomplete delegate, child `failed` vs parent messaging.
+- [x] Update `_/specs/remote.md` § computer use: `goal_met`, incomplete delegate, child `failed` vs parent messaging.
 - [ ] Cluster: publish server image + `inst_put` job after merge.
 
 ---

@@ -21,6 +21,18 @@ use crate::chrome_native::messages::{
 
 const DEFAULT_PORT: u16 = 37538;
 
+static LOCAL_IPC_SERVER: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Set when this process hosts the extension IPC listener (unified desktop agent).
+pub fn mark_extension_ipc_server_active() {
+    LOCAL_IPC_SERVER.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn extension_ipc_server_is_local() -> bool {
+    LOCAL_IPC_SERVER.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 /// User-facing hint when the extension IPC bridge is not available (CE-A6/K.1).
 pub const EXTENSION_IPC_NOT_READY_MSG: &str =
     "Start Chrome Remote agent from the app Remote tab (or run start_chrome_remote_agent.ps1), then ensure the Chrome extension is connected.";
@@ -39,10 +51,22 @@ pub fn extension_ipc_listener_pid() -> Option<u32> {
     {
         let port = extension_ipc_addr().port();
         let needle = format!(":{port}");
-        let out = std::process::Command::new("netstat")
-            .args(["-ano"])
-            .output()
-            .ok()?;
+        let out = {
+            #[cfg(windows)]
+            {
+                crate::win_util::spawn_no_console("netstat", &["-ano"])
+                    .and_then(|c| c.wait_with_output())
+                    .ok()
+            }
+            #[cfg(not(windows))]
+            {
+                std::process::Command::new("netstat")
+                    .args(["-ano"])
+                    .output()
+                    .ok()
+            }
+        };
+        let out = out?;
         let text = String::from_utf8_lossy(&out.stdout);
         for line in text.lines() {
             if !line.contains("LISTENING") {
@@ -65,9 +89,8 @@ pub fn kill_process_pid(pid: u32) -> bool {
     if pid == 0 {
         return false;
     }
-    std::process::Command::new("taskkill")
-        .args(["/PID", &pid.to_string(), "/F"])
-        .status()
+    crate::win_util::spawn_no_console("taskkill", &["/PID", &pid.to_string(), "/F"])
+        .and_then(|mut c| c.wait())
         .map(|s| s.success())
         .unwrap_or(false)
 }
@@ -328,6 +351,7 @@ pub fn spawn_extension_ipc_server(state: Arc<BrowserState>) -> anyhow::Result<Ar
     if let Ok(mut g) = extension_bridge_slot().lock() {
         *g = Some(bridge.clone());
     }
+    mark_extension_ipc_server_active();
 
     Ok(bridge)
 }

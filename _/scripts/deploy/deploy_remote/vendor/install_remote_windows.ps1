@@ -23,6 +23,7 @@ $winfspMsi = Join-Path $root 'winfsp-2.1.25156.msi'
 Install-WinFspIfNeeded -MsiPath $winfspMsi -Quiet:$Quiet
 
 $winfspDll = Join-Path $root 'winfsp-x64.dll'
+Stop-RemoteAgentProcesses -Quiet:$Quiet
 $destExe = Install-RemoteAgentTo -SourceExe $sourceExe -InstallDir $installDir -WinfspDllPath $winfspDll -Quiet:$Quiet
 
 try {

@@ -55,4 +55,4 @@ Schemas live in [`../schemas/`](../schemas/). Boot apply + version hash: [schema
 
 Working multitask / implementation plans live in [`plans/`](plans/). These are ephemeral execution docs — not locked specs. Update or archive when work completes.
 
-Active: [Event bus + MCP log grep](plans/2026-09-26-event-bus-multitask.md), [Bot data sources / Google Sheets](plans/2026-09-27-data-source-google-sheet-multitask.md), [Remote browser](plans/2026-09-29-remote-browser-multitask.md).
+Active: [Event bus + MCP log grep](plans/2026-09-26-event-bus-multitask.md), [Bot data sources / Google Sheets](plans/2026-09-27-data-source-google-sheet-multitask.md), [Remote browser](plans/2026-09-29-remote-browser-multitask.md), [@device computer use / Google Forms completion](plans/2026-10-13-device-computer-use-ideal-completion.md).

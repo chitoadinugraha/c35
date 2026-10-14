@@ -58,8 +58,11 @@ fn empty_pic_card_inlines_coffee_svg() {
         reservation_capacity: 1,
         reservation_hold_ttl_seconds: 3600,
         icon: "mdi:coffee".into(),
+        pics: vec![],
         stock_show_to_customer: false,
         stock_qty: None,
+        stock_unit: String::new(),
+        stock_show_max_qty: 0,
     };
     let html = product_card_html(&row, None);
     assert!(html.contains("class=\"product-ph\""));

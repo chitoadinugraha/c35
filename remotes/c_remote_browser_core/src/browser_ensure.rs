@@ -18,6 +18,10 @@ pub async fn browser_ensure(params: &Value) -> anyhow::Result<Value> {
         .get("run_repairs")
         .and_then(|v| v.as_bool())
         .unwrap_or(true);
+    let open_chrome_ui = params
+        .get("open_chrome_ui")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
     let only_actions: Option<Vec<String>> = params.get("actions").and_then(|v| {
         v.as_array().map(|a| {
             a.iter()
@@ -27,11 +31,13 @@ pub async fn browser_ensure(params: &Value) -> anyhow::Result<Value> {
         })
     });
 
-    crate::extension_agent::ensure_extension_agent_running();
+    if !crate::extension_ipc::extension_ipc_server_is_local() {
+        crate::extension_agent::ensure_extension_agent_running();
+    }
 
     let mut repairs_applied: Vec<String> = Vec::new();
     if run_repairs {
-        let needed = probe_repair_actions();
+        let needed = probe_repair_actions(open_chrome_ui);
         let to_run = match &only_actions {
             Some(list) => needed
                 .into_iter()
@@ -50,7 +56,11 @@ pub async fn browser_ensure(params: &Value) -> anyhow::Result<Value> {
     }
 
     let mut status = probe_status().await?;
-    if run_repairs && !status.extension_connected && status.chrome_installed {
+    if run_repairs
+        && open_chrome_ui
+        && !status.extension_connected
+        && status.chrome_installed
+    {
         for action in ["load_extension_in_chrome", "open_extensions_page"] {
             if run_repair(action).is_ok() {
                 repairs_applied.push(action.to_string());
@@ -59,7 +69,7 @@ pub async fn browser_ensure(params: &Value) -> anyhow::Result<Value> {
         std::thread::sleep(Duration::from_millis(800));
         status = probe_status().await?;
     }
-    let repair_actions = probe_repair_actions();
+    let repair_actions = probe_repair_actions(open_chrome_ui);
     let ok = status.chrome_installed
         && status.nm_ok
         && status.extension_connected
@@ -167,7 +177,7 @@ async fn probe_status() -> anyhow::Result<ProbeStatus> {
     })
 }
 
-fn probe_repair_actions() -> Vec<String> {
+fn probe_repair_actions(open_chrome_ui: bool) -> Vec<String> {
     let mut out = Vec::new();
     let connected = extension_version_sync_probe();
     if !chrome_installed() {
@@ -179,10 +189,14 @@ fn probe_repair_actions() -> Vec<String> {
     if !native_messaging_registered() {
         out.push("register_nm".into());
     }
-    if !extension_ipc_port_in_use() {
+    if !extension_ipc_port_in_use() && !crate::extension_ipc::extension_ipc_server_is_local() {
         out.push("start_extension_agent".into());
     }
-    if !connected && chrome_installed() && install_extension_manifest_version().is_some() {
+    if open_chrome_ui
+        && !connected
+        && chrome_installed()
+        && install_extension_manifest_version().is_some()
+    {
         out.push("load_extension_in_chrome".into());
         out.push("open_extensions_page".into());
     }
@@ -220,10 +234,11 @@ fn load_extension_in_chrome() -> anyhow::Result<()> {
     let arg = format!("--load-extension={}", dir.display());
     #[cfg(windows)]
     {
-        Command::new("cmd")
-            .args(["/c", "start", "", &chrome.to_string_lossy(), &arg])
-            .spawn()
-            .map_err(|e| anyhow::anyhow!("start chrome with extension: {e}"))?;
+        crate::win_util::spawn_no_console(
+            &chrome.to_string_lossy(),
+            &[&arg],
+        )
+        .map_err(|e| anyhow::anyhow!("start chrome with extension: {e}"))?;
         return Ok(());
     }
     #[cfg(not(windows))]
@@ -239,11 +254,7 @@ fn load_extension_in_chrome() -> anyhow::Result<()> {
 fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
     #[cfg(windows)]
     {
-        Command::new("cmd")
-            .args(["/c", "start", "", url])
-            .spawn()
-            .map_err(|e| anyhow::anyhow!("start url: {e}"))?;
-        return Ok(());
+        return crate::win_util::shell_open(url);
     }
     #[cfg(target_os = "macos")]
     {
@@ -358,16 +369,13 @@ fn native_messaging_registered() -> bool {
     }
     #[cfg(windows)]
     {
-        let reg_key = format!(r"HKCU\Software\Google\Chrome\NativeMessagingHosts\{NM_NAME}");
-        let out = Command::new("reg")
-            .args(["query", &reg_key, "/ve"])
-            .output();
-        match out {
-            Ok(o) if o.status.success() => {
-                let text = String::from_utf8_lossy(&o.stdout);
-                text.contains(&manifest.display().to_string())
+        let reg_key = format!(r"Software\Google\Chrome\NativeMessagingHosts\{NM_NAME}");
+        match crate::win_util::reg_query_default_value(&reg_key) {
+            Some(v) => {
+                let norm = |s: &str| s.trim().replace('/', "\\");
+                norm(&v) == norm(&manifest.display().to_string())
             }
-            _ => false,
+            None => false,
         }
     }
     #[cfg(not(windows))]
@@ -416,21 +424,18 @@ async fn extension_ipc_connected() -> bool {
     fetch_extension_running_version().await.is_some()
 }
 
-/// Run once on desktop agent start: sync extension files, register NM host, try `--load-extension`.
+/// Run once on desktop agent start: sync extension files and NM host only (no Chrome UI).
 pub fn bootstrap_desktop_extension() -> anyhow::Result<()> {
-    crate::extension_agent::ensure_extension_agent_running();
     let mut steps: Vec<&str> = Vec::new();
-    if sync_install().is_ok() {
-        steps.push("sync_install");
-    }
-    if register_native_messaging().is_ok() {
-        steps.push("register_nm");
-    }
-    if !extension_version_sync_probe() {
-        if load_extension_in_chrome().is_ok() {
-            steps.push("load_extension_in_chrome");
+    if install_extension_manifest_version().is_none() {
+        if sync_install().is_ok() {
+            steps.push("sync_install");
         }
-        std::thread::sleep(Duration::from_millis(1200));
+    }
+    if !native_messaging_registered() {
+        if register_native_messaging().is_ok() {
+            steps.push("register_nm");
+        }
     }
     tracing::info!(
         steps = ?steps,
@@ -599,22 +604,8 @@ fn register_native_messaging() -> anyhow::Result<()> {
     fs::write(&nm_file, serde_json::to_string_pretty(&body)?)?;
     #[cfg(windows)]
     {
-        let reg_key = format!(r"HKCU\Software\Google\Chrome\NativeMessagingHosts\{NM_NAME}");
-        let status = Command::new("reg")
-            .args([
-                "add",
-                &reg_key,
-                "/ve",
-                "/t",
-                "REG_SZ",
-                "/d",
-                &nm_file.display().to_string(),
-                "/f",
-            ])
-            .status()?;
-        if !status.success() {
-            anyhow::bail!("failed to register native messaging host in registry");
-        }
+        let reg_key = format!(r"Software\Google\Chrome\NativeMessagingHosts\{NM_NAME}");
+        crate::win_util::reg_set_native_host_manifest(&reg_key, &nm_file.display().to_string())?;
     }
     Ok(())
 }
@@ -622,15 +613,14 @@ fn register_native_messaging() -> anyhow::Result<()> {
 fn open_extensions_page() -> anyhow::Result<()> {
     #[cfg(windows)]
     {
-        let status = Command::new("cmd")
-            .args(["/C", "start", "", "chrome", "chrome://extensions/"])
-            .status();
-        if status.map(|s| s.success()).unwrap_or(false) {
-            return Ok(());
+        if let Some(chrome) = chrome_exe_candidates().into_iter().find(|p| p.is_file()) {
+            let _ = crate::win_util::spawn_no_console(
+                &chrome.to_string_lossy(),
+                &["chrome://extensions/"],
+            );
+        } else {
+            crate::win_util::shell_open("chrome://extensions/")?;
         }
-        let _ = Command::new("cmd")
-            .args(["/C", "start", "chrome://extensions/"])
-            .status();
         return Ok(());
     }
     #[cfg(not(windows))]

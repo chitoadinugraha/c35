@@ -382,41 +382,56 @@ c35 supports Claude Computer Use / Grok / Gemini-style desktop control over pair
 
 When a user mentions a device (e.g. `@Chito-PC`) or when computer use is needed, the following builtin tools are dispatched to the LLM:
 
-- **`device.screenshot`**: Captures high-definition JPEG desktop screenshots (`max_width`, `quality`, optional `marker_x`, `marker_y`, optional `som: bool`).
-- **`device.input`**: Dispatches mouse clicks, moves, drags, typing, and key presses using normalized `(0.0, 0.0)` to `(1.0, 1.0)` coordinates. Setting `screenshot_after=true` automatically waits 200ms and returns a follow-up screenshot with a red target marker confirming where the action landed.
-- **`shell.run`**: Executes PowerShell commands directly on the remote agent with a configurable timeout (`timeout_sec`), returning structured `stdout`, `stderr`, and `exit_code`. **Preferred for bulk data** (export, join, transform, spreadsheet load); UI clicks are for gates only (login, export button, captcha).
+- **`device.screenshot`**: Captures high-definition JPEG desktop screenshots (`max_width`, `quality`, optional `marker_x`, `marker_y`, optional `som: bool`). Uses area/box-averaging downsampling (`downscale_bgra`) to preserve thin font strokes, UI control borders, and action markers without aliasing.
+- **`device.input`**: Dispatches mouse clicks, moves, drags, typing, shortcuts, and composite actions using normalized `(0.0, 0.0)` to `(1.0, 1.0)` coordinates:
+  - **`click_and_type`**: Composite macro that moves cursor to target, executes click with 60ms dwell, pauses 50ms for focus, clears existing text via `Ctrl+A` $\rightarrow$ `Backspace` (30ms settle), and cleanly types `text` in one roundtrip.
+  - **`clear_text`**: Selects all and deletes current input content (`Ctrl+A` + `Backspace`).
+  - **Input Fidelity & Timing**: 60ms dwell time between `mouse_down` and `mouse_up` (eliminating dropped clicks on Chromium, Flutter, and WPF), plus 30ms pointer hover settle delay after `nudge_pointer_hit_test`.
+  - **`screenshot_after`**: When `true`, automatically waits `settle_ms` (default 450ms, configurable 100..2000ms) and returns a follow-up screenshot with a red target marker confirming action landing and UI response.
+- **`shell.run`**: Executes PowerShell commands directly on the remote agent with a configurable timeout (`timeout_sec`), returning structured `stdout`, `stderr`, and `exit_code`. **Preferred for bulk data** (export, join, transform, spreadsheet load); UI clicks are for gates only (login, export button, captcha). For **Google Forms on desktop Chrome**, take a **`device.screenshot`** first and **reuse** an existing Forms tab when visible — avoid repeated `forms.new` / new URL launches (see **`inst.device.google_forms`** and `prompt/google_forms.rs`).
 
 **Bulk data (locked steering):** Topic `computer_use` instructs the subagent to **plan first** (keys, volume, phases), use **bulk extract + `shell.run` scripts** when row count is large or work is repetitive, **pilot** a small sample, and use **row-by-row UI lookup only** when no export/API/script path exists. See [`../schemas/topic.sql`](../schemas/topic.sql) seed `computer_use`.
 
-**Completion semantics (`computer_use.delegate`):** The child `prompt_run` must end with an assistant summary that passes server-side acceptance (no user handoff or give-up phrasing). Tool result JSON includes `goal_met`, `incomplete`, and `ok` (`ok` requires `goal_met`). Parents must not echo child click steps when `incomplete` is true (`inst.device.operate`). Child turns that exhaust rounds with bad final text set `fail_class=fatal_incomplete`.
+**Completion semantics (`computer_use.delegate`):** The child `prompt_run` must end with an assistant summary that passes server-side acceptance (no user handoff or give-up phrasing — see `prompt/computer_use.rs`). Tool result JSON includes `goal_met`, `incomplete`, `incomplete_reason`, and `ok` (`ok` requires `goal_met`). For **`kind=computer_use`**, `goal_met` uses `computer_use_goal_met_with_goal`, which for Google Forms goals also requires `google_forms_summary_sufficient` (title/fields in summary, not “opened Chrome / gallery only”) and **`google_forms_tool_activity_sufficient`** (minimum `device.screenshot` / `device.input` counts on the child `req_id` from `ai.log` — blocks prose-only “success” after one or two clicks). Parents must not echo child click steps when `incomplete` is true (`inst.device.operate`); delegate JSON may include `parent_reply_rule`. Child turns that exhaust rounds with bad final text set `fail_class=fatal_incomplete`. Long delegate waits use normalized tool name matching (`computer.use.delegate` → 320s timeout, `delegate_incomplete` checkpoint on parent). **`computer_use.delegate`** auto-retries once when the first child run is not `goal_met`, with a narrowed goal that stresses tab reuse. Plans: [device-computer-use-ideal-completion](plans/2026-10-13-device-computer-use-ideal-completion.md) and [sota-computer-use-device-control](plans/2026-10-14-sota-computer-use-device-control.md).
+
+**Google Forms (@device, desktop Chrome):** Phrase match → **`inst.device.google_forms`** + mechanical **`[GOOGLE FORMS TAB RESUME]`** in compose and on delegate child goals. Workflow: screenshot (`som=true`) → focus existing Forms tab or open `forms.google.com` only if none → Blank template → editor (title + questions) → verify with final screenshot. Regression script: [`../scripts/dev/prompt_device_form_loop.ps1`](../scripts/dev/prompt_device_form_loop.ps1) (local `server_ai` `:10000`, owner **99000**).
 
 #### 2. Set-of-Mark (SoM) & Windows UI Automation (UIA) Engine
 
 To eliminate coordinate hallucination and trial-and-error clicks:
-- The remote agent scans the active foreground window hierarchy using Windows UI Automation (`uiautomation` crate).
-- It extracts interactive control bounding boxes (Buttons, Edits, ComboBoxes, CheckBoxes, Menus, Links, etc.).
+- The remote agent scans the active foreground window hierarchy using Windows UI Automation (`uiautomation` crate) with an expanded node budget of **200 elements** (`WALK_CAP = 200`), search depth of **20**, and queue capacity of **1,000**.
+- It prioritizes interactive controls (`Button`, `Edit`, `ComboBox`, `Hyperlink`, `ListItem`, `CheckBox`, `RadioButton`, `TabItem`, `TreeItem`, `MenuItem`, `SplitButton`, `Document`) and filters out sub-pixel noise (`w < 6 || h < 6`).
 - `draw_som_overlay` renders high-contrast 2px coral/orange-red bounding boxes and numbered crimson badges directly onto the screenshot framebuffer using embedded scalable 5x7 digit glyphs (zero font file dependencies).
-- Returns structured `axtree_text` in the screenshot result:
+- Returns structured `axtree_text` in the screenshot result including control dimensions:
   ```text
-  @1 Button 'Submit' -> center=(0.450, 0.320)
-  @2 Edit 'Search query' -> center=(0.210, 0.080)
-  @3 ComboBox 'Language' -> center=(0.620, 0.150)
+  @1 Button 'Submit' -> center=(0.450, 0.320) pixel=(864, 345) size=(120x36)
+  @2 Edit 'Search query' -> center=(0.210, 0.080) pixel=(403, 86) size=(280x32)
+  @3 ComboBox 'Language' -> center=(0.620, 0.150) pixel=(1190, 162) size=(160x28)
   ```
 - The vision model can target `@index` or normalized center coordinates with 100% precision.
 
-#### 3. Visual Red Action Markers
+#### 3. Visual Red Action Markers & Box Downsampling
 
 - When verifying an action or setting `marker_x` and `marker_y`, `draw_red_marker` renders a solid red target dot (radius 4px) encircled by a crisp white halo (radius 7px).
 - In post-action screenshots (`screenshot_after=true`), the marker visualizes the exact click/drag destination, giving LLMs instant feedback to self-correct if a target moved or if focus was lost.
+- **Area/Box Averaging:** `screen_capture::downscale_bgra` computes area averages over destination bounding boxes `[x0..x1] x [y0..y1]`, preventing thin red target rings, font strokes, or UI borders from vanishing during resolution downscaling.
 
-#### 4. Token & Context Optimization
+#### 4. Checkpoints, Turn Caps & Stuck Detection (`checkpoint.rs`)
 
-Desktop screenshots consume substantial tokens (~1,000–2,000 tokens per image). In multi-step computer use loops (10–30 turns), appending screenshots naively would quickly exhaust context windows (e.g. 100k+ tokens).
+To support complex multi-step workflows (30–60 actions) without premature cutoffs:
+- **`COMPUTER_USE_MAX_DEVICE_INPUT`**: **60** inputs per task run (up from 12).
+- **`COMPUTER_USE_MAX_ROUNDS`**: **75** rounds (up from 16).
+- **`COMPUTER_USE_MAX_SCREENSHOTS`**: **80** frames (up from 20).
+- **Stuck UI Detection (`checkpoint_screenshot_stuck`)**: Requires **5** consecutive identical screenshot hashes (up from 3) before triggering `stuck_ui`, preventing false halts during typing, blinking cursors, focus changes, or temporary network/page loading states.
+
+#### 5. Token & Context Optimization
+
+Desktop screenshots consume substantial tokens (~1,000–2,000 tokens per image). In multi-step computer use loops (10–50 turns), appending screenshots naively would quickly exhaust context windows (e.g. 100k+ tokens).
 - `prune_previous_screenshots()` in `servers/crates/mod_chat/src/prompt/tool_loop.rs` parses conversation history and strips raw base64 JPEG content from earlier turns, replacing them with lightweight metadata summaries (`[Screenshot observation: 1280x720 JPEG - pruned to save context]`).
 - Only the **latest screenshot** is provided as image content to the model on each turn.
 - Token consumption drops by **up to 90%**, allowing agents to run indefinitely complex multi-step desktop tasks reliably.
 
-#### 5. Screenshot artifacts (trace preview, 14d)
+#### 6. Screenshot artifacts (trace preview, 14d)
 
 Each `device.screenshot` / `device.input` post-screenshot JPEG sent to the LLM is also stored in **CAS** (`cas_put` → `ai.file_blob_meta`) with an **`ai.tool_artifact`** row (`expires_ts` = created + **14 days**, soft-delete via `tool_artifact_evict_stale`).
 

@@ -10,9 +10,10 @@ use c35_store::snowflake_id;
 use serde_json::{json, Value};
 use sqlx::types::Json;
 
+use crate::prompt::google_forms::ComputerUseToolCounts;
 use crate::prompt_run::{
     prompt_run_insert, prompt_run_job_publish, prompt_run_kind_normalize, prompt_run_summary,
-    prompt_run_wait_terminal, PromptRunRow,
+    prompt_run_tool_counts, prompt_run_wait_terminal, PromptRunRow,
 };
 use crate::mention_registry::mention_ref_iid;
 use crate::mention_context::{device_iid_resolve, json_device_iid_field};
@@ -97,13 +98,21 @@ pub fn delegate_child_row(
     }
 }
 
-pub fn delegate_result_json(child: &PromptRunRow, summary: &str, tool_name: &str) -> Value {
-    let goal_met =
-        computer_use_goal_met_with_goal(&child.kind, &child.status, summary, &child.text);
+pub fn delegate_result_json(
+    child: &PromptRunRow,
+    summary: &str,
+    tool_name: &str,
+    tool_counts: ComputerUseToolCounts,
+) -> Value {
+    let goal_met = computer_use_goal_met_with_goal(
+        &child.kind,
+        &child.status,
+        summary,
+        &child.text,
+        tool_counts,
+    );
     let ok = goal_met;
-    let incomplete = child.kind == "computer_use"
-        && child.status == "done"
-        && !computer_use_final_text_acceptable(summary);
+    let incomplete = child.kind == "computer_use" && child.status == "done" && !goal_met;
     let mut out = json!({
         "ok": ok,
         "goal_met": goal_met,
@@ -122,8 +131,19 @@ pub fn delegate_result_json(child: &PromptRunRow, summary: &str, tool_name: &str
         "fail_reason": child.fail_reason,
     });
     if incomplete {
-        out["incomplete_reason"] = json!("child_summary_handoff_or_give_up");
+        let reason = if !computer_use_final_text_acceptable(summary) {
+            "child_summary_handoff_or_give_up"
+        } else {
+            "child_insufficient_device_tooling"
+        };
+        out["incomplete_reason"] = json!(reason);
         out["parent_reply_rule"] = json!(COMPUTER_USE_PARENT_INCOMPLETE_HINT);
+        if reason == "child_insufficient_device_tooling" {
+            out["tool_counts"] = json!({
+                "device_input": tool_counts.device_input,
+                "device_screenshot": tool_counts.device_screenshot,
+            });
+        }
     }
     out
 }
@@ -197,7 +217,8 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
     )
     .await?;
     let summary = prompt_run_summary(&ctx.pool, &child_req_id).await?;
-    Ok(delegate_result_json(&child, &summary, "delegate.run"))
+    let tool_counts = prompt_run_tool_counts(&ctx.pool, &child_req_id).await?;
+    Ok(delegate_result_json(&child, &summary, "delegate.run", tool_counts))
 }
 
 pub async fn computer_use_delegate_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {

@@ -65,6 +65,7 @@ Widget guestSiteBlock({
   required Color accent,
   required String siteName,
   int siteIid = 0,
+  String siteAlienId = '',
   SiteProductDesignDraft productDesign = const SiteProductDesignDraft(),
   List<Map<String, dynamic>> productRows = const [],
   List<Map<String, dynamic>> commerceObjects = const [],
@@ -97,6 +98,7 @@ Widget guestSiteBlock({
         props: props,
         accent: accent,
         siteIid: siteIid,
+        siteAlienId: siteAlienId,
         productDesign: products,
         products: productRows,
         commerceObjects: commerceObjects,
@@ -219,71 +221,104 @@ class GuestSiteHeroBlock extends StatelessWidget {
     final bioFamily = profile?.bioFontFamily.trim() ?? '';
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 32, 18, 28),
+      padding: const EdgeInsets.fromLTRB(20, 36, 20, 26),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
             accent.withValues(alpha: 0.22),
-            accent.withValues(alpha: 0.06),
+            accent.withValues(alpha: 0.05),
             Colors.transparent,
           ],
-          stops: const [0, 0.45, 1],
+          stops: const [0, 0.5, 1],
         ),
-        border: Border(bottom: BorderSide(color: fg.withValues(alpha: 0.06))),
+        border: Border(bottom: BorderSide(color: fg.withValues(alpha: 0.05))),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          if (showAvatar)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _GuestProfileAvatar(
-                key: avatarKey,
-                accent: accent,
-                logoPic: logo,
-                size: avatarSize,
-                outlineWidth: profile?.avatarOutlineWidth ?? 0,
-                outlineColor: profile?.avatarOutlineColor ?? '',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (showAvatar)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _GuestProfileAvatar(
+                    key: avatarKey,
+                    accent: accent,
+                    logoPic: logo,
+                    size: avatarSize,
+                    outlineWidth: profile?.avatarOutlineWidth ?? 0,
+                    outlineColor: profile?.avatarOutlineColor ?? '',
+                  ),
+                ),
+              if (showTitle)
+                Text(
+                  title,
+                  textAlign: titleAlign,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: titleSize,
+                    fontFamily: titleFamily.isEmpty ? null : titleFamily,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              if (showBio && subtitle.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  textAlign: bioAlign,
+                  style: TextStyle(
+                    color: sub,
+                    fontSize: bioSize,
+                    height: 1.4,
+                    fontFamily: bioFamily.isEmpty ? null : bioFamily,
+                  ),
+                ),
+              ],
+              if (hoursPrimaryCta && openHours.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                GuestSiteHoursCompact(
+                  openHours: openHours,
+                  fg: fg,
+                  muted: sub,
+                  primaryHubCta: true,
+                  accent: accent,
+                ),
+              ] else if (_guestHubCtaHref(props) != null) ...[
+                const SizedBox(height: 14),
+                _GuestHubContactCta(
+                  label: ctaLabel,
+                  accent: accent,
+                  href: _guestHubCtaHref(props),
+                ),
+              ],
+            ],
+          ),
+          Positioned(
+            top: -16,
+            right: -4,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () {},
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: fg.withValues(alpha: 0.05),
+                    border: Border.all(color: fg.withValues(alpha: 0.1)),
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(Icons.share_outlined, size: 16, color: fg),
+                ),
               ),
             ),
-          if (showTitle)
-            Text(
-              title,
-              textAlign: titleAlign,
-              style: TextStyle(
-                color: fg,
-                fontSize: titleSize,
-                fontFamily: titleFamily.isEmpty ? null : titleFamily,
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.3,
-              ),
-            ),
-          if (showBio && subtitle.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              textAlign: bioAlign,
-              style: TextStyle(
-                color: sub,
-                fontSize: bioSize,
-                height: 1.4,
-                fontFamily: bioFamily.isEmpty ? null : bioFamily,
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          if (hoursPrimaryCta && openHours.isNotEmpty)
-            GuestSiteHoursCompact(
-              openHours: openHours,
-              fg: fg,
-              muted: sub,
-              primaryHubCta: true,
-              accent: accent,
-            )
-          else
-            _GuestHubContactCta(label: ctaLabel, accent: accent, href: _guestHubCtaHref(props)),
+          ),
         ],
       ),
     );
@@ -362,6 +397,13 @@ class _GuestProfileAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: outline > 0 ? Border.all(color: ring, width: outline) : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: CircleAvatar(
         radius: inner / 2,
@@ -673,6 +715,7 @@ class GuestSiteProductGridBlock extends StatefulWidget {
     required this.props,
     required this.accent,
     required this.siteIid,
+    this.siteAlienId = '',
     required this.productDesign,
     required this.products,
     this.commerceObjects = const [],
@@ -686,6 +729,7 @@ class GuestSiteProductGridBlock extends StatefulWidget {
   final Map<String, dynamic> props;
   final Color accent;
   final int siteIid;
+  final String siteAlienId;
   final SiteProductDesignDraft productDesign;
   final List<Map<String, dynamic>> products;
   final List<Map<String, dynamic>> commerceObjects;
@@ -798,26 +842,30 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
             ),
           ),
           if (chips.isNotEmpty) ...[
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _CategoryChip(
-                  label: i18n.filterAll,
-                  selected: (_categoryFilter ?? '').isEmpty,
-                  accent: widget.accent,
-                  onTap: () => setState(() => _categoryFilter = null),
-                ),
-                for (final c in chips)
-                  _CategoryChip(
-                    label: c,
-                    selected: _categoryFilter == c,
-                    accent: widget.accent,
-                    onTap: () => setState(() => _categoryFilter = c),
-                  ),
-              ],
-            ),
             const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _CategoryChip(
+                    label: i18n.filterAll,
+                    selected: (_categoryFilter ?? '').isEmpty,
+                    accent: widget.accent,
+                    onTap: () => setState(() => _categoryFilter = null),
+                  ),
+                  for (final c in chips) ...[
+                    const SizedBox(width: 8),
+                    _CategoryChip(
+                      label: c,
+                      selected: _categoryFilter == c,
+                      accent: widget.accent,
+                      onTap: () => setState(() => _categoryFilter = c),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
           LayoutBuilder(
             builder: (context, constraints) {
@@ -871,7 +919,8 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
   }) {
     final name = p['name']?.toString() ?? 'Product';
     final desc = p['desc']?.toString() ?? p['description']?.toString() ?? '';
-    final pic = p['pic']?.toString() ?? '';
+    final gallery = guestProductGalleryPaths(p);
+    final pic = gallery.isNotEmpty ? gallery.first : (p['pic']?.toString() ?? '');
     final price = p['price'] is num ? (p['price'] as num).toInt() : 0;
     final fg = widget.foreground ?? _guestTextPrimary;
     final sub = widget.muted ?? _guestTextSecondary;
@@ -898,6 +947,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       fontFeatures: const [FontFeature.tabularFigures()],
     );
     final stock = guestProductVisibleStock(p);
+    final stockLabel = guestProductStockLabel(p);
 
     void onProductTap() {
       final cart = GuestSiteCartScope.maybeOf(context);
@@ -949,10 +999,10 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(desc, style: subtitleStyle, maxLines: 3, overflow: TextOverflow.ellipsis),
                       ),
-                    if (stock != null)
+                    if (stockLabel != null)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text('Stock: $stock', style: subtitleStyle),
+                        child: Text(stockLabel, style: subtitleStyle),
                       ),
                   ],
                 ),
@@ -973,15 +1023,6 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                       ),
                       child: Text(i18n.tileContactCta, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                     ),
-                  IconButton(
-                    key: ValueKey('guest-product-info-${p['product_id']}'),
-                    tooltip: i18n.detailAria,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    onPressed: () => _openProductDetail(p),
-                    icon: Icon(Icons.info_outline, size: 18, color: sub),
-                  ),
                 ],
               ),
             ],
@@ -998,7 +1039,8 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
   }) {
     final name = p['name']?.toString() ?? 'Product';
     final desc = p['desc']?.toString() ?? p['description']?.toString() ?? '';
-    final pic = p['pic']?.toString() ?? '';
+    final gallery = guestProductGalleryPaths(p);
+    final pic = gallery.isNotEmpty ? gallery.first : (p['pic']?.toString() ?? '');
     final price = p['price'] is num ? (p['price'] as num).toInt() : 0;
     final fg = widget.foreground ?? _guestTextPrimary;
     final sub = widget.muted ?? _guestTextSecondary;
@@ -1027,6 +1069,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     final priceLabel = guestProductPriceLabel(price, i18n: i18n);
     final quoteOnly = price == guestProductPriceContact;
     final stock = guestProductVisibleStock(p);
+    final stockLabel = guestProductStockLabel(p);
 
     void onProductTap() {
       final cart = GuestSiteCartScope.maybeOf(context);
@@ -1068,6 +1111,38 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                 else
                   _productThumbPlaceholder(accent, p['icon']?.toString() ?? '', size: double.infinity),
                 _GuestProductInCartBadge(productId: (p['product_id'] as num?)?.toInt() ?? 0, accent: accent),
+                if (p['can_reserve'] == true)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: accent,
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: [
+                          BoxShadow(color: accent.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 1)),
+                        ],
+                      ),
+                      child: const Text('Reservasi', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ),
+                  )
+                else if (stock != null && stock > 0 && stock <= 3)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        borderRadius: BorderRadius.circular(999),
+                        boxShadow: const [
+                          BoxShadow(color: Color(0x55EF4444), blurRadius: 6, offset: Offset(0, 1)),
+                        ],
+                      ),
+                      child: Text('Sisa $stock', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1083,10 +1158,10 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(desc, style: subtitleStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
-              if (stock != null)
+              if (stockLabel != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text('Stock: $stock', style: subtitleStyle),
+                  child: Text(stockLabel, style: subtitleStyle),
                 ),
               const SizedBox(height: 8),
               Row(
@@ -1110,16 +1185,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                       ),
                     )
                   else if (priceLabel.isNotEmpty)
-                    Expanded(child: Text(priceLabel, style: priceStyle)),
-                  IconButton(
-                    key: ValueKey('guest-product-info-${p['product_id']}'),
-                    tooltip: i18n.detailAria,
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                    onPressed: () => _openProductDetail(p),
-                    icon: Icon(Icons.info_outline, size: 16, color: sub),
-                  ),
+                    Text(priceLabel, style: priceStyle),
                 ],
               ),
             ],
@@ -1350,6 +1416,12 @@ class GuestSiteLinksBlock extends StatelessWidget {
 
     final fg = foreground ?? _guestTextPrimary;
     final bare = resolved?.isBare('link') ?? false;
+    final iconLinks = items
+        .where((it) => siteLinkDisplayNormalize(it['display']?.toString() ?? '') == siteLinkDisplayIcon)
+        .toList(growable: false);
+    final listLinks = items
+        .where((it) => siteLinkDisplayNormalize(it['display']?.toString() ?? '') != siteLinkDisplayIcon)
+        .toList(growable: false);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -1368,33 +1440,52 @@ class GuestSiteLinksBlock extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: fg.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: fg.withValues(alpha: 0.07)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          if (iconLinks.isNotEmpty) ...[
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              alignment: WrapAlignment.center,
               children: [
-                for (var i = 0; i < items.length; i++)
+                for (final item in iconLinks)
                   _guestLinkTile(
-                    items[i],
+                    item,
                     fg: fg,
                     bare: bare,
-                    listInset: true,
-                    showDivider: i < items.length - 1,
+                    listInset: false,
+                    showDivider: false,
                   ),
               ],
             ),
-          ),
+            if (listLinks.isNotEmpty) const SizedBox(height: 14),
+          ],
+          if (listLinks.isNotEmpty)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: fg.withValues(alpha: 0.03),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: fg.withValues(alpha: 0.07)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < listLinks.length; i++)
+                    _guestLinkTile(
+                      listLinks[i],
+                      fg: fg,
+                      bare: bare,
+                      listInset: true,
+                      showDivider: i < listLinks.length - 1,
+                    ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -2070,6 +2161,20 @@ int? guestProductVisibleStock(Map<String, dynamic> product) {
   return _guestStockCount(extras['stock'] ?? extras['stock_qty']);
 }
 
+/// Guest stock line (`Stock: 4 pcs`, capped as `9+`) when show-to-customer is on.
+String? guestProductStockLabel(Map<String, dynamic> product) {
+  final qty = guestProductVisibleStock(product);
+  if (qty == null || qty <= 0) return null;
+  final extras = _guestProductJsonMap(product['product_json']);
+  final unit = (extras['stock_unit']?.toString() ?? product['stock_unit']?.toString() ?? '').trim();
+  final max = (extras['stock_show_max_qty'] as num?)?.toInt() ??
+      (product['stock_show_max_qty'] as num?)?.toInt() ??
+      0;
+  final display = max > 0 && qty > max ? '$max+' : '$qty';
+  final suffix = unit.isEmpty ? '' : ' $unit';
+  return 'Stock: $display$suffix';
+}
+
 bool _guestStockShownToCustomer(Map<String, dynamic> product) {
   if (product['stock_show_to_customer'] == true) return true;
   final extras = _guestProductJsonMap(product['product_json']);
@@ -2326,20 +2431,24 @@ class GuestSiteProductDetailContent extends StatelessWidget {
     final price = product['price'] is num ? (product['price'] as num).toInt() : 0;
     final pid = (product['product_id'] as num?)?.toInt() ?? 0;
     final canReserve = product['can_reserve'] == true;
-    final pic = product['pic']?.toString() ?? '';
+    final gallery = guestProductGalleryPaths(product);
+    final pic = gallery.isNotEmpty ? gallery.first : (product['pic']?.toString() ?? '');
     final icon = product['icon']?.toString() ?? '';
     final stock = guestProductVisibleStock(product);
+    final stockLabel = guestProductStockLabel(product);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (pic.trim().isNotEmpty)
+        if (gallery.isEmpty)
+          _guestDetailIcon(accent, icon)
+        else if (gallery.length == 1)
           GestureDetector(
-            onTap: () => unawaited(showGuestSitePicViewer(context, pic)),
+            onTap: () => unawaited(showGuestSitePicViewer(context, gallery.first)),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: GuestSitePic(
-                pic: pic,
+                pic: gallery.first,
                 height: 160,
                 width: double.infinity,
                 fit: BoxFit.cover,
@@ -2349,7 +2458,27 @@ class GuestSiteProductDetailContent extends StatelessWidget {
             ),
           )
         else
-          _guestDetailIcon(accent, icon),
+          SizedBox(
+            height: 180,
+            child: PageView.builder(
+              itemCount: gallery.length,
+              itemBuilder: (_, i) => GestureDetector(
+                onTap: () => unawaited(showGuestSitePicViewer(context, gallery[i])),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: GuestSitePic(
+                      pic: gallery[i],
+                      fit: BoxFit.cover,
+                      variant: GuestSitePicVariant.display,
+                      error: _guestDetailIcon(accent, icon),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         const SizedBox(height: 12),
         Text(
           name,
@@ -2365,6 +2494,10 @@ class GuestSiteProductDetailContent extends StatelessWidget {
             guestProductPriceLabel(price),
             style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w700),
           ),
+        ],
+        if (stockLabel != null) ...[
+          const SizedBox(height: 6),
+          Text(stockLabel, style: const TextStyle(color: _guestTextSecondary, fontSize: 13)),
         ],
         const SizedBox(height: 12),
         if (canReserve && cart != null && pid > 0)

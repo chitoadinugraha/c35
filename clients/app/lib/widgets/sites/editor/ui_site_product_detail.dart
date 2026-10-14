@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
-
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/files/file_path.dart';
 import 'package:alienai_c35/c/media/ask_media.dart';
@@ -9,6 +7,7 @@ import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_catalog_limits.dart';
 import 'package:alienai_c35/c/site/site_object_batch.dart';
 import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
@@ -18,9 +17,13 @@ import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_product_actions.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_product_stock_adjust_dialog.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_product_stock_fields.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_form.dart';
+import 'package:alienai_c35/widgets/io/in_duration.dart';
 import 'package:alienai_c35/widgets/io/in_media_list.dart';
 import 'package:alienai_c35/widgets/io/in_money_idr.dart';
 import 'package:alienai_c35/widgets/io/in_site_product_category.dart';
@@ -31,6 +34,7 @@ import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_img.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 enum _ProductPicChoice { upload, generate }
 
@@ -39,11 +43,6 @@ const _sheetBg = Color(0xFF18181B);
 const _muted = Color(0xFF71717A);
 const _text = Color(0xFFF4F4F5);
 const _accent = Color(0xFF34D399);
-
-const _reservationDurationUnits = ['second', 'minute', 'hour', 'day', 'week', 'month', 'year'];
-
-String _reservationDurationLabel(String unit) =>
-    unit.isEmpty ? unit : '${unit[0].toUpperCase()}${unit.substring(1)}';
 
 IconData _reservationKindIcon(String kind) => switch (kind) {
       siteObjectKindTable => Icons.table_restaurant_outlined,
@@ -96,6 +95,11 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   late final _skuCtrl = TextEditingController(text: widget.product.sku);
   late final _unitCtrl = TextEditingController(text: widget.product.unit);
   late final _priceCtrl = TextEditingController(text: _priceDisplay(widget.product));
+  late final _stockUnitCtrl = TextEditingController(text: _extras.stockUnit);
+  late final _stockQtyCtrl = TextEditingController(text: siteProductQtyDisplay(widget.product.stockQty.toInt()));
+  late final _stockWarningQtyCtrl = TextEditingController(text: siteProductQtyDisplay(_extras.stockWarningQty));
+  late final _stockCriticalQtyCtrl = TextEditingController(text: siteProductQtyDisplay(_extras.stockCriticalQty));
+  late final _stockShowMaxQtyCtrl = TextEditingController(text: siteProductQtyDisplay(_extras.stockShowMaxQty));
   Uint8List? _picPreviewBytes;
   var _picUploading = false;
 
@@ -128,6 +132,11 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     _priceCtrl.text = _priceDisplay(p);
     _extras = siteProductExtrasRead(p);
     _durationCtrl.text = '${_extras.durationValue}';
+    _stockUnitCtrl.text = _extras.stockUnit;
+    _stockQtyCtrl.text = siteProductQtyDisplay(p.stockQty.toInt());
+    _stockWarningQtyCtrl.text = siteProductQtyDisplay(_extras.stockWarningQty);
+    _stockCriticalQtyCtrl.text = siteProductQtyDisplay(_extras.stockCriticalQty);
+    _stockShowMaxQtyCtrl.text = siteProductQtyDisplay(_extras.stockShowMaxQty);
   }
 
   List<String> _altNames() => widget.embeds
@@ -144,6 +153,11 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     _unitCtrl.dispose();
     _priceCtrl.dispose();
     _durationCtrl.dispose();
+    _stockUnitCtrl.dispose();
+    _stockQtyCtrl.dispose();
+    _stockWarningQtyCtrl.dispose();
+    _stockCriticalQtyCtrl.dispose();
+    _stockShowMaxQtyCtrl.dispose();
     super.dispose();
   }
 
@@ -261,10 +275,53 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   }
 
   void _onDurationEdited(String raw) {
-    final n = int.tryParse(raw.trim());
-    if (n == null || n < 1) return;
+    final n = siteProductParseQty(raw);
+    if (n < 1) return;
     if (n == _extras.durationValue) return;
     _persistExtras(_extras.copyWith(durationValue: n));
+  }
+
+  Future<void> _stockAdjustOpen(SiteProduct product) async {
+    if (widget.busy) return;
+    final next = await showSiteProductStockAdjustDialog(
+      context,
+      current: product.stockQty.toInt(),
+      unit: _extras.stockUnit,
+    );
+    if (next == null || !mounted) return;
+    _stockQtyCtrl.text = siteProductQtyDisplay(next);
+    await _putProduct(product.clone()..stockQty = next);
+  }
+
+  Future<void> _setCanReserve(SiteProduct product, bool enabling) async {
+    var addUnits = false;
+    if (enabling && !product.canReserve && _linkedObjects.isEmpty) {
+      final add = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF18181B),
+          title: const Text('Add reservation units?', style: TextStyle(color: _text)),
+          content: const Text(
+            'This product has no linked units yet. Add numbered units (rooms, tables, etc.) so guests can reserve.',
+            style: TextStyle(color: _muted, fontSize: 13),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Not now')),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: _accent, foregroundColor: Colors.black),
+              child: const Text('Add units'),
+            ),
+          ],
+        ),
+      );
+      addUnits = add == true;
+    }
+    final draft = product.clone()
+      ..canReserve = enabling
+      ..trackStock = enabling ? false : product.trackStock;
+    await _putProduct(draft);
+    if (addUnits && mounted) await _openBatchDialog(draft, ignoreBusy: true);
   }
 
   Future<void> _commitField(SiteProduct base, ColDef col, String value, [Map<String, String>? cells]) async {
@@ -613,61 +670,25 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
   }
 
   Widget _reservationSection(SiteProduct product) {
-    final unit = _reservationDurationUnits.contains(_extras.durationUnit) ? _extras.durationUnit : 'day';
-    return UiSiteEditorFormSection(
-      title: 'Reservation',
+    final period = inDurationPeriodOf(_extras.durationUnit).id;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: UiSiteEditorLabeledField(
-                label: 'Duration',
-                child: TextField(
-                  key: ValueKey('site-product-duration-${product.productId}'),
-                  controller: _durationCtrl,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: _text, fontSize: 13),
-                  decoration: siteEditorInputDecoration(hintText: '1'),
-                  onChanged: _onDurationEdited,
-                  onEditingComplete: () {
-                    final n = int.tryParse(_durationCtrl.text.trim());
-                    if (n == null || n < 1) {
-                      _durationCtrl.text = '1';
-                      _onDurationEdited('1');
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: UiSiteEditorLabeledField(
-                label: 'Unit',
-                child: DropdownButtonFormField<String>(
-                  key: ValueKey('site-product-duration-unit-${product.productId}-$unit'),
-                  initialValue: unit,
-                  isExpanded: true,
-                  dropdownColor: const Color(0xFF18181B),
-                  style: const TextStyle(color: _text, fontSize: 13),
-                  decoration: siteEditorInputDecoration(),
-                  items: [
-                    for (final u in _reservationDurationUnits)
-                      DropdownMenuItem(value: u, child: Text(_reservationDurationLabel(u))),
-                  ],
-                  onChanged: widget.busy
-                      ? null
-                      : (v) {
-                          if (v == null || v == _extras.durationUnit) return;
-                          final n = int.tryParse(_durationCtrl.text.trim());
-                          final duration = n == null || n < 1 ? 1 : n;
-                          _persistExtras(_extras.copyWith(durationUnit: v, durationValue: duration));
-                        },
-                ),
-              ),
-            ),
-          ],
+        siteProductSectionDivider(context, 'Reservation'),
+        const SizedBox(height: 12),
+        InDuration(
+          key: ValueKey('site-product-duration-${product.productId}-$period'),
+          controller: _durationCtrl,
+          periodId: period,
+          enabled: !widget.busy,
+          onValueChanged: _onDurationEdited,
+          onPeriodChanged: (id) {
+            if (id == _extras.durationUnit) return;
+            final n = siteProductParseQty(_durationCtrl.text);
+            _persistExtras(_extras.copyWith(durationUnit: id, durationValue: n < 1 ? 1 : n));
+          },
         ),
+        const SizedBox(height: 8),
         UiSiteEditorSwitchRow(
           label: 'Guest picks a unit',
           value: _extras.reservationGuestPicks,
@@ -678,7 +699,77 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
                   _persistExtras(_extras.copyWith(reservationGuestPicks: v));
                 },
         ),
+        const SizedBox(height: 8),
+        siteProductSectionDivider(context, 'Units'),
+        const SizedBox(height: 4),
         _reservationUnitsSection(product),
+      ],
+    );
+  }
+
+  Widget _stockSections(SiteProduct product) {
+    if (!product.trackStock) return const SizedBox.shrink();
+    final unitSuffix = _extras.stockUnit.trim().isEmpty ? null : _extras.stockUnit.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        siteProductSectionDivider(context, 'Stock'),
+        const SizedBox(height: 12),
+        siteProductLabeledFieldRow(
+          label: 'Unit',
+          field: TextField(
+            controller: _stockUnitCtrl,
+            enabled: !widget.busy,
+            textAlign: TextAlign.end,
+            maxLength: 6,
+            buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+            inputFormatters: siteProductStockUnitFormatters,
+            style: const TextStyle(color: _text, fontSize: 13),
+            decoration: siteEditorInputDecoration(hintText: 'pcs'),
+            onChanged: (v) => _persistExtras(_extras.copyWith(stockUnit: v)),
+          ),
+        ),
+        siteProductLabeledFieldRow(
+          label: 'On hand',
+          field: TextField(
+            controller: _stockQtyCtrl,
+            readOnly: true,
+            textAlign: TextAlign.end,
+            style: const TextStyle(color: _text, fontSize: 13),
+            decoration: siteEditorInputDecoration(suffixText: unitSuffix),
+            onTap: widget.busy ? null : () => unawaited(_stockAdjustOpen(product)),
+          ),
+        ),
+        SiteProductStockShowToCustomerSection(
+          showToCustomer: _extras.stockShowToCustomer,
+          maxQtyController: _stockShowMaxQtyCtrl,
+          suffixText: unitSuffix,
+          busy: widget.busy,
+          onShowChanged: (v) => _persistExtras(_extras.copyWith(stockShowToCustomer: v)),
+          onMaxChanged: (v) => _persistExtras(_extras.copyWith(stockShowMaxQty: siteProductParseQty(v))),
+        ),
+        const SizedBox(height: 8),
+        siteProductSectionDivider(context, 'Reminder'),
+        const SizedBox(height: 12),
+        SiteProductStockThresholdRow(
+          enabled: _extras.stockWarningEnabled,
+          label: 'Warning',
+          controller: _stockWarningQtyCtrl,
+          suffixText: unitSuffix,
+          busy: widget.busy,
+          onEnabledChanged: (v) => _persistExtras(_extras.copyWith(stockWarningEnabled: v)),
+          onQtyChanged: (v) => _persistExtras(_extras.copyWith(stockWarningQty: siteProductParseQty(v))),
+        ),
+        const SizedBox(height: 8),
+        SiteProductStockThresholdRow(
+          enabled: _extras.stockCriticalEnabled,
+          label: 'Critical',
+          controller: _stockCriticalQtyCtrl,
+          suffixText: unitSuffix,
+          busy: widget.busy,
+          onEnabledChanged: (v) => _persistExtras(_extras.copyWith(stockCriticalEnabled: v)),
+          onQtyChanged: (v) => _persistExtras(_extras.copyWith(stockCriticalQty: siteProductParseQty(v))),
+        ),
       ],
     );
   }
@@ -702,19 +793,65 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
                 TextField(
                   key: const ValueKey('site-product-name'),
                   controller: _nameCtrl,
+                  maxLength: siteItemNameMax,
+                  buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+                  inputFormatters: [LengthLimitingTextInputFormatter(siteItemNameMax)],
                   style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600),
                   decoration: siteEditorInputDecoration(hintText: 'Product name'),
                   onChanged: (_) => _scheduleTextSave(),
                 ),
                 const SizedBox(height: 10),
                 TextField(
-                  key: const ValueKey('site-product-desc'),
-                  controller: _descCtrl,
-                  minLines: 3,
-                  maxLines: 6,
-                  style: const TextStyle(color: _text, fontSize: 13, height: 1.35),
-                  decoration: siteEditorInputDecoration(hintText: 'Description'),
+                  key: const ValueKey('site-product-price'),
+                  controller: _priceCtrl,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: moneyIdrInputFormatters,
+                  style: const TextStyle(color: _text, fontSize: 13),
+                  decoration: siteEditorInputDecoration(hintText: '0').copyWith(
+                    suffixText: 'IDR',
+                    suffixStyle: const TextStyle(color: siteEditorFormMuted, fontSize: 12),
+                  ),
                   onChanged: (_) => _scheduleTextSave(),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: product.trackStock,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                            onChanged: product.canReserve || widget.busy
+                                ? null
+                                : (v) => unawaited(_setTrackStock(product, v ?? false)),
+                          ),
+                          const Flexible(
+                            child: Text('Track stock', overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (widget.booking)
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Checkbox(
+                              value: product.canReserve,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity.compact,
+                              onChanged: product.trackStock || widget.busy
+                                  ? null
+                                  : (v) => unawaited(_setCanReserve(product, v ?? false)),
+                            ),
+                            const Flexible(
+                              child: Text('Reservation', overflow: TextOverflow.ellipsis, style: TextStyle(color: _text, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
               ],
             ),
@@ -743,67 +880,54 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
 
     return UiSiteEditorFormScroll(
       children: [
-        Row(
-          children: [
-            Expanded(child: Text('ID $productId', style: const TextStyle(color: _muted, fontSize: 11))),
-            TextButton.icon(
-              onPressed: widget.busy ? null : _removeOrArchive,
-              icon: Icon(
-                product.isUsed ? Icons.inventory_2_outlined : Icons.delete_outline,
-                size: 18,
-                color: const Color(0xFFF87171),
-              ),
-              label: Text(
-                product.isUsed ? (product.isArchived ? 'Unarchive' : 'Archive') : 'Delete',
-                style: const TextStyle(color: Color(0xFFF87171)),
-              ),
-            ),
-          ],
+        UiSiteCatalogDetailHeader(
+          icon: Icons.shopping_bag_outlined,
+          title: 'Product',
+          subtitle: 'ID $productId',
+          active: _extras.active,
+          onActiveChanged: widget.busy ? null : (v) => _persistExtras(_extras.copyWith(active: v)),
+          onDelete: widget.busy ? null : _removeOrArchive,
+          deleteLabel: product.isUsed ? (product.isArchived ? 'Unarchive' : 'Archive') : 'Delete',
+          deleteConfirmTitle: product.isUsed ? 'Archive product?' : 'Delete product?',
+          deleteConfirmBody: product.isUsed
+              ? 'This product stays in past transactions but is hidden from the catalog when archived.'
+              : 'This product will be removed permanently.',
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
         _heroRow(product),
+        const SizedBox(height: 12),
+        TextField(
+          key: const ValueKey('site-product-desc'),
+          controller: _descCtrl,
+          minLines: 3,
+          maxLines: 6,
+          maxLength: siteItemDescMax,
+          buildCounter: (_, {required currentLength, required isFocused, maxLength}) => null,
+          inputFormatters: [LengthLimitingTextInputFormatter(siteItemDescMax)],
+          style: const TextStyle(color: _text, fontSize: 13, height: 1.35),
+          decoration: siteEditorInputDecoration(hintText: 'Description'),
+          onChanged: (_) => _scheduleTextSave(),
+        ),
         const SizedBox(height: 12),
         _extraPicsSection(product),
         const SizedBox(height: 16),
+        _stockSections(product),
+        if (widget.booking && product.canReserve) ...[
+          const SizedBox(height: 8),
+          _reservationSection(product),
+        ],
         UiSiteEditorFormSection(
           title: 'Pricing',
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: UiSiteEditorLabeledField(
-                    label: 'Price',
-                    child: TextField(
-                      key: const ValueKey('site-product-price'),
-                      controller: _priceCtrl,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: moneyIdrInputFormatters,
-                      style: const TextStyle(color: _text, fontSize: 13),
-                      decoration: siteEditorInputDecoration(hintText: '0').copyWith(
-                        suffixText: 'IDR',
-                        suffixStyle: const TextStyle(color: siteEditorFormMuted, fontSize: 12),
-                      ),
-                      onChanged: (_) => _scheduleTextSave(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: UiSiteEditorLabeledField(
-                    label: 'Unit',
-                    child: TextField(
-                      key: const ValueKey('site-product-unit'),
-                      controller: _unitCtrl,
-                      style: const TextStyle(color: _text, fontSize: 13),
-                      decoration: siteEditorInputDecoration(hintText: 'pcs, plate…'),
-                      onChanged: (_) => _scheduleTextSave(),
-                    ),
-                  ),
-                ),
-              ],
+            UiSiteEditorLabeledField(
+              label: 'Unit',
+              child: TextField(
+                key: const ValueKey('site-product-unit'),
+                controller: _unitCtrl,
+                style: const TextStyle(color: _text, fontSize: 13),
+                decoration: siteEditorInputDecoration(hintText: 'pcs, plate…'),
+                onChanged: (_) => _scheduleTextSave(),
+              ),
             ),
             UiSiteEditorLabeledField(
               label: 'Category',
@@ -852,45 +976,19 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
             ),
           ],
         ),
-        UiSiteEditorFormSection(
-          title: 'Inventory',
-          children: [
-            UiSiteEditorSwitchRow(
-              label: 'Track stock',
-              value: product.trackStock,
-              onChanged: widget.busy ? null : (v) => unawaited(_setTrackStock(product, v)),
-            ),
-            if (product.trackStock) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('On hand', style: TextStyle(color: siteEditorFormText, fontSize: 13)),
-                  ),
-                  _StockStepper(
-                    value: product.stockQty,
-                    enabled: !widget.busy,
-                    onChanged: (qty) => _saveProduct(product.clone()..stockQty = qty),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
         if (boolCols.isNotEmpty)
           UiSiteEditorFormSection(
             title: 'Catalog options',
             children: [
               for (final col in boolCols)
-                if (col.key != 'track_stock' && (col.key != 'can_reserve' || widget.booking))
+                if (col.key != 'track_stock' && col.key != 'can_reserve')
                   UiSiteEditorSwitchRow(
-                    label: col.key == 'can_reserve' ? 'Can reserve' : col.label,
+                    label: col.label,
                     value: _parseBool(cells[col.key] ?? ''),
                     onChanged: widget.busy ? null : (v) => _commitProductField(product, col, v ? 'yes' : 'no'),
                   ),
             ],
           ),
-        if (widget.booking && product.canReserve) _reservationSection(product),
         if (widget.busy || _textSaveActive)
           const Padding(padding: EdgeInsets.only(top: 8), child: LinearProgressIndicator(minHeight: 2, color: _accent)),
       ],
@@ -978,38 +1076,3 @@ class _ProductPicTile extends StatelessWidget {
   }
 }
 
-class _StockStepper extends StatelessWidget {
-  const _StockStepper({required this.value, required this.enabled, required this.onChanged});
-
-  final int value;
-  final bool enabled;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: siteEditorFieldFill,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: siteEditorFieldBorder),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _stepBtn(Icons.remove, enabled && value > 0 ? () => onChanged(value - 1) : null),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              child: Text('$value', style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
-            ),
-            _stepBtn(Icons.add, enabled ? () => onChanged(value + 1) : null),
-          ],
-        ),
-      );
-
-  Widget _stepBtn(IconData icon, VoidCallback? onTap) => InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Icon(icon, size: 18, color: onTap == null ? siteEditorFormMuted : _accent),
-        ),
-      );
-}

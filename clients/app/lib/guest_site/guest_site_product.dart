@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
+import 'package:flutter/services.dart';
 
 /// Sentinel stored on `site.product.price` for quote-only items.
 const guestProductPriceContact = -1;
@@ -63,4 +64,42 @@ String guestSitePicPublicUrl(String pic, {required bool display}) {
   if (h.startsWith('http')) return h;
   final variant = display ? 'small' : 'thumb';
   return '${C35Config.guestSiteOrigin.replaceAll(RegExp(r'/+$'), '')}/fs/$h?v=$variant';
+}
+
+/// Primary `pic` plus `pics[]` from commerce boot (deduped).
+List<String> guestProductGalleryPaths(Map<String, dynamic> product) {
+  final out = <String>[];
+  final primary = product['pic']?.toString().trim() ?? '';
+  if (primary.isNotEmpty) out.add(primary);
+  final extras = product['pics'];
+  if (extras is List) {
+    for (final raw in extras) {
+      final e = raw.toString().trim();
+      if (e.isNotEmpty && !out.contains(e)) out.add(e);
+    }
+  }
+  return out;
+}
+
+String guestSiteProductPageUrl({
+  required String alienId,
+  required int productId,
+  bool draft = false,
+}) {
+  final origin = C35Config.guestSiteOrigin.replaceAll(RegExp(r'/+$'), '');
+  final slug = alienId.trim();
+  final base = slug.isNotEmpty ? '$origin/$slug' : origin;
+  final q = draft ? '?draft=1' : '';
+  return '$base/products/$productId$q';
+}
+
+Future<void> guestSiteShareProduct({
+  required String alienId,
+  required int productId,
+  required String productName,
+  bool draft = false,
+}) async {
+  final url = guestSiteProductPageUrl(alienId: alienId, productId: productId, draft: draft);
+  // WebView / desktop: copy link; native share can be added when share plugin ships.
+  await Clipboard.setData(ClipboardData(text: url));
 }

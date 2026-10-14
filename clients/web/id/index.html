@@ -87,7 +87,7 @@
     }
   </script>
 
-  <link rel="stylesheet" href="/static/platform-landing.css">
+  <link rel="stylesheet" href="/static/platform-landing.css?v=2">
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
@@ -116,15 +116,6 @@
       background: radial-gradient(circle at 50% 35%, rgba(0, 229, 153, 0.06) 0%, transparent 65%);
     }
 
-    /* Floating logo animation */
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-8px); }
-    }
-    .logo-float {
-      animation: float 6s ease-in-out infinite;
-    }
-
     /* Modern Glass Card (CSA .card parity) */
     .glass-card,
     .card {
@@ -148,7 +139,7 @@
       <!-- Brand Logo -->
       <a href="/id/" class="flex items-center gap-3 group z-20">
         <div class="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center group-hover:border-white/40 transition duration-300">
-          <img src="/alien.svg" alt="Alien AI" class="w-5 h-5 logo-float">
+          <img src="/alien.svg" alt="Alien AI" class="w-5 h-5" width="20" height="20">
         </div>
         <span class="text-xl font-bold tracking-tight text-white font-['Outfit']">Alien<span class="text-white font-black">AI</span></span>
       </a>
@@ -216,7 +207,7 @@
             <div class="platform-grid mb-5">
               <a id="card-win" class="platform-card card-win" href="/download/alienai-app.zip" target="_blank" rel="noopener">
                 <div class="icon-wrapper">
-                  <svg viewBox="0 0 88 88" aria-hidden="true"><path d="M0 12.402l35.687-4.86.016 34.423-35.703.111zm0 32.293l35.687.095.016 34.593-35.687-4.901zm39.141-37.747L88 1v40.355l-48.859.215zm0 33.155l48.859.135V87L39.141 80.528z"/></svg>
+                  <svg viewBox="0 0 88 88" width="26" height="26" class="shrink-0" aria-hidden="true"><path fill="currentColor" d="M0 12.402l35.687-4.86.016 34.423-35.703.111zm0 32.293l35.687.095.016 34.593-35.687-4.901zm39.141-37.747L88 1v40.355l-48.859.215zm0 33.155l48.859.135V87L39.141 80.528z"/></svg>
                 </div>
                 <div class="platform-card-body text-center">
                   <div class="card-title">Windows</div>
@@ -226,7 +217,7 @@
               </a>
               <a id="card-android" class="platform-card card-android" href="https://play.google.com/store/apps/details?id=id.alienai" target="_blank" rel="noopener">
                 <div class="icon-wrapper">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.523 15.3414C17.523 15.6565 17.2682 15.9123 16.9531 15.9123C16.638 15.9123 16.3831 15.6565 16.3831 15.3414C16.3831 15.0263 16.638 14.7705 16.9531 14.7705C17.2682 14.7705 17.523 15.0263 17.523 15.3414ZM7.61685 15.3414C7.61685 15.6565 7.362 15.9123 7.04691 15.9123C6.73181 15.9123 6.47696 15.6565 6.47696 15.3414C6.47696 15.0263 6.73181 14.7705 7.04691 14.7705C7.362 14.7705 7.61685 15.0263 7.61685 15.3414ZM17.917 11.2335L19.8242 7.92983C19.9299 7.74667 19.8672 7.51263 19.6841 7.40698C19.5009 7.30132 19.2669 7.364 19.1612 7.54716L17.2274 10.8966C15.751 10.222 14.0772 9.83905 12.285 9.83905C10.4927 9.83905 8.81898 10.222 7.3426 10.8966L5.40879 7.54716C5.30313 7.364 5.06909 7.30132 4.88593 7.40698C4.70277 7.51263 4.6401 7.74667 4.74576 7.92983L6.65293 11.2335C3.21271 13.0645 0.900391 16.5898 0.900391 20.7303H23.6696C23.6696 16.5898 21.3572 13.0645 17.917 11.2335Z"/></svg>
+                  <svg viewBox="0 0 24 24" width="26" height="26" class="shrink-0" aria-hidden="true"><path fill="currentColor" d="M17.523 15.3414C17.523 15.6565 17.2682 15.9123 16.9531 15.9123C16.638 15.9123 16.3831 15.6565 16.3831 15.3414C16.3831 15.0263 16.638 14.7705 16.9531 14.7705C17.2682 14.7705 17.523 15.0263 17.523 15.3414ZM7.61685 15.3414C7.61685 15.6565 7.362 15.9123 7.04691 15.9123C6.73181 15.9123 6.47696 15.6565 6.47696 15.3414C6.47696 15.0263 6.73181 14.7705 7.04691 14.7705C7.362 14.7705 7.61685 15.0263 7.61685 15.3414ZM17.917 11.2335L19.8242 7.92983C19.9299 7.74667 19.8672 7.51263 19.6841 7.40698C19.5009 7.30132 19.2669 7.364 19.1612 7.54716L17.2274 10.8966C15.751 10.222 14.0772 9.83905 12.285 9.83905C10.4927 9.83905 8.81898 10.222 7.3426 10.8966L5.40879 7.54716C5.30313 7.364 5.06909 7.30132 4.88593 7.40698C4.70277 7.51263 4.6401 7.74667 4.74576 7.92983L6.65293 11.2335C3.21271 13.0645 0.900391 16.5898 0.900391 20.7303H23.6696C23.6696 16.5898 21.3572 13.0645 17.917 11.2335Z"/></svg>
                 </div>
                 <div class="platform-card-body text-center">
                   <div class="card-title">Android</div>
@@ -236,7 +227,7 @@
               </a>
               <a id="card-web" class="platform-card card-web" href="/download/web" target="_blank" rel="noopener">
                 <div class="icon-wrapper">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 5.523 4.477 10 10 10s10-4.477 10-10c0-5.523-4.477-10-10-10zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.53c-.26-.81-1-1.4-1.9-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z"/></svg>
+                  <svg viewBox="0 0 24 24" width="26" height="26" class="shrink-0" aria-hidden="true"><path fill="currentColor" d="M12 2C6.477 2 2 6.477 2 12c0 5.523 4.477 10 10 10s10-4.477 10-10c0-5.523-4.477-10-10-10zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.53c-.26-.81-1-1.4-1.9-1.4h-1v-3c0-.55-.45-1-1-1h-6v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.4z"/></svg>
                 </div>
                 <div class="platform-card-body text-center">
                   <div class="card-title">Web App</div>
