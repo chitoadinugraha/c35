@@ -1,4 +1,4 @@
-use c35_mod_llm::model_cost_usd;
+use c35_mod_llm::model_cost_with_cache_usd;
 
 /// 50% retail markup over wholesale provider rates.
 pub const RETAIL_MARKUP: f64 = 1.50;
@@ -44,18 +44,45 @@ pub const CAPTCHA_RECAPTCHA_V2_WHOLESALE_USD: f64 = 0.002_99;
 pub fn billing_to_retail_usd(wholesale_usd: f64) -> f64 { wholesale_usd * RETAIL_MARKUP }
 
 pub fn billing_cost_wholesale_usd(model: &str, tokens_in: i32, tokens_out: i32) -> f64 {
+    billing_cost_wholesale_with_cache_usd(model, tokens_in, tokens_out, 0)
+}
+
+pub fn billing_cost_wholesale_with_cache_usd(
+    model: &str,
+    tokens_in: i32,
+    tokens_out: i32,
+    cached_tokens: i32,
+) -> f64 {
     if crate::billing_profile::model_uses_alien_pool(model) {
-        (tokens_in as f64 * 0.075 + tokens_out as f64 * 0.30) / 1_000_000.0
+        let regular_in = (tokens_in - cached_tokens).max(0);
+        let cached_in = cached_tokens.min(tokens_in).max(0);
+        let cache_rate = 0.075 * 0.25; // 75% discount on cached input tokens for Alien pool wholesale ($0.01875/M)
+        (regular_in as f64 * 0.075 + cached_in as f64 * cache_rate + tokens_out as f64 * 0.30)
+            / 1_000_000.0
     } else {
-        model_cost_usd(model, tokens_in, tokens_out)
+        model_cost_with_cache_usd(model, tokens_in, tokens_out, cached_tokens)
     }
 }
 
 pub fn billing_cost_usd(model: &str, tokens_in: i32, tokens_out: i32) -> f64 {
+    billing_cost_with_cache_usd(model, tokens_in, tokens_out, 0)
+}
+
+pub fn billing_cost_with_cache_usd(
+    model: &str,
+    tokens_in: i32,
+    tokens_out: i32,
+    cached_tokens: i32,
+) -> f64 {
     if crate::billing_profile::model_uses_alien_pool(model) {
-        crate::billing_pool::pool_alien_deduct_usd(tokens_in, tokens_out)
+        crate::billing_pool::pool_alien_deduct_with_cache_usd(tokens_in, tokens_out, cached_tokens)
     } else {
-        billing_to_retail_usd(billing_cost_wholesale_usd(model, tokens_in, tokens_out))
+        billing_to_retail_usd(billing_cost_wholesale_with_cache_usd(
+            model,
+            tokens_in,
+            tokens_out,
+            cached_tokens,
+        ))
     }
 }
 

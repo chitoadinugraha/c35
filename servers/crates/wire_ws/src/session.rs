@@ -390,6 +390,7 @@ fn prompt_req_put(
                     turn.billing_included,
                     turn.cost_usd,
                     &turn.model,
+                    turn.tokens_cached,
                 );
                 let _ = out_tx.send(WsRes {
                     req_id: req_id_spawn.clone(),
@@ -2085,9 +2086,10 @@ async fn session_init(
         res.hints = Some(hints);
     }
     if let Some(nav) = res.nav.as_mut() {
-        if let Ok((unread, visible)) = c35_mod_mail::nav_mail_snapshot(&ctx.pool, ctx.caller_iid).await {
+        if let Ok((unread, visible, mailbox_count)) = c35_mod_mail::nav_mail_snapshot(&ctx.pool, ctx.caller_iid).await {
             nav.mail_inbox_unread = unread;
             nav.mail_menu_visible = visible;
+            nav.mailbox_count = mailbox_count;
         }
     }
     Ok(res)

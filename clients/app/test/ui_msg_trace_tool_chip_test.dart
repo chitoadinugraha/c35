@@ -47,6 +47,20 @@ void main() {
     expect(box.size.width, greaterThan(70));
   });
 
+  testWidgets('UiMsgTraceToolLine is plain text without card border', (tester) async {
+    const chip = MsgTraceToolChip(label: 'device.input', durationMs: 2500, ok: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: UiMsgTraceToolLine(chip: chip)),
+      ),
+    );
+
+    expect(find.text('device.input'), findsOneWidget);
+    expect(find.text('2.5s'), findsOneWidget);
+    expect(find.byType(UiMsgTraceToolChip), findsNothing);
+  });
+
   testWidgets('chip without screenshot has no expand chevron', (tester) async {
     const chip = MsgTraceToolChip(label: 'Searched web', durationMs: 200);
 

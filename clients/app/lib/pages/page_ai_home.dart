@@ -167,7 +167,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   String? _fcmToken;
   var _fcmStarted = false;
   var _fcmTokenSent = false;
-  var _notifyUnread = 0;
   var _menuMsgIndex = 0;
   var _promptTokens = 0;
   TtsStreamQueue? _talkTtsQueue;
@@ -183,6 +182,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   String? _uiLang;
   Timer? _promptWatchdog;
   Timer? _promptHardWatchdog;
+  Timer? _connRefreshDebounce;
   ChatConnStatus? _connStatusLast;
   VoidCallback? _connStatusListener;
   VoidCallback? _promptConnGuardListener;
@@ -204,12 +204,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _connStatusLast = _conn.status.value;
     _connStatusListener = _onConnStatusChanged;
     _conn.status.addListener(_connStatusListener!);
-    _reconnectedSub = _conn.onReconnected.listen((_) {
-      unawaited(_refreshConnSession());
-    });
-    _socketAttachedSub = _conn.onSocketAttached.listen((_) {
-      unawaited(_refreshConnSession());
-    });
+    _reconnectedSub = _conn.onReconnected.listen((_) => _scheduleConnRefresh());
+    _socketAttachedSub = _conn.onSocketAttached.listen((_) => _scheduleConnRefresh());
     _followupPushSub = _conn.onPromptFollowupPush.listen((p) {
       PromptFollowupStore.instance.mergePush(p);
     });
@@ -244,6 +240,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     NotifyRouter.openRoute = _openNotifyRoute;
     _notifyPushSub = _conn.onNotifyPush.listen((push) {
       unawaited(NotifyRouter.show(push.title, push.body, push.routeJson, resumed: NotifyRouter.appResumed, id: push.id.toInt()));
+      _store.notifyUnreadPut(_store.notifyUnreadCount + 1);
     });
     _presenceHeartbeat(true);
     VoicePrefs.instance.addListener(_onTalkPrefs);
@@ -337,7 +334,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _connStatusLast = next;
     if (next == ChatConnStatus.connected) {
       if (prev != ChatConnStatus.connected) {
-        unawaited(_reconcilePromptState());
+        _scheduleConnRefresh();
       }
       return;
     }
@@ -408,6 +405,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   var _refreshConnInflight = false;
+
+  /// Coalesce reconnect refresh (onReconnected + onSocketAttached + status listener).
+  void _scheduleConnRefresh() {
+    _connRefreshDebounce?.cancel();
+    _connRefreshDebounce = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      unawaited(_refreshConnSession());
+    });
+  }
 
   Future<void> _refreshConnSession() async {
     if (_refreshConnInflight) return;
@@ -753,6 +759,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _billingCommissionSub?.cancel();
     _reconnectedSub?.cancel();
     _socketAttachedSub?.cancel();
+    _connRefreshDebounce?.cancel();
     _followupPushSub?.cancel();
     _promptRunPushSub?.cancel();
     _notifyPushSub?.cancel();
@@ -1062,10 +1069,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _selectChat(int id) async {
     _composerDraftSaveNow();
-    _promptTokens = 0;
-    _usage = const ContextUsageParts();
     _closeHistoryDrawerIfNarrow();
     _store.chatSelect(id);
+    final savedTokens = _store.chatPromptTokensGet(id);
+    _promptTokens = savedTokens;
+    _usage = savedTokens > 0 ? ContextUsageParts(conversation: savedTokens) : const ContextUsageParts();
     var lastSeenMsgId = 0;
     for (final m in _store.msgs) {
       if (m.chatId == id && m.id > lastSeenMsgId) lastSeenMsgId = m.id;
@@ -1080,6 +1088,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       _store.promptReconcileFromServerMsgs(id, _store.msgs.where((m) => m.chatId == id));
     } catch (_) {}
     if (!mounted) return;
+    if (_promptTokens <= 0) {
+      final est = _effectivePromptTokens;
+      if (est > 0) {
+        _promptTokens = est;
+        _usage = _effectiveUsage;
+      }
+    }
     setState(() {});
     _timeline.scrollToBottom(force: true);
   }
@@ -1266,18 +1281,14 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         anchorCtx,
         action: UiAccountMenuAction(
           conn: ReferralConn(uid: Session.instance.uid),
-          fetchNotifyUnread: () async {
-            final res = await _conn.notifyList(unreadOnly: true, limit: 50);
-            final n = res.items.length;
-            if (mounted) _notifyUnread = n;
-            return n;
-          },
+          shellStore: _store,
           onSettings: _openSettings,
           onReferralTree: _openReferralTree,
           onBalance: () => billingHistorySheet(
             context,
             conn: ReferralConn(uid: Session.instance.uid),
             onNavigateToMessage: _navigateToChatMessage,
+            mentionCatalog: _store.mentionCatalog,
           ),
           onPackage: () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid)),
           onCommissionTap: _openCommissionSheet,
@@ -1297,10 +1308,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           liveOffers: _store.liveOffers,
           onLiveCallStart: _liveCallStart,
           mailInboxCount: mailInboxBus.inboxCount,
-          notifyUnreadCount: _notifyUnread,
-          botsCount: _store.navCounts.bots,
-          devicesCount: _store.navCounts.devices,
-          sitesCount: _store.navCounts.sites,
+          notifyUnreadCount: _store.notifyUnreadCount,
         ),
       );
   }
@@ -1696,45 +1704,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget _chatHeaderAccountTrailing(BuildContext menuCtx) => ListenableBuilder(
-        listenable: PromptUsagePrefs.instance,
-        builder: (context, _) {
-          final showMeter = (Session.instance.isRoot || Session.instance.isTester) &&
-              PromptUsagePrefs.instance.showUsageStats &&
-              (_threadTokenTotal > 0 || _promptTokens > 0);
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              UiConnWifi(conn: _conn, onReconnect: _connConnect),
-              const SizedBox(width: 6),
-              if (showMeter)
-                UiContextMeter(
-                  promptTokens: _promptTokens,
-                  usage: _usage,
-                  tokensIn: _threadTokensIn,
-                  tokensOut: _threadTokensOut,
-                  costUsd: _threadCostUsd,
-                  contextLimit: _contextLimit,
-                  windowOptions: _contextWindowOptions,
-                  onWindowSelected: _contextWindowSet,
-                  onSummarize: _chatCompact,
-                  summarizeBusy: _summarizeChatId != null && _summarizeChatId == _store.activeChatId,
-                  billingCurrency: AppStore.instance.wallet.billingCurrency,
-                  fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
-                  tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
-                )
-              else
-                const UiAppBarVersionLabel(),
-              SizedBox(width: showMeter ? 10 : 6),
-              UiAccountBtn(
-                tooltip: 'Account',
-                onTap: () => _avatarMenu(menuCtx),
-                child: UiUserAvatar(name: Session.instance.name, email: Session.instance.email, handle: Session.instance.handle, pic: Session.instance.pic, size: 28),
-              ),
-            ],
-          );
-        },
+  Widget _chatHeaderAccountTrailing(BuildContext menuCtx) => _HomeChatHeaderAccountTrailing(
+        key: const ValueKey('chat_header_account_trailing'),
+        menuCtx: menuCtx,
+        home: this,
       );
 
   Widget _historySidebar() => UiChatHistorySidebar(
@@ -1854,7 +1827,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Widget _chatHeader({required bool wide}) {
-    final titleWidget = _activeChatTitleWidget();
     final bar = SizedBox(
       height: 48,
       child: Padding(
@@ -1868,7 +1840,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 icon: const Icon(Icons.menu_rounded),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
-            Expanded(child: titleWidget),
+            Expanded(
+              child: ListenableBuilder(
+                listenable: _store,
+                builder: (context, _) => _activeChatTitleWidget(),
+              ),
+            ),
             if (_canvasStore.hasArtifact) ...[
               uiIconButton(
                 tooltip: _canvasStore.isOpen ? 'Hide canvas' : 'Open canvas',
@@ -1890,22 +1867,28 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               ),
               const SizedBox(width: 4),
             ],
-            if ((Session.instance.isRoot || Session.instance.isTester) && _activeChat?.contextSummaryPresent == true)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: uiTooltip(
-                  message: 'Earlier messages summarized for context',
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF27272A),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF3F3F46)),
+            ListenableBuilder(
+              listenable: _store,
+              builder: (context, _) {
+                final summarized = (Session.instance.isRoot || Session.instance.isTester) && _activeChat?.contextSummaryPresent == true;
+                if (!summarized) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: uiTooltip(
+                    message: 'Earlier messages summarized for context',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF27272A),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF3F3F46)),
+                      ),
+                      child: const Text('Summarized', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
                     ),
-                    child: const Text('Summarized', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 11)),
                   ),
-                ),
-              ),
+                );
+              },
+            ),
             if (!wide)
               uiIconButton(
                 tooltip: 'New chat',
@@ -1913,12 +1896,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 icon: const Icon(Icons.add_rounded),
                 onPressed: _newChat,
               ),
-            Builder(
-              builder: (menuCtx) => KeyedSubtree(
-                key: const ValueKey('chat_header_account_trailing'),
-                child: _chatHeaderAccountTrailing(menuCtx),
-              ),
-            ),
+            Builder(builder: _chatHeaderAccountTrailing),
           ],
         ),
       ),
@@ -1930,6 +1908,31 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   int get _contextLimit => contextWindowResolve(_model.contextTokens, _activeChat?.contextWindow ?? 0);
+
+  int get _effectivePromptTokens {
+    if (_promptTokens > 0) return _promptTokens;
+    if (_usage.total > 0) return _usage.total;
+    final activeId = _store.activeChatId;
+    if (activeId != null && activeId > 0) {
+      final saved = _store.chatPromptTokensGet(activeId);
+      if (saved > 0) return saved;
+    }
+    if (_store.activeMsgs.isEmpty) return 0;
+    var totalChars = 0;
+    for (final m in _store.activeMsgs) {
+      totalChars += m.content.length;
+    }
+    final est = (totalChars / 4.0).ceil();
+    return est > 0 ? (est + 1500) : 0;
+  }
+
+  ContextUsageParts get _effectiveUsage {
+    if (_usage.total > 0) return _usage;
+    final total = _effectivePromptTokens;
+    if (total <= 0) return const ContextUsageParts();
+    final conv = (total - 1500).clamp(0, total);
+    return ContextUsageParts(instructions: 1500, conversation: conv);
+  }
 
   List<int> get _contextWindowOptions => contextWindowOptionsForModel(_model.contextTokens);
 
@@ -1943,10 +1946,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _promptEstimateApply(int chatId, ResPromptEnd end) {
     if (end.contextWindow > 0) _store.chatContextWindowPut(chatId, end.contextWindow);
+    final usageParts = end.hasUsage() ? _usageParts(end.usage) : null;
+    final pt = usageParts != null && usageParts.total > 0 ? usageParts.total : end.promptTokens;
+    if (pt > 0) _store.chatPromptTokensPut(chatId, pt);
     if (!mounted || _store.activeChatId != chatId) return;
     setState(() {
-      if (end.hasUsage()) {
-        _usage = _usageParts(end.usage);
+      if (usageParts != null) {
+        _usage = usageParts;
         _promptTokens = _usage.total > 0 ? _usage.total : end.promptTokens;
       } else {
         _promptTokens = end.promptTokens;
@@ -1961,11 +1967,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     try {
       final res = await _conn.chatContextWindowSet(chatId: id, contextWindow: window);
       final applied = res.contextWindow > 0 ? res.contextWindow : window;
-      _store.chatContextWindowPut(id, applied);
       if (!mounted || _store.activeChatId != id) return;
       setState(() {
+        _store.chatContextWindowPut(id, applied);
         _usage = _usage.copyConversation(res.promptTokens);
         _promptTokens = _usage.total;
+        _store.chatPromptTokensPut(id, _promptTokens);
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating));
@@ -1984,6 +1991,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       setState(() {
         _usage = _usage.copyConversation(res.promptTokens);
         _promptTokens = _usage.total;
+        _store.chatPromptTokensPut(id, _promptTokens);
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating));
@@ -1994,7 +2002,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   int get _threadTokensIn => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensIn);
   int get _threadTokensOut => _store.activeMsgs.fold(0, (acc, m) => acc + m.tokensOut);
-  int get _threadTokenTotal => _threadTokensIn + _threadTokensOut;
   double get _threadCostUsd => _store.activeMsgs.fold(0.0, (acc, m) => acc + m.costUsd);
 
   void _onTalkPrefs() {
@@ -2248,14 +2255,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         ),
       );
 
-  Widget _chatColumn({required bool wide}) => Column(
+  Widget _chatColumn({required bool wide}) => ComposerStage(
+        host: _composerStageHost,
+        child: Column(
         children: [
-          RepaintBoundary(
-            child: ListenableBuilder(
-              listenable: _store,
-              builder: (context, _) => _chatHeader(wide: wide),
-            ),
-          ),
+          RepaintBoundary(child: _chatHeader(wide: wide)),
           Expanded(
             child: ListenableBuilder(
               listenable: VoicePrefs.instance,
@@ -2273,6 +2277,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
             ),
           ),
         ],
+      ),
       );
 
   String _plainForMsg(MsgRow m) {
@@ -2367,13 +2372,19 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final showFatalError = hasError && !hasAnswerBody && !uiIsRecoverableDeviceContextError(err);
       final locale = CatalogTranslationCache.instance.lang;
       final showRetry = hasError && !_store.promptBusyFor(m.chatId) && i == lastAssistantIdx;
+      final thoughtView = msgThoughtView(
+        thought: m.thought,
+        content: content,
+        thinking: inThoughtPhase,
+      );
+      final showThought = stoppingThis || inThoughtPhase || (thoughtView.thought != null && thoughtView.thought!.isNotEmpty);
       body = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           UiMsgCopyPrefix(text: copyHeader, leadingNewlines: copyGap),
-          if (stoppingThis || inThoughtPhase)
+          if (showThought)
             UiMsgThought(
-              text: stoppingThis ? 'Stopping…' : '',
+              text: stoppingThis ? 'Stopping…' : (thoughtView.thought ?? ''),
               thinking: inThoughtPhase,
               stopping: stoppingThis,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
@@ -2714,6 +2725,67 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       ),
     );
   }
+}
+
+/// App-bar wifi, context meter, and account control — isolated from full header rebuilds.
+class _HomeChatHeaderAccountTrailing extends StatelessWidget {
+  const _HomeChatHeaderAccountTrailing({super.key, required this.menuCtx, required this.home});
+
+  final BuildContext menuCtx;
+  final _PageAIHomeState home;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: Listenable.merge([home._store, PromptUsagePrefs.instance]),
+        builder: (context, _) {
+          final h = home;
+          final threadTokensIn = h._threadTokensIn;
+          final threadTokensOut = h._threadTokensOut;
+          final threadTotal = threadTokensIn + threadTokensOut;
+          final showMeter = (Session.instance.isRoot || Session.instance.isTester) &&
+              PromptUsagePrefs.instance.showUsageStats &&
+              (threadTotal > 0 || h._effectivePromptTokens > 0);
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              UiConnWifi(conn: h._conn, onReconnect: h._connConnect),
+              const SizedBox(width: 6),
+              if (showMeter)
+                UiContextMeter(
+                  key: const ValueKey('chat_context_meter'),
+                  promptTokens: h._effectivePromptTokens,
+                  usage: h._effectiveUsage,
+                  tokensIn: threadTokensIn,
+                  tokensOut: threadTokensOut,
+                  costUsd: h._threadCostUsd,
+                  contextLimit: h._contextLimit,
+                  windowOptions: h._contextWindowOptions,
+                  onWindowSelected: h._contextWindowSet,
+                  onSummarize: h._chatCompact,
+                  summarizeBusy: h._summarizeChatId != null && h._summarizeChatId == h._store.activeChatId,
+                  billingCurrency: AppStore.instance.wallet.billingCurrency,
+                  fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+                  tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
+                )
+              else
+                const UiAppBarVersionLabel(),
+              SizedBox(width: showMeter ? 10 : 6),
+              UiAccountBtn(
+                tooltip: 'Account',
+                onTap: () => h._avatarMenu(menuCtx),
+                child: UiUserAvatar(
+                  name: Session.instance.name,
+                  email: Session.instance.email,
+                  handle: Session.instance.handle,
+                  pic: Session.instance.pic,
+                  size: 28,
+                ),
+              ),
+            ],
+          );
+        },
+      );
 }
 
 /// Composer isolated from chat-thread [ChatStore] updates (streaming, sync) so typing stays smooth.

@@ -52,6 +52,8 @@ $envMap = [ordered]@{
     NATS_USER            = (Secret-Get $SourceNs csa-env NATS_USER)
     NATS_PASS            = (Secret-Get $SourceNs csa-env NATS_PASS)
     NATS_CA              = "/nats-ca/ca.crt"
+    CLOUDFLARE_API_TOKEN = $(if ($t = Secret-Get $SourceNs csa-env CLOUDFLARE_API_TOKEN) { $t } else { Secret-Get $SourceNs csa-env CLOUDFLARE_AIG_API_TOKEN })
+    CLOUDFLARE_ACCOUNT_ID = (Secret-Get $SourceNs csa-env CLOUDFLARE_ACCOUNT_ID)
 }
 
 $lines = @()

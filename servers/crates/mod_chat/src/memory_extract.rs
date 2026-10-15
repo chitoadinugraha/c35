@@ -150,6 +150,7 @@ async fn memory_extract_llm(
         MEMORY_EXTRACT_MODEL,
         EXTRACT_SYSTEM,
         "AUTO",
+        false,
     )
     .await?;
     let cost = billing_cost_usd(&model, out.in_tok, out.out_tok);

@@ -168,7 +168,7 @@ pub async fn cf_domain_search(query: &str, limit: u32) -> Result<Vec<DomainHit>,
     ))
     .map_err(|e| e.to_string())?;
     url.query_pairs_mut()
-        .append_pair("query", q)
+        .append_pair("q", q)
         .append_pair("limit", &limit.to_string());
     let res = cf_http()?
         .get(url)

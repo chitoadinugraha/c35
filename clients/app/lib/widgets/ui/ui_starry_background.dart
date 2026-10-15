@@ -39,8 +39,13 @@ class _UiStarryBackgroundState extends State<UiStarryBackground>
     WidgetsBinding.instance.addObserver(this);
     _stars = _generateStars(widget.starCount);
 
-    _repaintTicker = createTicker((_) {
-      if (mounted) setState(() {});
+    var lastPaintMs = 0;
+    _repaintTicker = createTicker((elapsed) {
+      if (!mounted) return;
+      final ms = elapsed.inMilliseconds;
+      if (ms - lastPaintMs < 66) return;
+      lastPaintMs = ms;
+      setState(() {});
     })..start();
 
     _cometController = AnimationController(

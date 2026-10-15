@@ -30,6 +30,7 @@ void main() {
         pic: 'pic1',
         locationLabel: 'Malang',
         locationHref: 'https://maps.example/malang',
+        primaryColor: '#3366FF',
         openHours: [slot],
       ),
     );
@@ -46,5 +47,14 @@ void main() {
   test('siteMetaTaglineRead prefers tagline over seo_desc', () {
     expect(siteMetaTaglineRead('{"tagline":"a","seo_desc":"b"}'), 'a');
     expect(siteMetaTaglineRead('{"seo_desc":"b"}'), 'b');
+  });
+
+  test('siteMetaPrimaryColorRead and merge', () {
+    expect(siteMetaPrimaryColorRead('{}'), '#F97316');
+    expect(siteMetaPrimaryColorRead('{"primary_color":"#3366FF"}'), '#3366FF');
+    final merged = siteMetaMergeInfo('{}', primaryColor: '#3366FF');
+    expect(merged, contains('3366FF'));
+    final defaultMerge = siteMetaMergeInfo('{"primary_color":"#3366FF"}', primaryColor: '#F97316');
+    expect(defaultMerge.contains('primary_color'), isFalse);
   });
 }

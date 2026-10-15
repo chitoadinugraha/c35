@@ -11,6 +11,7 @@ mod identity_delete;
 mod identity_nav_counts;
 mod identity_geo;
 mod identity_prefs_sync;
+mod identity_pic_ingest;
 mod identity_profile_get;
 mod identity_client_put;
 mod session_init;
@@ -31,6 +32,7 @@ pub use auth_session::{auth_session_caller_iid, auth_session_create, auth_sessio
 pub use identity_grant_patch::identity_grant_patch;
 pub use identity_list::identity_list;
 pub use identity_nav_counts::identity_nav_counts;
+pub use identity_pic_ingest::{identity_pic_ingest_from_url, identity_pic_is_cas};
 pub use identity_profile_get::identity_profile_get;
 pub use identity_delete::{identity_delete, identity_kind_get};
 pub use identity_put::identity_put;

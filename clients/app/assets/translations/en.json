@@ -543,5 +543,21 @@
         "inboundComposerNotReady": "Composer is not ready yet. Try again."
     },
     "live.loadingModule": "Loading call...",
-    "devices.loadingModule": "Loading devices..."
+    "devices.loadingModule": "Loading devices...",
+    "account": {
+        "assets": "Assets",
+        "assetsSubtitle": "Bots, devices, sites, and inbox",
+        "assetsTooltip": "Open your workspace and inbox",
+        "sectionWorkspace": "WORKSPACE",
+        "sectionInbox": "INBOX",
+        "bots": "Bots",
+        "devices": "Devices",
+        "sites": "Sites",
+        "notifications": "Notifications",
+        "mailboxesCount": "{count} mailboxes",
+        "mailNew": "{count} new",
+        "mailNoNew": "No new mail",
+        "notificationsUnread": "{count} unread",
+        "notificationsNone": "No unread notifications"
+    }
 }

@@ -11,22 +11,24 @@ import 'package:flutter/material.dart';
 const _chipText = Color(0xFFE4E4E7);
 const _muted = Color(0xFF71717A);
 
-Widget _liveCallExpandSlot({required bool expand, required Widget child}) =>
-    expand ? SizedBox(height: homeTalkCallChipHeight, width: double.infinity, child: child) : child;
+Widget _liveCallExpandSlot({required bool expand, required double height, required Widget child}) =>
+    expand ? SizedBox(height: height, width: double.infinity, child: child) : child;
 
 class _UiLiveCallChipLabel extends StatelessWidget {
-  const _UiLiveCallChipLabel({this.offer, required this.enabled, this.soonSuffix, this.text, this.ellipsis = false});
+  const _UiLiveCallChipLabel({this.offer, required this.enabled, this.soonSuffix, this.text, this.ellipsis = false, this.dense = false});
 
   final LiveOffer? offer;
   final bool enabled;
   final String? soonSuffix;
   final String? text;
   final bool ellipsis;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final textColor = enabled ? _chipText : _muted;
-    final style = TextStyle(color: textColor, fontSize: 13);
+    final fontSize = dense ? 12.0 : 13.0;
+    final style = TextStyle(color: textColor, fontSize: fontSize, height: 1, fontWeight: dense ? FontWeight.w500 : null);
     final title = text ?? liveOfferActionTitle(offer ?? LiveOffer());
     final suffix = soonSuffix != null && soonSuffix!.isNotEmpty ? ' ($soonSuffix)' : '';
     if (ellipsis) {
@@ -36,7 +38,7 @@ class _UiLiveCallChipLabel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(title, style: style),
-        if (suffix.isNotEmpty) Text(suffix, style: TextStyle(color: _muted, fontSize: 13)),
+        if (suffix.isNotEmpty) Text(suffix, style: TextStyle(color: _muted, fontSize: fontSize)),
       ],
     );
   }
@@ -49,12 +51,16 @@ class UiLiveCallChip extends StatelessWidget {
     required this.offers,
     required this.onStart,
     this.expand = false,
+    this.dense = false,
   });
 
   final AgentModel composerModel;
   final List<LiveOffer> offers;
   final ValueChanged<LiveOffer> onStart;
   final bool expand;
+  final bool dense;
+
+  double get _tileHeight => dense ? accountMenuNavTileHeight : homeTalkCallChipHeight;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -77,16 +83,20 @@ class UiLiveCallChip extends StatelessWidget {
           }
 
           Widget chipLabel({LiveOffer? offer, required bool enabled, String? suffix, String? title, bool lineEllipsis = false}) =>
-              _UiLiveCallChipLabel(offer: offer, enabled: enabled, soonSuffix: suffix, text: title, ellipsis: lineEllipsis);
+              _UiLiveCallChipLabel(offer: offer, enabled: enabled, soonSuffix: suffix, text: title, ellipsis: lineEllipsis, dense: dense);
+
+          final chipTheme = dense ? HintChipTheme.accountMenuNav : HintChipTheme.liveCall;
 
           if (!showMenu) {
             return _liveCallExpandSlot(
               expand: expand,
+              height: _tileHeight,
               child: UiHintChip(
                 icon: Icons.call_rounded,
                 enabled: defaultOffer.enabled,
-                theme: HintChipTheme.liveCall,
+                theme: chipTheme,
                 expand: expand,
+                dense: dense,
                 label: expand
                     ? chipLabel(enabled: defaultOffer.enabled, suffix: soonSuffix, title: expandTitle, lineEllipsis: true)
                     : chipLabel(offer: defaultOffer, enabled: defaultOffer.enabled, suffix: soonSuffix),
@@ -97,6 +107,7 @@ class UiLiveCallChip extends StatelessWidget {
 
           return _liveCallExpandSlot(
             expand: expand,
+            height: _tileHeight,
             child: MenuAnchor(
             style: MenuStyle(
               backgroundColor: const WidgetStatePropertyAll(Color(0xFF18181B)),
@@ -128,8 +139,9 @@ class UiLiveCallChip extends StatelessWidget {
             builder: (context, controller, child) => UiHintChip(
               icon: Icons.call_rounded,
               enabled: chipEnabled,
-              theme: HintChipTheme.liveCall,
+              theme: chipTheme,
               expand: expand,
+              dense: dense,
               showChevron: true,
               label: expand
                   ? chipLabel(enabled: chipEnabled, suffix: soonSuffix, title: expandTitle, lineEllipsis: true)

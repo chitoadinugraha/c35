@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/design/site_color.dart';
 import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:alienai_c35/c/site/site_draft_meta.dart';
@@ -495,6 +496,15 @@ void siteEditorPreviewApplyMetaMap(Map<String, dynamic> boot, Map<String, dynami
     final taxes = meta['taxes'];
     if (taxes is List) commerce['taxes'] = taxes;
   }
+  final themeRaw = boot['theme'];
+  if (themeRaw is Map) {
+    final theme = Map<String, dynamic>.from(themeRaw);
+    final resolved = guestAccentHex(theme: theme, meta: meta);
+    final design = boot['design'];
+    if (design is Map) {
+      design['accent'] = resolved;
+    }
+  }
 }
 
 void siteEditorPreviewMergeMetaJson(Map<String, dynamic> boot, String metaJson) {
@@ -561,6 +571,7 @@ SiteInfoSnapshot siteEditorPreviewInfoSnapshot(SiteRow row, String metaJson) {
     pic: row.pic,
     locationLabel: locationLabel,
     locationHref: locationHref,
+    primaryColor: siteMetaPrimaryColorRead(metaJson),
     latitude: lat,
     longitude: lng,
     openHours: siteScheduleSlotsFromMetaJson(metaJson),

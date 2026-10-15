@@ -29,6 +29,14 @@ class HintChipTheme {
     icon: Color(0xFFFAFAFA),
   );
 
+  /// Account menu nav row (Bots / Talk / Call tiles).
+  static const HintChipTheme accountMenuNav = HintChipTheme(
+    background: Color(0xFF27272A),
+    border: Color(0xFF27272A),
+    label: Color(0xFFF4F4F5),
+    icon: Color(0xFFA1A1AA),
+  );
+
   static HintChipTheme forKey(String theme) => switch (theme.trim()) {
         'live_call' => liveCall,
         _ => defaultTheme,
@@ -37,5 +45,8 @@ class HintChipTheme {
 
 /// Shared height for account-menu Talk mode + Live call chips.
 const double homeTalkCallChipHeight = 36;
+
+/// Compact nav tiles (Bots / Talk / Call) in the account menu.
+const double accountMenuNavTileHeight = 32;
 
 const EdgeInsets homeTalkCallChipContentPadding = EdgeInsets.symmetric(horizontal: 10);

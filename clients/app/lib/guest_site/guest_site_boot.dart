@@ -249,17 +249,9 @@ class GuestSiteBoot {
       productPreloadMeta[blockId]?['next_cursor']?.toString();
 
   /// CSA default guest `--accent` when theme/design do not set one.
-  static const Color csaDefaultAccent = Color(0xFFF97316);
+  static final Color csaDefaultAccent = siteColorParse(siteDefaultPrimaryColor);
 
-  Color get accentColor {
-    final fromDesign = design?.accent.trim() ?? '';
-    if (fromDesign.isNotEmpty) return siteColorParse(fromDesign);
-    final hex = theme['accent']?.toString().replaceAll('#', '') ?? '';
-    if (hex.length == 6) {
-      return Color(int.parse('FF$hex', radix: 16));
-    }
-    return csaDefaultAccent;
-  }
+  Color get accentColor => siteColorParse(guestAccentHex(theme: theme, meta: meta));
 
   /// Commerce chrome (cart bar, order/checkout sheets) — same as [accentColor] (CSA `--accent`).
   Color get commerceAccent => accentColor;

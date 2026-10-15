@@ -202,6 +202,7 @@ async fn compact_llm(
         CONTEXT_COMPACT_MODEL,
         COMPACT_SYSTEM,
         "AUTO",
+        false,
     )
     .await?;
     let cost = billing_cost_usd(&model, out.in_tok, out.out_tok);

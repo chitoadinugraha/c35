@@ -372,6 +372,7 @@ pub async fn channel_prompt_turn(
             &res.model_used,
             res.tokens_in,
             res.tokens_out,
+            res.tokens_cached,
             duration_ms as i64,
             0,
             cost_usd,

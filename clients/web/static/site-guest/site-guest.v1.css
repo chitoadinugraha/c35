@@ -498,7 +498,7 @@ body.guest-storefront .md {
 main.wrap.guest-page-main {
   position: relative;
   z-index: 1;
-  max-width: var(--guest-page-max, 720px);
+  max-width: var(--guest-page-max, 600px);
   margin: 0 auto;
   padding: 0 16px 88px;
   box-sizing: border-box;
@@ -638,24 +638,60 @@ body.guest-storefront:has(.guest-backdrop).backdrop-aurora::before {
   z-index: 6;
 }
 
-.guest-hero-signin-btn,
-.guest-hero-member-btn {
+/* Hub top chrome (share + Masuk) — parity with Flutter `_GuestHubChromeBtn`. */
+.guest-hub-chrome-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  height: 36px;
-  min-width: 36px;
-  padding: 0 14px;
+  margin: 0;
+  padding: 0;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--muted, #a1a1aa) 22%, transparent);
-  background: color-mix(in srgb, var(--card-bg, #fff) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--fg, #18181b) 10%, transparent);
+  background: color-mix(in srgb, var(--fg, #18181b) 5%, transparent);
   color: var(--fg, #18181b);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  appearance: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--fg, #18181b) 6%, transparent);
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.guest-hub-chrome-btn:hover {
+  transform: scale(1.04);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--accent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.guest-hub-chrome-btn:active {
+  transform: scale(0.98);
+}
+
+.guest-hub-chrome-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
+.guest-hero-signin-btn,
+.guest-hero-member-btn {
+  height: 36px;
+  min-width: 36px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
 }
 
 .guest-hero-signin-btn.guest-signin--avatar,
@@ -804,29 +840,17 @@ body.guest-storefront:has(.guest-backdrop).backdrop-aurora::before {
 
 .guest-hero-share-btn {
   position: static;
+  flex: 0 0 auto;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--card-bg, #fff) 80%, transparent);
-  border: 1px solid color-mix(in srgb, var(--muted, #a1a1aa) 20%, transparent);
-  color: var(--fg, #18181b);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, color 0.2s ease;
+  min-width: 36px;
+  padding: 0;
   z-index: 5;
-  font-size: 16px;
-  line-height: 1;
 }
 
-.guest-hero-share-btn:hover {
-  transform: scale(1.08);
-  border-color: var(--accent);
-  color: var(--accent);
+.guest-hero-share-btn svg {
+  display: block;
+  flex: 0 0 auto;
 }
 
 .guest-hub-hero .guest-hub-avatar,
@@ -3173,7 +3197,7 @@ main.wrap {
 }
 
 .guest-sticky-inner {
-  max-width: var(--guest-page-max, 720px);
+  max-width: var(--guest-page-max, 600px);
   margin: 0 auto;
   display: flex;
   align-items: center;
@@ -3203,14 +3227,8 @@ main.wrap {
   flex: 0 0 auto;
   height: 32px;
   min-width: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--muted, #a1a1aa) 28%, transparent);
-  background: color-mix(in srgb, var(--card-bg, #fff) 88%, transparent);
-  color: var(--fg, #18181b);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
+  padding: 6px 12px;
+  font-size: 11px;
 }
 
 .guest-catalog-scroll-sentinel {

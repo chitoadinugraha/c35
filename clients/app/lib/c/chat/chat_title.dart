@@ -148,19 +148,9 @@ class ChatTitleText extends StatelessWidget {
   Widget build(BuildContext context) {
     final stored = chatTitleStoredNormalize(title, mentions: mentions, stickyMentionIds: stickyMentionIds);
     if (stored.isEmpty) return const SizedBox.shrink();
-    if (!composerMentionTextHasTokens(stored)) {
-      return Text(
-        stored,
-        maxLines: maxLines,
-        overflow: TextOverflow.ellipsis,
-        style: style,
-      );
-    }
-    final catalog = composerMentionCatalogWithBracketSnapshots(stored, mentions);
-    final uiText = composerMentionTextForTitleUi(stored, catalog);
-    return ComposerMentionMessageText(
-      text: uiText,
-      mentions: catalog,
+    return ComposerMentionStyledText(
+      text: stored,
+      mentions: mentions,
       maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
       style: style,

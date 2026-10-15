@@ -246,6 +246,13 @@ String billingHistoryAmountLabel(BillingHistoryRow row) {
   return moneyFmtUsd(row.amountUsd.abs(), decimals: 4);
 }
 
+/// Usage covered by allowance — show list price plus "(Included)" when known.
+String billingHistoryIncludedAmountLabel(BillingHistoryRow row) {
+  final base = billingHistoryAmountLabel(row);
+  if (base.isEmpty) return 'Included';
+  return '$base (Included)';
+}
+
 String billingMeterState(double used, double limit) {
   if (limit <= 0) return 'green';
   final pct = used / limit;

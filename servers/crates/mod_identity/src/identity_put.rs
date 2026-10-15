@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
 use crate::identity_list::identity_list_row_get;
+use crate::identity_pic_ingest::identity_pic_ingest_from_url;
 
 fn alien_id_normalize(raw: &str) -> String {
     raw.trim().trim_start_matches('@').to_lowercase()
@@ -45,6 +46,31 @@ async fn alien_id_taken(pool: &PgPool, alien_id: &str, exclude: i64) -> Result<b
     .bind(alien_id)
     .bind(exclude)
     .fetch_one(pool)
+    .await
+    .map_err(Into::into)
+}
+
+/// Same owner re-creating a site/bot with the same handle after a lost RPC response.
+async fn identity_owned_by_alien_id(
+    pool: &PgPool,
+    owner_iid: i64,
+    kind: &str,
+    alien_id: &str,
+) -> Result<Option<i64>> {
+    sqlx::query_scalar(
+        r#"
+        SELECT id FROM ai.identity
+        WHERE deleted_ts IS NULL
+          AND kind = $1
+          AND owner_iid = $2
+          AND LOWER(alien_id) = LOWER($3)
+        LIMIT 1
+        "#,
+    )
+    .bind(kind)
+    .bind(owner_iid)
+    .bind(alien_id)
+    .fetch_optional(pool)
     .await
     .map_err(Into::into)
 }
@@ -220,7 +246,7 @@ pub async fn identity_put(
     }
 
     let incoming_meta = meta_parse(&req.meta_json)?;
-    let pic = req.pic.trim();
+    let pic = identity_pic_ingest_from_url(pool, req.pic.trim()).await;
 
     if req.iid == 0 {
         if kind.is_empty() {
@@ -231,6 +257,10 @@ pub async fn identity_put(
         }
         platform_site_identity_put_check(&alien_id, None)?;
         if !alien_id.is_empty() && alien_id_taken(pool, &alien_id, 0).await? {
+            if let Some(existing_id) = identity_owned_by_alien_id(pool, caller_iid, kind, &alien_id).await? {
+                let row = identity_list_row_get(pool, caller_iid, existing_id).await?;
+                return Ok(ResIdentityPut { row: Some(row) });
+            }
             return Err(anyhow!("alien_id taken"));
         }
         let id = snowflake_id();

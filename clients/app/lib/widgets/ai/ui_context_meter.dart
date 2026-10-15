@@ -332,7 +332,11 @@ class _UiContextMeterState extends State<UiContextMeter> {
   OverlayEntry? _menu;
   var _windowPickerOpen = false;
 
-  int get _used => widget.promptTokens < 0 ? 0 : widget.promptTokens;
+  int get _used {
+    if (widget.promptTokens > 0) return widget.promptTokens;
+    if (widget.usage.total > 0) return widget.usage.total;
+    return 0;
+  }
   bool get _visible => _used > 0 || widget.tokensIn > 0 || widget.tokensOut > 0;
   double get _fraction => widget.contextLimit > 0 ? (_used / widget.contextLimit).clamp(0.0, 1.0) : 0.0;
 
@@ -350,15 +354,23 @@ class _UiContextMeterState extends State<UiContextMeter> {
     return '$n';
   }
 
+  void _disposeOverlay(OverlayEntry? entry) {
+    if (entry == null) return;
+    if (entry.mounted) entry.remove();
+    entry.dispose();
+  }
+
   void _hideHover() {
-    _hover?.remove();
+    final hover = _hover;
     _hover = null;
+    _disposeOverlay(hover);
   }
 
   void _hideMenu() {
-    _menu?.remove();
+    final menu = _menu;
     _menu = null;
     _windowPickerOpen = false;
+    _disposeOverlay(menu);
   }
 
   Rect? _targetRect() {
@@ -641,6 +653,10 @@ class _UiContextMeterState extends State<UiContextMeter> {
   @override
   void didUpdateWidget(UiContextMeter oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.contextLimit != widget.contextLimit) {
+      _hideMenu();
+      _hideHover();
+    }
     _menu?.markNeedsBuild();
   }
 

@@ -44,13 +44,18 @@ fn chat_error_looks_technical(s: &str) -> bool {
 }
 
 /// Prompt-end `trace_json` for WS + inbox (usage fallback + allowance pool hint).
-pub fn prompt_end_trace_json(billing_included: bool, cost_usd: f64, model: &str) -> String {
-    serde_json::json!({
+pub fn prompt_end_trace_json(billing_included: bool, cost_usd: f64, model: &str, cached_tokens: i32) -> String {
+    let mut obj = serde_json::json!({
         "billing_included": billing_included,
         "cost_usd": cost_usd,
         "model": model,
-    })
-    .to_string()
+    });
+    if cached_tokens > 0 {
+        if let Some(map) = obj.as_object_mut() {
+            map.insert("cached_tokens".into(), serde_json::json!(cached_tokens));
+        }
+    }
+    obj.to_string()
 }
 
 #[cfg(test)]

@@ -127,7 +127,15 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Trace', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600)),
+                        Row(
+                          children: [
+                            const Text('Trace', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16, fontWeight: FontWeight.w600)),
+                            if (Session.instance.isRoot) ...[
+                              const SizedBox(width: 8),
+                              _traceRootOnlyBadge(),
+                            ],
+                          ],
+                        ),
                         if (widget.msgId > 0) ...[
                           const SizedBox(height: 2),
                           UiMsgId(id: widget.msgId),
@@ -149,7 +157,9 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Text(traceTotalsLine(_view.totals), style: const TextStyle(color: Color(0xFF71717A), fontSize: 12)),
               ),
-            if (widget.thought.trim().isNotEmpty && Session.instance.isRoot)
+            if (widget.thought.trim().isNotEmpty &&
+                Session.instance.isRoot &&
+                !_view.steps.any((s) => s.modelReasoning.trim().isNotEmpty))
               _MsgTraceThoughtSection(thought: widget.thought.trim()),
             const Divider(height: 1, color: Color(0xFF27272A)),
             Expanded(
@@ -162,7 +172,11 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
                           : ListView.builder(
                               padding: const EdgeInsets.all(16),
                               itemCount: _view.steps.length,
-                              itemBuilder: (_, i) => _StepTile(step: _view.steps[i], onInstTap: _onInstTap),
+                              itemBuilder: (_, i) => _StepTile(
+                                    step: _view.steps[i],
+                                    onInstTap: _onInstTap,
+                                    showReasoning: Session.instance.isRoot,
+                                  ),
                             ),
             ),
           ],
@@ -172,10 +186,28 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
   }
 }
 
+Widget _traceRootOnlyBadge() => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFF27272A),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Text(
+        'ROOT ONLY',
+        style: TextStyle(
+          color: Color(0xFFA1A1AA),
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+
 class _StepTile extends StatelessWidget {
-  const _StepTile({required this.step, this.onInstTap});
+  const _StepTile({required this.step, this.onInstTap, this.showReasoning = false});
   final TraceStep step;
   final Future<void> Function(String instId)? onInstTap;
+  final bool showReasoning;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -191,6 +223,15 @@ class _StepTile extends StatelessWidget {
                 Text(traceStepUsageLine(step), style: const TextStyle(color: Color(0xFF71717A), fontSize: 11)),
               ],
             ),
+            if (showReasoning && step.modelReasoning.trim().isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(left: 20, top: 6),
+                child: _MsgTraceThoughtSection(
+                  thought: step.modelReasoning.trim(),
+                  title: 'Model reasoning',
+                  compact: true,
+                ),
+              ),
             if (step.branches.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(left: 20, top: 6),
@@ -228,7 +269,15 @@ class _BranchGroupTileState extends State<_BranchGroupTile> {
   static const _muted = Color(0xFF71717A);
   static const _title = Color(0xFFD4D4D8);
 
-  var _expanded = false;
+  late var _expanded = widget.group.id == 'vision';
+
+  @override
+  void didUpdateWidget(covariant _BranchGroupTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.group.id != 'vision' && widget.group.id == 'vision') {
+      _expanded = true;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +364,7 @@ class _BranchRow extends StatefulWidget {
 }
 
 class _BranchRowState extends State<_BranchRow> {
-  var _previewExpanded = false;
+  late var _previewExpanded = widget.branch.label.toLowerCase().contains('turn-start');
 
   @override
   Widget build(BuildContext context) {
@@ -505,8 +554,14 @@ class _ToolFilterCandidateRow extends StatelessWidget {
 }
 
 class _MsgTraceThoughtSection extends StatefulWidget {
-  const _MsgTraceThoughtSection({required this.thought});
+  const _MsgTraceThoughtSection({
+    required this.thought,
+    this.title = 'Model Reasoning (Internal Thought)',
+    this.compact = false,
+  });
   final String thought;
+  final String title;
+  final bool compact;
 
   @override
   State<_MsgTraceThoughtSection> createState() => _MsgTraceThoughtSectionState();
@@ -518,7 +573,7 @@ class _MsgTraceThoughtSectionState extends State<_MsgTraceThoughtSection> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      margin: EdgeInsets.fromLTRB(widget.compact ? 0 : 16, 0, widget.compact ? 0 : 16, widget.compact ? 6 : 10),
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E22),
         borderRadius: BorderRadius.circular(8),
@@ -542,29 +597,13 @@ class _MsgTraceThoughtSectionState extends State<_MsgTraceThoughtSection> {
                   const SizedBox(width: 6),
                   const Icon(Icons.psychology_rounded, size: 16, color: Color(0xFF818CF8)),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Model Reasoning (Internal Thought)',
-                      style: TextStyle(
+                      widget.title,
+                      style: const TextStyle(
                         color: Color(0xFFE4E4E7),
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF27272A),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'ROOT ONLY',
-                      style: TextStyle(
-                        color: Color(0xFFA1A1AA),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
                       ),
                     ),
                   ),

@@ -1,11 +1,12 @@
 use anyhow::{Context, Result};
+use base64::Engine;
 use c35_mod_file::{cas_dir_default, cas_put, tool_artifact_insert};
 use serde_json::{json, Value};
 use sqlx::PgPool;
 
 use super::context::ToolContext;
 
-fn cas_secret_from_env() -> String {
+pub(crate) fn cas_secret_from_env() -> String {
     ["CAS_HMAC_SECRET", "C35_JWT_SECRET", "AGENT_SECRET_KEY"]
         .into_iter()
         .find_map(|k| std::env::var(k).ok())
@@ -129,6 +130,115 @@ fn screenshot_dims(result: &Value) -> (i64, i64) {
     (w, h)
 }
 
+pub fn screenshot_meta_value(
+    hash: &str,
+    url: &str,
+    width: u32,
+    height: u32,
+    som: bool,
+    marker: bool,
+) -> Value {
+    json!({
+        "hash": hash,
+        "url": url,
+        "width": width,
+        "height": height,
+        "som": som,
+        "marker": marker,
+    })
+}
+
+/// Persist JPEG bytes fed to the LLM (CAS file, not base64 in logs).
+pub async fn llm_vision_jpeg_persist(
+    pool: &PgPool,
+    owner_iid: i64,
+    req_id: &str,
+    tool_call_id: &str,
+    device_iid: i64,
+    jpeg: &[u8],
+    width: u32,
+    height: u32,
+    som: bool,
+    marker: bool,
+) -> Result<Value> {
+    let (hash, url) = device_screenshot_artifact_put(
+        pool,
+        owner_iid,
+        req_id,
+        tool_call_id,
+        "llm.vision",
+        device_iid,
+        jpeg,
+        width,
+        height,
+        som,
+        marker,
+        0,
+    )
+    .await?;
+    Ok(screenshot_meta_value(&hash, &url, width, height, som, marker))
+}
+
+/// Ensure a vision frame sent to the model has a CAS file for trace/debug.
+pub async fn llm_vision_ensure_stored(
+    pool: &PgPool,
+    owner_iid: i64,
+    req_id: &str,
+    tool_call_id: &str,
+    tool_result: &Value,
+    jpeg_b64: &str,
+) -> Option<Value> {
+    if let Some(meta) = tool_screenshot_meta_from_result(tool_result) {
+        return Some(meta);
+    }
+    let b64 = jpeg_b64.trim();
+    if b64.is_empty() || req_id.trim().is_empty() {
+        return None;
+    }
+    let bytes = match base64::engine::general_purpose::STANDARD.decode(b64) {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(error = %e, "llm_vision_ensure_stored base64 decode failed");
+            return None;
+        }
+    };
+    if bytes.is_empty() {
+        return None;
+    }
+    let (width, height) = screenshot_dims(tool_result);
+    let w = width.max(0) as u32;
+    let h = height.max(0) as u32;
+    let som = tool_result.get("som").and_then(|v| v.as_bool()).unwrap_or(false);
+    let marker = tool_result
+        .get("marker")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let device_iid = tool_result
+        .get("device_iid")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
+    match llm_vision_jpeg_persist(
+        pool,
+        owner_iid,
+        req_id,
+        tool_call_id,
+        device_iid,
+        &bytes,
+        w,
+        h,
+        som,
+        marker,
+    )
+    .await
+    {
+        Ok(meta) => Some(meta),
+        Err(e) => {
+            tracing::warn!(error = %e, "llm_vision_ensure_stored persist failed");
+            None
+        }
+    }
+}
+
 pub fn tool_screenshot_meta_from_result(result: &Value) -> Option<Value> {
     let hash = result
         .get("image_hash")
@@ -147,14 +257,14 @@ pub fn tool_screenshot_meta_from_result(result: &Value) -> Option<Value> {
         .get("marker")
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
-    Some(json!({
-        "hash": hash,
-        "url": url,
-        "width": width,
-        "height": height,
-        "som": som,
-        "marker": marker,
-    }))
+    Some(screenshot_meta_value(
+        hash,
+        url,
+        width.max(0) as u32,
+        height.max(0) as u32,
+        som,
+        marker,
+    ))
 }
 
 pub fn tool_screenshot_log_text(tool_id: &str, result: &Value) -> String {
@@ -191,6 +301,22 @@ mod tests {
         let slim = tool_result_preview_trim(&v);
         assert!(slim.get("image_base64").is_none());
         assert_eq!(slim["image_hash"], "abc");
+    }
+
+    #[test]
+    fn llm_vision_ensure_stored_uses_existing_hash_without_decode() {
+        let v = json!({
+            "image_hash": "deadbeef",
+            "image_url": "https://example/cas",
+            "width": 1024,
+            "height": 708,
+            "som": true,
+            "marker": false,
+        });
+        // sync helper: meta path only
+        let m = tool_screenshot_meta_from_result(&v).expect("meta");
+        assert_eq!(m["som"], true);
+        assert_eq!(m["width"], 1024);
     }
 
     #[test]

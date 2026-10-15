@@ -64,8 +64,8 @@ pub fn site_boot_json_assemble(
 ) -> Value {
     let theme_raw = doc_json.get("theme").cloned().unwrap_or_else(|| json!({}));
     let theme = crate::guest_theme_modernize::modernize_theme_for_render(&theme_raw);
-    let design = GuestDesign::from_value(&theme).to_value();
     let meta = doc_json.get("meta").cloned().unwrap_or_else(|| json!({}));
+    let design = GuestDesign::from_theme_meta(&theme, &meta).to_value();
     let knowledge = meta.get("knowledge").cloned().unwrap_or_else(|| json!([]));
     let ai_assistant = meta.get("ai_assistant").cloned().unwrap_or_else(|| json!({}));
     let product_design = product_design_from_site_meta(&meta).unwrap_or_else(|| json!({}));

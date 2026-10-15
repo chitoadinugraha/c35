@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/chat/chat_title.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading.dart' show UiThinkingDots;
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
@@ -350,13 +351,13 @@ class _ChatTileState extends State<_ChatTile> {
     if (widget.deleting) {
       return const Padding(
         padding: pad,
-        child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFFCA5A5))),
+        child: UiThinkingDots(color: Color(0xFFFCA5A5), size: 3, spacing: 2, bounceHeight: 2),
       );
     }
     if (widget.isStreaming) {
       return const Padding(
         padding: pad,
-        child: SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFF60A5FA))),
+        child: UiThinkingDots(color: Color(0xFF60A5FA), size: 3, spacing: 2, bounceHeight: 2),
       );
     }
     if (widget.unread) {

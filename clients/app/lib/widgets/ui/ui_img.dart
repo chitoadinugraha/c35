@@ -1,5 +1,4 @@
 import 'package:alienai_c35/c/media/media_disk_cache.dart';
-import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/widgets/ai/ui_serve_image.dart';
 import 'package:alienai_c35/widgets/ui/ui_icon.dart';
 import 'package:alienai_c35/widgets/ui/ui_img_cached.dart';
@@ -15,10 +14,7 @@ class UiImg extends StatelessWidget {
   final double? height;
   final bool recolor;
 
-  Map<String, String>? _headers() {
-    final token = sessionAuthToken();
-    return token.isEmpty ? null : {'Authorization': 'Bearer $token'};
-  }
+  Map<String, String>? _headersFor(String networkUrl) => mediaAuthHeadersForUrl(networkUrl);
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +25,7 @@ class UiImg extends StatelessWidget {
       return UiImgCached(
         src: cleaned,
         networkUrl: cleaned,
-        headers: _headers(),
+        headers: _headersFor(cleaned),
         fit: fit,
         width: width,
         height: height,
@@ -47,7 +43,7 @@ class UiImg extends StatelessWidget {
     return UiImgCached(
       src: cleaned,
       networkUrl: url,
-      headers: _headers(),
+      headers: _headersFor(url),
       fit: fit,
       width: width,
       height: height,

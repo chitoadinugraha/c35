@@ -13,6 +13,34 @@ TraceLogDoc _log({required String topic, String kind = 'system', int step = 1, i
     );
 
 void main() {
+  test('buildTraceView shows llm vision prefetch under Prepare with screenshot', () {
+    final view = buildTraceView([
+      TraceLogDoc(
+        kind: 'trace',
+        topic: 'llm_vision',
+        text: 'Turn-start desktop (SoM) · 1280x720 · SoM',
+        metaJson: jsonEncode({
+          'step': 1,
+          'hop': 0,
+          'branch': 'Turn-start desktop (SoM)',
+          'topic': 'llm_vision',
+          'screenshot': {
+            'hash': 'abc123',
+            'width': 1280,
+            'height': 720,
+            'som': true,
+          },
+        }),
+      ),
+      _log(topic: 'trace_prepare', branch: 'compose', durationMs: 1000),
+    ]);
+    expect(view.steps.first.title, 'Prepare');
+    final vision = view.steps.first.branches.where((b) => b.label.contains('Turn-start')).toList();
+    expect(vision, hasLength(1));
+    expect(vision.first.hasScreenshotPreview, isTrue);
+    expect(vision.first.screenshot?.som, isTrue);
+  });
+
   test('traceToolChipsFromView skips prepare traces', () {
     final view = buildTraceView([
       _log(topic: 'trace_tool_filter', branch: 'tools', durationMs: 12),
@@ -214,13 +242,44 @@ void main() {
         'args': {'url': 'https://jadwalnonton.com/bioskop/di-malang/'},
       }),
     );
-    expect(traceToolLabelFromLog(log), 'Read jadwalnonton.com');
+    expect(traceToolLabelFromLog(log), 'Visited jadwalnonton.com');
+  });
+
+  test('traceToolLabelFromLog labels device.input shortcut from args', () {
+    final log = TraceLogDoc(
+      kind: 'tool',
+      topic: 'tool_result',
+      text: '{"ok":true}',
+      metaJson: jsonEncode({
+        'tool': 'device.input',
+        'args': {'event_type': 'shortcut', 'text': 'ctrl+b'},
+      }),
+    );
+    expect(traceToolLabelFromLog(log), 'Pressed ctrl+b');
+  });
+
+  test('traceToolLabelFromLog labels device.input batch actions', () {
+    final log = TraceLogDoc(
+      kind: 'tool',
+      topic: 'tool_result',
+      text: '{"ok":true}',
+      metaJson: jsonEncode({
+        'tool': 'device.input',
+        'args': {
+          'actions': [
+            {'event_type': 'shortcut', 'text': 'ctrl+g'},
+            {'event_type': 'type_text', 'text': 'A2'},
+          ],
+        },
+      }),
+    );
+    expect(traceToolLabelFromLog(log), '2 actions on device');
   });
 
   test('toolLabelFromTemplate substitutes source host', () {
     expect(
-      toolLabelFromTemplate('Read {{source}}', {'source': 'jadwalnonton.com'}),
-      'Read jadwalnonton.com',
+      toolLabelFromTemplate('Visited {{source}}', {'source': 'jadwalnonton.com'}),
+      'Visited jadwalnonton.com',
     );
   });
 
@@ -269,8 +328,8 @@ void main() {
       ),
     ]);
     expect(view.steps, hasLength(3));
-    expect(view.steps[0].title, 'Tool run · Read jadwalnonton.com');
-    expect(view.steps[1].title, 'Tool run · Read jadwalnonton.com');
+    expect(view.steps[0].title, 'Tool run · Visited jadwalnonton.com');
+    expect(view.steps[1].title, 'Tool run · Visited jadwalnonton.com');
     expect(view.steps[2].title, 'Reply');
     expect(view.steps[2].branches, isEmpty);
     final chips = traceToolChipsFromView(view);
@@ -342,21 +401,77 @@ void main() {
     expect(chips.first.hasScreenshotPreview, isTrue);
   });
 
-  test('groupTraceStepBranches clusters prepare stages', () {
+  test('groupTraceStepBranches puts turn-start vision first in Desktop vision group', () {
     final step = TraceStep(
       index: 0,
       title: 'Prepare',
       branches: [
-        const TraceBranch(label: 'Billing resolve & freemium', stageKey: 'billing_resolve', durationMs: 2200),
-        const TraceBranch(label: 'Quota & hold gate', stageKey: 'billing_gate', durationMs: 615),
-        const TraceBranch(label: 'Inst list', stageKey: 'inst_list', durationMs: 50),
         const TraceBranch(label: 'User context', stageKey: 'user_context', durationMs: 121),
+        TraceBranch(
+          label: 'Turn-start desktop (SoM)',
+          stageKey: 'llm_vision',
+          durationMs: 0,
+          screenshot: const TraceScreenshot(hash: 'abc', width: 1280, height: 720, som: true),
+        ),
       ],
     );
-    expect(traceStepUsesBranchGroups(step), isTrue);
     final groups = groupTraceStepBranches(step);
-    expect(groups.map((g) => g.title).toList(), ['Billing', 'Context', 'Instruction']);
-    expect(groups.first.durationMs, 2815);
-    expect(groups.first.branches, hasLength(2));
+    expect(groups.first.title, 'Desktop vision');
+    expect(groups.first.branches.first.label, contains('Turn-start'));
+    expect(groups.first.branches.first.hasScreenshotPreview, isTrue);
+  });
+
+  test('buildTraceView attaches model_reasoning to LLM hop step', () {
+    final view = buildTraceView([
+      TraceLogDoc(
+        kind: 'llm',
+        topic: 'llm_call',
+        text: 'reply',
+        model: 'alienai',
+        durationMs: 800,
+        metaJson: jsonEncode({
+          'step': 2,
+          'hop': 1,
+          'prompt_tokens': 100,
+          'completion_tokens': 20,
+          'model_reasoning': 'Plan: click bold button.',
+        }),
+      ),
+      TraceLogDoc(
+        kind: 'llm',
+        topic: 'llm_turn',
+        text: 'done',
+        metaJson: jsonEncode({'prompt_tokens': 100, 'completion_tokens': 20, 'duration_ms': 1200}),
+      ),
+    ]);
+    expect(view.steps.single.modelReasoning, 'Plan: click bold button.');
+  });
+
+  test('traceStepUsageLine and traceTotalsLine display cached tokens with ⚡', () {
+    const stepWithCache = TraceStep(
+      index: 1,
+      title: 'Hop 1',
+      tokensIn: 8192,
+      tokensOut: 256,
+      tokensCached: 4096,
+      model: 'gemini-3.5-flash-lite',
+      durationMs: 450,
+      costUsd: 0.0012,
+    );
+    final line = traceStepUsageLine(stepWithCache);
+    expect(line, contains('8,192↑ (4,096⚡)'));
+    expect(line, contains('256↓'));
+
+    const totalsWithCache = TraceTotals(
+      tokensIn: 10000,
+      tokensOut: 500,
+      tokensCached: 8000,
+      model: 'gemini-3.5-flash-lite',
+      durationMs: 1200,
+      costUsd: 0.002,
+    );
+    final totalsLine = traceTotalsLine(totalsWithCache);
+    expect(totalsLine, contains('10,000↑ (8,000⚡)'));
+    expect(totalsLine, contains('500↓'));
   });
 }

@@ -548,18 +548,21 @@ String composerMentionDraftFromStickyIds(Iterable<String> mentionIds, List<Catal
   return parts.join(' ');
 }
 
-/// Keeps sticky chips at the start of the composer after send; preserves typed follow-up text.
+/// Prepends sticky chips that are not already inline; after send, re-adds device/site chips for the next turn.
 String composerMentionDraftMergeSticky(String userText, Iterable<String> stickyIds, List<CatalogMention> mentions) {
-  final sticky = composerMentionDraftFromStickyIds(stickyIds, mentions);
-  var body = userText.trimLeft();
+  final inline = composerMentionIdsParse(userText).toSet();
+  final missing = <String>[];
+  final seen = <String>{};
   for (final raw in stickyIds) {
     final id = raw.trim();
-    if (id.isEmpty) continue;
-    body = body.replaceAll(composerMentionToken(id), '').trimLeft();
+    if (!composerMentionStickyId(id) || !seen.add(id)) continue;
+    if (!inline.contains(id)) missing.add(id);
   }
-  if (sticky.isEmpty) return body;
-  if (body.isEmpty) return sticky;
-  return '$sticky $body';
+  final prepend = composerMentionDraftFromStickyIds(missing, mentions);
+  if (prepend.isEmpty) return userText;
+  var body = userText.trimLeft();
+  if (body.isEmpty) return prepend;
+  return '$prepend $body';
 }
 
 List<String> msgMentionIdsDecode(String mentionIdsJson) {
@@ -639,6 +642,63 @@ String composerMentionTextForTitleUi(String text, List<CatalogMention> mentions)
   out = composerMentionBracketTokenize(out);
   out = composerMentionDisplayFinalize(out, composerMentionCatalogWithBracketSnapshots(text, mentions));
   return out;
+}
+
+/// Chip-token text + mention catalog for [ComposerMentionMessageText] / [ComposerMentionStyledText].
+(String uiText, List<CatalogMention> catalog) composerMentionUiPrepare(
+  String text,
+  List<CatalogMention> mentions, {
+  List<String>? mentionIds,
+}) {
+  if (!composerMentionTextHasTokens(text)) {
+    return (text, mentions);
+  }
+  final ids = mentionIds ?? composerMentionIdsCollect(text);
+  final catalog = composerMentionCatalogWithBracketSnapshots(text, mentions);
+  if (composerMentionHasChipTokens(text)) {
+    return (composerMentionDisplayFinalize(text, catalog), catalog);
+  }
+  return (composerMentionDisplayRestore(text, catalog, mentionIds: ids), catalog);
+}
+
+/// Any stored message line (chat bubble, title, billing usage) with optional [style].
+class ComposerMentionStyledText extends StatelessWidget {
+  const ComposerMentionStyledText({
+    super.key,
+    required this.text,
+    this.mentions = const [],
+    this.mentionIds,
+    this.style,
+    this.maxLines,
+    this.overflow,
+  });
+
+  final String text;
+  final List<CatalogMention> mentions;
+  final List<String>? mentionIds;
+  final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
+
+  static const defaultStyle = TextStyle(fontSize: 14.5, height: 1.45, color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500);
+
+  @override
+  Widget build(BuildContext context) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return const SizedBox.shrink();
+    final resolvedStyle = style ?? defaultStyle;
+    if (!composerMentionTextHasTokens(trimmed)) {
+      return Text(trimmed, style: resolvedStyle, maxLines: maxLines, overflow: overflow);
+    }
+    final (uiText, catalog) = composerMentionUiPrepare(trimmed, mentions, mentionIds: mentionIds);
+    return ComposerMentionMessageText(
+      text: uiText,
+      mentions: catalog,
+      style: resolvedStyle,
+      maxLines: maxLines,
+      overflow: overflow,
+    );
+  }
 }
 
 class ComposerMentionSpanBuilder extends SpecialTextSpanBuilder {

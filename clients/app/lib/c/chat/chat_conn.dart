@@ -344,9 +344,9 @@ class ChatConn {
     _statusSet(ChatConnStatus.connected);
     if (wasOffline) {
       if (!_reconnectedCtrl.isClosed) _reconnectedCtrl.add(null);
-    }
-    if (!kDebugMode && !kIsWeb && Platform.isWindows) {
-      unawaited(AppUpdateService.instance.checkNow());
+      if (!kDebugMode && !kIsWeb && Platform.isWindows) {
+        unawaited(AppUpdateService.instance.checkNow());
+      }
     }
   }
 

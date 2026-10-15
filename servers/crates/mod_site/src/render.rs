@@ -1098,7 +1098,7 @@ const GUEST_HERO_SHARE_ICON: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" w
 
 fn guest_hub_member_btn_html(sign_in_label: &str) -> String {
     format!(
-        r#"<button type="button" id="c35-guest-hub-member" class="guest-hero-signin-btn" style="display:none;" onclick="c35GuestOrders.open()" aria-label="{label}" title="{label}"><span class="guest-signin-label">{label}</span><span class="guest-signin-avatar" hidden></span><span class="guest-member-badge" hidden></span></button>"#,
+        r#"<button type="button" id="c35-guest-hub-member" class="guest-hero-signin-btn guest-hub-chrome-btn" style="display:none;" onclick="c35GuestOrders.open()" aria-label="{label}" title="{label}"><span class="guest-signin-label">{label}</span><span class="guest-signin-avatar" hidden></span><span class="guest-member-badge" hidden></span></button>"#,
         label = esc(sign_in_label),
     )
 }
@@ -1181,7 +1181,7 @@ fn guest_hub_hero_inner_html(
     };
     let share_aria = esc_attr(i18n.share_store_aria());
     let share_btn = format!(
-        r#"<button type="button" class="guest-hero-share-btn" onclick="c35GuestShare()" aria-label="{aria}" title="{aria}">{icon}</button>"#,
+        r#"<button type="button" class="guest-hero-share-btn guest-hub-chrome-btn" onclick="c35GuestShare()" aria-label="{aria}" title="{aria}">{icon}</button>"#,
         aria = share_aria,
         icon = GUEST_HERO_SHARE_ICON,
     );
@@ -1629,16 +1629,16 @@ pub async fn page_html_render(
         &serde_json::from_str(&doc.theme_json).unwrap_or(serde_json::Value::Null),
     );
     let theme_json = theme_modern.to_string();
-    let design = GuestDesign::from_theme_json(&theme_json);
-    let featured = featured_contacts_load(pool, site_iid).await?;
-    let caps = site_capabilities(pool, site_iid).await;
-    let hub_links = site_link_boot_rows(pool, site_iid).await?;
-    let hub_posts = site_post_boot_summaries(pool, site_iid).await?;
     let site_meta: Value = if doc.meta_json.is_empty() {
         Value::Object(Default::default())
     } else {
         serde_json::from_str(&doc.meta_json).unwrap_or(Value::Object(Default::default()))
     };
+    let design = GuestDesign::from_theme_meta(&theme_modern, &site_meta);
+    let featured = featured_contacts_load(pool, site_iid).await?;
+    let caps = site_capabilities(pool, site_iid).await;
+    let hub_links = site_link_boot_rows(pool, site_iid).await?;
+    let hub_posts = site_post_boot_summaries(pool, site_iid).await?;
     let product_design = product_design_from_site_meta(&site_meta);
     let doc_title = site_doc_html_title(site_name, &site_meta, &page.title);
     let has_hub_profile = page
@@ -1852,7 +1852,7 @@ pub fn guest_storefront_chrome_html() -> &'static str {
   <div class="guest-sticky-inner">
     <img class="guest-sticky-avatar" alt="" width="32" height="32" hidden/>
     <span class="guest-sticky-title"></span>
-    <button type="button" id="c35-guest-sticky-member" class="guest-sticky-signin-btn guest-hero-signin-btn" style="display:none;" onclick="c35GuestOrders.open()" aria-label="Masuk" title="Masuk"><span class="guest-signin-label">Masuk</span><span class="guest-signin-avatar" hidden></span><span class="guest-member-badge" hidden></span></button>
+    <button type="button" id="c35-guest-sticky-member" class="guest-sticky-signin-btn guest-hero-signin-btn guest-hub-chrome-btn" style="display:none;" onclick="c35GuestOrders.open()" aria-label="Masuk" title="Masuk"><span class="guest-signin-label">Masuk</span><span class="guest-signin-avatar" hidden></span><span class="guest-member-badge" hidden></span></button>
     <a class="guest-sticky-cta" hidden></a>
   </div>
 </header>
@@ -1881,7 +1881,8 @@ async fn guest_client_script_tags(
     effects: &Value,
 ) -> String {
     let meta = doc_meta;
-    let design = GuestDesign::from_theme_json(theme_json).to_value();
+    let theme_val: Value = serde_json::from_str(theme_json).unwrap_or(Value::Object(Default::default()));
+    let design = GuestDesign::from_theme_meta(&theme_val, meta).to_value();
     let commerce = commerce_boot_build(pool, site_iid, meta)
         .await
         .unwrap_or_else(|_| serde_json::json!({}));
@@ -2111,13 +2112,13 @@ async fn guest_storefront_page_html(
         &serde_json::from_str(&doc.theme_json).unwrap_or(serde_json::Value::Null),
     );
     let theme_json = theme_modern.to_string();
-    let design = GuestDesign::from_theme_json(&theme_json);
-    let root = guest_root_css(&design);
     let site_meta: Value = if doc.meta_json.is_empty() {
         Value::Object(Default::default())
     } else {
         serde_json::from_str(&doc.meta_json).unwrap_or(Value::Object(Default::default()))
     };
+    let design = GuestDesign::from_theme_meta(&theme_modern, &site_meta);
+    let root = guest_root_css(&design);
     let i18n = GuestI18n::from_meta(&site_meta);
     let layout = guest_layout_mode(&site_meta, 0);
     let page_max = guest_layout_page_max_css(layout);

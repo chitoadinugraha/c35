@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/api/referral_conn.dart';
+import 'package:alienai_c35/c/catalog/catalog_api.dart';
+import 'package:alienai_c35/c/mention/mention_catalog.dart';
 import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_platform.dart';
 import 'package:alienai_c35/c/billing/billing_history_api.dart';
@@ -8,6 +10,7 @@ import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_topup_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_menu_position.dart';
@@ -17,6 +20,7 @@ Future<void> billingHistorySheet(
   BuildContext context, {
   required ReferralConn conn,
   void Function(int chatId, String reqId)? onNavigateToMessage,
+  MentionCatalogStore? mentionCatalog,
 }) async {
   await showModalBottomSheet<void>(
     context: context,
@@ -26,16 +30,21 @@ Future<void> billingHistorySheet(
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
     builder: (ctx) => Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
-      child: _BillingHistorySheet(conn: conn, onNavigateToMessage: onNavigateToMessage),
+      child: _BillingHistorySheet(
+        conn: conn,
+        onNavigateToMessage: onNavigateToMessage,
+        mentionCatalog: mentionCatalog,
+      ),
     ),
   );
 }
 
 class _BillingHistorySheet extends StatefulWidget {
-  const _BillingHistorySheet({required this.conn, this.onNavigateToMessage});
+  const _BillingHistorySheet({required this.conn, this.onNavigateToMessage, this.mentionCatalog});
 
   final ReferralConn conn;
   final void Function(int chatId, String reqId)? onNavigateToMessage;
+  final MentionCatalogStore? mentionCatalog;
 
   @override
   State<_BillingHistorySheet> createState() => _BillingHistorySheetState();
@@ -329,34 +338,42 @@ class _BillingHistorySheetState extends State<_BillingHistorySheet> {
         ),
       );
     }
-    return ListView.separated(
-      itemCount: rows.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 6),
-      itemBuilder: (_, i) {
-        final row = rows[i];
-        final canNavigate = row.kind == 'usage' &&
-            widget.onNavigateToMessage != null &&
-            ((row.hasChatId() && row.chatId.toInt() > 0) || (row.hasReqId() && row.reqId.isNotEmpty));
-        return _HistoryTile(
-          row: row,
-          date: _rowDate(row),
-          onTap: canNavigate
-              ? () {
-                  Navigator.of(context).pop();
-                  widget.onNavigateToMessage!(row.chatId.toInt(), row.reqId);
-                }
-              : null,
+    Widget historyList(List<CatalogMention> mentions) => ListView.separated(
+          itemCount: rows.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 6),
+          itemBuilder: (_, i) {
+            final row = rows[i];
+            final canNavigate = row.kind == 'usage' &&
+                widget.onNavigateToMessage != null &&
+                ((row.hasChatId() && row.chatId.toInt() > 0) || (row.hasReqId() && row.reqId.isNotEmpty));
+            return _HistoryTile(
+              row: row,
+              date: _rowDate(row),
+              mentions: mentions,
+              onTap: canNavigate
+                  ? () {
+                      Navigator.of(context).pop();
+                      widget.onNavigateToMessage!(row.chatId.toInt(), row.reqId);
+                    }
+                  : null,
+            );
+          },
         );
-      },
+    final catalog = widget.mentionCatalog;
+    if (catalog == null) return historyList(const []);
+    return ListenableBuilder(
+      listenable: catalog,
+      builder: (context, _) => historyList(catalog.mentions),
     );
   }
 }
 
 class _HistoryTile extends StatelessWidget {
-  const _HistoryTile({required this.row, required this.date, this.onTap});
+  const _HistoryTile({required this.row, required this.date, required this.mentions, this.onTap});
 
   final BillingHistoryRow row;
   final String date;
+  final List<CatalogMention> mentions;
   final VoidCallback? onTap;
 
   static const _text = Color(0xFFE4E4E7);
@@ -408,9 +425,10 @@ class _HistoryTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: _muted, fontSize: 11),
+                  ComposerMentionStyledText(
+                    text: subtitle,
+                    mentions: mentions,
+                    style: const TextStyle(color: _muted, fontSize: 11, height: 1.35, fontWeight: FontWeight.w500),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -423,7 +441,7 @@ class _HistoryTile extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  included ? 'Included' : '$sign${billingHistoryAmountLabel(row)}',
+                  included ? billingHistoryIncludedAmountLabel(row) : '$sign${billingHistoryAmountLabel(row)}',
                   style: TextStyle(
                     color: included
                         ? _muted

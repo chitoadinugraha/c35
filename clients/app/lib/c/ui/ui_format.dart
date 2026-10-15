@@ -22,14 +22,25 @@ String uiFmtGroupedInt(int n) {
   return neg ? '-$out' : out.toString();
 }
 
+String _uiFmtClockSegment(int n) => n.toString().padLeft(2, '0');
+
+/// Compact duration for usage/trace UI: `450ms`, `12.3s`, then `1:03`, `1:30:04`, `1d 4:30:25`.
 String uiFmtDurationMs(int ms) {
   if (ms <= 0) return '';
   if (ms < 1000) return '${ms}ms';
-  final sec = ms / 1000;
-  if (sec < 60) return _uiFmtUnit(sec, 's');
-  final min = sec / 60;
-  if (min < 60) return _uiFmtUnit(min, 'm');
-  return _uiFmtUnit(min / 60, 'h');
+  final secs = ms ~/ 1000;
+  if (secs < 60) return _uiFmtUnit(ms / 1000, 's');
+  final days = secs ~/ _secondsPerDay;
+  final remDay = secs % _secondsPerDay;
+  final hours = remDay ~/ _secondsPerHour;
+  final remHour = remDay % _secondsPerHour;
+  final minutes = remHour ~/ _secondsPerMinute;
+  final seconds = remHour % _secondsPerMinute;
+  final clock = hours > 0
+      ? '$hours:${_uiFmtClockSegment(minutes)}:${_uiFmtClockSegment(seconds)}'
+      : '$minutes:${_uiFmtClockSegment(seconds)}';
+  if (days > 0) return '${days}d $clock';
+  return clock;
 }
 
 enum UiDurationUnit { month, day, hour, minute, second }

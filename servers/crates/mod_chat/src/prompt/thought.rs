@@ -10,13 +10,14 @@ pub struct ParseOut {
     pub function_calls: Vec<FunctionCallItem>,
     pub in_tok: i32,
     pub out_tok: i32,
+    pub cached_tok: i32,
     pub model_content: Value,
 }
 
 pub fn thinking_level(raw: &str) -> String {
     let t = raw.trim();
     if t.is_empty() {
-        "off".into()
+        "low".into()
     } else {
         t.to_string()
     }
@@ -72,6 +73,9 @@ pub fn parse_candidate(v: &Value) -> ParseOut {
     let out_tok = v["usageMetadata"]["candidatesTokenCount"]
         .as_i64()
         .unwrap_or(0) as i32;
+    let cached_tok = v["usageMetadata"]["cachedContentTokenCount"]
+        .as_i64()
+        .unwrap_or(0) as i32;
     let content = v["candidates"][0]["content"].clone();
     let parts = content["parts"].as_array().cloned().unwrap_or_default();
     let mut text = String::new();
@@ -113,6 +117,7 @@ pub fn parse_candidate(v: &Value) -> ParseOut {
         function_calls,
         in_tok,
         out_tok,
+        cached_tok,
         model_content: content,
     }
 }

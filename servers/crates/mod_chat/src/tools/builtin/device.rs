@@ -201,9 +201,18 @@ pub(crate) fn parse_single_input_event(
     val: &Value,
     default_tab_id: &str,
 ) -> Result<c35_proto::RemoteInputEvent, &'static str> {
+    parse_single_input_event_with_fallback(val, default_tab_id, None)
+}
+
+pub(crate) fn parse_single_input_event_with_fallback(
+    val: &Value,
+    default_tab_id: &str,
+    fallback_event_type: Option<&str>,
+) -> Result<c35_proto::RemoteInputEvent, &'static str> {
     let raw_type = val
         .get("event_type")
         .and_then(|v| v.as_str())
+        .or(fallback_event_type)
         .unwrap_or_default();
     let event_type = normalize_input_event_type(raw_type);
     if event_type.is_empty() {
@@ -285,7 +294,7 @@ tool! {
     struct: DeviceInputTool,
     name: "device.input",
     aliases: ["device_input", "device_computer_use"],
-    description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, mouse_drag, mouse_stroke, clipboard_image, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Supports smooth mouse_drag (with optional start_x, start_y), mouse_stroke (array of points for drawing continuous paths/curves), and clipboard_image/clipboard_paste_image (base64 or local file path for pasting images directly into Paint, Canva, Photoshop). Chrome extension browser devices use CDP trusted keys/clicks; pass tab_id for the target tab. On @device Windows Chrome for Google Sheets: goto cells with shortcut ctrl+g + type_text (A2) + enter, then type_text/tab — do not click_and_type grid pixels or shell.run SendKeys. Extension-only browser.sheets.* is a different path. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
+    description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, mouse_drag, mouse_stroke, clipboard_image, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Supports smooth mouse_drag (with optional start_x, start_y), mouse_stroke (array of points for drawing continuous paths/curves), and clipboard_image/clipboard_paste_image (base64 or local file path for pasting images directly into Paint, Canva, Photoshop). Chrome extension browser devices use CDP trusted keys/clicks; pass tab_id for the target tab. On @device Windows Chrome for Google Sheets: navigate with shortcut ctrl+home to jump to A1, then shift+space to select row 1 or shift+right to select headers. To bold, click the Bold B toolbar button or send shortcut ctrl+b. For cell editing, click cell or name box then type_text. Do not use shell.run SendKeys. Extension-only browser.sheets.* is a different path. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     ui_calling_key: "tool.device.input.calling",
@@ -316,14 +325,44 @@ tool! {
         };
 
         let default_tab_id = args["tab_id"].as_str().unwrap_or_default().trim();
-        let actions_opt = args.get("actions").and_then(|v| v.as_array());
-        let is_batch = actions_opt.map(|a| !a.is_empty()).unwrap_or(false);
+        let top_level_event_type = args
+            .get("event_type")
+            .and_then(|v| v.as_str())
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+
+        let raw_actions = args.get("actions").and_then(|v| v.as_array());
+        let filtered_actions: Vec<&Value> = raw_actions
+            .map(|arr| {
+                arr.iter()
+                    .filter(|item| {
+                        if let Some(obj) = item.as_object() {
+                            let has_type = obj
+                                .get("event_type")
+                                .and_then(|s| s.as_str())
+                                .map(|s| !s.trim().is_empty())
+                                .unwrap_or(false);
+                            let has_payload = obj.contains_key("text")
+                                || obj.contains_key("key_code")
+                                || obj.contains_key("x")
+                                || obj.contains_key("points")
+                                || obj.contains_key("button")
+                                || obj.contains_key("delta_y");
+                            has_type || has_payload
+                        } else {
+                            false
+                        }
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let is_batch = !filtered_actions.is_empty();
 
         let parsed_events: Vec<c35_proto::RemoteInputEvent> = if is_batch {
-            let actions = actions_opt.unwrap();
-            let mut evs = Vec::with_capacity(actions.len());
-            for (idx, act) in actions.iter().enumerate() {
-                match parse_single_input_event(act, default_tab_id) {
+            let mut evs = Vec::with_capacity(filtered_actions.len());
+            for (idx, act) in filtered_actions.iter().enumerate() {
+                match parse_single_input_event_with_fallback(act, default_tab_id, top_level_event_type) {
                     Ok(ev) => evs.push(ev),
                     Err(e) => return Ok(device_fail(format!("Action #{idx} invalid: {e}"))),
                 }
@@ -338,7 +377,14 @@ tool! {
 
         for (idx, event) in parsed_events.iter().enumerate() {
             if idx > 0 {
-                tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                let prev_ev = &parsed_events[idx - 1];
+                let delay_ms = match prev_ev.event_type.as_str() {
+                    "mouse_drag" => 350,
+                    "mouse_click" | "double_click" | "triple_click" => 150,
+                    "click_and_type" => 200,
+                    _ => 60,
+                };
+                tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
             }
             if let Err(e) = remote_device_input_send(
                 &ctx.pool,
@@ -939,5 +985,10 @@ mod tests {
         // Missing event_type errors
         let empty_val = json!({});
         assert!(parse_single_input_event(&empty_val, "").is_err());
+
+        // Fallback event_type allows action items lacking explicit event_type
+        let ev = parse_single_input_event_with_fallback(&json!({"text": "ctrl+b"}), "", Some("shortcut")).unwrap();
+        assert_eq!(ev.event_type, "shortcut");
+        assert_eq!(ev.text, "ctrl+b");
     }
 }

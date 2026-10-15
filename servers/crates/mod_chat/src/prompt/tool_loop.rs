@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use c35_mod_billing::billing_cost_usd;
+use c35_mod_billing::billing_cost_with_cache_usd;
 use c35_store::snowflake_id;
 use futures_util::future::join_all;
 use serde_json::{json, Value};
@@ -25,11 +25,13 @@ use super::computer_use::{
     COMPUTER_USE_CONTINUE_HINT, COMPUTER_USE_FORCE_TOOL_HINT, COMPUTER_USE_INCOMPLETE_FAIL_CLASS,
     COMPUTER_USE_PARENT_INCOMPLETE_HINT,
 };
+use base64::Engine;
 use crate::prompt::google_forms::ComputerUseToolCounts;
 use crate::prompt::google_sheets::{
-    google_sheets_device_input_uses_pixel_grid_without_goto,
+    device_input_has_cell_data_typing, goal_requires_bold, goal_requires_row_insert,
+    google_sheets_continue_hint, google_sheets_device_input_uses_pixel_grid_without_goto,
     google_sheets_parent_turn_may_finish, google_sheets_shell_blocked_on_ui_turn,
-    user_text_looks_like_device_spreadsheet_ui, GOOGLE_SHEETS_PARENT_CONTINUE_HINT,
+    is_google_sheets_bold_button_active, user_text_looks_like_device_spreadsheet_ui,
     GOOGLE_SHEETS_PIXEL_GRID_STEER_HINT, GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT,
 };
 use super::{ChatReq, ChatRes};
@@ -41,7 +43,14 @@ use crate::prompt_run::{
     chat_tool_rounds_max, checkpoint_record_tool, checkpoint_set_fatal, checkpoint_tool_should_stop,
 };
 use crate::tools::{cluster_tool_def, cluster_tool_exec, http_client, tool_decls, TurnCtx};
+use crate::tools::device_screenshot_artifact::llm_vision_ensure_stored;
 use crate::turn_tracer::TurnTracer;
+
+struct PendingLlmVision {
+    b64: String,
+    result: Value,
+    tool_call_id: String,
+}
 
 pub const CHAT_TOOL_ROUNDS_MAX: u8 = 24;
 pub const CHAT_WRAPUP_HINT: &str =
@@ -207,12 +216,19 @@ pub async fn prompt_cluster_turn(
     }
     let mut tokens_in = 0i32;
     let mut tokens_out = 0i32;
+    let mut tokens_cached = 0i32;
     let mut thought = String::new();
     let mut text = String::new();
     let mut blocks_json = String::from("[]");
     let mut tools_cost_usd = 0.0f64;
     let mut device_tool_counts = ComputerUseToolCounts::default();
+    let mut active_device_iid: Option<i64> = None;
     let mut delegate_goal_met = false;
+    let mut sheets_bold_verified = false;
+    let mut sheets_bold_failed = false;
+    let mut sheets_has_typing = false;
+    let sheets_goal_bold = goal_requires_bold(&req.user);
+    let sheets_goal_row_insert = goal_requires_row_insert(&req.user);
     let model_used = bill_slug.clone();
 
     if tools.is_empty() {
@@ -232,18 +248,21 @@ pub async fn prompt_cluster_turn(
         let hop_ms = hop_started.elapsed().as_millis() as i64;
         tokens_in += out.in_tok;
         tokens_out += out.out_tok;
+        tokens_cached += out.cached_tok;
         text = out.text.clone();
         thought = out.thought.clone();
         if let Some(tr) = tracer {
-            let hop_cost = billing_cost_usd(&bill_slug, out.in_tok, out.out_tok);
+            let hop_cost = billing_cost_with_cache_usd(&bill_slug, out.in_tok, out.out_tok, out.cached_tok);
             tr.llm_call(
                 1,
                 &bill_slug,
                 out.in_tok,
                 out.out_tok,
+                out.cached_tok,
                 hop_ms,
                 hop_cost,
                 &out.text,
+                &out.thought,
             )
             .await;
         }
@@ -264,6 +283,7 @@ pub async fn prompt_cluster_turn(
             blocks_json,
             tokens_in,
             tokens_out,
+            tokens_cached,
             model_used,
             tools_cost_usd: 0.0,
         });
@@ -423,16 +443,19 @@ pub async fn prompt_cluster_turn(
         let hop_ms = hop_started.elapsed().as_millis() as i64;
         tokens_in += out.in_tok;
         tokens_out += out.out_tok;
+        tokens_cached += out.cached_tok;
         if let Some(tr) = tracer {
-            let hop_cost = billing_cost_usd(&bill_slug, out.in_tok, out.out_tok);
+            let hop_cost = billing_cost_with_cache_usd(&bill_slug, out.in_tok, out.out_tok, out.cached_tok);
             tr.llm_call(
                 hop as u8,
                 &bill_slug,
                 out.in_tok,
                 out.out_tok,
+                out.cached_tok,
                 hop_ms,
                 hop_cost,
                 &out.text,
+                &out.thought,
             )
             .await;
         }
@@ -467,6 +490,7 @@ pub async fn prompt_cluster_turn(
                         blocks_json,
                         tokens_in,
                         tokens_out,
+                        tokens_cached,
                         model_used,
                         tools_cost_usd,
                     });
@@ -482,6 +506,7 @@ pub async fn prompt_cluster_turn(
                     blocks_json,
                     tokens_in,
                     tokens_out,
+                    tokens_cached,
                     &bill_slug,
                     &thinking,
                     &system,
@@ -490,6 +515,10 @@ pub async fn prompt_cluster_turn(
                     tracer,
                     tools_cost_usd,
                     is_device,
+                    turn_ctx.as_deref(),
+                    active_device_iid,
+                    device_tool_counts.device_input,
+                    on_blocks,
                 )
                 .await;
             }
@@ -571,6 +600,7 @@ pub async fn prompt_cluster_turn(
 
             let mut function_parts = Vec::with_capacity(executions.len());
             let mut latest_img_b64 = None;
+            let mut latest_vision: Option<PendingLlmVision> = None;
             let mut catalog_stock_rows: Option<usize> = None;
             let mut sheets_steer_hint: Option<&'static str> = None;
             let sheets_turn = user_text_looks_like_device_spreadsheet_ui(&req.user);
@@ -595,11 +625,28 @@ pub async fn prompt_cluster_turn(
                 tools_cost_usd += tool_cost;
                 if name == "device.input" {
                     device_tool_counts.device_input += 1;
+                    if device_input_has_cell_data_typing(&args) {
+                        sheets_has_typing = true;
+                    }
+                    if let Some(iid) = args.get("device_iid").and_then(|v| v.as_i64()).or_else(|| {
+                        result.get("device_iid").and_then(|v| v.as_i64())
+                    }) {
+                        if iid > 0 {
+                            active_device_iid = Some(iid);
+                        }
+                    }
                     if sheets_turn && google_sheets_device_input_uses_pixel_grid_without_goto(&args) {
                         sheets_steer_hint = Some(GOOGLE_SHEETS_PIXEL_GRID_STEER_HINT);
                     }
                 } else if name == "device.screenshot" {
                     device_tool_counts.device_screenshot += 1;
+                    if let Some(iid) = args.get("device_iid").and_then(|v| v.as_i64()).or_else(|| {
+                        result.get("device_iid").and_then(|v| v.as_i64())
+                    }) {
+                        if iid > 0 {
+                            active_device_iid = Some(iid);
+                        }
+                    }
                 } else if name == "shell.run" && sheets_turn {
                     let cmd = args
                         .get("command")
@@ -719,7 +766,12 @@ pub async fn prompt_cluster_turn(
                         .and_then(|v| v.as_str().map(|s| s.to_string()))
                 });
                 if let Some(img_b64) = maybe_img {
-                    latest_img_b64 = Some(img_b64);
+                    latest_img_b64 = Some(img_b64.clone());
+                    latest_vision = Some(PendingLlmVision {
+                        b64: img_b64,
+                        result: result.clone(),
+                        tool_call_id: tool_call_id.clone(),
+                    });
                 }
 
                 truncate_large_tool_payload(&mut llm_result, 24_000);
@@ -755,33 +807,99 @@ pub async fn prompt_cluster_turn(
 
             used_tool = true;
             contents.push(out.model_content);
-            contents.push(json!({
-                "role": "user",
-                "parts": function_parts
-            }));
 
             if let Some(img_b64) = latest_img_b64 {
                 // Strictly retain only latest desktop screenshot; prune previous ones to text placeholders
                 prune_previous_screenshots(&mut contents);
-                contents.push(json!({
-                    "role": "user",
-                    "parts": [
-                        { "text": "[POST-ACTION VERIFICATION OBSERVATION]\nFresh observation captured after your input. You MUST inspect this screenshot and OCR tags to verify whether your action actually succeeded:\n- Check if the requested change (bold font, typed text, title, or cell value) actually took effect on screen.\n- If the change did NOT take effect (e.g. wrong cell focused, text is not bold), do NOT claim success. Call device.input to correct it.\n- Only conclude when the visual observation confirms the change." },
-                        {
-                            "inlineData": {
-                                "mimeType": "image/jpeg",
-                                "data": img_b64
+
+                if sheets_turn && sheets_goal_bold {
+                    if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(&img_b64) {
+                        if let Some(active) = is_google_sheets_bold_button_active(&bytes) {
+                            if active {
+                                sheets_bold_verified = true;
+                                sheets_bold_failed = false;
+                            } else {
+                                sheets_bold_failed = true;
                             }
                         }
-                    ]
+                    }
+                }
+
+                let mut verify_obs = String::from(
+                    "[POST-ACTION VERIFICATION OBSERVATION]\n\
+                    Fresh observation captured after your input. You MUST inspect this screenshot and OCR tags to verify whether your action actually succeeded:\n\
+                    - Check if the requested change (bold font, typed text, title, or cell value) actually took effect on screen.\n\
+                    - In Google Sheets, header cells are bold ONLY when the font is noticeably thicker AND the toolbar 'B' button is active/highlighted. A blue selection box around cells is JUST A SELECTION — it does NOT mean bold."
+                );
+                if sheets_bold_failed {
+                    verify_obs.push_str(
+                        "\n[CRITICAL VERIFICATION FAILED]: Toolbar Bold 'B' button is INACTIVE (grey/white background). Header cells are NOT bold yet! \
+                        In Google Sheets, if cells had mixed formatting, clicking 'B' once toggles bold OFF. \
+                        You MUST click the Bold button at (x=0.665, y=0.251) again or press shortcut ctrl+b until the 'B' button turns active blue. \
+                        DO NOT claim success or conclude until the 'B' button is active blue."
+                    );
+                } else if sheets_bold_verified {
+                    verify_obs.push_str(
+                        "\n[VERIFICATION PASSED]: Toolbar Bold 'B' button is ACTIVE (blue container highlight verified). Header cells are bold."
+                    );
+                } else {
+                    verify_obs.push_str(
+                        "\n- If the change did NOT take effect (e.g. text is still normal weight, wrong cell focused), do NOT claim success or say 'Done'. \
+                        Call device.input to correct it (e.g. click the toolbar Bold 'B' button or retry).\n\
+                        - Only conclude when the visual observation confirms the change."
+                    );
+                }
+                if sheets_turn && sheets_goal_row_insert && !sheets_has_typing {
+                    verify_obs.push_str(
+                        "\n[DATA INSERTION PENDING]: No cell data has been typed yet! \
+                        If the 'Themes' panel is open on the right, close it by clicking its 'X' close button at (x=0.956, y=0.266). \
+                        To add rows of data, navigate to the target row (e.g. click cell A4 or press ctrl+g then type A4) and type the row values using type_text + tab. \
+                        DO NOT claim the data has been added or conclude until you actually type the values into the sheet."
+                    );
+                }
+
+                function_parts.push(json!({
+                    "text": verify_obs
                 }));
+                function_parts.push(json!({
+                    "inlineData": {
+                        "mimeType": "image/jpeg",
+                        "data": img_b64
+                    }
+                }));
+                if let (Some(tr), Some(vision)) = (tracer, latest_vision.as_ref()) {
+                    if let Some(ctx) = turn_ctx.as_ref() {
+                        if let Some(screenshot) = llm_vision_ensure_stored(
+                            ctx.pool,
+                            ctx.owner_iid,
+                            &ctx.req_id,
+                            &vision.tool_call_id,
+                            &vision.result,
+                            &vision.b64,
+                        )
+                        .await
+                        {
+                            let hop_u8 = hop.min(255) as u8;
+                            tr.llm_vision_feed(
+                                hop as u32,
+                                hop_u8,
+                                "Post-action verification (SoM)",
+                                "tool_inline_vision",
+                                screenshot,
+                            )
+                            .await;
+                        }
+                    }
+                }
             }
             if let Some(hint) = sheets_steer_hint {
-                contents.push(json!({
-                    "role": "user",
-                    "parts": [{ "text": hint }]
-                }));
+                function_parts.push(json!({ "text": hint }));
             }
+
+            contents.push(json!({
+                "role": "user",
+                "parts": function_parts
+            }));
 
             if out
                 .function_calls
@@ -895,6 +1013,7 @@ pub async fn prompt_cluster_turn(
                         blocks_json,
                         tokens_in,
                         tokens_out,
+                        tokens_cached,
                         model_used,
                         tools_cost_usd,
                     });
@@ -908,6 +1027,8 @@ pub async fn prompt_cluster_turn(
                     &out.text,
                     device_tool_counts,
                     delegate_goal_met,
+                    sheets_bold_verified,
+                    sheets_has_typing,
                 );
             if reject_sheets_parent {
                 if wrap || round + 1 >= rounds_max {
@@ -928,6 +1049,7 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
                         blocks_json,
                         tokens_in,
                         tokens_out,
+                        tokens_cached,
                         model_used,
                         tools_cost_usd,
                     });
@@ -938,7 +1060,7 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
                 }));
                 contents.push(json!({
                     "role": "user",
-                    "parts": [{ "text": GOOGLE_SHEETS_PARENT_CONTINUE_HINT }]
+                    "parts": [{ "text": google_sheets_continue_hint(&req.user) }]
                 }));
                 if let Some(buf) = delta_buf.as_mut() {
                     buf.clear();
@@ -954,6 +1076,8 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
                             &out.text,
                             device_tool_counts,
                             false,
+                            sheets_bold_verified,
+                            sheets_has_typing,
                         )));
             if reject_cu_bad {
                 cu_text_rejects = cu_text_rejects.saturating_add(1);
@@ -962,7 +1086,7 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
                     if cu_text_rejects >= 3 {
                         COMPUTER_USE_FORCE_TOOL_HINT
                     } else {
-                        GOOGLE_SHEETS_PARENT_CONTINUE_HINT
+                        google_sheets_continue_hint(&req.user)
                     }
                 } else if cu_text_rejects >= 3 {
                     COMPUTER_USE_FORCE_TOOL_HINT
@@ -997,6 +1121,7 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
                         blocks_json,
                         tokens_in,
                         tokens_out,
+                        tokens_cached,
                         model_used,
                         tools_cost_usd,
                     });
@@ -1025,12 +1150,21 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
                     thought_push(&mut thought, &out.thought);
                 }
                 text = out.text.clone();
+                attach_clean_device_result_block(
+                    turn_ctx.as_deref(),
+                    active_device_iid,
+                    device_tool_counts.device_input,
+                    &mut blocks_json,
+                    on_blocks,
+                )
+                .await;
                 return Ok(ChatRes {
                     text,
                     thought,
                     blocks_json,
                     tokens_in,
                     tokens_out,
+                    tokens_cached,
                     model_used,
                     tools_cost_usd,
                 });
@@ -1050,6 +1184,7 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
             blocks_json,
             tokens_in,
             tokens_out,
+            tokens_cached,
             &bill_slug,
             &thinking,
             &system,
@@ -1058,10 +1193,80 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
             tracer,
             tools_cost_usd,
             is_device,
+            turn_ctx.as_deref(),
+            active_device_iid,
+            device_tool_counts.device_input,
+            on_blocks,
         )
         .await;
     }
     anyhow::bail!("cluster tool loop exhausted without text")
+}
+
+async fn attach_clean_device_result_block(
+    turn_ctx: Option<&TurnCtx<'_>>,
+    device_iid: Option<i64>,
+    device_input_count: u32,
+    blocks_json: &mut String,
+    on_blocks: &mut (dyn FnMut(String) + Send),
+) {
+    if device_input_count == 0 {
+        return;
+    }
+    let Some(ctx) = turn_ctx else { return };
+    let iid = device_iid
+        .or_else(|| ctx.mention.devices.first().copied())
+        .unwrap_or(0);
+    if iid <= 0 {
+        return;
+    }
+    if blocks_json.contains("\"tool\": \"device.result\"")
+        || blocks_json.contains("\"tool\":\"device.result\"")
+    {
+        return;
+    }
+
+    if let Ok(res) = c35_mod_device::remote_device_screenshot_capture(
+        ctx.pool,
+        ctx.nats,
+        ctx.owner_iid,
+        iid,
+        1280,
+        80,
+        None,
+        false, // clean screenshot without Set-of-Mark tags for the user
+    )
+    .await
+    {
+        if res.ok && !res.jpeg_bytes.is_empty() {
+            let secret = crate::tools::device_screenshot_artifact::cas_secret_from_env();
+            if let Ok(put) = c35_mod_file::cas_put(
+                ctx.pool,
+                &c35_mod_file::cas_dir_default(),
+                &secret,
+                &res.jpeg_bytes,
+                "image/jpeg",
+            )
+            .await
+            {
+                let block = json!({
+                    "kind": "image",
+                    "collapsed": false,
+                    "body": {
+                        "hash": put.hash,
+                        "url": put.url,
+                        "mime": "image/jpeg",
+                        "width": res.width,
+                        "height": res.height,
+                        "tool": "device.result",
+                        "prompt": "Result on device",
+                    }
+                });
+                *blocks_json = append_block(blocks_json, block);
+                on_blocks(blocks_json.clone());
+            }
+        }
+    }
 }
 
 async fn wrap_up(
@@ -1069,9 +1274,10 @@ async fn wrap_up(
     mut contents: Vec<Value>,
     mut thought: String,
     mut text: String,
-    blocks_json: String,
+    mut blocks_json: String,
     mut tokens_in: i32,
     mut tokens_out: i32,
+    mut tokens_cached: i32,
     bill_slug: &str,
     thinking: &str,
     system: &str,
@@ -1080,6 +1286,10 @@ async fn wrap_up(
     tracer: Option<&TurnTracer>,
     tools_cost_usd: f64,
     is_device: bool,
+    turn_ctx: Option<&TurnCtx<'_>>,
+    active_device_iid: Option<i64>,
+    device_input_count: u32,
+    on_blocks: &mut (dyn FnMut(String) + Send),
 ) -> Result<ChatRes> {
     if cancel.is_cancelled() {
         anyhow::bail!("aborted");
@@ -1101,6 +1311,7 @@ async fn wrap_up(
     let hop_ms = hop_started.elapsed().as_millis() as i64;
     tokens_in += out.in_tok;
     tokens_out += out.out_tok;
+    tokens_cached += out.cached_tok;
     if !out.text.is_empty() {
         text.push_str(&out.text);
     }
@@ -1108,15 +1319,17 @@ async fn wrap_up(
         thought_push(&mut thought, &out.thought);
     }
     if let Some(tr) = tracer {
-        let hop_cost = billing_cost_usd(bill_slug, out.in_tok, out.out_tok);
+        let hop_cost = billing_cost_with_cache_usd(bill_slug, out.in_tok, out.out_tok, out.cached_tok);
         tr.llm_call(
             99,
             bill_slug,
             out.in_tok,
             out.out_tok,
+            out.cached_tok,
             hop_ms,
             hop_cost,
             &out.text,
+            &out.thought,
         )
         .await;
     }
@@ -1128,12 +1341,21 @@ async fn wrap_up(
         };
         emit_text(on_delta, &mut text, fallback);
     }
+    attach_clean_device_result_block(
+        turn_ctx,
+        active_device_iid,
+        device_input_count,
+        &mut blocks_json,
+        on_blocks,
+    )
+    .await;
     Ok(ChatRes {
         text,
         thought,
         blocks_json,
         tokens_in,
         tokens_out,
+        tokens_cached,
         model_used: bill_slug.to_string(),
         tools_cost_usd,
     })

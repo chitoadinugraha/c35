@@ -16,13 +16,20 @@ use c35_mod_llm::{
 };
 
 /// Sampling for Gemini chat. Frontier (pinned models) keeps legacy 0.2 / 2048; Alien pool only is warmer.
+/// On device / computer-use turns, temperature is strictly 0.0 for deterministic grounding.
 pub fn gemini_generation_config(
     requested_slug: &str,
     provider_model: &str,
     thinking: &str,
+    is_device: bool,
 ) -> Value {
-    let alien = model_is_alien(requested_slug);
-    let temperature = if alien { 0.65 } else { 0.2 };
+    let temperature = if is_device {
+        0.0
+    } else if model_is_alien(requested_slug) {
+        0.65
+    } else {
+        0.2
+    };
     let max_output_tokens = 2048;
     let mut gen = json!({
         "maxOutputTokens": max_output_tokens,
@@ -66,6 +73,7 @@ pub async fn gemini_generate(
     requested_slug: &str,
     system: &str,
     tool_call_mode: &str,
+    is_device: bool,
 ) -> Result<super::thought::ParseOut> {
     let key = gemini_api_key();
     if key.is_empty() {
@@ -73,7 +81,7 @@ pub async fn gemini_generate(
     }
     let mut body = json!({
         "contents": contents,
-        "generationConfig": gemini_generation_config(requested_slug, provider_model, thinking),
+        "generationConfig": gemini_generation_config(requested_slug, provider_model, thinking, is_device),
     });
     if !system.trim().is_empty() {
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
@@ -165,6 +173,7 @@ pub async fn gemini_generate_stream(
     tool_call_mode: &str,
     on_delta: &mut (dyn FnMut(bool, String) + Send),
     cancel: &CancellationToken,
+    is_device: bool,
 ) -> Result<super::thought::ParseOut> {
     let key = gemini_api_key();
     if key.is_empty() {
@@ -172,7 +181,7 @@ pub async fn gemini_generate_stream(
     }
     let mut body = json!({
         "contents": contents,
-        "generationConfig": gemini_generation_config(requested_slug, provider_model, thinking),
+        "generationConfig": gemini_generation_config(requested_slug, provider_model, thinking, is_device),
     });
     if !system.trim().is_empty() {
         body["systemInstruction"] = json!({ "parts": [{ "text": system }] });
@@ -359,6 +368,7 @@ fn gemini_stream_finalize(
         function_calls: parsed.function_calls,
         in_tok: parsed.in_tok,
         out_tok: parsed.out_tok,
+        cached_tok: parsed.cached_tok,
         model_content: parsed.model_content,
     }
 }
@@ -443,10 +453,12 @@ mod tests {
 
     #[test]
     fn generation_config_alien_warmer_than_frontier() {
-        let alien = gemini_generation_config("alienai", "gemini-3.1-flash-lite", "off");
+        let alien = gemini_generation_config("alienai", "gemini-3.1-flash-lite", "off", false);
         let frontier =
-            gemini_generation_config("gemini-3.1-flash-lite", "gemini-3.1-flash-lite", "off");
+            gemini_generation_config("gemini-3.1-flash-lite", "gemini-3.1-flash-lite", "off", false);
+        let device = gemini_generation_config("alienai", "gemini-3.1-flash-lite", "off", true);
         assert_eq!(alien["temperature"], 0.65);
         assert_eq!(frontier["temperature"], 0.2);
+        assert_eq!(device["temperature"], 0.0);
     }
 }

@@ -2,7 +2,6 @@ use std::future::Future;
 use std::sync::Mutex;
 use std::time::Instant;
 
-use c35_mod_billing::billing_cost_usd;
 use c35_mod_log::{log_put, LogPut};
 use serde::Serialize;
 use serde_json::Value;
@@ -504,9 +503,11 @@ impl TurnTracer {
         model: &str,
         token_in: i32,
         token_out: i32,
+        cached_tokens: i32,
         duration_ms: i64,
         cost_usd: f64,
         reply_preview: &str,
+        model_reasoning: &str,
     ) {
         let step = hop as u32 + 1;
         if let Ok(mut h) = self.hop.lock() {
@@ -515,26 +516,79 @@ impl TurnTracer {
         let retail = if cost_usd > 0.0 {
             cost_usd
         } else {
-            billing_cost_usd(model, token_in, token_out)
+            c35_mod_billing::billing_cost_with_cache_usd(model, token_in, token_out, cached_tokens)
         };
+        let reasoning = model_reasoning.trim();
+        let mut meta = serde_json::json!({
+            "topic": "llm_call",
+            "step": step,
+            "hop": hop,
+            "prompt_tokens": token_in,
+            "completion_tokens": token_out,
+            "cached_tokens": cached_tokens,
+            "duration_ms": duration_ms,
+            "cost_retail_usd": retail,
+        });
+        if !reasoning.is_empty() {
+            if let Some(obj) = meta.as_object_mut() {
+                obj.insert("model_reasoning".into(), serde_json::json!(reasoning));
+            }
+        }
         self.put(
             "llm",
             "llm_call",
             reply_preview,
-            serde_json::json!({
-                "topic": "llm_call",
-                "step": step,
-                "hop": hop,
-                "prompt_tokens": token_in,
-                "completion_tokens": token_out,
-                "duration_ms": duration_ms,
-                "cost_retail_usd": retail,
-            }),
+            meta,
             model,
             token_in,
             token_out,
             duration_ms as i32,
             retail,
+        )
+        .await;
+    }
+
+    /// Vision frame attached to the model context (CAS hash in meta, not base64).
+    pub async fn llm_vision_feed(
+        &self,
+        step: u32,
+        hop: u8,
+        label: &str,
+        source: &str,
+        screenshot: Value,
+    ) {
+        let w = screenshot
+            .get("width")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let h = screenshot
+            .get("height")
+            .and_then(|v| v.as_i64())
+            .unwrap_or(0);
+        let som = screenshot.get("som").and_then(|v| v.as_bool()).unwrap_or(false);
+        let text = if som {
+            format!("{label} · {w}x{h} · SoM")
+        } else {
+            format!("{label} · {w}x{h}")
+        };
+        self.put(
+            "trace",
+            "llm_vision",
+            &text,
+            serde_json::json!({
+                "topic": "llm_vision",
+                "step": step,
+                "hop": hop,
+                "branch": label,
+                "source": source,
+                "fed_to_llm": true,
+                "screenshot": screenshot,
+            }),
+            "",
+            0,
+            0,
+            0,
+            0.0,
         )
         .await;
     }
@@ -609,6 +663,7 @@ impl TurnTracer {
         model: &str,
         token_in: i32,
         token_out: i32,
+        cached_tokens: i32,
         duration_ms: i64,
         prepare_ms: i64,
         cost_usd: f64,
@@ -617,7 +672,7 @@ impl TurnTracer {
         let retail = if cost_usd > 0.0 {
             cost_usd
         } else {
-            billing_cost_usd(model, token_in, token_out)
+            c35_mod_billing::billing_cost_with_cache_usd(model, token_in, token_out, cached_tokens)
         };
         self.put(
             "llm",
@@ -630,6 +685,7 @@ impl TurnTracer {
                 "duration_ms": duration_ms,
                 "prompt_tokens": token_in,
                 "completion_tokens": token_out,
+                "cached_tokens": cached_tokens,
                 "cost_retail_usd": retail,
             }),
             model,

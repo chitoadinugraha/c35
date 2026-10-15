@@ -142,9 +142,10 @@ class TraceBranchGroup {
   }
 }
 
-const _traceGroupOrder = ['billing', 'setup', 'context', 'instruction', 'tools', 'other'];
+const _traceGroupOrder = ['vision', 'billing', 'setup', 'context', 'instruction', 'tools', 'other'];
 
 const _traceGroupTitles = <String, String>{
+  'vision': 'Desktop vision',
   'billing': 'Billing',
   'setup': 'Setup',
   'context': 'Context',
@@ -156,6 +157,9 @@ const _traceGroupTitles = <String, String>{
 String traceBranchGroupKey(TraceBranch branch) {
   final k = branch.stageKey.trim().toLowerCase();
   final label = branch.label.trim().toLowerCase();
+  if (k == 'llm_vision' || (branch.hasScreenshotPreview && !label.contains('device.screenshot'))) {
+    return 'vision';
+  }
   if (k == 'billing_resolve' ||
       k == 'billing_gate' ||
       k == 'trace_gate' ||
@@ -210,6 +214,13 @@ List<TraceBranchGroup> groupTraceStepBranches(TraceStep step) {
   for (final id in _traceGroupOrder) {
     final rows = grouped.remove(id);
     if (rows == null || rows.isEmpty) continue;
+    if (id == 'vision') {
+      rows.sort((a, b) {
+        final aStart = a.label.toLowerCase().contains('turn-start') ? 0 : 1;
+        final bStart = b.label.toLowerCase().contains('turn-start') ? 0 : 1;
+        return aStart.compareTo(bStart);
+      });
+    }
     out.add(TraceBranchGroup(id: id, title: _traceGroupTitles[id] ?? id, branches: rows));
   }
   for (final entry in grouped.entries) {
@@ -229,9 +240,11 @@ class TraceStep {
     this.costUsd = 0,
     this.tokensIn = 0,
     this.tokensOut = 0,
+    this.tokensCached = 0,
     this.model = '',
     this.branches = const [],
     this.detail = '',
+    this.modelReasoning = '',
   });
 
   final int index;
@@ -240,15 +253,19 @@ class TraceStep {
   final double costUsd;
   final int tokensIn;
   final int tokensOut;
+  final int tokensCached;
   final String model;
   final List<TraceBranch> branches;
   final String detail;
+  /// Internal model reasoning for this LLM hop (root trace only; from `llm_call` meta).
+  final String modelReasoning;
 }
 
 class TraceTotals {
-  const TraceTotals({this.tokensIn = 0, this.tokensOut = 0, this.durationMs = 0, this.costUsd = 0, this.model = ''});
+  const TraceTotals({this.tokensIn = 0, this.tokensOut = 0, this.tokensCached = 0, this.durationMs = 0, this.costUsd = 0, this.model = ''});
   final int tokensIn;
   final int tokensOut;
+  final int tokensCached;
   final int durationMs;
   final double costUsd;
   final String model;
@@ -326,14 +343,25 @@ Map<String, dynamic>? traceToolJsonFromLog(TraceLogDoc log) {
   return null;
 }
 
-Map<String, String> traceToolVarsFromLog(TraceLogDoc log) {
-  final vars = <String, String>{'source': '', 'query': '', 'url': ''};
+Map<String, String> traceToolVarsFromLog(TraceLogDoc log, {bool done = true}) {
+  final vars = <String, String>{'source': '', 'query': '', 'url': '', 'detail': ''};
+  final tool = _asStr(log.meta['tool']).replaceAll('_', '.').trim();
   final args = log.meta['args'];
   if (args is Map) {
     final url = _asStr(args['url']);
     vars['url'] = url;
     vars['source'] = citationHost(url);
     vars['query'] = _asStr(args['query']).isNotEmpty ? _asStr(args['query']) : _asStr(args['q']);
+    if (tool == 'device.input') {
+      vars['detail'] = traceDeviceInputDetailFromArgs(args, done: done);
+    } else if (tool == 'device.screenshot') {
+      vars['detail'] = args['som'] == true ? catalogT('tool.device.screenshot.detail.som') : catalogT('tool.device.screenshot.detail.screen');
+    } else if (tool == 'shell.run') {
+      vars['detail'] = _truncateTraceDetail(_asStr(args['command']));
+      if (vars['detail']!.isEmpty) {
+        vars['detail'] = catalogT('tool.var.shell_command');
+      }
+    }
   }
   final raw = traceToolJsonFromLog(log);
   if (raw != null) {
@@ -383,13 +411,93 @@ String traceToolIconUrlFromLog(TraceLogDoc log) {
   return url.isNotEmpty ? citationFaviconUrl(url) : '';
 }
 
+String _truncateTraceDetail(String text, {int max = 28}) {
+  final t = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (t.isEmpty) return '';
+  if (t.length <= max) return t;
+  return '${t.substring(0, max)}…';
+}
+
+String traceDeviceInputDetailFromArgs(dynamic args, {bool done = true}) {
+  if (args is! Map) return '';
+  final actions = args['actions'];
+  if (actions is List && actions.length > 1) {
+    final key = done ? 'tool.device.input.batch.done' : 'tool.device.input.batch.calling';
+    return toolLabelFromTemplate(catalogT(key), {'count': '${actions.length}'});
+  }
+  final Map<dynamic, dynamic> event;
+  if (actions is List && actions.isNotEmpty && actions.first is Map) {
+    event = actions.first as Map;
+  } else {
+    event = args;
+  }
+  return _deviceInputEventDetail(event, done: done);
+}
+
+String _deviceInputEventDetail(Map<dynamic, dynamic> event, {required bool done}) {
+  var type = _asStr(event['event_type']).toLowerCase();
+  if (type.isEmpty && (event.containsKey('x') || event.containsKey('y'))) {
+    type = 'mouse_click';
+  }
+  final text = _asStr(event['text']);
+  switch (type) {
+    case 'mouse_click':
+    case 'double_click':
+    case 'triple_click':
+    case 'right_click':
+    case 'middle_click':
+      return catalogT(done ? 'tool.device.input.clicked.done' : 'tool.device.input.clicked.calling');
+    case 'type_text':
+    case 'click_and_type':
+    case 'clear_text':
+      final snippet = _truncateTraceDetail(text);
+      if (snippet.isEmpty) {
+        return catalogT(done ? 'tool.device.input.typed.done' : 'tool.device.input.typed.calling');
+      }
+      final tpl = catalogT(done ? 'tool.device.input.typed_text.done' : 'tool.device.input.typed_text.calling');
+      return toolLabelFromTemplate(tpl, {'text': snippet});
+    case 'shortcut':
+    case 'key_down':
+    case 'key_up':
+      final keys = text.isNotEmpty ? text : _asStr(event['key_code']);
+      if (keys.isEmpty) {
+        return catalogT(done ? 'tool.device.input.shortcut.done' : 'tool.device.input.shortcut.calling');
+      }
+      final tpl = catalogT(done ? 'tool.device.input.shortcut_keys.done' : 'tool.device.input.shortcut_keys.calling');
+      return toolLabelFromTemplate(tpl, {'keys': keys});
+    case 'mouse_move':
+      return catalogT(done ? 'tool.device.input.moved.done' : 'tool.device.input.moved.calling');
+    case 'mouse_drag':
+    case 'mouse_stroke':
+      return catalogT(done ? 'tool.device.input.dragged.done' : 'tool.device.input.dragged.calling');
+    case 'wheel':
+      return catalogT(done ? 'tool.device.input.scrolled.done' : 'tool.device.input.scrolled.calling');
+    case 'clipboard_image':
+    case 'clipboard_paste_image':
+      return catalogT(done ? 'tool.device.input.pasted.done' : 'tool.device.input.pasted.calling');
+    default:
+      return '';
+  }
+}
+
 String toolLabelFromTemplate(String template, Map<String, String> vars) {
   var out = template.trim();
   if (out.isEmpty) return '';
   final source = (vars['source'] ?? '').trim().isNotEmpty ? vars['source']!.trim() : catalogT('tool.var.source');
   final query = (vars['query'] ?? '').trim().isNotEmpty ? vars['query']!.trim() : catalogT('tool.var.query');
   final url = (vars['url'] ?? '').trim();
-  out = out.replaceAll('{{source}}', source).replaceAll('{{query}}', query).replaceAll('{{url}}', url);
+  final detail = (vars['detail'] ?? '').trim().isNotEmpty ? vars['detail']!.trim() : catalogT('tool.var.device_action');
+  final count = (vars['count'] ?? '').trim();
+  final text = (vars['text'] ?? '').trim();
+  final keys = (vars['keys'] ?? '').trim();
+  out = out
+      .replaceAll('{{source}}', source)
+      .replaceAll('{{query}}', query)
+      .replaceAll('{{url}}', url)
+      .replaceAll('{{detail}}', detail)
+      .replaceAll('{{count}}', count.isNotEmpty ? count : '0')
+      .replaceAll('{{text}}', text)
+      .replaceAll('{{keys}}', keys);
   return out.replaceAll('…', '').trim();
 }
 
@@ -419,7 +527,7 @@ String traceToolLabelFromLog(TraceLogDoc log, {bool done = true}) {
   final key = 'tool.$tool.${done ? 'done' : 'calling'}';
   final template = catalogT(key);
   if (template == key) return tool;
-  return toolLabelFromTemplate(template, traceToolVarsFromLog(log));
+  return toolLabelFromTemplate(template, traceToolVarsFromLog(log, done: done));
 }
 
 String traceToolLabel(String toolId) {
@@ -504,6 +612,7 @@ int _prepareBranchOrder(String topic) => switch (topic) {
       'trace_tool_filter' => 4,
       'trace_prepare' => 5,
       'trace_memory' => 6,
+      'llm_vision' => -3,
       _ => 9,
     };
 
@@ -539,8 +648,19 @@ TraceBranch _branchFromLog(TraceLogDoc log) {
   final meta = log.meta;
   final tool = _asStr(meta['tool']);
   final branch = _asStr(meta['branch']);
-  final label = tool.isNotEmpty ? traceToolLabelFromLog(log) : branch.isNotEmpty ? branch : log.text.split('\n').first;
-  final isTool = tool.isNotEmpty || log.topic == 'tool_result' || log.topic == 'tool_error' || log.kind == 'tool';
+  final isLlmVision = log.topic == 'llm_vision';
+  final label = isLlmVision
+      ? (branch.isNotEmpty ? branch : 'LLM vision')
+      : tool.isNotEmpty
+          ? traceToolLabelFromLog(log)
+          : branch.isNotEmpty
+              ? branch
+              : log.text.split('\n').first;
+  final isTool = tool.isNotEmpty ||
+      log.topic == 'tool_result' ||
+      log.topic == 'tool_error' ||
+      log.kind == 'tool' ||
+      isLlmVision;
   return TraceBranch(
     label: label,
     isTool: isTool,
@@ -566,6 +686,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       totals = TraceTotals(
         tokensIn: _asInt(meta['prompt_tokens']).clamp(0, 1 << 30) > 0 ? _asInt(meta['prompt_tokens']) : log.tokensIn,
         tokensOut: _asInt(meta['completion_tokens']).clamp(0, 1 << 30) > 0 ? _asInt(meta['completion_tokens']) : log.tokensOut,
+        tokensCached: _asInt(meta['cached_tokens']),
         durationMs: _asInt(meta['duration_ms']) > 0 ? _asInt(meta['duration_ms']) : log.durationMs,
         costUsd: _asDouble(meta['cost_retail_usd']) > 0 ? _asDouble(meta['cost_retail_usd']) : log.costUsd,
         model: traceModelLabel(log.model),
@@ -589,7 +710,11 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
       llmHop++;
       final meta = main.meta;
       final hop = _asInt(meta['hop']) > 0 ? _asInt(meta['hop']) : llmHop;
-      final branchRows = rows.where((r) => r.topic == 'tool_result' || r.topic == 'tool_error' || (r.kind == 'tool'));
+      final branchRows = rows.where((r) =>
+          r.topic == 'tool_result' ||
+          r.topic == 'tool_error' ||
+          r.topic == 'llm_vision' ||
+          (r.kind == 'tool'));
       for (final b in branchRows) {
         branches.add(_branchFromLog(b));
       }
@@ -603,8 +728,10 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
         costUsd: main.costUsd > 0 ? main.costUsd : _asDouble(meta['cost_retail_usd']),
         tokensIn: main.tokensIn > 0 ? main.tokensIn : _asInt(meta['prompt_tokens']),
         tokensOut: main.tokensOut > 0 ? main.tokensOut : _asInt(meta['completion_tokens']),
+        tokensCached: _asInt(meta['cached_tokens']),
         model: traceModelLabel(main.model),
         branches: branches,
+        modelReasoning: _asStr(meta['model_reasoning']),
       );
     } else if (stepNum == 9998 || rows.any((r) => r.topic == 'trace_settle')) {
       final settleRow = rows.firstWhere((r) => r.topic == 'trace_settle', orElse: () => rows.first);
@@ -646,6 +773,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
           'trace_user_assets' => 'User assets',
           'trace_tool_filter' => 'Tool filter',
           'trace_prepare' => 'Compose',
+          'llm_vision' => branch.isNotEmpty ? branch : 'LLM vision',
           _ => branch.isNotEmpty ? branch : r.topic,
         };
         final instIds = r.topic == 'trace_inst_enrich' ? _stringListFromMeta(r.meta['inst_ids']) : const <String>[];
@@ -664,6 +792,7 @@ TraceView buildTraceView(List<TraceLogDoc> logs) {
               : r.topic == 'trace_user_assets'
                   ? _userAssetsTraceDetail(r.meta)
                   : r.text.split('\n').first,
+          screenshot: r.topic == 'llm_vision' ? traceScreenshotFromLog(r) : null,
           isTool: r.topic == 'trace_inst_enrich' && (instIds.isNotEmpty || enrichKeys.isNotEmpty),
           toolCandidates: r.topic == 'trace_tool_filter'
               ? _toolCandidatesFromMeta(r.meta['candidates'])
@@ -763,8 +892,11 @@ String traceSimLabel(double sim) => sim <= 0 ? '—' : sim.toStringAsFixed(2);
 
 String traceStepUsageLine(TraceStep step, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) {
   final model = traceModelLabel(step.model);
+  final inStr = step.tokensCached > 0
+      ? '${uiFmtGroupedInt(step.tokensIn)}↑ (${uiFmtGroupedInt(step.tokensCached)}⚡)'
+      : '${uiFmtGroupedInt(step.tokensIn)}↑';
   final parts = <String>[
-    if (step.tokensIn > 0) '${uiFmtGroupedInt(step.tokensIn)}↑',
+    if (step.tokensIn > 0) inStr,
     if (step.tokensOut > 0) '${uiFmtGroupedInt(step.tokensOut)}↓',
     if (model.isNotEmpty) model,
     if (step.costUsd > 0) moneyCostLabel(step.costUsd, currency: currency, fxMicroPerUsd: fxMicroPerUsd),
@@ -774,7 +906,7 @@ String traceStepUsageLine(TraceStep step, {String currency = moneyDefaultCurrenc
 }
 
 String traceTotalsLine(TraceTotals totals, {String currency = moneyDefaultCurrency, int fxMicroPerUsd = moneyDefaultFxMicroPerUsd}) => traceStepUsageLine(
-      TraceStep(index: 0, title: '', tokensIn: totals.tokensIn, tokensOut: totals.tokensOut, durationMs: totals.durationMs, costUsd: totals.costUsd, model: totals.model),
+      TraceStep(index: 0, title: '', tokensIn: totals.tokensIn, tokensOut: totals.tokensOut, tokensCached: totals.tokensCached, durationMs: totals.durationMs, costUsd: totals.costUsd, model: totals.model),
       currency: currency,
       fxMicroPerUsd: fxMicroPerUsd,
     );

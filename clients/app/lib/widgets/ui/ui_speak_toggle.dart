@@ -1,5 +1,5 @@
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
-import 'package:alienai_c35/c/hint/hint_chip_theme.dart';
+import 'package:alienai_c35/c/hint/hint_chip_theme.dart' show HintChipTheme, accountMenuNavTileHeight, homeTalkCallChipHeight, homeTalkCallChipContentPadding;
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
@@ -13,6 +13,16 @@ String homeTalkSurfaceLabel(bool talkEnabled) {
 const _menuPadH = 12.0;
 const _talkActiveBorder = Color(0xFF06B6D4);
 const _talkActiveBg = Color(0xFF164E63);
+const _navTileBg = Color(0xFF27272A);
+const _navTileIcon = Color(0xFFA1A1AA);
+const _navTileText = Color(0xFFF4F4F5);
+
+const _accountMenuAnchorStyle = MenuStyle(
+  backgroundColor: WidgetStatePropertyAll(Color(0xFF18181B)),
+  surfaceTintColor: WidgetStatePropertyAll(Colors.transparent),
+  elevation: WidgetStatePropertyAll(8),
+  padding: WidgetStatePropertyAll(EdgeInsets.symmetric(vertical: 6)),
+);
 
 class UiTalkCallToggleRow extends StatelessWidget {
   const UiTalkCallToggleRow({
@@ -79,6 +89,7 @@ class _UiTalkModeChip extends StatelessWidget {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Icon(active ? Icons.chat_bubble_outline_rounded : Icons.mic_rounded, size: 15, color: iconColor),
                     const SizedBox(width: 8),
@@ -91,7 +102,7 @@ class _UiTalkModeChip extends StatelessWidget {
                           color: labelColor,
                           fontSize: 13,
                           fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                          height: 1.1,
+                          height: 1,
                         ),
                       ),
                     ),
@@ -104,6 +115,84 @@ class _UiTalkModeChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Account menu tile — Talk vs Chat mode via dropdown (matches nav count tiles).
+class UiAccountTalkModeMenu extends StatelessWidget {
+  const UiAccountTalkModeMenu({super.key, required this.talkEnabled, required this.onSelectTalkEnabled});
+
+  final bool talkEnabled;
+  final ValueChanged<bool> onSelectTalkEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = homeTalkSurfaceLabel(talkEnabled);
+    final icon = talkEnabled ? Icons.chat_bubble_outline_rounded : Icons.mic_rounded;
+    return MenuAnchor(
+      style: _accountMenuAnchorStyle,
+      menuChildren: [
+        MenuItemButton(
+          onPressed: () => onSelectTalkEnabled(false),
+          child: Text(homeTalkSurfaceLabel(false), style: const TextStyle(fontSize: 13)),
+        ),
+        MenuItemButton(
+          onPressed: () => onSelectTalkEnabled(true),
+          child: Text(homeTalkSurfaceLabel(true), style: const TextStyle(fontSize: 13)),
+        ),
+      ],
+      builder: (context, controller, child) => _AccountMenuNavDropdownTile(
+        icon: icon,
+        label: label,
+        onTap: () {
+          if (controller.isOpen) {
+            controller.close();
+          } else {
+            controller.open();
+          }
+        },
+      ),
+    );
+  }
+}
+
+class _AccountMenuNavDropdownTile extends StatelessWidget {
+  const _AccountMenuNavDropdownTile({required this.icon, required this.label, this.onTap});
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: _navTileBg,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: SizedBox(
+              height: accountMenuNavTileHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 15, color: _navTileIcon),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: _navTileText, fontSize: 12, fontWeight: FontWeight.w500, height: 1),
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down_rounded, size: 16, color: _navTileIcon),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class UiAppToggle extends StatelessWidget {

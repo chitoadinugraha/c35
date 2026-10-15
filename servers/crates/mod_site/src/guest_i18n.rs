@@ -239,7 +239,7 @@ pub fn guest_layout_page_max_css(layout: &str) -> &'static str {
     if layout == "store" {
         "min(1040px, 100%)"
     } else {
-        "720px"
+        "600px"
     }
 }
 

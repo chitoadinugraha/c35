@@ -543,5 +543,21 @@
         "inboundComposerNotReady": "Composer belum siap. Coba lagi."
     },
     "live.loadingModule": "Memuat panggilan...",
-    "devices.loadingModule": "Memuat perangkat..."
+    "devices.loadingModule": "Memuat perangkat...",
+    "account": {
+        "assets": "Aset",
+        "assetsSubtitle": "Bot, perangkat, situs, dan kotak masuk",
+        "assetsTooltip": "Buka workspace dan kotak masuk Anda",
+        "sectionWorkspace": "WORKSPACE",
+        "sectionInbox": "KOTAK MASUK",
+        "bots": "Bot",
+        "devices": "Perangkat",
+        "sites": "Situs",
+        "notifications": "Notifikasi",
+        "mailboxesCount": "{count} mailbox",
+        "mailNew": "{count} baru",
+        "mailNoNew": "Tidak ada mail baru",
+        "notificationsUnread": "{count} belum dibaca",
+        "notificationsNone": "Tidak ada notifikasi baru"
+    }
 }

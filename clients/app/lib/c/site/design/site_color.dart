@@ -1,5 +1,20 @@
 import 'package:flutter/material.dart';
 
+/// Default guest accent (CSA orange). Matches Rust `GUEST_DEFAULT_ACCENT`.
+const siteDefaultPrimaryColor = '#F97316';
+
+/// Theme `accent` wins; else `meta.primary_color`; else [siteDefaultPrimaryColor].
+String guestAccentHex({
+  required Map<String, dynamic> theme,
+  required Map<String, dynamic> meta,
+}) {
+  final themeAccent = theme['accent']?.toString().trim() ?? '';
+  if (themeAccent.isNotEmpty) return siteColorFormat(siteColorStopsParse(themeAccent).first);
+  final metaPrimary = meta['primary_color']?.toString().trim() ?? '';
+  if (metaPrimary.isNotEmpty) return siteColorFormat(siteColorStopsParse(metaPrimary).first);
+  return siteDefaultPrimaryColor;
+}
+
 /// Solid palette (queues, counters, etc.).
 const sitePaletteColors = [
   '#6366F1',

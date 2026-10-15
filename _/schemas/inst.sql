@@ -368,11 +368,24 @@ Turn 0 already includes eager desktop observation and OCR — do NOT call device
 Execute directly with stepwise device.input (with batch actions: [...] or click_and_type). \
 Never delegate single-turn cell edits, clicks, or formatting to computer_use.delegate — execute directly using device.input on this turn. \
 Open https://sheets.new or reuse an existing spreadsheet tab — do not stack duplicate tabs. \
-Before typing headers: dismiss onboarding (Got it), Tables side panel (X), promo banners (X), and any modal blocking the grid. \
-To navigate/select cells: use shortcut ctrl+home to jump to A1. To select header row 1, use shortcut shift+space or shift+right across columns, or click row header 1. To bold, send shortcut ctrl+b or click the Bold B toolbar button. \
-For cell editing: click cell or name box, then type_text. \
-VERIFICATION MANDATORY: Every device.input automatically returns a fresh post-action observation screenshot with Set-of-Mark OCR. You MUST inspect this follow-up screenshot and OCR before concluding. \
-NEVER claim the header is bolded or that an edit is done unless the follow-up screenshot proves the font is bold and text matches. If the change did not apply (e.g. wrong cell focused or bold did not toggle), retry with device.input. Only conclude when the visual observation confirms the change.',
+Before typing headers or data: dismiss blockers — onboarding modals (Got it), side panels (Themes or Tables: click the close X button at x ≈ 0.956, y ≈ 0.266), promo banners (X), and popups. \
+WHEN BOLDING HEADERS: \
+1. Select ALL headers in row 1 (e.g. Nama, Alamat, Jenis Kelamin): \
+DO NOT click only cell A1 — clicking only cell A1 bolds only the first cell and leaves other headers unbolded! \
+Use one of these reliable selection methods: \
+- Click the row 1 number on the far left grid margin at (x ≈ 0.035, y ≈ 0.395) to select the entire row 1. \
+- OR click the Name Box at (x ≈ 0.045, y ≈ 0.320), type A1:C1 and press enter. \
+- OR send shortcut ctrl+home to jump to A1, then send shortcut shift+space (or shift+right twice) to select all header columns. \
+2. Click the toolbar Bold B button at (x ≈ 0.665, y ≈ 0.251). \
+3. CRITICAL TOGGLE RULE: If some cells in the selection were already bold (e.g. only A1 was bold), clicking B once TOGGLES BOLD OFF for the whole selection and the B button turns grey! In that case, you MUST click the B button at (x ≈ 0.665, y ≈ 0.251) a SECOND time so the B button turns active blue and ALL headers become bold! \
+4. In Google Sheets Material You, headers are bold ONLY when the toolbar B button has an active blue container pill (not grey/white). \
+WHEN ADDING DATA ROWS: \
+1. If the Themes or formatting side panel is open on the right, close it by clicking X at (x ≈ 0.956, y ≈ 0.266). \
+2. Navigate to the next empty row: e.g. click cell A4 or send shortcut ctrl+g, type A4, and press enter. \
+3. Type data into cells using type_text, followed by tab to move to the next column in that row. \
+4. Press enter to move to the next row (e.g. A5) and repeat for each row requested. \
+5. In your final response, only report the rows and styling that are visually confirmed in the latest screenshot. \
+VERIFICATION: Every device.input automatically returns a fresh post-action observation screenshot with Set-of-Mark OCR. Inspect this observation to confirm actions took effect before concluding.',
     ARRAY[
         'google sheet',
         'google sheets',
@@ -389,7 +402,12 @@ NEVER claim the header is bolded or that an edit is done unless the follow-up sc
         'that sheet',
         'change that',
         'mouse click',
-        'send key'
+        'send key',
+        'tambahkan data',
+        'tambah data',
+        'tambahkan baris',
+        'tambah baris',
+        'baris data'
     ],
     ARRAY[
         'tool_include:device.screenshot',

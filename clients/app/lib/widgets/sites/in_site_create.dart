@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/profile/profile_handle.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ui/ui_input_decoration.dart';
 import 'package:alienai_c35/widgets/ui/ui_user_avatar.dart';
 import 'package:flutter/material.dart';
@@ -137,7 +138,7 @@ class _InSiteCreateDialogState extends State<_InSiteCreateDialog> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = e.toString();
+        _error = uiFriendlyError(e);
       });
     }
   }

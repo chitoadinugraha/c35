@@ -60,6 +60,7 @@ const NavCounts$json = {
     {'1': 'sites', '3': 3, '4': 1, '5': 5, '10': 'sites'},
     {'1': 'mail_inbox_unread', '3': 4, '4': 1, '5': 5, '10': 'mailInboxUnread'},
     {'1': 'mail_menu_visible', '3': 5, '4': 1, '5': 8, '10': 'mailMenuVisible'},
+    {'1': 'mailbox_count', '3': 6, '4': 1, '5': 5, '10': 'mailboxCount'},
   ],
 };
 
@@ -68,7 +69,7 @@ final $typed_data.Uint8List navCountsDescriptor = $convert.base64Decode(
     'CglOYXZDb3VudHMSEgoEYm90cxgBIAEoBVIEYm90cxIYCgdkZXZpY2VzGAIgASgFUgdkZXZpY2'
     'VzEhQKBXNpdGVzGAMgASgFUgVzaXRlcxIqChFtYWlsX2luYm94X3VucmVhZBgEIAEoBVIPbWFp'
     'bEluYm94VW5yZWFkEioKEW1haWxfbWVudV92aXNpYmxlGAUgASgIUg9tYWlsTWVudVZpc2libG'
-    'U=');
+    'USIwoNbWFpbGJveF9jb3VudBgGIAEoBVIMbWFpbGJveENvdW50');
 
 @$core.Deprecated('Use identityGrantDescriptor instead')
 const IdentityGrant$json = {

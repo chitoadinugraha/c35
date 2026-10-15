@@ -16,6 +16,7 @@ use sqlx::Row;
 use tracing::error;
 
 use crate::auth_session::auth_session_create;
+use crate::identity_pic_ingest::identity_pic_ingest_from_url;
 
 pub const PATH_GOOGLE: &str = "/a/auth/google";
 pub const PATH_GOOGLE_CALLBACK: &str = "/a/auth/google/callback";
@@ -270,7 +271,7 @@ pub async fn google_result(
     if client_id.is_empty() {
         return Json(out);
     }
-    if let Ok(Some(r)) = oauth_result_take(&st.pool, client_id).await {
+    if let Ok(Some(r)) = oauth_result_get(&st.pool, client_id).await {
         out.ready = r.ready;
         out.ok = r.ok;
         out.uid = r.uid.map(|u| u.to_string());
@@ -636,48 +637,91 @@ async fn google_provider_sync_login(
     Ok(())
 }
 
+async fn google_identity_pic_refresh(
+    pool: &sqlx::PgPool,
+    iid: i64,
+    picture: &str,
+) -> Result<(), sqlx::Error> {
+    let pic = identity_pic_ingest_from_url(pool, picture).await;
+    if pic.is_empty() {
+        return Ok(());
+    }
+    sqlx::query(
+        r#"
+        UPDATE ai.identity SET pic = $2, updated_ts = NOW()
+        WHERE id = $1 AND deleted_ts IS NULL
+        "#,
+    )
+    .bind(iid)
+    .bind(&pic)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 async fn get_or_create_google_identity(pool: &sqlx::PgPool, profile: &GoogleProfile) -> Result<i64, sqlx::Error> {
     let sub = profile.sub.trim();
     let email = profile.email.trim().to_lowercase();
     if sub == "102004931260244923813" || email == "chitoadinugraha@gmail.com" {
         ensure_root_google_identity(pool, profile).await?;
+        google_identity_pic_refresh(pool, 99000, &profile.picture).await?;
         return Ok(99000);
     }
     if let Some(iid) = google_login_resolve_iid(pool, sub, &email).await? {
         google_identity_contact_meta_merge(pool, iid, sub, &email).await?;
         google_provider_attach_if_missing(pool, iid, sub, &email).await?;
         google_provider_sync_login(pool, iid, sub, &email).await?;
+        google_identity_pic_refresh(pool, iid, &profile.picture).await?;
         return Ok(iid);
     }
     let iid = snowflake_id();
     let meta = json!({ "email": email, "google_sub": sub, "signup_via": "google" });
-    sqlx::query(
-        r#"
-        INSERT INTO ai.identity (id, kind, type, alien_id, name, owner_iid, billing_iid, pic, meta, is_active)
-        VALUES ($1, 'user', '', NULL, $2, $1, $1, $3, $4, true)
-        "#,
-    )
-    .bind(iid)
-    .bind(&profile.name)
-    .bind(&profile.picture)
-    .bind(meta)
-    .execute(pool)
-    .await?;
-    let prov_id = snowflake_id();
-    sqlx::query(
-        r#"
-        INSERT INTO ai.identity_provider (id, identity_iid, kind, identifier, is_verified, is_primary, verified_at, meta)
-        VALUES ($1, $2, 'google', $3, true, true, NOW(), $4)
-        "#,
-    )
-    .bind(prov_id)
-    .bind(iid)
-    .bind(&email)
-    .bind(json!({ "google_sub": sub }))
-    .execute(pool)
-    .await?;
-    let _ = billing_signup_credit(pool, iid, 0.0).await;
-    Ok(iid)
+    let created = async {
+        sqlx::query(
+            r#"
+            INSERT INTO ai.identity (id, kind, type, alien_id, name, owner_iid, billing_iid, pic, meta, is_active)
+            VALUES ($1, 'user', '', NULL, $2, $1, $1, $3, $4, true)
+            "#,
+        )
+        .bind(iid)
+        .bind(&profile.name)
+        .bind(&profile.picture)
+        .bind(meta)
+        .execute(pool)
+        .await?;
+        let prov_id = snowflake_id();
+        sqlx::query(
+            r#"
+            INSERT INTO ai.identity_provider (id, identity_iid, kind, identifier, is_verified, is_primary, verified_at, meta)
+            VALUES ($1, $2, 'google', $3, true, true, NOW(), $4)
+            "#,
+        )
+        .bind(prov_id)
+        .bind(iid)
+        .bind(&email)
+        .bind(json!({ "google_sub": sub }))
+        .execute(pool)
+        .await?;
+        Ok(iid)
+    }
+    .await;
+    match created {
+        Ok(id) => {
+            let _ = billing_signup_credit(pool, id, 0.0).await;
+            google_identity_pic_refresh(pool, id, &profile.picture).await?;
+            Ok(id)
+        }
+        Err(e) => {
+            if let Some(existing) = google_login_resolve_iid(pool, sub, &email).await? {
+                google_identity_contact_meta_merge(pool, existing, sub, &email).await?;
+                google_provider_attach_if_missing(pool, existing, sub, &email).await?;
+                google_provider_sync_login(pool, existing, sub, &email).await?;
+                google_identity_pic_refresh(pool, existing, &profile.picture).await?;
+                return Ok(existing);
+            }
+            Err(e)
+        }
+    }
 }
 
 fn callback_url(public_origin: &str) -> String {
@@ -1086,12 +1130,12 @@ async fn oauth_result_put(
     Ok(())
 }
 
-async fn oauth_result_take(pool: &sqlx::PgPool, client_id: &str) -> Result<Option<OAuthResult>, sqlx::Error> {
+async fn oauth_result_get(pool: &sqlx::PgPool, client_id: &str) -> Result<Option<OAuthResult>, sqlx::Error> {
     let row = sqlx::query(
         r#"
-        DELETE FROM ai.oauth_result
+        SELECT ready, ok, uid, token, name, email, pic, handle, expires_at
+        FROM ai.oauth_result
         WHERE client_id = $1 AND expires_at > NOW()
-        RETURNING ready, ok, uid, token, name, email, pic, handle, expires_at
         "#,
     )
     .bind(client_id)

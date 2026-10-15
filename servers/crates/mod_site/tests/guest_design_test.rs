@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use c35_mod_site::guest_design::{FeaturedContact, GuestDesign};
+use c35_mod_site::guest_design::{guest_accent_resolve, FeaturedContact, GuestDesign, GUEST_DEFAULT_ACCENT};
 use c35_mod_site::site_assistant_boot_extras;
 use c35_mod_site::GuestI18n;
 use c35_mod_site::render::{
@@ -22,6 +22,21 @@ fn section<'a>(html: &'a str, guest: &str) -> &'a str {
     let rest = &html[start..];
     let end = rest.find("</section>").unwrap_or_else(|| panic!("unclosed {guest}"));
     &rest[..end]
+}
+
+#[test]
+fn guest_accent_resolve_meta_primary_when_theme_empty() {
+    assert_eq!(guest_accent_resolve(&json!({}), &json!({})), GUEST_DEFAULT_ACCENT);
+    assert_eq!(
+        guest_accent_resolve(&json!({}), &json!({"primary_color": "#3366FF"})),
+        "#3366FF"
+    );
+    assert_eq!(
+        guest_accent_resolve(&json!({"accent": "#ff0000"}), &json!({"primary_color": "#3366FF"})),
+        "#ff0000"
+    );
+    let design = GuestDesign::from_theme_meta(&json!({}), &json!({"primary_color": "#3366FF"}));
+    assert_eq!(design.accent, "#3366FF");
 }
 
 #[test]

@@ -269,6 +269,7 @@ class NavCounts extends $pb.GeneratedMessage {
     $core.int? sites,
     $core.int? mailInboxUnread,
     $core.bool? mailMenuVisible,
+    $core.int? mailboxCount,
   }) {
     final result = NavCounts._();
     if (bots != null) result.bots = bots;
@@ -276,6 +277,7 @@ class NavCounts extends $pb.GeneratedMessage {
     if (sites != null) result.sites = sites;
     if (mailInboxUnread != null) result.mailInboxUnread = mailInboxUnread;
     if (mailMenuVisible != null) result.mailMenuVisible = mailMenuVisible;
+    if (mailboxCount != null) result.mailboxCount = mailboxCount;
     return result;
   }
 
@@ -297,6 +299,7 @@ class NavCounts extends $pb.GeneratedMessage {
     ..aI(3, _omitFieldNames ? '' : 'sites')
     ..aI(4, _omitFieldNames ? '' : 'mailInboxUnread')
     ..aOB(5, _omitFieldNames ? '' : 'mailMenuVisible')
+    ..aI(6, _omitFieldNames ? '' : 'mailboxCount')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -365,6 +368,16 @@ class NavCounts extends $pb.GeneratedMessage {
   $core.bool hasMailMenuVisible() => $_has(4);
   @$pb.TagNumber(5)
   void clearMailMenuVisible() => $_clearField(5);
+
+  /// Mailboxes the user can access (mail.mailbox_member).
+  @$pb.TagNumber(6)
+  $core.int get mailboxCount => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set mailboxCount($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMailboxCount() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMailboxCount() => $_clearField(6);
 }
 
 class IdentityGrant extends $pb.GeneratedMessage {

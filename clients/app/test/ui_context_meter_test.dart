@@ -163,5 +163,31 @@ void main() {
       expect(find.text('128K'), findsNWidgets(2));
       expect(find.text('256K'), findsNothing);
     });
+
+    testWidgets('falls back to usage.total when promptTokens is 0', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: UiContextMeter(
+                promptTokens: 0,
+                usage: ContextUsageParts(instructions: 1500, conversation: 5000),
+                contextLimit: 65536,
+                costUsd: 0.0034,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(UiContextMeter));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Context usage'), findsOneWidget);
+      expect(find.text('9.9% full'), findsOneWidget);
+      expect(find.text('6.5K / 65.5K'), findsOneWidget);
+      expect(find.text('Instructions'), findsOneWidget);
+      expect(find.text('Conversation'), findsOneWidget);
+    });
   });
 }

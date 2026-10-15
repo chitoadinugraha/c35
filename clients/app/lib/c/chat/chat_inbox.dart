@@ -205,9 +205,10 @@ String msgRowError(MsgRow m) {
 String msgPromptErrorMessage(String raw) => uiPromptErrorMessage(raw);
 
 class MsgUsageStats {
-  const MsgUsageStats({this.tokensIn = 0, this.tokensOut = 0, this.durationMs = 0, this.costUsd = 0, this.model = ''});
+  const MsgUsageStats({this.tokensIn = 0, this.tokensOut = 0, this.tokensCached = 0, this.durationMs = 0, this.costUsd = 0, this.model = ''});
   final int tokensIn;
   final int tokensOut;
+  final int tokensCached;
   final int durationMs;
   final double costUsd;
   final String model;
@@ -225,6 +226,7 @@ bool msgUsageNeedsTraceBackfill(MsgRow m) {
 MsgUsageStats msgUsageStats(MsgRow m) {
   var tokensIn = m.tokensIn;
   var tokensOut = m.tokensOut;
+  var tokensCached = 0;
   var durationMs = m.durationMs;
   var costUsd = m.costUsd;
   var model = m.model;
@@ -237,9 +239,10 @@ MsgUsageStats msgUsageStats(MsgRow m) {
       if (model.isEmpty) model = '${root['model'] ?? ''}';
       if (tokensIn <= 0) tokensIn = root['tokens_in'] as int? ?? (root['tokens_in'] as num?)?.toInt() ?? 0;
       if (tokensOut <= 0) tokensOut = root['tokens_out'] as int? ?? (root['tokens_out'] as num?)?.toInt() ?? 0;
+      tokensCached = root['cached_tokens'] as int? ?? (root['cached_tokens'] as num?)?.toInt() ?? 0;
     } catch (_) {}
   }
-  return MsgUsageStats(tokensIn: tokensIn, tokensOut: tokensOut, durationMs: durationMs, costUsd: costUsd, model: model);
+  return MsgUsageStats(tokensIn: tokensIn, tokensOut: tokensOut, tokensCached: tokensCached, durationMs: durationMs, costUsd: costUsd, model: model);
 }
 
 bool msgModelUsesAllowancePool(String model) {

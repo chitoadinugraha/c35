@@ -6,7 +6,7 @@ String guestLayoutMode(Map<String, dynamic> meta, {required int productCount}) {
   return productCount >= 9 ? 'store' : 'hub';
 }
 
-double guestLayoutMaxWidth(String layout) => layout == 'store' ? 1040 : 720;
+double guestLayoutMaxWidth(String layout) => layout == 'store' ? 1040 : 600;
 
 /// Matches web `.guest-page-main` horizontal inset (`site-guest.v1.css`).
 const double guestShellHorizontalPadding = 16;

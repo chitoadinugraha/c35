@@ -474,6 +474,31 @@ Each `device.screenshot` / `device.input` post-screenshot JPEG sent to the LLM i
 - Flutter trace: expandable preview on device tool chips (`/fs/{hash}` or signed `url`).
 - MCP debug (after `server_ai` deploy + MCP reload): `tool_artifact_list`, `tool_artifact_fetch`, `trace_screenshot` on `/v1/mcp/agent`; `device_screenshot` accepts string `device_iid` and `marker_x` / `marker_y`.
 
+#### 7. Deterministic Execution, Visual Verification & Clean User Result Delivery
+
+To eliminate hallucinations, prevent premature conclusions, and provide transparent user feedback during desktop automation:
+
+- **Strict Temperature 0.0 for Device Automation (`gemini.rs`):**
+  - When `is_device = true` (device mentioned, bound, or device tools active), generation configuration strictly sets `temperature: 0.0` and `topK: 1`.
+  - Prevents coordinate drift, hallucinated completion, and confabulation of previous turn context.
+- **Live Thought Streaming (`thought.rs`, `chat_store.dart`, `page_ai_home.dart`):**
+  - Default `thinking_level` is set to `"low"` (`thinkingBudget: 1024`, `includeThoughts: true`).
+  - Streamed thoughts render live in the Flutter client under `UiMsgThought` with token deduplication, collapsing cleanly into an expandable panel once the turn finishes.
+- **In-Loop Post-Action Visual Verification (`tool_loop.rs`, `google_sheets.rs`):**
+  - Every `device.input` returns a fresh post-action screenshot (`inlineData: image/jpeg`), Set-of-Mark OCR, and an inline `[POST-ACTION VERIFICATION OBSERVATION]` block.
+  - Previous screenshots in turn history are pruned to `[Previous desktop screenshot omitted; current state in latest observation]` to keep TTFT fast (<250ms) and context clean.
+  - **Google Sheets Grounded Verifiers:**
+    - *Toolbar Bold 'B' Active State (`is_google_sheets_bold_button_active`):* Samples normalized pixel coordinates `(x: 0.640–0.690, y: 0.220–0.280)` to verify Material You active container blue color (`b > r + 20 && b > g + 8 && b > 200`, ratio > 0.08). Detects when Google Sheets mixed formatting toggles bold OFF.
+    - *Cell Data Typing (`device_input_has_cell_data_typing`):* Distinguishes navigation keystrokes (e.g. `A4`, `ctrl+g`) from actual cell text values.
+    - *Cross-Check Model Claims:* If model summary claims bolding or row insertion, the corresponding visual or typing check **must** pass. Blind `device_input >= 1` bypasses are strictly forbidden.
+    - *Sidebar Dismissal Guidance:* Explicitly identifies and steers closing intrusive panels (e.g. Themes sidebar close 'X' at `x=0.956, y=0.266`).
+- **Interception & Safety-Bounded Retry Loop:**
+  - If the model generates completion prose while verification is unmet, `reject_sheets_parent` intercepts the reply and appends a targeted continuation steer (`google_sheets_continue_hint`).
+  - Guarded by `rounds_max`: if round limits are reached without verified success, the loop halts safely with an honest incomplete message rather than hallucinated success.
+- **Clean Result Delivery to User (`attach_clean_device_result_block`):**
+  - Upon conclusion of a device turn, the server executes a clean screenshot capture (`som=false`, without Set-of-Mark OCR overlays).
+  - Persists the image to CAS and attaches an `image` block (`kind: "image"`, `tool: "device.result"`) directly to the chat message so the user immediately sees the final screen state.
+
 ### ICE / TURN (cluster)
 
 | Piece | Status | Notes |

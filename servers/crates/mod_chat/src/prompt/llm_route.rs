@@ -62,6 +62,7 @@ fn cf_stream_parse_out(text: String, tin: i32, tout: i32) -> ParseOut {
         thought: String::new(),
         in_tok: tin,
         out_tok: tout,
+        cached_tok: 0,
         function_call: None,
         function_calls: Vec::new(),
         model_content: serde_json::json!({ "role": "model", "parts": [{ "text": text }] }),
@@ -113,6 +114,7 @@ pub async fn llm_generate_chain(
                 requested_model,
                 system,
                 tool_call_mode,
+                effective_device,
             )
             .await
             .map(|o| (o, target.provider_model.clone()))
@@ -126,6 +128,7 @@ pub async fn llm_generate_chain(
                             thought: String::new(),
                             in_tok: tin,
                             out_tok: tout,
+                            cached_tok: 0,
                             function_call: None,
                             function_calls: Vec::new(),
                             model_content: serde_json::json!({ "role": "model", "parts": [{ "text": text }] }),
@@ -190,6 +193,7 @@ pub async fn llm_stream_chain(
                 tool_call_mode,
                 on_delta,
                 cancel,
+                effective_device,
             )
             .await;
             let res = if let Err(e) = &res {
@@ -207,6 +211,7 @@ pub async fn llm_stream_chain(
                             tool_call_mode,
                             on_delta,
                             cancel,
+                            effective_device,
                         )
                         .await
                     } else {

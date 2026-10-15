@@ -358,6 +358,19 @@ class SiteStore extends ChangeNotifier {
       return siteIid.toInt();
     } catch (e) {
       lError('site create: $e');
+      final err = e.toString().toLowerCase();
+      if (err.contains('alien_id taken')) {
+        try {
+          await refresh();
+          final hit = _rows.where((r) => r.alienId.toLowerCase() == slug.toLowerCase());
+          if (hit.isNotEmpty) {
+            final existing = hit.first;
+            _selectedId = existing.siteIid.toString();
+            notifyListeners();
+            return existing.siteIid.toInt();
+          }
+        } catch (_) {}
+      }
       if (siteIid != null) {
         try {
           await identityDelete(_conn, siteIid.toInt());

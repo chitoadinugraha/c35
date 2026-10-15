@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 const _loadingFg = Color(0xFFA1A1AA);
 
 /// How often live elapsed labels refresh (loading, thinking, recording timers).
-const kUiElapsedTickMs = 50;
+const kUiElapsedTickMs = 100;
 
 String uiLoadingElapsedLabel(int ms, {required bool compact}) {
   final safe = ms < 0 ? 0 : ms;
@@ -16,13 +16,13 @@ String uiLoadingElapsedLabel(int ms, {required bool compact}) {
     final s = (safe % 60000) ~/ 1000;
     final frac = safe % 1000;
     if (compact || frac == 0) return '${m}m ${s}s';
-    return '${m}m ${s}.${frac.toString().padLeft(3, '0')}s';
+    return '${m}m $s.${frac.toString().padLeft(3, '0')}s';
   }
   if (safe >= 1000) {
     final whole = safe ~/ 1000;
     final frac = (safe % 1000).toString().padLeft(3, '0');
     if (compact) return '$whole.${frac.substring(0, 2)}s';
-    return '${whole}.${frac}s';
+    return '$whole.${frac}s';
   }
   return compact ? '${safe}ms' : '0.${safe.toString().padLeft(3, '0')}s';
 }
@@ -236,7 +236,22 @@ class _UiThinkingDotsState extends State<UiThinkingDots> with SingleTickerProvid
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncTicker();
+  }
+
+  void _syncTicker() {
+    if (!mounted) return;
+    if (TickerMode.valuesOf(context).enabled) {
+      if (!_ctrl.isAnimating) _ctrl.repeat();
+    } else {
+      _ctrl.stop();
+    }
   }
 
   @override

@@ -1,5 +1,7 @@
 //! Google Sheets in Chrome on @device Windows/desktop (not browser.sheets API).
 
+use serde_json::Value;
+
 pub const GOOGLE_SHEETS_DESKTOP_PLAYBOOK: &str = "[GOOGLE SHEETS ON DEVICE] \
 Turn 0 already provides a Set-of-Mark desktop observation with Canvas OCR. For subsequent steps or verification, call device.screenshot with som=true. \
 Use direct stepwise device.input (with ctrl+g goto name box and type_text) — never tell the user to type in cells or rename the title themselves. \
@@ -9,8 +11,8 @@ Launch: shell.run may open Chrome or https://sheets.new only when no Sheets tab 
 Before entering headers or data: dismiss every blocker on screen — onboarding modals (Got it, No thanks), side panels (Tables — X), top promo banners (X), sign-in nags. \
 Canvas text discovery: utilize [CanvasText] tags from Set-of-Mark observation to locate existing columns, headers, and sheet tabs across the canvas grid. \
 Combine canvas text discovery with Ctrl+G (Go to range) for precise cell addressing — never guess pixel coordinates on the grid. \
-Row-1 headers: goto A1, B1, C1 (ctrl+g each + enter) then type_text in the active cell — never guess pixel coordinates on the grid. After each cell, screenshot and verify formula bar text or [CanvasText] tags. \
-Sample data rows: goto A2/A3/A4 with ctrl+g + cell ref + enter, then type_text + tab across columns — never click_and_type on grid pixels; verify name box and that values sit in A:C not E:G. \
+Row-1 headers: goto A1, B1, C1 (ctrl+g each + enter or type_text + tab) in a single batched device.input actions: [...] — never guess pixel coordinates on the grid. Verify the row once headers are entered, not after each individual keystroke. \
+Sample data rows: batch consecutive cell entries into device.input actions: [...] (e.g. [shortcut ctrl+g, type_text A2, shortcut enter, type_text Budi, shortcut tab, type_text Jakarta, shortcut tab, type_text Laki-laki, shortcut enter, type_text Siti, shortcut tab, ...]). Avoid taking unnecessary screenshots between every cell; batch related rows together before verifying formula bar or [CanvasText] tags. \
 Spreadsheet title: click the Rename control (Untitled spreadsheet) and click_and_type the new title — not manual directions to the user. \
 If text lands in the wrong column (e.g. GenderNama, or D1/E1 filled for a 3-column task), clear and redo. \
 Finish only when the screenshot proves the requested title, headers, and row count — not when a shell script was attempted.";
@@ -23,13 +25,38 @@ Do not delegate to background subagents for single-turn cell edits, clicks, or s
 pub const GOOGLE_SHEETS_PARENT_CONTINUE_HINT: &str = "Google Sheets on @device is not done yet. \
 Continue using device.input with the name box (A1, B1, A2…) and verify with device.screenshot (som=true) — not pixel guesses. \
 Do not tell the user the sheet is finished until a screenshot shows the requested rows/title.";
+
+pub const GOOGLE_SHEETS_BOLD_CONTINUE_HINT: &str = "Google Sheets header bolding is NOT verified yet. \
+CRITICAL VERIFICATION: \
+1. Look at the toolbar Bold 'B' button (x=0.665, y=0.251). It MUST have an active blue container background. If the 'B' button is grey/white, bold is OFF! \
+2. In Google Sheets, if cells previously had mixed formatting, clicking 'B' once toggles bold OFF. You MUST click 'B' at (x=0.665, y=0.251) again or press shortcut ctrl+b until the 'B' button turns active blue and all header cells (Nama, Alamat, Jenis Kelamin) become bold. \
+Do not conclude until the 'B' button is visibly active blue.";
+
+pub const GOOGLE_SHEETS_ROW_INSERT_CONTINUE_HINT: &str = "Google Sheets data row insertion is NOT verified yet! \
+CRITICAL: You have not typed the new data rows into the sheet yet. \
+To insert the requested rows: \
+1. If the Themes sidebar is open on the right, close it first (click Close X at x=0.956, y=0.266). \
+2. Use Name Box or ctrl+g to navigate to the first empty row (e.g. cell A4 or A5). \
+3. Type the data values using device.input: type_text for first cell, shortcut 'tab' to next column, type_text for second cell, shortcut 'tab', type_text for third cell, shortcut 'enter' for next row. \
+4. DO NOT click random toolbar buttons. Type the actual row data requested by the user. \
+Do not claim success until the new rows are visibly typed into the sheet.";
+
+pub fn google_sheets_continue_hint(goal: &str) -> &'static str {
+    if goal_requires_bold(goal) {
+        GOOGLE_SHEETS_BOLD_CONTINUE_HINT
+    } else if looks_like_sheet_row_insert_intent(&goal.to_ascii_lowercase()) {
+        GOOGLE_SHEETS_ROW_INSERT_CONTINUE_HINT
+    } else {
+        GOOGLE_SHEETS_PARENT_CONTINUE_HINT
+    }
+}
 /// Exact device.input pattern for selecting a cell without grid pixel clicks (Google Sheets web).
 pub const GOOGLE_SHEETS_GOTO_RECIPE: &str = "[GOOGLE SHEETS GOTO CELL] \
 Never shell.run SendKeys/WScript.AppActivate for typing. Never click_and_type on the grid until the name box shows the target (e.g. A2). \
 To select a cell: device.input actions [shortcut ctrl+g, type_text A2, shortcut enter] (Go to range). Confirm in screenshot that the name box reads A2 (not E5/E8). \
-Row 2 sample (headers already in A1:C1): goto A2, then type_text Budi, shortcut tab, type_text Jakarta, shortcut tab, type_text Laki-laki. \
-Next row: goto A3, repeat for Siti; goto A4 for Andi. Use Tab only after the correct cell is selected — wrong column means clear and goto again. \
-If data appears under column E or below row 4 while filling three sample rows, undo and redo with goto A2.";
+Batch entries together into actions: [...]: e.g. for Row 2 + Row 3: [shortcut ctrl+g, type_text A2, shortcut enter, type_text Budi, shortcut tab, type_text Jakarta, shortcut tab, type_text Laki-laki, shortcut enter, shortcut ctrl+g, type_text A3, shortcut enter, type_text Siti, shortcut tab, type_text Surabaya, shortcut tab, type_text Perempuan]. Batching avoids roundtrips and optimizes context usage. \
+Use Tab only after the correct cell is selected — wrong column means clear and goto again. \
+If data appears under column E or below row 4 while filling sample rows, undo and redo with goto A2.";
 
 
 pub use crate::prompt::google_forms::ComputerUseToolCounts;
@@ -87,6 +114,9 @@ fn looks_like_sheet_scoped_followup(t: &str) -> bool {
         || t.contains("add it")
         || t.contains("what is on")
         || t.contains("what's on")
+        || t.contains("bold")
+        || t.contains("tebal")
+        || t.contains("header")
         || looks_like_sheet_row_insert_intent(t)
     {
         return true;
@@ -351,12 +381,94 @@ pub fn google_sheets_tool_activity_sufficient(goal: &str, counts: ComputerUseToo
     counts.device_input >= min.device_input && counts.device_screenshot >= min.device_screenshot
 }
 
+/// Returns true if the goal text indicates styling/bolding headers or cells.
+pub fn goal_requires_bold(goal: &str) -> bool {
+    let g = goal.to_ascii_lowercase();
+    g.contains("bold") || g.contains("tebal")
+}
+
+/// Checks if the Google Sheets toolbar Bold button is in an active Material You state (light blue background pill).
+pub fn is_google_sheets_bold_button_active(jpeg_bytes: &[u8]) -> Option<bool> {
+    let img = image::load_from_memory(jpeg_bytes).ok()?;
+    let (w, h) = (img.width(), img.height());
+    if w < 200 || h < 150 {
+        return None;
+    }
+    // Normalized bounds for the Bold 'B' button in Google Sheets toolbar
+    let bx1 = (w as f32 * 0.640) as u32;
+    let bx2 = ((w as f32 * 0.690) as u32).min(w);
+    let by1 = (h as f32 * 0.220) as u32;
+    let by2 = ((h as f32 * 0.280) as u32).min(h);
+    if bx1 >= bx2 || by1 >= by2 {
+        return None;
+    }
+    let mut blue_pixels = 0usize;
+    let mut total_pixels = 0usize;
+    let rgb = img.to_rgb8();
+    for y in by1..by2 {
+        for x in bx1..bx2 {
+            let pixel = rgb.get_pixel(x, y);
+            let (r, g, b) = (pixel[0] as i32, pixel[1] as i32, pixel[2] as i32);
+            total_pixels += 1;
+            // Material You active container: (205-220, 220-235, 245-255) where b > r + 20 and b > g + 8 and b > 200
+            if b > r + 20 && b > g + 8 && b > 200 {
+                blue_pixels += 1;
+            }
+        }
+    }
+    if total_pixels == 0 {
+        return None;
+    }
+    let ratio = blue_pixels as f32 / total_pixels as f32;
+    Some(ratio > 0.08)
+}
+
+pub fn is_only_cell_navigation_text(text: &str) -> bool {
+    let t = text.trim();
+    if t.is_empty() {
+        return true;
+    }
+    let clean = t.replace("Sheet1!", "").replace('$', "");
+    let parts: Vec<&str> = clean.split(':').collect();
+    parts.iter().all(|p| {
+        let p = p.trim();
+        (p.starts_with(|c: char| c.is_ascii_alphabetic()) && p[1..].chars().all(|c| c.is_ascii_digit()))
+            || p.chars().all(|c| c.is_ascii_digit())
+    })
+}
+
+pub fn device_input_has_cell_data_typing(args: &Value) -> bool {
+    let check_val = |v: &Value| -> bool {
+        let ev = v.get("event_type").and_then(|s| s.as_str()).unwrap_or_default();
+        let is_type = matches!(ev, "type_text" | "click_and_type");
+        let text = v.get("text").and_then(|s| s.as_str()).unwrap_or_default().trim();
+        is_type && !text.is_empty() && !is_only_cell_navigation_text(text)
+    };
+    if check_val(args) {
+        return true;
+    }
+    if let Some(actions) = args.get("actions").and_then(|v| v.as_array()) {
+        for act in actions {
+            if check_val(act) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+pub fn goal_requires_row_insert(goal: &str) -> bool {
+    looks_like_sheet_row_insert_intent(&goal.to_ascii_lowercase())
+}
+
 /// Parent Home turn may settle only when delegate succeeded or device tools + summary prove the goal.
 pub fn google_sheets_parent_turn_may_finish(
     goal: &str,
     summary: &str,
     counts: ComputerUseToolCounts,
     delegate_goal_met: bool,
+    bold_verified: bool,
+    has_typing: bool,
 ) -> bool {
     if !user_text_looks_like_device_spreadsheet_ui(goal) {
         return true;
@@ -370,7 +482,23 @@ pub fn google_sheets_parent_turn_may_finish(
     if delegate_goal_met {
         return true;
     }
-    if counts.device_input >= 1 {
+    let s = summary.to_ascii_lowercase();
+    let summary_claims_bold = s.contains("bold") || s.contains("tebal") || s.contains("ditebalkan");
+    // If the model claims headers are bolded, bold MUST be verified!
+    if (goal_requires_bold(goal) || summary_claims_bold) && !bold_verified {
+        return false;
+    }
+    // If the goal requires inserting rows of data, data typing MUST have taken place!
+    if goal_requires_row_insert(goal) && !has_typing {
+        return false;
+    }
+    if goal_requires_bold(goal) && bold_verified {
+        return true;
+    }
+    if goal_requires_row_insert(goal) && has_typing {
+        return true;
+    }
+    if counts.device_input >= 1 && !goal_requires_bold(goal) && !goal_requires_row_insert(goal) {
         return true;
     }
     google_sheets_tool_activity_sufficient(goal, counts) && counts.device_screenshot >= 2
@@ -704,6 +832,71 @@ mod tests {
             "Data sampel telah berhasil ditambahkan ke Google Sheet Anda.",
             counts,
             false,
+            false,
+            false,
+        ));
+    }
+
+    #[test]
+    fn parent_turn_blocks_unverified_bold() {
+        let goal = "[@iid:98063412749627392] buat semua header bold";
+        let counts = ComputerUseToolCounts {
+            device_input: 3,
+            device_screenshot: 2,
+        };
+        // Even if summary claims success and tool activity has inputs, it must block if bold_verified is false
+        assert!(!google_sheets_parent_turn_may_finish(
+            goal,
+            "Header row (Nama, Alamat, Jenis Kelamin) berhasil dibuat tebal (bold).",
+            counts,
+            false,
+            false,
+            false,
+        ));
+        // Once bold_verified is true, it may finish
+        assert!(google_sheets_parent_turn_may_finish(
+            goal,
+            "Header row (Nama, Alamat, Jenis Kelamin) berhasil dibuat tebal (bold).",
+            counts,
+            false,
+            true,
+            false,
+        ));
+    }
+
+    #[test]
+    fn parent_turn_blocks_row_insert_without_typing() {
+        let goal = "[@iid:98063412749627392|VM1]tambahkan 2 baris data";
+        let counts = ComputerUseToolCounts {
+            device_input: 4,
+            device_screenshot: 4,
+        };
+        // If has_typing is false, cannot finish
+        assert!(!google_sheets_parent_turn_may_finish(
+            goal,
+            "2 baris data telah ditambahkan.",
+            counts,
+            false,
+            false,
+            false,
+        ));
+        // If summary falsely claims bold when bold_verified is false, cannot finish
+        assert!(!google_sheets_parent_turn_may_finish(
+            goal,
+            "Header sudah ditebalkan (bold), dan 2 baris data telah ditambahkan.",
+            counts,
+            false,
+            false,
+            true,
+        ));
+        // Once has_typing is true and no unverified claims, may finish
+        assert!(google_sheets_parent_turn_may_finish(
+            goal,
+            "2 baris data telah ditambahkan ke sheet.",
+            counts,
+            false,
+            false,
+            true,
         ));
     }
 }

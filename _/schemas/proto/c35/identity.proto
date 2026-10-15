@@ -34,6 +34,8 @@ message NavCounts {
   int32 mail_inbox_unread = 4;
   // Show platform mail entry (staff / partner / mailbox_member).
   bool mail_menu_visible = 5;
+  // Mailboxes the user can access (mail.mailbox_member).
+  int32 mailbox_count = 6;
 }
 
 message IdentityGrant {

@@ -21,8 +21,10 @@ import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/io/in_geo_point.dart';
 import 'package:alienai_c35/widgets/io/in_site_schedule.dart';
 import 'package:alienai_c35/widgets/media/ui_ask_image_generate.dart';
+import 'package:alienai_c35/c/site/design/site_color.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
+import 'package:alienai_c35/widgets/sites/editor/design/in_color.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/io_site_handle_claim_dialog.dart';
@@ -71,6 +73,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   double? _lat;
   double? _lng;
   List<SiteScheduleSlot> _hours = [];
+  var _primaryColor = siteDefaultPrimaryColor;
   SiteDoc? _draftDoc;
   var _suppressSave = false;
 
@@ -121,6 +124,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     _taglineCtrl.text = siteMetaTaglineRead(meta);
     _suppressSave = false;
     _hours = siteScheduleSlotsFromMetaJson(meta);
+    _primaryColor = siteMetaPrimaryColorRead(meta);
     siteMetaLocationRead(meta, (label, href, lat, lng) {
       _locationLabel = label;
       _lat = lat;
@@ -180,6 +184,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
         pic: _pic,
         locationLabel: _locationLabel.trim(),
         locationHref: siteLocationHrefBuild(label: _locationLabel.trim(), lat: _lat, lng: _lng),
+        primaryColor: _primaryColor,
         latitude: _lat,
         longitude: _lng,
         openHours: _hours,
@@ -478,6 +483,20 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
               icon: const Icon(Icons.auto_awesome, size: 20, color: _accent),
             ),
           ),
+        ),
+        const SizedBox(height: 12),
+        InColor(
+          label: 'Primary color',
+          value: _primaryColor,
+          onChanged: (c) {
+            setState(() => _primaryColor = c);
+            _scheduleSave();
+          },
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Buttons, links, and accents on your public site. Default is orange.',
+          style: TextStyle(color: _muted, fontSize: 12),
         ),
         const SizedBox(height: 12),
         InGeoPoint(

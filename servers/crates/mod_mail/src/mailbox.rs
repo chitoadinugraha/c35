@@ -111,14 +111,23 @@ pub async fn inbox_unread_total(pool: &PgPool, member_iid: i64) -> Result<i32, S
     .map_err(|e| e.to_string())
 }
 
-/// Avatar-menu mail badge: total unread + whether mail UI should be offered.
-pub async fn nav_mail_snapshot(pool: &PgPool, caller_iid: i64) -> Result<(i32, bool), String> {
+/// Avatar-menu mail badge: unread total, mail UI visibility, accessible mailbox count.
+pub async fn nav_mail_snapshot(pool: &PgPool, caller_iid: i64) -> Result<(i32, bool, i32), String> {
     let visible = access::mail_access(pool, caller_iid).await?;
     if !visible {
-        return Ok((0, false));
+        return Ok((0, false, 0));
     }
     let unread = inbox_unread_total(pool, caller_iid).await?;
-    Ok((unread, true))
+    let mailbox_count: i32 = sqlx::query_scalar(
+        r#"SELECT COUNT(*)::int FROM mail.mailbox m
+           INNER JOIN mail.mailbox_member mm ON mm.mailbox_id = m.id AND mm.member_iid = $1
+           WHERE m.deleted_ts IS NULL"#,
+    )
+    .bind(caller_iid)
+    .fetch_one(pool)
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok((unread, true, mailbox_count))
 }
 
 pub async fn mailbox_unread_count(pool: &PgPool, mailbox_id: i64) -> Result<i32, String> {

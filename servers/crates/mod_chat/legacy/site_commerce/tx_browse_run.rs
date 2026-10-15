@@ -67,8 +67,8 @@ pub async fn tx_browse_cluster_turn(
     .await?;
     let hop_ms = hop_started.elapsed().as_millis() as i64;
     if let Some(tr) = tracer {
-        let hop_cost = billing_cost_usd(model, out.in_tok, out.out_tok);
-        tr.llm_call(1, model, out.in_tok, out.out_tok, hop_ms, hop_cost, &out.text)
+        let hop_cost = c35_mod_billing::billing_cost_with_cache_usd(model, out.in_tok, out.out_tok, out.cached_tok);
+        tr.llm_call(1, model, out.in_tok, out.out_tok, out.cached_tok, hop_ms, hop_cost, &out.text, &out.thought)
             .await;
     }
 
@@ -83,8 +83,9 @@ pub async fn tx_browse_cluster_turn(
         blocks_json: built.blocks_json,
         tokens_in: out.in_tok,
         tokens_out: out.out_tok,
+        tokens_cached: out.cached_tok,
         model_used: format!("tx_browse+{}", model),
-        ..ChatRes::default()
+        tools_cost_usd: 0.0,
     }))
 }
 

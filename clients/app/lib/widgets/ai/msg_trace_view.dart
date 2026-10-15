@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
-import 'package:alienai_c35/widgets/ui/ui_preview_page.dart';
+import 'package:alienai_c35/widgets/ai/ui_staged_shot.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:flutter/material.dart';
 
@@ -170,8 +171,14 @@ class _UiMsgTraceLoaderState extends State<UiMsgTraceLoader> {
   bool _hideToolTraceWhenIdle() =>
       !widget.live && widget.part != MsgTracePart.citations && !PromptUsagePrefs.instance.showUsageStats;
 
+  bool _hideToolChips() {
+    if (widget.part == MsgTracePart.citations) return false;
+    if (!Session.instance.isRoot) return true;
+    return _hideToolTraceWhenIdle();
+  }
+
   Widget _buildBody() {
-    if (_hideToolTraceWhenIdle()) return const SizedBox.shrink();
+    if (_hideToolChips()) return const SizedBox.shrink();
     final v = _view;
     if (v == null || _partEmpty(v)) return const SizedBox.shrink();
     return UiMsgTraceView(view: v, compact: widget.compact, live: widget.live, part: widget.part);
@@ -202,11 +209,13 @@ class UiMsgTraceView extends StatelessWidget {
       children: [
         if (showChips && view.chips.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: view.chips.map((t) => UiMsgTraceToolChip(chip: t, compact: compact)).toList(),
+            padding: const EdgeInsets.only(top: 6, bottom: 2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final chip in view.chips) UiMsgTraceToolLine(chip: chip, compact: compact),
+              ],
             ),
           ),
         if (showCitations && view.citations.isNotEmpty)
@@ -244,7 +253,7 @@ class UiTraceScreenshotPreview extends StatelessWidget {
         Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: () => showMediaPreview(context, [src]),
+            onTap: () => unawaited(stagedShotPreview(context, servePath: src, name: 'screenshot.png')),
             borderRadius: BorderRadius.circular(6),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(6),
@@ -269,6 +278,49 @@ class UiTraceScreenshotPreview extends StatelessWidget {
             child: Text(caption, style: const TextStyle(color: _muted, fontSize: 10, height: 1.2)),
           ),
       ],
+    );
+  }
+}
+
+/// Inline tool step under a message — plain text row (root trace), not a pill card.
+class UiMsgTraceToolLine extends StatelessWidget {
+  const UiMsgTraceToolLine({super.key, required this.chip, this.compact = true});
+
+  final MsgTraceToolChip chip;
+  final bool compact;
+
+  static const _muted = Color(0xFF71717A);
+  static const _text = Color(0xFF71717A);
+  static const _error = Color(0xFFEF4444);
+
+  @override
+  Widget build(BuildContext context) {
+    final ms = uiFmtDurationMs(chip.durationMs);
+    final icon = !chip.ok
+        ? const Icon(Icons.close_rounded, size: 12, color: _error)
+        : const Icon(Icons.check_rounded, size: 12, color: _muted);
+    return Padding(
+      padding: EdgeInsets.only(bottom: compact ? 2 : 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          icon,
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              chip.label,
+              style: TextStyle(color: chip.ok ? _text : _error, fontSize: 12, height: 1.35),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+          ),
+          if (ms.isNotEmpty) ...[
+            const SizedBox(width: 6),
+            Text(ms, style: const TextStyle(color: _muted, fontSize: 11, height: 1.35)),
+          ],
+        ],
+      ),
     );
   }
 }

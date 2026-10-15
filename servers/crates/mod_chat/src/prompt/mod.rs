@@ -53,6 +53,7 @@ pub struct ChatRes {
     pub blocks_json: String,
     pub tokens_in: i32,
     pub tokens_out: i32,
+    pub tokens_cached: i32,
     pub model_used: String,
     pub tools_cost_usd: f64,
 }

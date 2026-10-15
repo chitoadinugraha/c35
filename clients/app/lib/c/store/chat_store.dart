@@ -143,6 +143,7 @@ class ChatRow {
     this.contextSummaryPresent = false,
     this.contextWindow = 0,
     this.boundDeviceIid = 0,
+    this.promptTokens = 0,
     List<String>? stickyMentionIds,
   })  : tags = tags ?? const [],
         stickyMentionIds = stickyMentionIds ?? const [];
@@ -160,6 +161,7 @@ class ChatRow {
   bool contextSummaryPresent;
   int contextWindow;
   int boundDeviceIid;
+  int promptTokens;
   List<String> stickyMentionIds;
 
   bool get pinned => pinnedAt > 0;
@@ -179,6 +181,7 @@ class ChatRow {
         'contextSummaryPresent': contextSummaryPresent,
         if (contextWindow > 0) 'contextWindow': contextWindow,
         if (boundDeviceIid > 0) 'boundDeviceIid': boundDeviceIid,
+        if (promptTokens > 0) 'promptTokens': promptTokens,
         if (stickyMentionIds.isNotEmpty) 'stickyMentionIds': stickyMentionIds,
       };
 
@@ -196,6 +199,7 @@ class ChatRow {
         contextSummaryPresent: j['contextSummaryPresent'] as bool? ?? false,
         contextWindow: j['contextWindow'] as int? ?? 0,
         boundDeviceIid: j['boundDeviceIid'] as int? ?? 0,
+        promptTokens: j['promptTokens'] as int? ?? 0,
         stickyMentionIds: j['stickyMentionIds'] is List ? [for (final t in j['stickyMentionIds'] as List) '$t'] : const [],
       );
 }
@@ -362,6 +366,7 @@ class ChatStore extends ChangeNotifier {
   List<AgentModel> models = const [AgentModel.alien];
   List<LiveOffer> liveOffers = liveOffersOfflineFallback();
   NavCounts navCounts = NavCounts();
+  int notifyUnreadCount = 0;
   String search = '';
   int? activeChatId;
   bool promptBusy = false;
@@ -956,6 +961,20 @@ class ChatStore extends ChangeNotifier {
     _touch();
   }
 
+  int chatPromptTokensGet(int id) {
+    if (id <= 0) return 0;
+    final i = chats.indexWhere((c) => c.id == id);
+    return i >= 0 ? chats[i].promptTokens : 0;
+  }
+
+  void chatPromptTokensPut(int id, int tokens) {
+    if (id <= 0 || tokens <= 0) return;
+    final i = chats.indexWhere((c) => c.id == id);
+    if (i < 0 || chats[i].promptTokens == tokens) return;
+    chats[i].promptTokens = tokens;
+    _touch();
+  }
+
   void chatContextSummaryPresentPut(int id, bool present) {
     if (id == 0) return;
     final i = chats.indexWhere((c) => c.id == id);
@@ -1407,7 +1426,7 @@ class ChatStore extends ChangeNotifier {
     if (m != null) {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
       if (m.error.isNotEmpty) m.error = '';
-      if (text == m.content) return;
+      if (text == m.content && m.content.length >= 16) return;
       if (text.startsWith(m.content) && text.length > m.content.length) {
         m.content = text;
       } else if (_msgStreamLooksLikeNewReply(m.content, text)) {
@@ -1862,6 +1881,7 @@ class ChatStore extends ChangeNotifier {
       sites: navCounts.sites,
       mailInboxUnread: navCounts.mailInboxUnread,
       mailMenuVisible: navCounts.mailMenuVisible,
+      mailboxCount: navCounts.mailboxCount,
     );
     notifyListeners();
     await _navCountsPersistShell();
@@ -1875,6 +1895,7 @@ class ChatStore extends ChangeNotifier {
       sites: navCounts.sites,
       mailInboxUnread: navCounts.mailInboxUnread,
       mailMenuVisible: navCounts.mailMenuVisible,
+      mailboxCount: navCounts.mailboxCount,
     );
     notifyListeners();
     await _navCountsPersistShell();
@@ -1888,6 +1909,7 @@ class ChatStore extends ChangeNotifier {
       sites: sites,
       mailInboxUnread: navCounts.mailInboxUnread,
       mailMenuVisible: navCounts.mailMenuVisible,
+      mailboxCount: navCounts.mailboxCount,
     );
     notifyListeners();
     await _navCountsPersistShell();
@@ -1976,6 +1998,23 @@ class ChatStore extends ChangeNotifier {
     unawaited(SessionInitCache.persist(init));
   }
 
+  Future<void> refreshNotifyUnread(ChatConn conn) async {
+    try {
+      final res = await conn.notifyList(unreadOnly: true, limit: 50);
+      final n = res.items.length;
+      if (notifyUnreadCount == n) return;
+      notifyUnreadCount = n;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  void notifyUnreadPut(int count) {
+    final n = count < 0 ? 0 : count;
+    if (notifyUnreadCount == n) return;
+    notifyUnreadCount = n;
+    notifyListeners();
+  }
+
   Future<void> hintTouch(ChatConn conn, {required int assetIid, required String assetKind}) async {
     if (assetIid <= 0 || assetKind.trim().isEmpty) return;
     try {
@@ -2013,6 +2052,7 @@ class ChatStore extends ChangeNotifier {
         generationMusic: mediaPrefs.generationMusicWire,
       );
       sessionInitMerge(init);
+      unawaited(refreshNotifyUnread(conn));
     } catch (_) {}
     try {
       inboxMerge(await conn.inboxList(includeArchived: true));

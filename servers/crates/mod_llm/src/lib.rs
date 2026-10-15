@@ -51,11 +51,11 @@ pub use catalog_resolve::{
     google_gemini_api_model_id,
 };
 pub use llm_catalog::{
-    catalog_models, catalog_price, llm_catalog_ensure_memory, llm_catalog_init, llm_catalog_pinned_ensure, llm_catalog_reload,
+    catalog_models, catalog_price, catalog_price_full, llm_catalog_ensure_memory, llm_catalog_init, llm_catalog_pinned_ensure, llm_catalog_reload,
     llm_catalog_warm, prompt_models, provider_model_resolve, LlmModelRow,
 };
 pub use catalog_price::{ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M};
-pub use model_cost::model_cost_usd;
+pub use model_cost::{model_cost_usd, model_cost_with_cache_usd};
 pub use runtime_config::{
     alien_chain_default, alien_chain_models, alien_chain_models_device, alien_chain_models_for_device,
     alien_default_model, cf_gateway_config, cf_gateway_from_env,

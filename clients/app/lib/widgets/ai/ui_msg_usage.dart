@@ -75,9 +75,12 @@ class UiMsgUsage extends StatelessWidget {
             included: stats.costUsd > 0 && msgUsageBillingIncluded(msg, model: stats.model),
           );
           final modelLabel = stats.model.isNotEmpty && stats.model != 'local' ? traceModelLabel(stats.model) : '';
+          final inLabel = stats.tokensCached > 0
+              ? '${uiFmtGroupedInt(stats.tokensIn)} (${uiFmtGroupedInt(stats.tokensCached)} cached)'
+              : uiFmtGroupedInt(stats.tokensIn);
           final tooltipParts = <String>[
             if (modelLabel.isNotEmpty) modelLabel,
-            if (stats.tokensIn > 0) '${uiFmtGroupedInt(stats.tokensIn)} in',
+            if (stats.tokensIn > 0) '$inLabel in',
             if (stats.tokensOut > 0) '${uiFmtGroupedInt(stats.tokensOut)} out',
             if (usageMs.isNotEmpty) usageMs,
             if (price.isNotEmpty) price,
@@ -97,7 +100,7 @@ class UiMsgUsage extends StatelessWidget {
                 children: [
                   const Icon(Icons.arrow_upward_rounded, size: 11, color: uiMsgUsageColor),
                   const SizedBox(width: 2),
-                  Text(uiFmtGroupedInt(stats.tokensIn), style: _style),
+                  Text(inLabel, style: _style),
                 ],
               ),
             );
@@ -124,7 +127,7 @@ class UiMsgUsage extends StatelessWidget {
           final visibleParts = <String>[
             if (stats.model == 'local' && stats.tokensIn == 0 && stats.tokensOut == 0 && stats.costUsd == 0 && stats.durationMs > 0) 'local · free',
             if (modelLabel.isNotEmpty) modelLabel,
-            if (stats.tokensIn > 0) '${uiFmtGroupedInt(stats.tokensIn)} in',
+            if (stats.tokensIn > 0) '$inLabel in',
             if (stats.tokensOut > 0) '${uiFmtGroupedInt(stats.tokensOut)} out',
             if (usageMs.isNotEmpty) usageMs,
             if (price.isNotEmpty) price,

@@ -82,10 +82,10 @@ class _ImageGrid extends StatelessWidget {
 
   void _openPreview(BuildContext context, MsgAttachment a) {
     if (a.hasLocalPreview) {
-      unawaited(stagedShotPreview(context, bytes: a.localBytes!, name: a.name, editable: false, onUpgradeHd: onUpgradeHd));
+      unawaited(stagedShotPreview(context, bytes: a.localBytes!, name: a.name, onUpgradeHd: onUpgradeHd));
       return;
     }
-    if (a.hasRemote) unawaited(stagedShotPreview(context, servePath: a.servePath, name: a.name, editable: false, onUpgradeHd: onUpgradeHd));
+    if (a.hasRemote) unawaited(stagedShotPreview(context, servePath: a.servePath, name: a.name, onUpgradeHd: onUpgradeHd));
   }
 
   Widget _thumb(BuildContext context, MsgAttachment a, {required double width, required double height}) => ClipRRect(

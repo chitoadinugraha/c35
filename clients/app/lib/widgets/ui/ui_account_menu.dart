@@ -16,7 +16,9 @@ import 'package:alienai_c35/c/billing/billing_format.dart';
 import 'package:alienai_c35/c/billing/billing_store_sync.dart';
 import 'package:alienai_c35/c/pb/c35/billing.pb.dart';
 import 'package:alienai_c35/c/store/app_store.dart';
+import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/widgets/billing/ui_quota_ring.dart';
+import 'package:alienai_c35/widgets/ui/ui_account_assets_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_speak_toggle.dart';
 import 'package:alienai_c35/widgets/ui/ui_app_bar_chip.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
@@ -54,12 +56,12 @@ class UiAccountMenuAction {
     this.composerModel,
     this.liveOffers = const [],
     this.onLiveCallStart,
+    this.shellStore,
     this.botsCount,
     this.devicesCount,
     this.sitesCount,
     this.mailInboxCount,
     this.notifyUnreadCount,
-    this.fetchNotifyUnread,
   });
 
   final ReferralConn? conn;
@@ -83,12 +85,12 @@ class UiAccountMenuAction {
   final AgentModel? composerModel;
   final List<LiveOffer> liveOffers;
   final ValueChanged<LiveOffer>? onLiveCallStart;
+  final ChatStore? shellStore;
   final int? botsCount;
   final int? devicesCount;
   final int? sitesCount;
   final int? mailInboxCount;
   final int? notifyUnreadCount;
-  final Future<int> Function()? fetchNotifyUnread;
 }
 
 Future<void> uiAccountMenuShow(BuildContext anchorCtx, {UiAccountMenuAction? action}) async {
@@ -135,7 +137,6 @@ class _UiAccountMenuDialog extends StatefulWidget {
 
 class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
   var _billingHydrating = false;
-  int? _notifyUnread;
 
   bool _billingPlanTrustedPaid(BillingAccount? billing) =>
       billing != null && billingAccountPaidEntitlement(billing);
@@ -143,16 +144,6 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
   @override
   void initState() {
     super.initState();
-    _notifyUnread = widget.action.notifyUnreadCount;
-    final fetchNotify = widget.action.fetchNotifyUnread;
-    if (fetchNotify != null) {
-      unawaited(() async {
-        try {
-          final n = await fetchNotify();
-          if (mounted) setState(() => _notifyUnread = n);
-        } catch (_) {}
-      }());
-    }
     final conn = widget.action.conn;
     _billingHydrating = conn != null && AppStore.instance.billing == null;
     unawaited(_billingEnsure());
@@ -180,9 +171,43 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     fn?.call();
   }
 
-  Future<void> _onTalkTap() async {
-    await VoicePrefs.instance.setTalkEnabled(!VoicePrefs.instance.talkEnabled);
+  void _openAssets(UiAccountMenuAction acts) {
+    final store = acts.shellStore;
+    final nav = store?.navCounts;
+    final mailUnread = acts.mailInboxCount ?? mailInboxBus.inboxCount;
+    final notifyUnread = store?.notifyUnreadCount ?? acts.notifyUnreadCount ?? 0;
+    unawaited(
+      uiAccountAssetsDialogShow(
+        context,
+        action: UiAccountAssetsAction(
+          onBots: acts.onBots == null ? null : () => _popThen(acts.onBots),
+          onDevices: acts.onDevices == null ? null : () => _popThen(acts.onDevices),
+          onSites: acts.onSites == null ? null : () => _popThen(acts.onSites),
+          onMail: acts.onMail == null ? null : () => _popThen(acts.onMail),
+          onNotifications: acts.onNotifications == null ? null : () => _popThen(acts.onNotifications),
+          botsCount: acts.botsCount ?? nav?.bots ?? 0,
+          devicesCount: acts.devicesCount ?? nav?.devices ?? 0,
+          sitesCount: acts.sitesCount ?? nav?.sites ?? 0,
+          mailboxCount: nav?.mailboxCount ?? 0,
+          mailInboxUnread: mailUnread,
+          notifyUnread: notifyUnread,
+        ),
+      ),
+    );
   }
+
+  int _assetsBadgeCount(UiAccountMenuAction acts) {
+    final mailUnread = acts.mailInboxCount ?? mailInboxBus.inboxCount;
+    final notifyUnread = acts.shellStore?.notifyUnreadCount ?? acts.notifyUnreadCount ?? 0;
+    return mailUnread + notifyUnread;
+  }
+
+  bool _hasAssetsEntry(UiAccountMenuAction acts) =>
+      acts.onBots != null ||
+      acts.onDevices != null ||
+      acts.onSites != null ||
+      acts.onMail != null ||
+      acts.onNotifications != null;
 
   Future<void> _onLiveCallPick(LiveOffer offer) async {
     if (!offer.enabled) return;
@@ -225,45 +250,63 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
             elevation: 12,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: const BorderSide(color: _border)),
             child: ListenableBuilder(
-              listenable: Listenable.merge([AppStore.instance, mailInboxBus]),
+              listenable: Listenable.merge([
+                AppStore.instance,
+                mailInboxBus,
+                if (acts.shellStore != null) acts.shellStore!,
+              ]),
               builder: (context, _) {
                 final billing = AppStore.instance.billing;
                 final showBillingPanel = billing != null;
                 final planTierLoading = _billingHydrating && !showBillingPanel;
                 final billingRow = billing;
-                final notifyUnread = _notifyUnread ?? acts.notifyUnreadCount ?? 0;
+                final assetsBadge = _assetsBadgeCount(acts);
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    InkWell(
-                      onTap: () => _popThen(acts.onSettings),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                        child: Row(
-                          children: [
-                            UiUserAvatar(name: s.name, email: s.email, handle: s.handle, pic: s.pic, size: 36),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: acts.onSettings == null ? null : () => _popThen(acts.onSettings),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Row(
                                 children: [
-                                  Text(_accountName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    profileIdentityLabel(handle: s.handle, email: s.email),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: _muted, fontSize: 12),
+                                  UiUserAvatar(name: s.name, email: s.email, handle: s.handle, pic: s.pic, size: 36),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(_accountName(), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          profileIdentityLabel(handle: s.handle, email: s.email),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: _muted, fontSize: 12),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        UiAccountRoleBadges(action: badgeAction),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 4),
-                                  UiAccountRoleBadges(action: badgeAction),
+                                  if (acts.onSettings != null) ...[
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
+                                  ],
                                 ],
                               ),
                             ),
-                            if (acts.onSettings != null) const Icon(Icons.chevron_right_rounded, size: 18, color: _muted),
+                          ),
+                          if (_hasAssetsEntry(acts)) ...[
+                            const SizedBox(width: 6),
+                            _AssetsHeaderBtn(badge: assetsBadge, onTap: () => _openAssets(acts)),
                           ],
-                        ),
+                        ],
                       ),
                     ),
                     const Divider(height: 1, color: _border),
@@ -317,60 +360,56 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                           ),
                         ),
                       ],
-                    if (_hasNavCounts(acts)) ...[
+                    if (_hasNavSection(acts)) ...[
                       const Divider(height: 1, color: _border),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                        child: Row(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (acts.onBots != null) Expanded(child: _NavCountBtn(icon: Icons.smart_toy_outlined, count: acts.botsCount ?? 0, label: 'Bots', onTap: () => _popThen(acts.onBots))),
-                            if (acts.onDevices != null) ...[const SizedBox(width: 6), Expanded(child: _NavCountBtn(icon: Icons.devices_outlined, count: acts.devicesCount ?? 0, label: 'Devices', onTap: () => _popThen(acts.onDevices)))],
-                            if (acts.onSites != null) ...[const SizedBox(width: 6), Expanded(child: _NavCountBtn(icon: Icons.language_outlined, count: acts.sitesCount ?? 0, label: 'Sites', onTap: () => _popThen(acts.onSites)))],
+                            if (_hasTalkCallRow(acts))
+                              ListenableBuilder(
+                                listenable: Listenable.merge([VoicePrefs.instance, catalogTranslationTick]),
+                                builder: (context, _) {
+                                  final model = acts.composerModel;
+                                  final callChip = acts.onLiveCallStart == null || model == null
+                                      ? null
+                                      : UiLiveCallChip(
+                                          composerModel: model,
+                                          offers: acts.liveOffers,
+                                          expand: true,
+                                          dense: true,
+                                          onStart: _onLiveCallPick,
+                                        );
+                                  return Row(
+                                    children: [
+                                      Expanded(
+                                        child: UiAccountTalkModeMenu(
+                                          talkEnabled: VoicePrefs.instance.talkEnabled,
+                                          onSelectTalkEnabled: (enabled) async {
+                                            await VoicePrefs.instance.setTalkEnabled(enabled);
+                                          },
+                                        ),
+                                      ),
+                                      if (callChip != null) ...[
+                                        const SizedBox(width: 6),
+                                        Expanded(child: callChip),
+                                      ],
+                                    ],
+                                  );
+                                },
+                              ),
                           ],
                         ),
                       ),
                     ],
-                    const Divider(height: 1, color: _border),
-                    ListenableBuilder(
-                      listenable: Listenable.merge([VoicePrefs.instance, catalogTranslationTick]),
-                      builder: (context, _) {
-                        final model = acts.composerModel;
-                        final callChip = acts.onLiveCallStart == null || model == null
-                            ? null
-                            : UiLiveCallChip(
-                                composerModel: model,
-                                offers: acts.liveOffers,
-                                expand: true,
-                                onStart: _onLiveCallPick,
-                              );
-                        return UiTalkCallToggleRow(
-                          talkEnabled: VoicePrefs.instance.talkEnabled,
-                          onTalkTap: _onTalkTap,
-                          callChip: callChip,
-                        );
-                      },
-                    ),
                     const Divider(height: 1, color: _border),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          if (acts.onNotifications != null) ...[
-                            _NotifyFooterBtn(
-                              count: notifyUnread,
-                              onTap: () => _popThen(acts.onNotifications),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
                           const Spacer(),
-                          if (acts.onMail != null) ...[
-                            _MailFooterBtn(
-                              count: acts.mailInboxCount ?? mailInboxBus.inboxCount,
-                              onTap: () => _popThen(acts.onMail),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
                           if (acts.onReferralTree != null) ...[
                             _MenuIconBtn(icon: Icons.account_tree_outlined, tooltip: 'Referral tree', onTap: () => _popThen(acts.onReferralTree)),
                             const SizedBox(width: 8),
@@ -393,51 +432,22 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
     );
   }
 
-  bool _hasNavCounts(UiAccountMenuAction acts) => acts.onBots != null || acts.onDevices != null || acts.onSites != null;
+  bool _hasTalkCallRow(UiAccountMenuAction acts) => true;
+
+  bool _hasNavSection(UiAccountMenuAction acts) => _hasTalkCallRow(acts);
 }
 
-class _NavCountBtn extends StatelessWidget {
-  const _NavCountBtn({required this.icon, required this.count, required this.label, this.onTap});
+class _AssetsHeaderBtn extends StatelessWidget {
+  const _AssetsHeaderBtn({required this.badge, required this.onTap});
 
-  final IconData icon;
-  final int count;
-  final String label;
-  final VoidCallback? onTap;
-
-  static const _textStyle = TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w500);
-
-  @override
-  Widget build(BuildContext context) => Material(
-        color: _hoverBg,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Row(
-              children: [
-                Icon(icon, size: 15, color: const Color(0xFFA1A1AA)),
-                const SizedBox(width: 5),
-                Flexible(child: Text('$count $label', maxLines: 1, overflow: TextOverflow.ellipsis, style: _textStyle)),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _NotifyFooterBtn extends StatelessWidget {
-  const _NotifyFooterBtn({required this.count, this.onTap});
-
-  final int count;
-  final VoidCallback? onTap;
+  final int badge;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final badge = count > 0 ? (count > 99 ? '99+' : '$count') : '';
+    final badgeLabel = badge <= 0 ? '' : (badge > 99 ? '99+' : '$badge');
     return uiTooltip(
-      message: 'Notifications',
+      message: 'account.assetsTooltip'.tr(),
       child: Material(
         color: _hoverBg,
         borderRadius: BorderRadius.circular(8),
@@ -445,56 +455,18 @@ class _NotifyFooterBtn extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: EdgeInsets.fromLTRB(badge.isEmpty ? 8 : 10, 0, 8, 0),
+            padding: EdgeInsets.fromLTRB(badgeLabel.isEmpty ? 7 : 8, 0, 7, 0),
             child: SizedBox(
               height: 32,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  if (badge.isNotEmpty) ...[
-                    Text(badge, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w700)),
-                    const SizedBox(width: 6),
+                  if (badgeLabel.isNotEmpty) ...[
+                    Text(badgeLabel, style: const TextStyle(color: _text, fontSize: 11, fontWeight: FontWeight.w700, height: 1)),
+                    const SizedBox(width: 4),
                   ],
-                  const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFFA1A1AA)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MailFooterBtn extends StatelessWidget {
-  const _MailFooterBtn({required this.count, this.onTap});
-
-  final int count;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final badge = MailInboxBus.unreadMenuLabel(count);
-    return uiTooltip(
-      message: 'mail.title'.tr(),
-      child: Material(
-        color: _hoverBg,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(badge.isEmpty ? 8 : 10, 0, 8, 0),
-            child: SizedBox(
-              height: 32,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (badge.isNotEmpty) ...[
-                    Text(badge, style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w700)),
-                    const SizedBox(width: 6),
-                  ],
-                  const Icon(Icons.mail_outlined, size: 18, color: Color(0xFFA1A1AA)),
+                  const Icon(Icons.widgets_outlined, size: 18, color: Color(0xFFA1A1AA)),
                 ],
               ),
             ),

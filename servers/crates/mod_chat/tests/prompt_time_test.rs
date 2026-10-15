@@ -43,6 +43,7 @@ async fn live_prompt_time_question_streams_text() {
         "AUTO",
         &mut on_delta,
         &cancel,
+        false,
     )
     .await
     .expect("gemini stream");

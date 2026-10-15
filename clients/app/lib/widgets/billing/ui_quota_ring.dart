@@ -239,18 +239,20 @@ class UiQuotaPackagePanel extends StatelessWidget {
     return label.isEmpty ? null : label;
   }
 
-  Widget _packageHeaderRow({bool includeBottomPadding = true}) {
+  Widget _packageHeaderRow({bool includeBottomPadding = true, bool includeTopPadding = true}) {
     final periodHint = _packagePeriodCompactHint();
     return Padding(
-      padding: EdgeInsets.fromLTRB(2, 8, 2, includeBottomPadding ? 4 : 0),
+      padding: EdgeInsets.fromLTRB(2, includeTopPadding ? 8 : 4, 2, includeBottomPadding ? 4 : 0),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const Icon(Icons.workspace_premium_outlined, size: 15, color: Color(0xFFFBBF24)),
           const SizedBox(width: 8),
           Expanded(
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text('settings.package'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
+                Text('settings.package'.tr(), style: const TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500, height: 1)),
                 if (periodHint != null) ...[
                   const SizedBox(width: 6),
                   Flexible(
@@ -267,7 +269,7 @@ class UiQuotaPackagePanel extends StatelessWidget {
           ),
           Text(
             planTierLoading ? '…' : billingPlanTierLabel(planTier),
-            style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600),
+            style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600, height: 1),
           ),
           if (onPackageTap != null) ...[const SizedBox(width: 4), const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A))],
         ],
@@ -338,34 +340,34 @@ class UiQuotaPackagePanel extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (onBalanceTap != null) ...[
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onBalanceTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.account_balance_wallet_outlined, size: 15, color: Color(0xFF71717A)),
-                    const SizedBox(width: 8),
-                    const Text('Balance', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500)),
-                    const Spacer(),
-                    Text(balanceLabel, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A)),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFF27272A)),
-        ],
         Padding(
           padding: const EdgeInsets.fromLTRB(0, 2, 0, 4),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (onBalanceTap != null)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: onBalanceTap,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(2, 8, 2, 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.account_balance_wallet_outlined, size: 15, color: Color(0xFF71717A)),
+                          const SizedBox(width: 8),
+                          const Text('Balance', style: TextStyle(color: Color(0xFF71717A), fontSize: 11, fontWeight: FontWeight.w500, height: 1)),
+                          const Spacer(),
+                          Text(balanceLabel, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 12, fontWeight: FontWeight.w600, height: 1)),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right, size: 16, color: Color(0xFF71717A)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               if (freemiumActive && !planTierLoading)
                 _freemiumPackageBlock(context)
               else ...[
@@ -373,8 +375,10 @@ class UiQuotaPackagePanel extends StatelessWidget {
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: onPackageTap,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                    child: _packageHeaderRow(),
+                    borderRadius: BorderRadius.vertical(
+                      top: onBalanceTap != null ? Radius.zero : const Radius.circular(8),
+                    ),
+                    child: _packageHeaderRow(includeTopPadding: onBalanceTap == null),
                   ),
                 ),
                 _manageStoreSubscriptionButton(),

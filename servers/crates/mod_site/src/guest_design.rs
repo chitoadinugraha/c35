@@ -6,6 +6,30 @@ use sqlx::{PgPool, Row};
 
 use crate::guest_product::pic_url;
 
+/// Default guest `--accent` when theme and site meta do not set one (CSA orange).
+pub const GUEST_DEFAULT_ACCENT: &str = "#F97316";
+
+/// Theme `accent` wins; else `meta.primary_color`; else [GUEST_DEFAULT_ACCENT].
+pub fn guest_accent_resolve(theme: &Value, meta: &Value) -> String {
+    let theme_accent = theme
+        .get("accent")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if !theme_accent.is_empty() {
+        return theme_accent.to_string();
+    }
+    let meta_primary = meta
+        .get("primary_color")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if !meta_primary.is_empty() {
+        return meta_primary.to_string();
+    }
+    GUEST_DEFAULT_ACCENT.to_string()
+}
+
 #[derive(Clone, Debug)]
 struct Palette {
     background: &'static str,
@@ -107,12 +131,21 @@ impl GuestDesign {
             return Self::from_value(&Value::Object(Map::new()));
         }
         match serde_json::from_str::<Value>(trimmed) {
-            Ok(v) if v.is_object() => Self::from_value(&v),
-            _ => Self::from_value(&Value::Object(Map::new())),
+            Ok(v) if v.is_object() => Self::from_theme_meta(&v, &Value::Null),
+            _ => Self::from_theme_meta(&Value::Object(Map::new()), &Value::Null),
         }
     }
 
     pub fn from_value(theme: &Value) -> Self {
+        Self::from_theme_meta(theme, &Value::Null)
+    }
+
+    pub fn from_theme_meta(theme: &Value, meta: &Value) -> Self {
+        let meta = if meta.is_null() {
+            &Value::Object(Map::new())
+        } else {
+            meta
+        };
         let dark = theme.get("dark").and_then(|v| v.as_bool()).unwrap_or(false);
         let base_raw = theme
             .get("base")
@@ -121,13 +154,7 @@ impl GuestDesign {
             .trim();
         let base = normalize_base(base_raw);
         let palette = palette_resolve(&base, dark);
-        let accent_raw = theme.get("accent").and_then(|v| v.as_str()).unwrap_or("").trim();
-        let accent = if accent_raw.is_empty() {
-            // CSA default — matches Flutter `GuestSiteBoot.csaDefaultAccent`.
-            "#F97316".to_string()
-        } else {
-            accent_raw.to_string()
-        };
+        let accent = guest_accent_resolve(theme, meta);
 
         let background = theme.get("background");
         let background_type = normalize_background_type(

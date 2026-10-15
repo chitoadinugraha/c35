@@ -8,7 +8,10 @@ param(
     [string]$SecretName = 'c35-server-env',
     [string]$EnvFile = '',
     [switch]$Restart,
-    [string[]]$Keys = @('S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_BUCKET', 'S3_ENDPOINT', 'S3_REGION', 'S3_SECURE')
+    [string[]]$Keys = @(
+        'S3_ACCESS_KEY', 'S3_SECRET_KEY', 'S3_BUCKET', 'S3_ENDPOINT', 'S3_REGION', 'S3_SECURE',
+        'CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'
+    )
 )
 
 $ErrorActionPreference = 'Stop'

@@ -12,6 +12,7 @@ class UiHintChip extends StatelessWidget {
     this.enabled = true,
     this.showChevron = false,
     this.expand = false,
+    this.dense = false,
   }) : assert(icon != null || leading != null, 'icon or leading required');
 
   final Widget label;
@@ -22,13 +23,16 @@ class UiHintChip extends StatelessWidget {
   final bool enabled;
   final bool showChevron;
   final bool expand;
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final iconColor = enabled ? theme.icon : HintChipTheme.defaultTheme.icon;
     final textColor = enabled ? theme.label : HintChipTheme.defaultTheme.icon;
-    final lead = leading ?? Icon(icon, size: 15, color: iconColor);
-    final text = DefaultTextStyle.merge(style: TextStyle(color: textColor, fontSize: 13), child: label);
+    final iconSize = dense ? 15.0 : 15.0;
+    final fontSize = dense ? 12.0 : 13.0;
+    final lead = leading ?? Icon(icon, size: iconSize, color: iconColor);
+    final text = DefaultTextStyle.merge(style: TextStyle(color: textColor, fontSize: fontSize, height: 1), child: label);
     final row = Row(
       mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -37,8 +41,8 @@ class UiHintChip extends StatelessWidget {
         const SizedBox(width: 8),
         if (expand) Expanded(child: text) else text,
         if (showChevron && enabled) ...[
-          const SizedBox(width: 4),
-          Icon(Icons.arrow_drop_down, size: 15, color: HintChipTheme.defaultTheme.icon),
+          const SizedBox(width: 2),
+          Icon(Icons.arrow_drop_down_rounded, size: dense ? 16 : 15, color: HintChipTheme.defaultTheme.icon),
         ],
       ],
     );
@@ -59,7 +63,7 @@ class UiHintChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: SizedBox.expand(
           child: Padding(
-            padding: homeTalkCallChipContentPadding,
+            padding: dense ? const EdgeInsets.symmetric(horizontal: 8) : homeTalkCallChipContentPadding,
             child: Align(alignment: Alignment.centerLeft, child: row),
           ),
         ),

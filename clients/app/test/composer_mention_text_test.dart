@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('composerMentionUserContentDisplay strips control chars when catalog empty', () {
     const deviceId = 'iid:97279816209936384';
-    final raw = 'What is on ${composerMentionStart}$deviceId${composerMentionEnd} screen?';
+    final raw = 'What is on $composerMentionStart$deviceId$composerMentionEnd screen?';
     expect(
       composerMentionUserContentDisplay(raw, const []),
       'What is on $deviceId screen?',
@@ -40,6 +40,22 @@ void main() {
     final withText = composerMentionDraftMergeSticky('clear recycle bin', [deviceId], const []);
     expect(withText, startsWith(sticky));
     expect(withText, contains('clear recycle bin'));
+  });
+
+  test('composerMentionDraftMergeSticky does not move inline chip to front', () {
+    const deviceId = 'iid:42';
+    final mid = 'pada ${composerMentionToken(deviceId)} saya mau';
+    expect(composerMentionDraftMergeSticky(mid, [deviceId], const []), mid);
+  });
+
+  test('composerMentionDraftMergeSticky prepends only stickies missing inline', () {
+    const deviceA = 'iid:1';
+    const deviceB = 'iid:2';
+    final tokenB = composerMentionToken(deviceB);
+    final mid = 'on $tokenB do this';
+    final merged = composerMentionDraftMergeSticky(mid, [deviceA, deviceB], const []);
+    expect(merged, startsWith(composerMentionToken(deviceA)));
+    expect(merged, contains('on $tokenB do this'));
   });
 
   test('composerMentionBracketFixupNesting collapses double bracket shell', () {
@@ -229,6 +245,14 @@ void main() {
     expect(out, isNot(contains('[@')));
     expect(out, contains(token));
     expect(out, contains('tambah baris'));
+  });
+
+  test('composerMentionUiPrepare tokenizes bracket mention mid sentence', () {
+    const raw = 'di [@iid:42|VM1] buat headernya bold';
+    final (ui, catalog) = composerMentionUiPrepare(raw, const []);
+    expect(ui, contains(composerMentionToken('iid:42')));
+    expect(ui, contains('buat headernya bold'));
+    expect(catalog.any((m) => m.displayLabel == 'VM1'), isTrue);
   });
 
   test('msgUserContentForDisplay wraps inline iid using stored mention ids', () {

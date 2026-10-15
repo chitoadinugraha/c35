@@ -6,12 +6,14 @@ import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/widgets/ai/composer_stage_host.dart';
 import 'package:alienai_c35/widgets/ai/ui_serve_image.dart';
 import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 
 const _tbIcon = 20.0;
 const _tbSize = 28.0;
@@ -20,17 +22,22 @@ const _tbPad = EdgeInsets.zero;
 const _tbConstraints = BoxConstraints(minWidth: _tbSize, minHeight: _tbSize, maxWidth: _tbSize, maxHeight: _tbSize);
 final _tbStyle = IconButton.styleFrom(padding: _tbPad, minimumSize: const Size(_tbSize, _tbSize), maximumSize: const Size(_tbSize, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact);
 
+enum _ShotTool { pen, eraser }
+
 class ShotHistory {
   final strokes = <List<Offset>>[];
   final _redo = <List<Offset>>[];
   List<List<Offset>>? _cleared;
+  final _erased = <List<Offset>>[];
+  final _erasedRedo = <List<Offset>>[];
 
-  bool get canUndo => strokes.isNotEmpty || _cleared != null;
-  bool get canRedo => _redo.isNotEmpty;
+  bool get canUndo => strokes.isNotEmpty || _erased.isNotEmpty || _cleared != null;
+  bool get canRedo => _redo.isNotEmpty || _erasedRedo.isNotEmpty;
 
   void begin(Offset p) {
     strokes.add([p]);
     _redo.clear();
+    _erasedRedo.clear();
     _cleared = null;
   }
 
@@ -38,7 +45,25 @@ class ShotHistory {
     if (strokes.isNotEmpty) strokes.last.add(p);
   }
 
+  bool eraseAt(Offset p, Size imageSize) {
+    final threshold = math.max(12.0, imageSize.width / 80);
+    for (var i = strokes.length - 1; i >= 0; i--) {
+      if (!_strokeNearPoint(strokes[i], p, threshold)) continue;
+      final removed = strokes.removeAt(i);
+      _erased.add(removed);
+      _redo.clear();
+      _erasedRedo.clear();
+      return true;
+    }
+    return false;
+  }
+
   void undo() {
+    if (_erased.isNotEmpty) {
+      strokes.add(_erased.removeLast());
+      _erasedRedo.add(strokes.last);
+      return;
+    }
     if (strokes.isEmpty) {
       if (_cleared == null) return;
       strokes.addAll(_cleared!);
@@ -49,6 +74,15 @@ class ShotHistory {
   }
 
   void redo() {
+    if (_erasedRedo.isNotEmpty) {
+      final target = _erasedRedo.removeLast();
+      final i = strokes.indexWhere((s) => identical(s, target));
+      if (i >= 0) {
+        strokes.removeAt(i);
+        _erased.add(target);
+      }
+      return;
+    }
     if (_redo.isEmpty) return;
     strokes.add(_redo.removeLast());
   }
@@ -58,7 +92,27 @@ class ShotHistory {
     _cleared = [for (final s in strokes) List<Offset>.from(s)];
     strokes.clear();
     _redo.clear();
+    _erasedRedo.clear();
   }
+}
+
+bool _strokeNearPoint(List<Offset> pts, Offset p, double threshold) {
+  if (pts.isEmpty) return false;
+  if (pts.length == 1) return (pts.first - p).distance <= threshold;
+  for (var i = 1; i < pts.length; i++) {
+    if (_segmentNearPoint(pts[i - 1], pts[i], p, threshold)) return true;
+  }
+  return false;
+}
+
+bool _segmentNearPoint(Offset a, Offset b, Offset p, double threshold) {
+  final ab = b - a;
+  final len2 = ab.dx * ab.dx + ab.dy * ab.dy;
+  if (len2 == 0) return (a - p).distance <= threshold;
+  final t = ((p.dx - a.dx) * ab.dx + (p.dy - a.dy) * ab.dy) / len2;
+  final tClamped = t.clamp(0.0, 1.0);
+  final closest = Offset(a.dx + ab.dx * tClamped, a.dy + ab.dy * tClamped);
+  return (closest - p).distance <= threshold;
 }
 
 void shotZoomWheel(TransformationController xf, Offset viewportPoint, double scrollDy, {double minScale = 0.5, double maxScale = 6}) {
@@ -77,6 +131,22 @@ void shotZoomWheel(TransformationController xf, Offset viewportPoint, double scr
 }
 
 bool shotInImage(Offset p, Size image) => p.dx >= 0 && p.dy >= 0 && p.dx <= image.width && p.dy <= image.height;
+
+Future<Uint8List?> shotFetchImageBytes({Uint8List? bytes, String servePath = ''}) async {
+  if (bytes != null && bytes.isNotEmpty) return bytes;
+  final url = _shotServeUrl(servePath);
+  if (url == null) return null;
+  final token = sessionAuthToken();
+  final res = await http.get(Uri.parse(url), headers: token.isEmpty ? null : {'Authorization': 'Bearer $token'});
+  if (res.statusCode < 200 || res.statusCode >= 300) return null;
+  return res.bodyBytes;
+}
+
+String? _shotServeUrl(String servePath) {
+  final p = servePath.trim();
+  if (p.isEmpty) return null;
+  return p.startsWith('http') ? p : '${C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '')}${p.startsWith('/') ? p : '/$p'}';
+}
 
 Future<Uint8List?> shotAnnotatePng(Uint8List src, List<List<Offset>> strokes, {Color color = const Color(0xFFF43F5E)}) async {
   if (strokes.isEmpty) return src;
@@ -117,6 +187,12 @@ Future<Uint8List?> shotAnnotatePng(Uint8List src, List<List<Offset>> strokes, {C
 StagedMedia stagedMediaPutImage(StagedMedia item, Uint8List png) {
   final name = item.name.contains('.') ? '${item.name.split('.').first}.png' : '${item.name}.png';
   return item.copyWith(name: name, bytes: png, mime: 'image/png', size: png.length, hash: null, uploadProgress: 0.05);
+}
+
+StagedMedia stagedMediaFromAnnotatedBytes({required String name, required Uint8List png}) {
+  final base = name.trim().isEmpty ? 'annotated.png' : name;
+  final outName = base.contains('.') ? '${base.split('.').first}.png' : '$base.png';
+  return StagedMedia(name: outName, bytes: png, mime: 'image/png', type: MediaType.image, size: png.length, uploadProgress: 0.05);
 }
 
 class UiShotThumb extends StatelessWidget {
@@ -166,7 +242,7 @@ class UiStagedShot extends StatelessWidget {
             onTap: item.bytes.isEmpty
                 ? null
                 : () async {
-                    final next = await stagedShotPreview(context, bytes: item.bytes, name: item.name, editable: true, source: item);
+                    final next = await stagedShotPreview(context, bytes: item.bytes, name: item.name, source: item);
                     if (next != null) onReplace?.call(next);
                   },
           ),
@@ -194,8 +270,8 @@ Future<StagedMedia?> stagedShotPreview(
   Uint8List? bytes,
   String servePath = '',
   String name = '',
-  bool editable = true,
   StagedMedia? source,
+  ComposerStageHost? stageHost,
   VoidCallback? onUpgradeHd,
 }) =>
     showDialog<StagedMedia>(
@@ -206,19 +282,26 @@ Future<StagedMedia?> stagedShotPreview(
         bytes: bytes ?? source?.bytes ?? Uint8List(0),
         servePath: servePath,
         name: name.isNotEmpty ? name : (source?.name ?? ''),
-        editable: editable,
         source: source,
+        stageHost: stageHost ?? ComposerStage.maybeOf(ctx),
         onUpgradeHd: onUpgradeHd,
       ),
     );
 
 class _ShotPreview extends StatefulWidget {
-  const _ShotPreview({required this.bytes, required this.servePath, required this.name, required this.editable, this.source, this.onUpgradeHd});
+  const _ShotPreview({
+    required this.bytes,
+    required this.servePath,
+    required this.name,
+    this.source,
+    this.stageHost,
+    this.onUpgradeHd,
+  });
   final Uint8List bytes;
   final String servePath;
   final String name;
-  final bool editable;
   final StagedMedia? source;
+  final ComposerStageHost? stageHost;
   final VoidCallback? onUpgradeHd;
 
   @override
@@ -231,14 +314,21 @@ class _ShotPreviewState extends State<_ShotPreview> {
   final _hist = ShotHistory();
   final _xf = TransformationController();
   Size? _imageSize;
-  var _annotate = false;
+  var _editMode = false;
+  var _tool = _ShotTool.pen;
   var _drawing = false;
   var _fitted = false;
+  var _bytesLoading = false;
+  late Uint8List _imageBytes;
 
   @override
   void initState() {
     super.initState();
+    _imageBytes = widget.bytes;
     _loadSize();
+    if (_imageBytes.isEmpty && widget.servePath.trim().isNotEmpty) {
+      unawaited(_loadBytes());
+    }
   }
 
   @override
@@ -247,15 +337,21 @@ class _ShotPreviewState extends State<_ShotPreview> {
     super.dispose();
   }
 
-  String? _serveUrl() {
-    final p = widget.servePath.trim();
-    if (p.isEmpty) return null;
-    return p.startsWith('http') ? p : '${C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '')}${p.startsWith('/') ? p : '/$p'}';
+  Future<void> _loadBytes() async {
+    if (_bytesLoading) return;
+    _bytesLoading = true;
+    final loaded = await shotFetchImageBytes(bytes: _imageBytes, servePath: widget.servePath);
+    if (!mounted) return;
+    _bytesLoading = false;
+    if (loaded != null && loaded.isNotEmpty) {
+      setState(() => _imageBytes = loaded);
+      if (_imageSize == null) unawaited(_loadSize());
+    }
   }
 
   Future<void> _loadSize() async {
-    if (widget.bytes.isNotEmpty) {
-      final codec = await ui.instantiateImageCodec(widget.bytes);
+    if (_imageBytes.isNotEmpty) {
+      final codec = await ui.instantiateImageCodec(_imageBytes);
       final frame = await codec.getNextFrame();
       if (!mounted) {
         frame.image.dispose();
@@ -270,7 +366,7 @@ class _ShotPreviewState extends State<_ShotPreview> {
       codec.dispose();
       return;
     }
-    final url = _serveUrl();
+    final url = _shotServeUrl(widget.servePath);
     if (url == null) return;
     final token = sessionAuthToken();
     final image = NetworkImage(url, headers: token.isEmpty ? null : {'Authorization': 'Bearer $token'});
@@ -312,23 +408,58 @@ class _ShotPreviewState extends State<_ShotPreview> {
     });
   }
 
-  Future<void> _done() async {
+  Future<void> _close() async {
     if (_hist.strokes.isEmpty) {
       Navigator.pop(context);
       return;
     }
-    final src = widget.source;
-    if (src == null) {
-      Navigator.pop(context);
-      return;
-    }
-    final png = await shotAnnotatePng(widget.bytes, _hist.strokes);
     if (!mounted) return;
-    if (png == null) {
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF18181B),
+        title: const Text('Discard edits?', style: TextStyle(color: Color(0xFFF4F4F5), fontSize: 16)),
+        content: const Text('Your markup will be lost.', style: TextStyle(color: Color(0xFFA1A1AA), fontSize: 14)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
+        ],
+      ),
+    );
+    if (discard == true && mounted) Navigator.pop(context);
+  }
+
+  Future<void> _commit() async {
+    if (_hist.strokes.isEmpty) {
       Navigator.pop(context);
       return;
     }
-    Navigator.pop(context, stagedMediaPutImage(src, png));
+    if (_imageBytes.isEmpty) {
+      await _loadBytes();
+      if (!mounted) return;
+      if (_imageBytes.isEmpty) {
+        Navigator.pop(context);
+        return;
+      }
+    }
+    final png = await shotAnnotatePng(_imageBytes, _hist.strokes);
+    if (!mounted || png == null) return;
+    final src = widget.source;
+    if (src != null) {
+      final next = stagedMediaPutImage(src, png);
+      if (widget.stageHost?.replaceStaged(src.id, next) == true) {
+        Navigator.pop(context);
+        return;
+      }
+      Navigator.pop(context, next);
+      return;
+    }
+    final staged = stagedMediaFromAnnotatedBytes(name: widget.name, png: png);
+    if (widget.stageHost?.stage([staged]) == true) {
+      Navigator.pop(context);
+      return;
+    }
+    Navigator.pop(context);
   }
 
   void _undo() {
@@ -339,29 +470,32 @@ class _ShotPreviewState extends State<_ShotPreview> {
     if (_hist.canRedo) setState(_hist.redo);
   }
 
-  void _clear() {
-    if (_hist.canUndo && _hist.strokes.isNotEmpty) setState(_hist.clear);
-  }
-
-  void _toggleAnnotate() => setState(() => _annotate = !_annotate);
+  void _enterEdit() => setState(() {
+        _editMode = true;
+        _tool = _ShotTool.pen;
+      });
 
   void _onPointerSignal(PointerSignalEvent event) {
-    if (_annotate || event is! PointerScrollEvent) return;
+    if (_editMode || event is! PointerScrollEvent) return;
     if (!HardwareKeyboard.instance.isControlPressed) return;
     shotZoomWheel(_xf, event.localPosition, event.scrollDelta.dy);
   }
 
   void _paintDown(PointerDownEvent e) {
     final size = _imageSize;
-    if (size == null) return;
+    if (size == null || !_editMode) return;
     final p = e.localPosition;
     if (!shotInImage(p, size)) return;
+    if (_tool == _ShotTool.eraser) {
+      if (_hist.eraseAt(p, size)) setState(() {});
+      return;
+    }
     _drawing = true;
     setState(() => _hist.begin(p));
   }
 
   void _paintMove(PointerMoveEvent e) {
-    if (!_drawing) return;
+    if (!_drawing || _tool != _ShotTool.pen) return;
     final size = _imageSize;
     if (size == null) return;
     final p = e.localPosition;
@@ -371,112 +505,166 @@ class _ShotPreviewState extends State<_ShotPreview> {
 
   void _paintEnd() => _drawing = false;
 
+  Widget _railButton({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback? onPressed,
+    bool active = false,
+    Color? activeColor,
+  }) {
+    const zinc100 = Color(0xFFF4F4F5);
+    const zinc500 = Color(0xFF71717A);
+    final color = onPressed == null ? zinc500 : (active ? (activeColor ?? _rose) : zinc100);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: _tbGap),
+      child: uiIconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon, color: color, size: _tbIcon),
+        iconSize: _tbIcon,
+        padding: _tbPad,
+        constraints: _tbConstraints,
+        style: _tbStyle,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const zinc100 = Color(0xFFF4F4F5);
-    const zinc500 = Color(0xFF71717A);
     final imageSize = _imageSize;
-    final editable = widget.editable;
+    final canEdit = imageSize != null;
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.maybePop(context),
-        if (editable) ...{
-          const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
-          const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
-          const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): _redo,
-        },
+        const SingleActivator(LogicalKeyboardKey.escape): () => unawaited(_close()),
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true): _undo,
+        const SingleActivator(LogicalKeyboardKey.keyY, control: true): _redo,
+        const SingleActivator(LogicalKeyboardKey.keyZ, control: true, shift: true): _redo,
       },
       child: Focus(
         autofocus: true,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
-          child: Column(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(
-                height: _tbSize,
-                child: Row(
+              Expanded(
+                child: Column(
                   children: [
-                    uiIconButton(tooltip: 'Close', onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded, color: zinc100, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
-                    if (!editable && widget.onUpgradeHd != null) ...[
-                      const SizedBox(width: 8),
-                      TextButton.icon(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          widget.onUpgradeHd?.call();
+                    SizedBox(
+                      height: _tbSize,
+                      child: Row(
+                        children: [
+                          uiIconButton(
+                            tooltip: 'Close',
+                            onPressed: () => unawaited(_close()),
+                            icon: const Icon(Icons.close_rounded, color: zinc100, size: _tbIcon),
+                            iconSize: _tbIcon,
+                            padding: _tbPad,
+                            constraints: _tbConstraints,
+                            style: _tbStyle,
+                          ),
+                          if (widget.onUpgradeHd != null) ...[
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () {
+                                Navigator.pop(context);
+                                widget.onUpgradeHd?.call();
+                              },
+                              icon: const Icon(Icons.hd_rounded, size: 18, color: zinc100),
+                              label: Text(catalogT('chat.image.upgrade_hd'), style: const TextStyle(color: zinc100, fontWeight: FontWeight.w600, fontSize: 13)),
+                              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), minimumSize: const Size(0, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final viewport = Size(constraints.maxWidth, constraints.maxHeight);
+                          _ensureFit(viewport);
+                          return DecoratedBox(
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: const Color(0xFF0C0C0E)),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: imageSize == null
+                                  ? const UILoading()
+                                  : Listener(
+                                      onPointerSignal: _onPointerSignal,
+                                      child: InteractiveViewer(
+                                        transformationController: _xf,
+                                        constrained: false,
+                                        alignment: Alignment.topLeft,
+                                        clipBehavior: Clip.hardEdge,
+                                        boundaryMargin: const EdgeInsets.all(double.infinity),
+                                        panEnabled: !_editMode,
+                                        scaleEnabled: !_editMode,
+                                        minScale: 0.05,
+                                        maxScale: 6,
+                                        child: _ShotCanvas(
+                                          bytes: _imageBytes,
+                                          servePath: widget.servePath,
+                                          imageSize: imageSize,
+                                          strokes: _hist.strokes,
+                                          annotate: _editMode,
+                                          tool: _tool,
+                                          onPointerDown: _paintDown,
+                                          onPointerMove: _paintMove,
+                                          onPointerUp: (_) => _paintEnd(),
+                                          onPointerCancel: (_) => _paintEnd(),
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                          );
                         },
-                        icon: const Icon(Icons.hd_rounded, size: 18, color: zinc100),
-                        label: Text(catalogT('chat.image.upgrade_hd'), style: const TextStyle(color: zinc100, fontWeight: FontWeight.w600, fontSize: 13)),
-                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0), minimumSize: const Size(0, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                       ),
-                    ],
-                    if (editable) ...[
-                      const Spacer(),
-                      uiIconButton(
-                        tooltip: _annotate ? 'Pan & zoom' : 'Annotate',
-                        onPressed: imageSize == null ? null : _toggleAnnotate,
-                        icon: Icon(_annotate ? Icons.edit : Icons.edit_outlined, color: _annotate ? _rose : zinc500, size: _tbIcon),
-                        iconSize: _tbIcon,
-                        padding: _tbPad,
-                        constraints: _tbConstraints,
-                        style: _tbStyle,
-                      ),
-                      const SizedBox(width: _tbGap),
-                      uiIconButton(tooltip: 'Undo', onPressed: _hist.canUndo ? _undo : null, icon: Icon(Icons.undo_rounded, color: _hist.canUndo ? zinc100 : zinc500, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
-                      const SizedBox(width: _tbGap),
-                      uiIconButton(tooltip: 'Redo', onPressed: _hist.canRedo ? _redo : null, icon: Icon(Icons.redo_rounded, color: _hist.canRedo ? zinc100 : zinc500, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
-                      const SizedBox(width: _tbGap),
-                      uiIconButton(tooltip: 'Clear drawings', onPressed: _hist.strokes.isEmpty ? null : _clear, icon: Icon(Icons.format_color_reset_outlined, color: _hist.strokes.isEmpty ? zinc500 : zinc100, size: _tbIcon), iconSize: _tbIcon, padding: _tbPad, constraints: _tbConstraints, style: _tbStyle),
-                      const SizedBox(width: _tbGap),
-                      TextButton(
-                        onPressed: _done,
-                        style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0), minimumSize: const Size(0, _tbSize), tapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
-                        child: Text(_hist.strokes.isEmpty ? 'Done' : 'Save', style: const TextStyle(color: zinc100, fontWeight: FontWeight.w600, fontSize: 13)),
-                      ),
-                    ] else
-                      const Spacer(),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final viewport = Size(constraints.maxWidth, constraints.maxHeight);
-                    _ensureFit(viewport);
-                    return DecoratedBox(
-                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), color: const Color(0xFF0C0C0E)),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: imageSize == null
-                            ? const UILoading()
-                            : Listener(
-                                onPointerSignal: _onPointerSignal,
-                                child: InteractiveViewer(
-                                  transformationController: _xf,
-                                  constrained: false,
-                                  alignment: Alignment.topLeft,
-                                  clipBehavior: Clip.hardEdge,
-                                  boundaryMargin: const EdgeInsets.all(double.infinity),
-                                  panEnabled: !editable || !_annotate,
-                                  scaleEnabled: !editable || !_annotate,
-                                  minScale: 0.05,
-                                  maxScale: 6,
-                                  child: _ShotCanvas(
-                                    bytes: widget.bytes,
-                                    servePath: widget.servePath,
-                                    imageSize: imageSize,
-                                    strokes: editable ? _hist.strokes : const [],
-                                    annotate: editable && _annotate,
-                                    onPointerDown: _paintDown,
-                                    onPointerMove: _paintMove,
-                                    onPointerUp: (_) => _paintEnd(),
-                                    onPointerCancel: (_) => _paintEnd(),
-                                  ),
-                                ),
-                              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: _tbSize,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (!_editMode)
+                      _railButton(tooltip: 'Annotate', icon: Icons.edit_outlined, onPressed: canEdit ? _enterEdit : null)
+                    else ...[
+                      _railButton(
+                        tooltip: 'Pen',
+                        icon: Icons.edit_outlined,
+                        onPressed: () => setState(() => _tool = _ShotTool.pen),
+                        active: _tool == _ShotTool.pen,
                       ),
-                    );
-                  },
+                      _railButton(
+                        tooltip: 'Eraser',
+                        icon: Icons.cleaning_services_outlined,
+                        onPressed: () => setState(() => _tool = _ShotTool.eraser),
+                        active: _tool == _ShotTool.eraser,
+                      ),
+                      _railButton(
+                        tooltip: 'Undo',
+                        icon: Icons.undo_rounded,
+                        onPressed: _hist.canUndo ? _undo : null,
+                      ),
+                      _railButton(
+                        tooltip: 'Redo',
+                        icon: Icons.redo_rounded,
+                        onPressed: _hist.canRedo ? _redo : null,
+                      ),
+                      _railButton(
+                        tooltip: 'Save to composer',
+                        icon: Icons.check_rounded,
+                        onPressed: () => unawaited(_commit()),
+                        active: true,
+                        activeColor: const Color(0xFF22C55E),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -494,6 +682,7 @@ class _ShotCanvas extends StatelessWidget {
     required this.imageSize,
     required this.strokes,
     this.annotate = false,
+    this.tool = _ShotTool.pen,
     this.onPointerDown,
     this.onPointerMove,
     this.onPointerUp,
@@ -505,6 +694,7 @@ class _ShotCanvas extends StatelessWidget {
   final Size imageSize;
   final List<List<Offset>> strokes;
   final bool annotate;
+  final _ShotTool tool;
   final PointerDownEventListener? onPointerDown;
   final PointerMoveEventListener? onPointerMove;
   final PointerUpEventListener? onPointerUp;
@@ -530,7 +720,10 @@ class _ShotCanvas extends StatelessWidget {
                   onPointerMove: onPointerMove,
                   onPointerUp: onPointerUp,
                   onPointerCancel: onPointerCancel,
-                  child: MouseRegion(cursor: SystemMouseCursors.precise, child: const SizedBox.expand()),
+                  child: MouseRegion(
+                    cursor: tool == _ShotTool.eraser ? SystemMouseCursors.click : SystemMouseCursors.precise,
+                    child: const SizedBox.expand(),
+                  ),
                 ),
               ),
           ],

@@ -76,7 +76,15 @@ pub fn pool_usd_to_idr(usd: f64, micro_per_usd: i64) -> f64 {
 }
 
 pub fn pool_alien_deduct_usd(tokens_in: i32, tokens_out: i32) -> f64 {
-    (tokens_in as f64 / 1_000_000.0) * ALIEN_POOL_USD_IN_PER_1M
+    pool_alien_deduct_with_cache_usd(tokens_in, tokens_out, 0)
+}
+
+pub fn pool_alien_deduct_with_cache_usd(tokens_in: i32, tokens_out: i32, cached_tokens: i32) -> f64 {
+    let regular_in = (tokens_in - cached_tokens).max(0);
+    let cached_in = cached_tokens.min(tokens_in).max(0);
+    let cache_rate = ALIEN_POOL_USD_IN_PER_1M * 0.25;
+    (regular_in as f64 / 1_000_000.0) * ALIEN_POOL_USD_IN_PER_1M
+        + (cached_in as f64 / 1_000_000.0) * cache_rate
         + (tokens_out as f64 / 1_000_000.0) * ALIEN_POOL_USD_OUT_PER_1M
 }
 
@@ -85,7 +93,11 @@ pub fn pool_frontier_deduct_usd(wholesale_usd: f64) -> f64 {
 }
 
 pub fn pool_alien_deduct_idr(tokens_in: i32, tokens_out: i32, micro_per_usd: i64) -> f64 {
-    pool_usd_to_idr(pool_alien_deduct_usd(tokens_in, tokens_out), micro_per_usd)
+    pool_alien_deduct_with_cache_idr(tokens_in, tokens_out, 0, micro_per_usd)
+}
+
+pub fn pool_alien_deduct_with_cache_idr(tokens_in: i32, tokens_out: i32, cached_tokens: i32, micro_per_usd: i64) -> f64 {
+    pool_usd_to_idr(pool_alien_deduct_with_cache_usd(tokens_in, tokens_out, cached_tokens), micro_per_usd)
 }
 
 pub fn pool_frontier_deduct_idr(wholesale_usd: f64, micro_per_usd: i64) -> f64 {

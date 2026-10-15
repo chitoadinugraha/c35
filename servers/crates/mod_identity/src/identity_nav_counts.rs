@@ -57,5 +57,6 @@ pub async fn identity_nav_counts(ctx: &Ctx) -> WireResult<NavCounts> {
         sites: sites as i32,
         mail_inbox_unread: 0,
         mail_menu_visible: false,
+        mailbox_count: 0,
     })
 }

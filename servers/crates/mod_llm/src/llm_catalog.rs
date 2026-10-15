@@ -25,7 +25,7 @@ pub fn sync_interval_secs() -> u64 {
 
 struct CatalogCache {
     models: Vec<LlmModelRow>,
-    price_by_id: HashMap<String, (i64, i64)>,
+    price_by_id: HashMap<String, (i64, i64, i64)>,
 }
 
 fn cache() -> &'static RwLock<CatalogCache> {
@@ -101,13 +101,17 @@ fn catalog_price_keys(model: &str) -> Vec<String> {
 }
 
 pub fn catalog_price(model: &str) -> Option<(i64, i64)> {
+    catalog_price_full(model).map(|(i, o, _)| (i, o))
+}
+
+pub fn catalog_price_full(model: &str) -> Option<(i64, i64, i64)> {
     let cache = cache().read().unwrap();
     for id in catalog_price_keys(model) {
         if let Some(p) = cache.price_by_id.get(&id).copied() {
             return Some(p);
         }
-        if let Some(p) = provider_fallback_price(&id) {
-            return Some(p);
+        if let Some((i, o)) = provider_fallback_price(&id) {
+            return Some((i, o, i / 4));
         }
     }
     None
@@ -215,7 +219,14 @@ pub async fn llm_catalog_reload(pool: &PgPool) -> Result<()> {
         .collect::<Vec<_>>();
     let price_by_id = models
         .iter()
-        .map(|m| (m.id.clone(), (m.input_micro_per_m, m.output_micro_per_m)))
+        .map(|m| {
+            let cache_ppm = if m.input_cache_micro_per_m > 0 {
+                m.input_cache_micro_per_m
+            } else {
+                m.input_micro_per_m / 4
+            };
+            (m.id.clone(), (m.input_micro_per_m, m.output_micro_per_m, cache_ppm))
+        })
         .collect();
     let mut g = cache().write().unwrap();
     g.models = models;

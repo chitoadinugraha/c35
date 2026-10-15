@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/design/site_color.dart';
 import 'package:alienai_c35/c/site/site_schedule.dart';
 
 class SiteInfoSnapshot {
@@ -10,6 +11,7 @@ class SiteInfoSnapshot {
     required this.pic,
     required this.locationLabel,
     required this.locationHref,
+    required this.primaryColor,
     this.latitude,
     this.longitude,
     this.openHours = const [],
@@ -20,9 +22,17 @@ class SiteInfoSnapshot {
   final String pic;
   final String locationLabel;
   final String locationHref;
+  final String primaryColor;
   final double? latitude;
   final double? longitude;
   final List<SiteScheduleSlot> openHours;
+}
+
+String siteMetaPrimaryColorRead(String metaJson) {
+  final map = _metaMap(metaJson);
+  final stored = map['primary_color']?.toString().trim() ?? '';
+  if (stored.isNotEmpty) return siteColorFormat(siteColorStopsParse(stored).first);
+  return siteDefaultPrimaryColor;
 }
 
 String siteMetaTaglineRead(String metaJson) {
@@ -40,8 +50,17 @@ String siteMetaMergeInfo(
   double? latitude,
   double? longitude,
   List<SiteScheduleSlot>? openHours,
+  String? primaryColor,
 }) {
   final map = _metaMap(metaJson);
+  if (primaryColor != null) {
+    final c = siteColorFormat(siteColorStopsParse(primaryColor).first);
+    if (siteColorValueEq(c, siteDefaultPrimaryColor)) {
+      map.remove('primary_color');
+    } else {
+      map['primary_color'] = c;
+    }
+  }
   if (tagline != null) {
     final t = tagline.trim();
     if (t.isEmpty) {
@@ -95,6 +114,7 @@ SiteDoc siteInfoApplyToDoc(SiteDoc doc, SiteInfoSnapshot snap) {
     latitude: snap.latitude,
     longitude: snap.longitude,
     openHours: snap.openHours,
+    primaryColor: snap.primaryColor,
   );
 
   final hoursRows = siteScheduleSlotsToHoursRows(snap.openHours);

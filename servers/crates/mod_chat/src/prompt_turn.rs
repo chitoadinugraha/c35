@@ -110,6 +110,7 @@ pub struct PromptTurn {
     pub blocks_json: String,
     pub tokens_in: i32,
     pub tokens_out: i32,
+    pub tokens_cached: i32,
     pub cost_usd: f64,
     /// True when turn cost was covered by plan allowance (wallet not charged).
     pub billing_included: bool,
@@ -1307,39 +1308,32 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
             owner_iid,
             req_id,
             "turn-start-prefetch",
-            "device.screenshot",
+            "llm.vision",
             pf.device_iid,
             &pf.jpeg_bytes,
             pf.width,
             pf.height,
-            false,
+            true,
             false,
             pf.axtree_text.len(),
         )
         .await
         {
-            let preview = serde_json::json!({
-                "ok": true,
-                "prefetch": true,
-                "device_iid": pf.device_iid,
-                "width": pf.width,
-                "height": pf.height,
-                "image_hash": hash,
-                "image_url": url,
-                "hint": "Turn-start desktop prefetch (not a model tool call).",
-            });
+            let screenshot = crate::tools::device_screenshot_artifact::screenshot_meta_value(
+                &hash,
+                &url,
+                pf.width,
+                pf.height,
+                true,
+                false,
+            );
             tracer
-                .tool_result(
-                    "device.screenshot",
-                    "turn-start-prefetch",
-                    &serde_json::json!({
-                        "device_iid": pf.device_iid,
-                        "prefetch": true,
-                        "max_width": 1280,
-                    }),
-                    &preview,
-                    true,
+                .llm_vision_feed(
+                    1,
                     0,
+                    "Turn-start desktop (SoM)",
+                    "device_prefetch",
+                    screenshot,
                 )
                 .await;
         }
@@ -1413,6 +1407,7 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
             &res.model_used,
             res.tokens_in,
             res.tokens_out,
+            res.tokens_cached,
             duration_ms as i64,
             prepare_ms,
             0.0,
@@ -1420,7 +1415,7 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
         )
         .await;
     let context_extra = context_billing.total_extra_usd();
-    let llm_cost = c35_mod_billing::billing_cost_usd(&res.model_used, res.tokens_in, res.tokens_out);
+    let llm_cost = c35_mod_billing::billing_cost_with_cache_usd(&res.model_used, res.tokens_in, res.tokens_out, res.tokens_cached);
     let extra_cost = res.tools_cost_usd
         + context_extra
         + composed.trace.tool_embed_cost_usd
@@ -1625,6 +1620,7 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
         blocks_json,
         tokens_in: res.tokens_in,
         tokens_out: res.tokens_out,
+        tokens_cached: res.tokens_cached,
         cost_usd,
         billing_included,
         model: res.model_used,

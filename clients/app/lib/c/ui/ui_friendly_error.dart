@@ -118,6 +118,12 @@ String uiFriendlyError(Object error, {String fallback = 'Something went wrong. P
   if (lower.contains('unauthorized') || lower.contains('invalid session')) {
     return 'Your session expired. Sign out and sign in again.';
   }
+  if (lower.contains('alien_id taken')) {
+    return 'That site URL is already taken. Pick another URL or refresh your site list.';
+  }
+  if (lower.contains('account with this email or phone already exists')) {
+    return 'An account with this email or phone already exists. Sign in instead.';
+  }
   if (lower.contains('freemium daily limit') || lower.contains('daily message limit')) {
     return "You've reached your free daily message limit. Upgrade your plan to continue.";
   }

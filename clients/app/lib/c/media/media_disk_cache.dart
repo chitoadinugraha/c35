@@ -35,9 +35,21 @@ String mediaUrlResolve(String src) {
 
 String mediaDiskCacheKey(String resolvedUrl) => blake3Hex(utf8.encode(resolvedUrl));
 
-Map<String, String>? mediaDiskCacheAuthHeaders() {
+/// Whether [resolvedUrl] is served from our API (CAS `/fs/`, same host as [C35Config.authApiBase]).
+bool mediaUrlNeedsAuth(String resolvedUrl) {
+  final cleaned = resolvedUrl.trim();
+  if (cleaned.isEmpty) return false;
+  final uri = Uri.tryParse(cleaned);
+  if (uri == null || !uri.hasScheme) return true;
+  final base = Uri.tryParse(C35Config.authApiBase.replaceAll(RegExp(r'/+$'), ''));
+  if (base == null || !base.hasScheme) return false;
+  return uri.host == base.host;
+}
+
+Map<String, String>? mediaAuthHeadersForUrl(String resolvedUrl) {
   final token = sessionAuthToken();
-  return token.isEmpty ? null : {'Authorization': 'Bearer $token'};
+  if (token.isEmpty || !mediaUrlNeedsAuth(resolvedUrl)) return null;
+  return {'Authorization': 'Bearer $token'};
 }
 
 bool get mediaDiskCacheEnabled => media_disk_cache_platform.mediaDiskCachePlatformEnabled();
@@ -68,7 +80,7 @@ Future<File?> mediaDiskCacheFetch(String src, {Map<String, String>? headers, boo
   if (existing != null) return existing;
   if (!fetchIfMissing) return null;
   try {
-    final res = await http.get(Uri.parse(url), headers: headers ?? mediaDiskCacheAuthHeaders());
+    final res = await http.get(Uri.parse(url), headers: headers ?? mediaAuthHeadersForUrl(url));
     if (res.statusCode < 200 || res.statusCode >= 300) return null;
     final bytes = res.bodyBytes;
     if (bytes.isEmpty) return null;
@@ -89,12 +101,11 @@ Future<void> mediaDiskCachePrefetch(Iterable<String> srcs, {Map<String, String>?
   if (!mediaDiskCacheEnabled) return;
   final urls = srcs.map(mediaUrlResolve).where((u) => u.isNotEmpty).toSet();
   if (urls.isEmpty) return;
-  final auth = headers ?? mediaDiskCacheAuthHeaders();
   var i = 0;
   final list = urls.toList(growable: false);
   while (i < list.length) {
     final batch = list.skip(i).take(maxConcurrent).toList(growable: false);
     i += batch.length;
-    await Future.wait(batch.map((u) => mediaDiskCacheFetch(u, headers: auth, fetchIfMissing: true)));
+    await Future.wait(batch.map((u) => mediaDiskCacheFetch(u, headers: headers, fetchIfMissing: true)));
   }
 }

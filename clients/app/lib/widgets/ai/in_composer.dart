@@ -196,7 +196,8 @@ class _InComposerState extends State<InComposer> {
   double _inputAreaWidth = 0;
   ComposerMentionSpanBuilder? _composerSpanBuilder;
   List<CatalogMention> _composerSpanBuilderMentions = const [];
-  double _composerShellHeight = 0;
+  Size? _lastMentionShellSize;
+  var _mentionOverlayRelayoutQueued = false;
   final _composerShellKey = GlobalKey();
   final _mentionLayerLink = LayerLink();
   OverlayEntry? _mentionMenuOverlayEntry;
@@ -415,7 +416,7 @@ class _InComposerState extends State<InComposer> {
     if (!widget.enabled || widget.busy) return;
     if (_mentionPickerActive) {
       _focus.requestFocus();
-      _measureComposerShell();
+      _scheduleMentionOverlayRelayout();
       return;
     }
     final sel = _controller.selection;
@@ -434,7 +435,7 @@ class _InComposerState extends State<InComposer> {
     setState(() {});
     _syncMentionMenuOverlay();
     _focus.requestFocus();
-    _measureComposerShell();
+    _scheduleMentionOverlayRelayout();
   }
 
   void _scrollHighlightedMentionIntoView() {
@@ -475,13 +476,18 @@ class _InComposerState extends State<InComposer> {
     _mentionMenuHighlight.value = index;
   }
 
-  void _measureComposerShell() {
+  void _scheduleMentionOverlayRelayout() {
+    if (!mounted || !_mentionPickerActive || _mentionOverlayRelayoutQueued) return;
+    _mentionOverlayRelayoutQueued = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      _mentionOverlayRelayoutQueued = false;
+      if (!mounted || !_mentionPickerActive) return;
       final box = _composerShellKey.currentContext?.findRenderObject() as RenderBox?;
-      final h = box != null && box.hasSize ? box.size.height : null;
-      if (h != null && (h - _composerShellHeight).abs() > 0.5) setState(() => _composerShellHeight = h);
-      if (_mentionPickerActive) _mentionMenuOverlayEntry?.markNeedsBuild();
+      if (box == null || !box.hasSize) return;
+      final size = box.size;
+      if (_lastMentionShellSize == size) return;
+      _lastMentionShellSize = size;
+      _mentionMenuOverlayEntry?.markNeedsBuild();
     });
   }
 
@@ -502,6 +508,7 @@ class _InComposerState extends State<InComposer> {
     if (_mentionMenuOverlayEntry != null) return;
     _mentionMenuOverlayEntry = OverlayEntry(builder: (context) => _mentionMenuOverlayLayer());
     overlay.insert(_mentionMenuOverlayEntry!);
+    _scheduleMentionOverlayRelayout();
   }
 
   void _removeMentionMenuOverlay() {
@@ -653,7 +660,7 @@ class _InComposerState extends State<InComposer> {
       if (mentionActive) _mentionMenuHighlight.value = 0;
       setState(() {});
       _syncMentionMenuOverlay();
-      if (mentionActive) _measureComposerShell();
+      if (mentionActive) _scheduleMentionOverlayRelayout();
     }
     _syncComposerStackedLayout(_shouldUseStackedLayout(context, _inputAreaWidth));
     if (hadFocus) {
@@ -706,7 +713,13 @@ class _InComposerState extends State<InComposer> {
   @override
   void initState() {
     super.initState();
-    widget.stageHost?.attach(_stageItems);
+    widget.stageHost?.attach(
+      _stageItems,
+      replace: (id, next) {
+        final i = _attachments.indexWhere((m) => m.id == id);
+        if (i >= 0) _replaceItem(i, next);
+      },
+    );
     widget.draftHost?.attach(
       readAttachments: () => ComposerAttachmentHistory.snapshot(_attachments),
       restoreAttachments: (items) {
@@ -1662,9 +1675,9 @@ class _InComposerState extends State<InComposer> {
   @override
   Widget build(BuildContext context) {
     if (!widget.compact && _mentionPickerActive) {
-      _measureComposerShell();
       _syncMentionMenuOverlay();
     } else {
+      _lastMentionShellSize = null;
       _removeMentionMenuOverlay();
     }
     final border = _isDragging

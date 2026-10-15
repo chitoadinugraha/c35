@@ -1832,7 +1832,8 @@ pub async fn site_create_exec(ctx: &ToolContext, args: &Value) -> Result<Value> 
         "theme": default_modern_hub_theme(&accent_color),
         "meta": {
             "seo_title": name,
-            "seo_desc": tagline
+            "seo_desc": tagline,
+            "primary_color": accent_color
         }
     });
 

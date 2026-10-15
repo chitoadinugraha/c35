@@ -175,7 +175,10 @@ pub use guest_reservation::{
     availability_ok, guest_reservation_availability, reservation_windows_overlap, units_left,
     Availability, FreeObject,
 };
-pub use guest_design::{featured_contacts_load, FeaturedContact, GuestDesign, ProfileDesign};
+pub use guest_design::{
+    featured_contacts_load, guest_accent_resolve, FeaturedContact, GuestDesign, ProfileDesign,
+    GUEST_DEFAULT_ACCENT,
+};
 pub use guest_theme_modernize::{
     default_modern_hub_theme, modernize_theme_for_render, GUEST_THEME_RENDER_STYLE_VERSION,
 };
