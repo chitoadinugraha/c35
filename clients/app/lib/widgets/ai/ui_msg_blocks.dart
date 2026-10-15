@@ -236,7 +236,7 @@ class UiMsgBlocks extends StatelessWidget {
     final mime = b.body['mime']?.toString() ?? defaultMime;
     final prompt = b.body['prompt']?.toString().trim() ?? '';
     final name = prompt.isNotEmpty ? prompt : defaultName;
-    final canUpgrade = showUpgradeHd && onImageUpgradeHd != null && !ChatBlock.imageIsHd(b);
+    final canUpgrade = showUpgradeHd && onImageUpgradeHd != null && ChatBlock.imageCanUpgradeHd(b);
     final kind = mediaBlockKind(b.kind);
     final provider = ChatBlock.mediaProvider(b);
     return Padding(

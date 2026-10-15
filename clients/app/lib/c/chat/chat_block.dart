@@ -51,6 +51,22 @@ class ChatBlock {
     return size == '2K';
   }
 
+  /// HD upgrade re-runs img.generate / img.edit at 2K via @image-high, not pixel upscale.
+  static bool imageCanUpgradeHd(ChatBlock b) {
+    if (b.kind != 'image' || imageIsHd(b)) return false;
+    final tool = mediaTool(b);
+    if (tool != 'img.generate' && tool != 'img.edit') return false;
+    final prompt = b.body['prompt']?.toString().trim() ?? '';
+    return prompt.isNotEmpty;
+  }
+
+  static ChatBlock? imageFirstUpgradeable(String blocksJson) {
+    for (final b in decodeList(blocksJson)) {
+      if (imageCanUpgradeHd(b)) return b;
+    }
+    return null;
+  }
+
   static String mediaProvider(ChatBlock b) => b.body['media_provider']?.toString().trim().toLowerCase() ?? '';
 
   static String mediaModel(ChatBlock b) => b.body['media_model']?.toString().trim() ?? '';

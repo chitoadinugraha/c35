@@ -1366,7 +1366,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _imageUpgradeHd(ChatBlock block) async {
     final prompt = block.body['prompt']?.toString().trim() ?? '';
-    if (prompt.isEmpty || ChatBlock.imageIsHd(block)) return;
+    if (!ChatBlock.imageCanUpgradeHd(block)) return;
     if (_store.promptBusy) return;
     final locale = CatalogTranslationCache.instance.lang;
     final lead = locale.startsWith('id')
@@ -1780,8 +1780,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     ChatBlock? imageBlock;
     var showImageUpgrade = false;
     if (!isUser && m.blocksJson.contains('"image"')) {
-      imageBlock = ChatBlock.imageFirst(m.blocksJson);
-      showImageUpgrade = imageBlock != null && !ChatBlock.imageIsHd(imageBlock) && !_store.promptBusyFor(m.chatId);
+      imageBlock = ChatBlock.imageFirstUpgradeable(m.blocksJson);
+      showImageUpgrade = imageBlock != null && !_store.promptBusyFor(m.chatId);
     }
     final imageBlockCaptured = imageBlock;
     return msgBubbleMenuItems(

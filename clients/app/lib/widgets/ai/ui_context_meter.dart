@@ -534,7 +534,15 @@ class _UiContextMeterState extends State<UiContextMeter> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const Text('Context usage', style: TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Row(
+                            children: [
+                              const Text('Context usage', style: TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600)),
+                              const Spacer(),
+                              if (widget.windowOptions.isNotEmpty) _contextLimitDropdown(),
+                            ],
+                          ),
+                          if (widget.windowOptions.isNotEmpty && _windowPickerOpen)
+                            for (final w in widget.windowOptions) _windowOptionRow(w),
                           const SizedBox(height: 8),
                           Row(
                             children: [
@@ -554,11 +562,6 @@ class _UiContextMeterState extends State<UiContextMeter> {
                         ],
                       ),
                     ),
-                    if (widget.windowOptions.isNotEmpty) ...[
-                      const Divider(height: 8, color: _border),
-                      _windowLimitDropdown(),
-                      if (_windowPickerOpen) for (final w in widget.windowOptions) _windowOptionRow(w),
-                    ],
                     const Divider(height: 8, color: _border),
                     InkWell(
                       onTap: widget.summarizeBusy ? null : _summarize,
@@ -566,6 +569,8 @@ class _UiContextMeterState extends State<UiContextMeter> {
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         child: Row(
                           children: [
+                            Icon(Icons.compress_rounded, size: 18, color: widget.summarizeBusy ? _muted : _text),
+                            const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 'Run Compaction',
@@ -593,20 +598,19 @@ class _UiContextMeterState extends State<UiContextMeter> {
     _menu?.markNeedsBuild();
   }
 
-  Widget _windowLimitDropdown() => InkWell(
+  Widget _contextLimitDropdown() => InkWell(
         onTap: _toggleWindowPicker,
+        borderRadius: BorderRadius.circular(6),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Expanded(
-                child: Text('Context limit', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w500)),
-              ),
               Text(
                 contextWindowChoiceLabel(widget.contextLimit),
-                style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
+                style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 2),
               Icon(_windowPickerOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 18, color: _muted),
             ],
           ),
