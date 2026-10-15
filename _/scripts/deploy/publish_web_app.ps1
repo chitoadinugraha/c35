@@ -14,6 +14,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
-$extra = @('-WebOnly')
-if ($SkipDartGet) { $extra += '-SkipDartGet' }
-& (Join-Path $repoRoot '_\scripts\deploy\publish_app_release.ps1') @extra @args
+$appRelease = Join-Path $repoRoot '_\scripts\deploy\publish_app_release.ps1'
+if ($SkipDartGet) {
+    & $appRelease -WebOnly -SkipDartGet
+} else {
+    & $appRelease -WebOnly
+}
