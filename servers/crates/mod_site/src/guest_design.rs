@@ -83,6 +83,7 @@ pub struct GuestDesign {
     pub card_bg: String,
     pub card_border: String,
     pub backdrop_id: String,
+    pub backdrop_params: BTreeMap<String, f64>,
     pub background_type: String,
     pub background_color: String,
     pub background_url: String,
@@ -165,13 +166,14 @@ impl GuestDesign {
             .copied()
             .unwrap_or_else(|| default_radius(&card_id));
 
+        let backdrop = theme.get("backdrop");
         let backdrop_id = normalize_backdrop_id(
-            theme
-                .get("backdrop")
+            backdrop
                 .and_then(|b| b.get("id"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("none"),
         );
+        let backdrop_params = num_map(backdrop.and_then(|b| b.get("params")));
 
         let product_from_theme = theme.get("product").and_then(|v| v.as_object()).is_some();
         let product = product_value(theme.get("product"));
@@ -216,6 +218,7 @@ impl GuestDesign {
             card_bg,
             card_border,
             backdrop_id,
+            backdrop_params,
             background_type,
             background_color,
             background_url,
@@ -234,6 +237,11 @@ impl GuestDesign {
 
     pub fn card_radius_css(&self) -> String {
         format_px(self.card_radius)
+    }
+
+    /// Resolved backdrop tuning (defaults match Flutter `siteBackdropParamsResolve`).
+    pub fn backdrop_params_resolve(&self) -> BTreeMap<String, f64> {
+        backdrop_params_resolve(&self.backdrop_id, &self.backdrop_params)
     }
 
     pub fn card_chrome(&self, block: &str) -> Option<CardChrome> {
@@ -335,7 +343,7 @@ impl GuestDesign {
             "clients": strip_value(&self.clients),
             "backdrop": {
                 "id": self.backdrop_id,
-                "params": {},
+                "params": num_map_value(&self.backdrop_params),
                 "color": "",
             },
             "blocks": blocks,
@@ -548,6 +556,30 @@ fn normalize_backdrop_id(raw: &str) -> String {
         "glow" | "mesh" | "grain" | "diamond" | "aurora" | "none" => raw.trim().to_string(),
         _ => "none".into(),
     }
+}
+
+fn backdrop_preset_default_params(id: &str) -> BTreeMap<String, f64> {
+    let mut m = BTreeMap::new();
+    match id {
+        "grain" => {
+            m.insert("intensity".into(), 0.22);
+        }
+        "none" => {}
+        _ => {
+            m.insert("intensity".into(), 0.55);
+            m.insert("softness".into(), 0.7);
+            m.insert("scale".into(), 1.0);
+        }
+    }
+    m
+}
+
+fn backdrop_params_resolve(id: &str, stored: &BTreeMap<String, f64>) -> BTreeMap<String, f64> {
+    let mut out = backdrop_preset_default_params(id);
+    for (k, v) in stored {
+        out.insert(k.clone(), *v);
+    }
+    out
 }
 
 fn normalize_card_id(raw: &str) -> String {

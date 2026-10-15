@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn parses_untung_with_mention_brackets() {
-        let i = site_report_parse("Berapa untung[@[@iid:101836119014211584]] hari ini?").unwrap();
+        let i = site_report_parse("Berapa untung[@iid:101836119014211584] hari ini?").unwrap();
         assert_eq!(i.query_id, "tx.profit_summary");
         assert_eq!(i.range, "today");
     }
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn parses_total_transaksi_hari_ini() {
-        let i = site_report_parse("Berapa total transaksi [@[@iid:101836119014211584]] hari ini ?").unwrap();
+        let i = site_report_parse("Berapa total transaksi [@iid:101836119014211584] hari ini ?").unwrap();
         assert_eq!(i.query_id, "tx.sales_summary");
         assert_eq!(i.range, "today");
     }

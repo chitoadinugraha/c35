@@ -45,6 +45,8 @@ Platform absorbs FX drift between rate updates on metered usage. Catalog and top
 
 **Voice metered SKU (cloud STT/TTS):** When the client uses engine mode `cloud`, `mod_voice` reserves a small USD hold (`VOICE_STT_HOLD_USD` / `VOICE_TTS_HOLD_USD`), calls Google Cloud Speech or Text-to-Speech, then settles against the user's balance at retail rates (`VOICE_STT_USD_PER_MIN`, `VOICE_TTS_USD_PER_1K_CHARS` in `billing_cost.rs`) with the same FX-at-deduct-time policy as LLM metered usage. Rows land in `ai.log` with `kind` `voice_stt` or `voice_tts`. Web and local engines never touch billing. See [voice.md](voice.md).
 
+**Guest storefront Live Call:** Duplex voice calls made by anonymous visitors on a storefront site are metered per elapsed second and billed to the site owner (`site.config.owner_iid`) against their Frontier quota pool or wallet balance (`ai.log` row with `kind: site_guest_live`, `scope: site_guest`). Retail pricing matches the chosen live offer (default `live.alienai`: retail \$0.0345/min $\approx$ Rp 608/min or Rp 10.13/sec; wholesale \$0.023/min with $1.50\times$ retail markup). Holds and settle draw strictly from the owner's Frontier quota pool, never the Alien AI allowance. See [live-call.md](live-call.md) § Guest storefront Live Call.
+
 ### Direct purchase (no wallet credit)
 
 User may buy a plan or add-on **without** prefunding a wallet:

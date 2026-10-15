@@ -38,6 +38,7 @@ pub struct ToolContext {
     pub billing: Option<BillingContext>,
     /// Memoized freemium check for tool calls in this context/session.
     pub is_freemium_slot: Arc<Mutex<Option<bool>>>,
+    pub run_kind: String,
 }
 
 impl ToolContext {
@@ -82,7 +83,13 @@ impl ToolContext {
             doc_ocr: Arc::new(Mutex::new(ContextBillingExtra::default())),
             billing: None,
             is_freemium_slot: Arc::new(Mutex::new(None)),
+            run_kind: "main".to_string(),
         }
+    }
+
+    pub fn with_run_kind(mut self, run_kind: impl Into<String>) -> Self {
+        self.run_kind = run_kind.into();
+        self
     }
 
     pub fn with_doc_ocr(mut self, doc_ocr: Arc<Mutex<ContextBillingExtra>>) -> Self {

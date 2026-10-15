@@ -2,20 +2,16 @@
 
 use std::time::Instant;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use c35_mod_billing::{billing_resolve, billing_usage_report, TurnBillingCtx};
 use c35_mod_log::{log_put, LogPut};
-use c35_mod_site::{
-    site_draft_meta_json, site_guest_product_prompt_block, site_published, site_published_meta_json,
-};
-use serde_json::{json, Value};
-use sqlx::{PgPool, Row};
+use serde_json::json;
+use sqlx::PgPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::bot_meta::BOT_WEB_TOOL_EXCLUDE;
 use crate::compose::{compose_tools_and_inst_async, ComposeTurnOpts};
 use crate::catalog_web::CatalogWebPhase;
-use crate::context_billing::ContextBillingExtra;
 use crate::inst_cache::inst_list_for_turn;
 use crate::inst_macro::{inst_pool_signal, inst_scopes_site_guest};
 use crate::mention_context::MentionContext;
@@ -26,26 +22,18 @@ use crate::prompt::time::{time_prompt_block, time_timezone_resolve};
 use crate::prompt::tool_loop::prompt_cluster_turn;
 use crate::prompt::ChatReq;
 use crate::prompt_run::prompt_run_concurrency_acquire;
-use crate::site_capability::SiteCapabilityView;
-use crate::site_resolve::{site_context_block, SiteContext};
-use crate::tools::{cluster_tool_def, http_client, ToolDef, TurnCtx};
+use crate::context_billing::ContextBillingExtra;
+use crate::tools::{http_client, TurnCtx};
 use crate::turn_tracer::TurnTracer;
 
-pub const GUEST_KNOWLEDGE_MAX_ITEMS: usize = 50;
-pub const GUEST_KNOWLEDGE_MAX_CHARS: usize = 30_000;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GuestSiteDataMode {
-    Published,
-    Draft,
-}
-
-pub fn guest_site_data_mode_from_boot_mode(raw: Option<&str>) -> GuestSiteDataMode {
-    match raw.map(|s| s.trim().to_lowercase()) {
-        Some(s) if s == "draft" => GuestSiteDataMode::Draft,
-        _ => GuestSiteDataMode::Published,
-    }
-}
+#[allow(unused_imports)]
+pub use crate::site_guest_context::{
+    guest_call_enabled, guest_chat_enabled, guest_site_data_mode_from_boot_mode,
+    knowledge_prompt_block, site_guest_chat_system_prompt, site_guest_context_prepare,
+    site_guest_live_system_prompt, site_guest_live_tool_catalog, site_guest_tool_catalog,
+    GuestContextError, GuestSiteContext, GuestSiteDataMode, ToolDeclaration,
+    GUEST_KNOWLEDGE_MAX_CHARS, GUEST_KNOWLEDGE_MAX_ITEMS, SITE_GUEST_LIVE_VOICE_INSTRUCTIONS,
+};
 
 #[derive(Debug, Clone)]
 pub struct SiteGuestTurnResult {
@@ -57,130 +45,6 @@ pub struct SiteGuestTurnResult {
     pub model: String,
     pub duration_ms: i32,
     pub inst_ids: Vec<String>,
-}
-
-pub fn guest_chat_enabled(meta: &Value) -> bool {
-    let ai = meta.get("ai_assistant");
-    if ai.is_none() {
-        return true;
-    }
-    let ai = ai.unwrap();
-    if ai.get("configured") == Some(&Value::Bool(false)) {
-        return true;
-    }
-    if let Some(v) = ai.get("chat_enabled") {
-        return v.as_bool().unwrap_or(true);
-    }
-    if let Some(v) = ai.get("floating_bubble") {
-        return v.as_bool().unwrap_or(true);
-    }
-    true
-}
-
-pub fn knowledge_prompt_block(meta: &Value) -> String {
-    let rows = meta
-        .get("knowledge")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    let mut out = String::from("[SITE KNOWLEDGE]\n");
-    let mut chars = out.len();
-    let mut count = 0usize;
-    for row in rows {
-        if count >= GUEST_KNOWLEDGE_MAX_ITEMS {
-            break;
-        }
-        let title = row.get("title").and_then(|v| v.as_str()).unwrap_or("").trim();
-        let content = row.get("content").and_then(|v| v.as_str()).unwrap_or("").trim();
-        if title.is_empty() && content.is_empty() {
-            continue;
-        }
-        let line = if title.is_empty() {
-            format!("- {}\n", content)
-        } else if content.is_empty() {
-            format!("- {}\n", title)
-        } else {
-            format!("- {}: {}\n", title, content)
-        };
-        if chars + line.len() > GUEST_KNOWLEDGE_MAX_CHARS {
-            break;
-        }
-        out.push_str(&line);
-        chars += line.len();
-        count += 1;
-    }
-    if count == 0 {
-        String::new()
-    } else {
-        out.trim_end().to_string()
-    }
-}
-
-pub fn site_guest_tool_catalog(commerce: bool) -> Vec<ToolDef> {
-    let mut names = vec!["site.guest.cart.get", "site.guest.cart.patch"];
-    if commerce {
-        names.push("site.tx.preview");
-    }
-    names
-        .into_iter()
-        .filter_map(cluster_tool_def)
-        .collect()
-}
-
-struct GuestSiteRow {
-    site: SiteContext,
-    owner_iid: i64,
-    meta: Value,
-}
-
-async fn guest_site_row_load(
-    pool: &PgPool,
-    site_iid: i64,
-    data_mode: GuestSiteDataMode,
-) -> Result<GuestSiteRow> {
-    if site_iid <= 0 {
-        anyhow::bail!("site_iid required");
-    }
-    if data_mode == GuestSiteDataMode::Published && !site_published(pool, site_iid).await? {
-        anyhow::bail!("site not published");
-    }
-    let id_row = sqlx::query(
-        r#"
-        SELECT COALESCE(alien_id, '') AS alien_id, COALESCE(name, '') AS name
-        FROM ai.identity
-        WHERE id = $1 AND kind = 'site' AND deleted_ts IS NULL
-        "#,
-    )
-    .bind(site_iid)
-    .fetch_optional(pool)
-    .await?
-    .ok_or_else(|| anyhow!("site not found"))?;
-    let owner_iid: i64 = sqlx::query_scalar(
-        "SELECT owner_iid FROM site.config WHERE site_iid = $1",
-    )
-    .bind(site_iid)
-    .fetch_optional(pool)
-    .await?
-    .unwrap_or(0);
-    if owner_iid <= 0 {
-        anyhow::bail!("site owner not configured");
-    }
-    let meta = match data_mode {
-        GuestSiteDataMode::Published => site_published_meta_json(pool, site_iid).await,
-        GuestSiteDataMode::Draft => site_draft_meta_json(pool, site_iid).await,
-    };
-    if !guest_chat_enabled(&meta) {
-        anyhow::bail!("guest chat disabled");
-    }
-    Ok(GuestSiteRow {
-        site: SiteContext {
-            site_iid,
-            alien_id: id_row.get("alien_id"),
-            name: id_row.get("name"),
-        },
-        owner_iid,
-        meta,
-    })
 }
 
 async fn guest_staff_log(
@@ -269,8 +133,9 @@ pub async fn site_guest_turn_with_hooks(
     if text.is_empty() {
         anyhow::bail!("message required");
     }
-    let row = guest_site_row_load(pool, site_iid, data_mode).await?;
-    let owner_iid = row.owner_iid;
+    let guest_ctx = site_guest_context_prepare(pool, site_iid, data_mode).await?;
+    guest_ctx.ensure_chat_enabled()?;
+    let owner_iid = guest_ctx.owner_iid;
     let _concurrency = prompt_run_concurrency_acquire()
         .await
         .context("prompt turn concurrency limit")?;
@@ -296,14 +161,13 @@ pub async fn site_guest_turn_with_hooks(
     )
     .await?;
 
-    let mention = MentionContext::from_site(row.site.clone());
-    let caps = SiteCapabilityView::load(pool, &[site_iid]).await;
-    let commerce = caps.has(site_iid, "commerce");
+    let mention = MentionContext::from_site(guest_ctx.site.clone());
+    let caps = guest_ctx.caps.clone();
     let mention_ids = [mention_ref_iid(site_iid)];
     let inst_rows = inst_list_for_turn(pool).await;
     let inst_scopes = inst_scopes_site_guest();
     let http = http_client(std::time::Duration::from_secs(30));
-    let tool_catalog = site_guest_tool_catalog(commerce);
+    let tool_catalog = site_guest_live_tool_catalog(&guest_ctx);
     let extra_exclude: Vec<String> = BOT_WEB_TOOL_EXCLUDE
         .iter()
         .map(|s| s.to_string())
@@ -338,39 +202,7 @@ pub async fn site_guest_turn_with_hooks(
 
     let tz = time_timezone_resolve("", "", text);
     let time_block = time_prompt_block(&tz);
-    let mut system = String::new();
-    system.push_str(&site_context_block(&row.site));
-    let knowledge = knowledge_prompt_block(&row.meta);
-    if !knowledge.is_empty() {
-        system.push_str("\n\n");
-        system.push_str(&knowledge);
-    }
-    if commerce {
-        let products = site_guest_product_prompt_block(pool, site_iid).await;
-        if !products.is_empty() {
-            system.push_str("\n\n");
-            system.push_str(&products);
-        }
-    }
-    if let Some(intro) = row
-        .meta
-        .get("ai_assistant")
-        .and_then(|v| v.get("chat_intro"))
-        .and_then(|v| v.as_str())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-    {
-        system.push_str("\n\n[CHAT INTRO]\n");
-        system.push_str(intro);
-    }
-    if !composed.inst_block.is_empty() {
-        system.push_str("\n\n");
-        system.push_str(&composed.inst_block);
-    }
-    if !time_block.is_empty() {
-        system.push_str("\n\n");
-        system.push_str(&time_block);
-    }
+    let system = site_guest_chat_system_prompt(&guest_ctx, &composed.inst_block, &time_block);
 
     let chat_id = 0_i64;
     let tracer = TurnTracer::new(pool.clone(), nats.cloned(), owner_iid, chat_id, req_id);
@@ -515,7 +347,9 @@ pub async fn site_guest_turn_with_hooks(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::inst_macro::{inst_pick, InstMatchCtx, InstRow, SCOPE_ROLE_SITE_GUEST};
+    use crate::inst_macro::{
+        inst_pick, InstMatchCtx, InstRow, INST_SIGNAL_MODEL_ALIEN, SCOPE_ROLE_SITE_GUEST,
+    };
 
     #[test]
     fn knowledge_prompt_block_caps_items() {
@@ -601,4 +435,41 @@ mod tests {
         let matched = inst_pick(&[row], &ctx);
         assert_eq!(matched.len(), 1);
     }
+
+    #[test]
+    fn inst_site_guest_call_row_matches_live_signal() {
+        let row = InstRow {
+            id: "inst.site.guest.call".into(),
+            scope: SCOPE_ROLE_SITE_GUEST.into(),
+            kind: "trigger".into(),
+            topic_id: "site.guest".into(),
+            topics: vec![],
+            inst: "guest voice call assistant".into(),
+            phrases: vec!["call".into(), "telepon".into(), "bicara".into()],
+            triggers: vec!["live:guest".into(), "live:voice".into()],
+            include_tools: vec![
+                "site.guest.cart.get".into(),
+                "site.guest.cart.patch".into(),
+                "site.tx.preview".into(),
+            ],
+            exclude_tools: vec!["web.search".into(), "web.visit".into()],
+            requires_global_roles: vec![],
+            priority: 190,
+        };
+        let scopes = inst_scopes_site_guest();
+        let signals = [INST_SIGNAL_MODEL_ALIEN.to_string(), "live:guest".to_string()];
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "",
+            active_topics: &["site.guest".to_string()],
+            text: "bisa pesan menu apa saja?",
+            mention_ids: &[],
+            signals: &signals,
+            staff: None,
+        };
+        let matched = inst_pick(&[row], &ctx);
+        assert_eq!(matched.len(), 1);
+        assert_eq!(matched[0].id, "inst.site.guest.call");
+    }
 }
+

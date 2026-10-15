@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::guest_i18n::GuestI18n;
+use crate::guest_i18n::{guest_layout_mode, GuestI18n};
 
 /// Legacy / editor sentinel: show "Contact Us" instead of a numeric price.
 pub const GUEST_PRODUCT_PRICE_CONTACT: i64 = -1;
@@ -40,8 +40,8 @@ pub fn guest_product_can_add_to_cart(price: i64) -> bool {
     price > 0
 }
 
-/// `grid` (default) or `list`.
-pub fn product_grid_display(props: &Value, meta: &Value) -> &'static str {
+/// `grid` or `list` (store layout defaults to list when unset).
+pub fn product_grid_display(props: &Value, meta: &Value, product_count: usize) -> &'static str {
     let raw = props
         .get("display")
         .and_then(|x| x.as_str())
@@ -61,6 +61,12 @@ pub fn product_grid_display(props: &Value, meta: &Value) -> &'static str {
         .map(|s| s.trim())
         .filter(|s| !s.is_empty());
     if meta_raw.is_some_and(|d| d.eq_ignore_ascii_case("list")) {
+        return "list";
+    }
+    if meta_raw.is_some_and(|d| d.eq_ignore_ascii_case("grid") || d.eq_ignore_ascii_case("card")) {
+        return "grid";
+    }
+    if guest_layout_mode(meta, product_count) == "store" {
         return "list";
     }
     "grid"

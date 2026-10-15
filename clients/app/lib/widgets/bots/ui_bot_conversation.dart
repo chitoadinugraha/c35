@@ -295,7 +295,12 @@ class _UiBotConversationState extends State<UiBotConversation> {
           padding: EdgeInsets.symmetric(horizontal: isPeer ? 16 : 10, vertical: isPeer ? 14 : 8),
           child: isPeer
               ? UiThinkingDots(color: const Color(0xFFA1A1AA), size: 4, spacing: 3)
-              : UiPromptThinkingIndicator(startedAtMs: widget.store.composerBusySinceMs),
+              : UiPromptThinkingIndicator(
+                  startedAtMs: widget.store.composerBusySinceMs,
+                  onStop: widget.store.chatIsApp(widget.chatId)
+                      ? () => unawaited(widget.store.chatAppAbortPrompt(widget.chatId))
+                      : null,
+                ),
         ),
       ),
     );
@@ -415,9 +420,10 @@ class _UiBotConversationState extends State<UiBotConversation> {
                     models: const [AgentModel.alien],
                     onModel: (_) {},
                     enabled: peer != null,
-                    busy: widget.store.composerBusy,
+                    busy: isApp ? widget.store.chatAppPromptBusy(widget.chatId) : widget.store.composerBusy,
                     showSpeakIndicator: false,
                     onSend: (text, atts, {toolMode, mentionIds, displayContent}) => _sendFromComposer(text, atts),
+                    onAbort: isApp ? () => unawaited(widget.store.chatAppAbortPrompt(widget.chatId)) : null,
                   ),
                 ),
               ],

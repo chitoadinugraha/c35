@@ -91,7 +91,8 @@ Fields:
 | `site_id`, `name`, `alien_id`, `avatar_url` | Identity meta (CSA `__SITE_BOOT__` subset) |
 | `meta`, `theme` | From `SiteDoc` |
 | `meta.lang` / `meta.locale` | Guest copy (`id` default): quote labels, catalog chips, load-more |
-| `meta.guest_layout` | `hub` (720px) or `store` (1040px, 4-col grid on desktop); auto `store` when home catalog has 9+ products |
+| `meta.guest_layout` | `hub` (720px) or `store` (1040px, 4-col grid on desktop); auto `store` when home catalog has 9+ products. Web `body.guest-layout-{hub\|store}`; Flutter `guestLayoutMode` + `guestLayoutMaxWidth`. |
+| `meta.lang` / `meta.locale` | Also drives catalog search placeholder (`Cari produk…` / `Search products…`) on web store grids |
 | `pages` | Block tree (`id`, `type`, `props`) |
 | `capabilities` | From `site.config.capabilities_json` |
 | `product_preload` | Map block id -> product rows for each `product_grid` |
@@ -103,14 +104,52 @@ Fields:
 | `ai_assistant` | Guest Alien AI chrome: `chat_enabled`, `call_enabled`, `chat_intro`, `chat_placeholder`, `call_intro`, legacy `floating_bubble` → chat |
 | `knowledge` | Published knowledge rows `{title, content}` (capped in `mod_site::site_assistant`) |
 
+Published page inline script `__SITE_GUEST__` (not always duplicated on `site.boot_get` preview JSON):
+
+| Field | Role |
+|-------|------|
+| `guest_layout` | Same rule as `meta.guest_layout` + catalog product count on the rendered page |
+| `member_portal_enabled` | When `false`, hide member / orders chrome (`c35GuestMember`, orders chip) |
+| `i18n` | Guest copy bundle for web JS (`filter_all`, `load_more`, catalog search placeholder, …) |
+
+### Atmosphere stack (dual renderer)
+
+Full-viewport atmosphere (all site shapes: hub, store, detail). **Not** hero-local gradients. For atmosphere, web + Rust markup is the layer contract; Flutter preview must match.
+
+| Layer | Web | Flutter preview |
+|-------|-----|-----------------|
+| Page fill | `.guest-backdrop-color` | `ColoredBox(pageBackground)` inside `Key('guest-backdrop')` |
+| Bg image + overlay | `.page-bg-image` in `.guest-backdrop` | `_GuestSiteBackgroundImage` + overlay `ColoredBox` |
+| Preset | `.guest-backdrop-preset--{id}` | `siteBackdropLayer` |
+| Accent wash | `.guest-backdrop-accent` when preset `none` | `Key('guest-backdrop-accent')` + `siteBackdropAccentWash` |
+| Hub fade | `.block.hub-profile::after` | `GuestSiteHubProfileBlock` bottom gradient (44px) |
+| Content | `<main>` | Scroll column inside `GuestSiteEffectStack` |
+
+Legacy `body.backdrop-*::before` is suppressed when `.guest-backdrop` is present (web CSS).
+
+**Backdrop tuning:** theme `backdrop.params` (`intensity`, `softness`, `scale`) resolve in `GuestDesign::backdrop_params_resolve` (Rust) and `siteBackdropParamsResolve` (Flutter). Published pages emit `--backdrop-intensity`, `--backdrop-softness`, `--backdrop-scale` on `:root`; `site-guest.v1.css` applies them to preset layers and accent wash.
+
+### Store catalog chrome (web + preview)
+
+| Concern | Web HTML (`render.rs`) | Flutter preview |
+|---------|------------------------|-----------------|
+| Category chips | `.guest-catalog-filters` + `.guest-catalog-chip` (`data-guest-filter`) | `GuestSiteProductGridBlock` horizontal chips |
+| Catalog search | `.guest-catalog-search` + `initGuestCatalogSearch()` filters `.guest-product-tile` by `data-name` | `TextField` (`guest-catalog-search`) when layout is `store` or 9+ products |
+| Section eyebrow | `.guest-section-eyebrow` above `.product-grid-title` | `catalogSectionEyebrow` above grid title |
+| Hub member header | `.guest-hub-actions` — **Akun** (`guest-hero-member-btn`) + share | Share icon on hub profile; member via cart chip / shell |
+| Hero dedup | `page_html_render` skips standalone `hero` when `hub_profile` exists | `GuestSiteView` skips `hero` when `hub_profile` is present |
+
+Hub **Shop / Posts** tabs: when home has `product_grid` + `social_feed` and both products and posts exist, web wraps the grid in `.guest-hub-catalog` (tab row + panels; `initGuestHubCatalogTabs()`); Flutter uses `GuestSiteHubCatalogTabs` and skips duplicate `social_feed`. **Member** uses hero **Akun**, sticky bar, and orders chip (not a third tab).
+
 ## Alien AI assistant (guest chrome)
 
 | Concern | Web | Boot / DOM |
 |---------|-----|------------|
 | Chat FAB + panel | `c35GuestAssistant.openChat` / `sendChat` | `ai_assistant.chat_enabled`; `data-guest-assistant` on `#c35-guest-assistant-root` and chat sheet |
-| Call overlay | `c35GuestAssistant.startCall` / `endCall` | `ai_assistant.call_enabled`; `data-guest-assistant="call"` |
+| Call overlay | `c35GuestAssistant.startCall` / `endCall` | `ai_assistant.call_enabled`; `data-guest-assistant="call"`. Full duplex voice live call session on published and draft storefronts (overlay with speakerphone, elapsed timer, and hang up). Billed to site owner (`site.config.owner_iid`). |
 | Cart dock | Chat FAB docks left of **Pesan** when `#c35-guest-cart-row` visible | `.guest-cart-row--assistant` + `#c35-guest-cart-trailing` |
 | Chat API | `POST https://api.alienai.id/v1/site/guest-assistant/chat` (SSE or JSON) | `visitor_id` in `localStorage`; optional `cart` payload from `c35GuestCart.checkoutLines()` |
+| Call API (Live Setup) | `POST https://api.alienai.id/v1/site/guest-assistant/live/setup` | Public HTTP setup. Request: `{site_iid, visitor_id, boot_mode: "published" \| "draft", locale, req_id}`. Response: `{ok, error, live_session_id, ws_path, max_duration_sec}`. Client connects to WebSocket at `ws_path` (`/v1/live/ws?ticket={guest_ticket}`). Billed to site owner (`site.config.owner_iid`). |
 
 ## Reservation sheet
 

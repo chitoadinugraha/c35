@@ -58,7 +58,9 @@ pub fn compose_inject_device_operate_tools(
     force_include: &mut Vec<String>,
 ) {
     let operate = matched_ids.iter().any(|id| {
-        id == "inst.device.operate" || id == "inst.device.google_forms"
+        id == "inst.device.operate"
+            || id == "inst.device.google_forms"
+            || id == "inst.device.google_sheets"
     });
     if !operate {
         return;

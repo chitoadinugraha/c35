@@ -31,12 +31,14 @@ class UiPromptThinkingIndicator extends StatelessWidget {
     this.stopping = false,
     this.align = Alignment.centerLeft,
     this.model,
+    this.onStop,
   });
 
   final int? startedAtMs;
   final bool stopping;
   final Alignment align;
   final AgentModel? model;
+  final VoidCallback? onStop;
 
   @override
   Widget build(BuildContext context) => Align(
@@ -47,6 +49,7 @@ class UiPromptThinkingIndicator extends StatelessWidget {
           stopping: stopping,
           startedAtMs: startedAtMs,
           liveLabel: stopping ? null : (model?.thinkingStatusLabel ?? 'Thinking'),
+          onStop: onStop,
         ),
       );
 }
@@ -59,6 +62,7 @@ class UiMsgThought extends StatefulWidget {
     this.stopping = false,
     this.startedAtMs,
     this.liveLabel,
+    this.onStop,
   });
 
   final String text;
@@ -66,6 +70,7 @@ class UiMsgThought extends StatefulWidget {
   final bool stopping;
   final int? startedAtMs;
   final String? liveLabel;
+  final VoidCallback? onStop;
 
   @override
   State<UiMsgThought> createState() => _UiMsgThoughtState();
@@ -125,16 +130,21 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
         children: [
           Align(
             alignment: Alignment.centerLeft,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _hasBody || _live ? () => setState(() => _open = !_open) : null,
-                borderRadius: BorderRadius.circular(8),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _hasBody || _live ? () => setState(() => _open = !_open) : null,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
                       Icon(
                         _expanded ? Icons.expand_less_rounded : Icons.psychology_alt_rounded,
                         size: 16,
@@ -174,10 +184,27 @@ class _UiMsgThoughtState extends State<UiMsgThought> {
                           ),
                         ),
                       ],
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                if (_live && widget.onStop != null && !widget.stopping)
+                  Tooltip(
+                    message: 'Stop',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: widget.onStop,
+                        borderRadius: BorderRadius.circular(6),
+                        child: const Padding(
+                          padding: EdgeInsets.fromLTRB(2, 2, 2, 2),
+                          child: Icon(Icons.stop_rounded, size: 16, color: Color(0xFFEF4444)),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
           if (_expanded && _hasBody)

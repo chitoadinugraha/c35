@@ -12,12 +12,14 @@ enum UiAccountRoleBadgeSize { menu, page }
 class UiAccountRoleBadgesAction {
   const UiAccountRoleBadgesAction({
     this.onRootConsole,
+    this.onDirectorEditSite,
     this.onFinancePayments,
     this.onFinanceReceiveAccounts,
     this.onMarketingGenerateVoucher,
   });
 
   final VoidCallback? onRootConsole;
+  final VoidCallback? onDirectorEditSite;
   final VoidCallback? onFinancePayments;
   final VoidCallback? onFinanceReceiveAccounts;
   final VoidCallback? onMarketingGenerateVoucher;
@@ -26,13 +28,19 @@ class UiAccountRoleBadgesAction {
 bool uiAccountRoleHasFinanceNav(UiAccountRoleBadgesAction action) =>
     action.onFinancePayments != null || action.onFinanceReceiveAccounts != null;
 
+bool uiAccountRoleHasDirectorNav(UiAccountRoleBadgesAction action) => action.onDirectorEditSite != null;
+
 bool uiAccountRoleHasMarketingNav(UiAccountRoleBadgesAction action) => action.onMarketingGenerateVoucher != null;
+
+bool uiAccountRoleShowDirectorBadge(Session s, UiAccountRoleBadgesAction action) =>
+    uiAccountRoleHasDirectorNav(action) && s.isDirectorStaff;
 
 List<String> uiAccountRoleBadgeLabels(Session s, UiAccountRoleBadgesAction action) => [
       if (s.isRoot) referralGlobalRoleLabel('root'),
       ...s.globalRoles.where((role) {
         if (role == 'root') return false;
-        if (uiAccountRoleHasFinanceNav(action) && (role == 'finance' || role == 'director')) return false;
+        if (uiAccountRoleHasDirectorNav(action) && role == 'director') return false;
+        if (uiAccountRoleHasFinanceNav(action) && role == 'finance') return false;
         if (uiAccountRoleHasMarketingNav(action) && role == 'marketing') return false;
         return true;
       }).map(referralGlobalRoleLabel),
@@ -54,9 +62,10 @@ class UiAccountRoleBadges extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Session.instance;
     final labels = uiAccountRoleBadgeLabels(s, action);
+    final hasDirectorNav = uiAccountRoleShowDirectorBadge(s, action);
     final hasFinanceNav = uiAccountRoleHasFinanceNav(action);
     final hasMarketingNav = uiAccountRoleHasMarketingNav(action);
-    if (labels.isEmpty && !hasFinanceNav && !hasMarketingNav) return const SizedBox.shrink();
+    if (labels.isEmpty && !hasDirectorNav && !hasFinanceNav && !hasMarketingNav) return const SizedBox.shrink();
     return Wrap(
       spacing: _large ? 6 : 4,
       runSpacing: _large ? 6 : 4,
@@ -70,6 +79,7 @@ class UiAccountRoleBadges extends StatelessWidget {
             onTap: isRoot ? action.onRootConsole : null,
           );
         }),
+        if (hasDirectorNav) _DirectorBadge(action: action, fontSize: _fontSize, padding: _pad),
         if (hasFinanceNav) _FinanceBadge(action: action, fontSize: _fontSize, padding: _pad),
         if (hasMarketingNav) _MarketingBadge(action: action, fontSize: _fontSize, padding: _pad),
       ],
@@ -95,6 +105,63 @@ class _RoleBadge extends StatelessWidget {
     if (onTap == null) return child;
     return InkWell(onTap: onTap, borderRadius: BorderRadius.circular(999), child: child);
   }
+}
+
+class _DirectorBadge extends StatefulWidget {
+  const _DirectorBadge({required this.action, required this.fontSize, required this.padding});
+
+  final UiAccountRoleBadgesAction action;
+  final double fontSize;
+  final EdgeInsets padding;
+
+  @override
+  State<_DirectorBadge> createState() => _DirectorBadgeState();
+}
+
+class _DirectorBadgeState extends State<_DirectorBadge> {
+  final _anchorKey = GlobalKey();
+
+  Future<void> _openMenu(BuildContext menuCtx) async {
+    final box = _anchorKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final selected = await showMenu<String>(
+      context: menuCtx,
+      color: const Color(0xFF18181B),
+      position: uiMenuPositionBelow(menuCtx, box),
+      items: [
+        if (widget.action.onDirectorEditSite != null)
+          const PopupMenuItem(
+            value: 'edit_site',
+            child: Row(
+              children: [
+                Icon(Icons.edit_outlined, size: 16, color: _muted),
+                SizedBox(width: 10),
+                Text('Edit site', style: TextStyle(color: _badgeText, fontSize: 13)),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (selected == 'edit_site') widget.action.onDirectorEditSite?.call();
+  }
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: () => _openMenu(context),
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          key: _anchorKey,
+          padding: widget.padding,
+          decoration: BoxDecoration(color: _badgeBg, borderRadius: BorderRadius.circular(999)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(referralGlobalRoleLabel('director'), style: TextStyle(color: _badgeText, fontSize: widget.fontSize, fontWeight: FontWeight.w600)),
+              Icon(Icons.expand_more_rounded, size: widget.fontSize + 2, color: _muted),
+            ],
+          ),
+        ),
+      );
 }
 
 class _FinanceBadge extends StatefulWidget {

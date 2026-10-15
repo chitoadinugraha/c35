@@ -84,6 +84,29 @@ fn google_forms_summary_heuristics() {
 }
 
 #[test]
+fn google_sheets_summary_rejects_user_handoff() {
+    use c35_mod_chat::prompt::google_sheets::google_sheets_summary_sufficient;
+    let goal = "create new google sheet with fields name, address, gender";
+    assert!(!google_sheets_summary_sufficient(
+        goal,
+        "Sheet opened. Jika input otomatis terhambat, Anda bisa mengetik di A1."
+    ));
+    assert!(google_sheets_summary_sufficient(
+        goal,
+        "Entered headers Name, Address, Gender in row 1."
+    ));
+    let id_goal = "name => nama, address jadi alamat, gender jadi jenis kelamin";
+    assert!(!google_sheets_summary_sufficient(
+        id_goal,
+        "Updated E1 to Jenis Kelamin; C1 still GenderNama."
+    ));
+    assert!(google_sheets_summary_sufficient(
+        id_goal,
+        "Verified A1 Nama, B1 Alamat, C1 Jenis Kelamin; D1 empty."
+    ));
+}
+
+#[test]
 fn handoff_vs_incomplete_boundaries() {
     assert!(reply_looks_like_computer_use_handoff("Please click Submit."));
     assert!(!reply_looks_like_computer_use_incomplete("Please click Submit."));

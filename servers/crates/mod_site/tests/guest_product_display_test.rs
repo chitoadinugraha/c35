@@ -25,10 +25,15 @@ fn guest_product_stock_customer_label_unit_and_cap() {
 
 #[test]
 fn product_grid_display_defaults_grid() {
-    assert_eq!(product_grid_display(&json!({}), &json!({})), "grid");
-    assert_eq!(product_grid_display(&json!({"display": "list"}), &json!({})), "list");
+    assert_eq!(product_grid_display(&json!({}), &json!({}), 3), "grid");
+    assert_eq!(product_grid_display(&json!({"display": "list"}), &json!({}), 3), "list");
     assert_eq!(
-        product_grid_display(&json!({}), &json!({"catalog_display": "list"})),
+        product_grid_display(&json!({}), &json!({"catalog_display": "list"}), 3),
+        "list"
+    );
+    assert_eq!(product_grid_display(&json!({}), &json!({}), 9), "list");
+    assert_eq!(
+        product_grid_display(&json!({}), &json!({"guest_layout": "store"}), 0),
         "list"
     );
 }

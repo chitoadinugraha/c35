@@ -1,17 +1,25 @@
 use axum::{
     body::Bytes,
-    extract::State,
+    extract::{Query, State},
     http::{header, StatusCode},
     response::{IntoResponse, Response},
-    routing::post,
+    routing::{get, post},
     Router,
 };
+use serde::Deserialize;
 use c35_ctx::AppState;
+
+#[derive(Deserialize)]
+struct GuestQueueTrackQuery {
+    site_iid: i64,
+    track_token: String,
+}
 
 pub fn guest_queue_router() -> Router<AppState> {
     Router::new()
         .route("/v1/site/guest-queue/take", post(guest_queue_take_handler))
         .route("/v1/site/guest-queue/get", post(guest_queue_get_handler))
+        .route("/v1/site/guest-queue/track", get(guest_queue_track_handler))
 }
 
 async fn guest_queue_take_handler(State(st): State<AppState>, body: Bytes) -> Response {
@@ -27,10 +35,47 @@ async fn guest_queue_take_handler(State(st): State<AppState>, body: Bytes) -> Re
         .or_else(|| val.get("phone"))
         .and_then(|x| x.as_str())
         .unwrap_or("");
-    match c35_mod_site::guest_queue_take(&st.pool, site_iid, queue_id, guest_name, guest_phone)
-        .await
+    let answers_json = val
+        .get("answers_json")
+        .or_else(|| val.get("answers"))
+        .map(|v| {
+            if v.is_string() {
+                v.as_str().unwrap_or("").to_string()
+            } else {
+                v.to_string()
+            }
+        })
+        .unwrap_or_default();
+    match c35_mod_site::guest_queue_take(
+        &st.pool,
+        site_iid,
+        queue_id,
+        guest_name,
+        guest_phone,
+        &answers_json,
+    )
+    .await
     {
         Ok(res) => json_ok(c35_mod_site::guest_queue_take_json(&res)),
+        Err(e) => json_error(StatusCode::BAD_REQUEST, e.to_string()),
+    }
+}
+
+async fn guest_queue_track_handler(
+    State(st): State<AppState>,
+    Query(q): Query<GuestQueueTrackQuery>,
+) -> Response {
+    match c35_mod_site::guest_queue_track(&st.pool, q.site_iid, &q.track_token).await {
+        Ok(res) => {
+            let status = if res.ok {
+                StatusCode::OK
+            } else if res.error.contains("not found") {
+                StatusCode::NOT_FOUND
+            } else {
+                StatusCode::BAD_REQUEST
+            };
+            json_ok_status(status, c35_mod_site::guest_queue_track_json(&res))
+        }
         Err(e) => json_error(StatusCode::BAD_REQUEST, e.to_string()),
     }
 }

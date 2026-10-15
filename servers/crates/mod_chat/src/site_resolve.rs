@@ -31,7 +31,8 @@ pub fn utterance_site_phrase(text: &str) -> String {
     let lower = text.to_lowercase();
     for marker in [" di ", " ke ", " dari ", " at ", " on ", " from "] {
         if let Some(idx) = lower.rfind(marker) {
-            let tail = text[idx + marker.len()..].trim();
+            // Index from `lower` — slice `lower` only (`to_lowercase()` can change byte length vs `text`).
+            let tail = lower[idx + marker.len()..].trim();
             let tail = tail.trim_matches(|c: char| !c.is_alphanumeric() && !c.is_whitespace());
             if tail.len() >= 3 {
                 return tail.to_string();

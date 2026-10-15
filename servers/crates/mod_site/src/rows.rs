@@ -152,6 +152,19 @@ pub fn queue_from_row(r: &sqlx::postgres::PgRow) -> SiteQueue {
         serving_ticket_no: r.get("serving_ticket_no"),
         is_active: r.get("is_active"),
         meta_json: r.get::<serde_json::Value, _>("meta_json").to_string(),
+        description: col_text(r, "description"),
+        fields_json: r
+            .try_get::<serde_json::Value, _>("fields")
+            .ok()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "[]".to_string()),
+        take_online: r.try_get("take_online").unwrap_or(true),
+        reset_policy_json: r
+            .try_get::<serde_json::Value, _>("reset_policy")
+            .ok()
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "{}".to_string()),
+        sort_order: r.try_get("sort_order").unwrap_or(0),
         created_ts_ms: ts_ms(Some(r.get("created_ts"))),
         updated_ts_ms: ts_ms(Some(r.get("updated_ts"))),
         deleted_ts_ms: ts_ms(r.get("deleted_ts")),

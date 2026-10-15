@@ -252,8 +252,11 @@ pub fn compose_force_browser_ensure_tool_call(matched_ids: &[String], tools: &[T
 
 /// @device UI operate / Google Forms — hop 1 must call computer_use.delegate (not prose handoff).
 pub fn compose_force_device_operate_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
-    matched_ids.iter().any(|id| id == "inst.device.operate" || id == "inst.device.google_forms")
-        && tools_has(tools, "computer_use.delegate")
+    matched_ids.iter().any(|id| {
+        id == "inst.device.operate"
+            || id == "inst.device.google_forms"
+            || id == "inst.device.google_sheets"
+    }) && tools_has(tools, "computer_use.delegate")
 }
 
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
@@ -465,6 +468,24 @@ fn compose_tools_ranked(
     (ranked, trimmed, tools, "lexical".into(), best, false)
 }
 
+fn compose_prompt_has_device_scope(
+    mention: &MentionContext,
+    text: &str,
+    mention_ids: &[String],
+) -> bool {
+    if !mention.devices.is_empty() {
+        return true;
+    }
+    if mention_ids
+        .iter()
+        .any(|m| m.trim().starts_with("iid:") || m.trim().starts_with("device:"))
+    {
+        return true;
+    }
+    let lower = text.to_ascii_lowercase();
+    lower.contains("[@iid:") || lower.contains("iid:")
+}
+
 fn compose_prepare_scoped(
     inst_rows: &[InstRow],
     text: &str,
@@ -480,18 +501,22 @@ fn compose_prepare_scoped(
     staff: &StaffView,
     opts: ComposeTurnOpts<'_>,
 ) -> Result<ComposePrep, ComposeOutput> {
+    let device_scope_early = compose_prompt_has_device_scope(mention, text, mention_ids);
     let mut topics: Vec<String> = if active_topics.is_empty() {
         vec![topic_resolve("", mention_ids, mentions)]
     } else {
         active_topics.to_vec()
     };
+    if device_scope_early && !topics.iter().any(|t| t == "device") {
+        topics.push("device".into());
+    }
     let primary_topic = topics.first().map(|t| t.as_str()).unwrap_or("general");
     let signal_slice: &[String] = if opts.extra_signals.is_empty() {
         &[]
     } else {
         opts.extra_signals
     };
-    let matched = inst_pick(
+    let matched: Vec<InstRow> = inst_pick(
         inst_rows,
         &InstMatchCtx {
             scopes,
@@ -502,7 +527,12 @@ fn compose_prepare_scoped(
             signals: signal_slice,
             staff: Some(staff),
         },
-    );
+    )
+    .into_iter()
+    .filter(|row| {
+        !(device_scope_early && row.id == "inst.mention.sheets")
+    })
+    .collect();
     if matched.iter().any(|r| r.id == "inst.presentation")
         && !topics.iter().any(|t| t == "presentation")
     {
@@ -510,7 +540,19 @@ fn compose_prepare_scoped(
     }
     let topic_refs: Vec<&str> = topics.iter().map(|t| t.as_str()).collect();
     let primary_topic = topic_refs.first().map(|t| *t).unwrap_or("general");
-    let matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
+    let mut matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
+    let device_scope = device_scope_early;
+    let device_sheets_desktop = device_scope
+        && (crate::prompt::google_sheets::user_text_looks_like_google_sheets_desktop(text)
+            || crate::prompt::google_sheets::user_text_looks_like_spreadsheet_cell_ref_edit(text));
+    if device_sheets_desktop {
+        if !matched_ids.iter().any(|id| id == "inst.device.google_sheets") {
+            matched_ids.push("inst.device.google_sheets".into());
+        }
+        if !matched_ids.iter().any(|id| id == "inst.device.operate") {
+            matched_ids.push("inst.device.operate".into());
+        }
+    }
     let mut inst_block = inst_matched_prompt(&matched);
     if matched_ids.iter().any(|id| id == "inst.device.google_forms")
         || crate::prompt::google_forms::user_text_looks_like_google_forms(text)
@@ -519,6 +561,16 @@ fn compose_prepare_scoped(
             inst_block.push_str("\n\n");
         }
         inst_block.push_str(crate::prompt::google_forms::google_forms_playbook_block());
+    }
+    if device_sheets_desktop {
+        if !inst_block.is_empty() {
+            inst_block.push_str("\n\n");
+        }
+        inst_block.push_str(crate::prompt::google_sheets::google_sheets_playbook_block());
+        inst_block.push_str("\n\n");
+        inst_block.push_str(crate::prompt::google_sheets::GOOGLE_SHEETS_GOTO_RECIPE);
+        inst_block.push_str("\n\n");
+        inst_block.push_str(crate::prompt::google_sheets::GOOGLE_SHEETS_PARENT_TURN_RULE);
     }
     if !opts.extra_inst_suffix.trim().is_empty() {
         if !inst_block.is_empty() {
@@ -557,12 +609,36 @@ fn compose_prepare_scoped(
             force_include.push(t.clone());
         }
     }
+    if device_sheets_desktop {
+        for t in [
+            "web.search",
+            "web.visit",
+            "web.research",
+            "browser.sheets.append_row",
+            "browser.sheets.cell_set",
+            "browser.sheets.range_read",
+            "browser.ensure",
+            "browser.tabs",
+        ] {
+            if !tool_exclude.iter().any(|x| x == t) {
+                tool_exclude.push(t.to_string());
+            }
+        }
+    }
     compose_inject_device_operate_tools(&matched_ids, &mut force_include);
     if matched_ids.iter().any(|id| {
-        id == "inst.device.operate" || id == "inst.device.google_forms"
+        id == "inst.device.operate"
+            || id == "inst.device.google_forms"
+            || id == "inst.device.google_sheets"
     }) {
         for name in tool_select::DEVICE_OPERATE_FORCE_TOOLS {
             tool_exclude.retain(|x| x != *name);
+        }
+    }
+    if device_sheets_desktop {
+        force_include.retain(|x| x != "shell.run");
+        if !tool_exclude.iter().any(|x| x == "shell.run") {
+            tool_exclude.push("shell.run".to_string());
         }
     }
 
@@ -652,7 +728,9 @@ fn compose_finish(
     );
     let mut tools = tools;
     if prep.matched_ids.iter().any(|id| {
-        id == "inst.device.operate" || id == "inst.device.google_forms"
+        id == "inst.device.operate"
+            || id == "inst.device.google_forms"
+            || id == "inst.device.google_sheets"
     }) {
         for name in tool_select::DEVICE_OPERATE_FORCE_TOOLS {
             if tools.iter().any(|t| t.name == *name) {

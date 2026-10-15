@@ -138,11 +138,7 @@ pub fn web_grounding_append_user_context(
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .trim();
-        let clip = if content.len() > 12_000 {
-            format!("{}…", &content[..12_000])
-        } else {
-            content.to_string()
-        };
+        let clip = crate::text_utf8::truncate_utf8_bytes(content, 12_000, "…");
         block.push_str(&format!("\n[WEB PAGE — {}]\n{}\n{}\n", url, title, clip));
     }
     let part = json!({ "text": block });

@@ -92,8 +92,9 @@ async fn object_rows(pool: &PgPool, site_iid: i64) -> Result<Vec<SiteObject>> {
 async fn queue_rows(pool: &PgPool, site_iid: i64) -> Result<Vec<SiteQueue>> {
     let rows = sqlx::query(
         r#"
-        SELECT site_iid, queue_id, owner_iid, name, mode, prefix,
-               last_ticket_no, serving_ticket_no, is_active, meta_json,
+        SELECT site_iid, queue_id, owner_iid, name, description, mode, prefix,
+               last_ticket_no, serving_ticket_no, is_active, fields, take_online,
+               reset_policy, sort_order, meta_json,
                created_ts, updated_ts, deleted_ts
         FROM site.queue
         WHERE site_iid = $1 AND deleted_ts IS NULL

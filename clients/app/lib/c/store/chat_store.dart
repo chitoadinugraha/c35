@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:alienai_c35/c/app_id.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/chat/chat_interaction_gate.dart';
+import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/remote/device_prompt_context.dart';
 import 'package:alienai_c35/c/parts/csai__version.dart';
 import 'package:alienai_c35/c/hint/hint_store.dart';
@@ -351,7 +353,8 @@ class MsgRow {
 
 class ChatStore extends ChangeNotifier {
   ChatStore() {
-    unawaited(load());
+    // Let the first frame paint before scanning prefs / spawning disk decode.
+    unawaited(Future.microtask(load));
   }
 
   List<ChatRow> chats = [];
@@ -362,6 +365,10 @@ class ChatStore extends ChangeNotifier {
   String search = '';
   int? activeChatId;
   bool promptBusy = false;
+  bool promptStopping = false;
+  String? promptStoppingReqId;
+  String? rootStreamReqId;
+  final Set<String> _streamCancelledReqIds = {};
   int? promptChatId;
   int promptStartedAtMs = 0;
   String? pendingPromptReqId;
@@ -370,6 +377,24 @@ class ChatStore extends ChangeNotifier {
   final Map<int, ChatMsgFeedback> _feedbackByMsg = {};
 
   bool promptBusyFor(int? chatId) => promptBusy && chatId != null && chatId == promptChatId;
+
+  bool msgStreamCancelled(String reqId) {
+    final r = reqId.trim();
+    return r.isNotEmpty && _streamCancelledReqIds.contains(r);
+  }
+
+  bool msgStreamAccepts(String reqId) {
+    final r = reqId.trim();
+    if (r.isEmpty) return true;
+    if (msgStreamCancelled(r)) return false;
+    final root = rootStreamReqId?.trim() ?? '';
+    return root.isEmpty || root == r;
+  }
+
+  void msgStreamCancelledMark(String reqId) {
+    final r = reqId.trim();
+    if (r.isNotEmpty) _streamCancelledReqIds.add(r);
+  }
 
   bool chatDeletingFor(int id) => _deletingChatIds.contains(id);
 
@@ -383,6 +408,25 @@ class ChatStore extends ChangeNotifier {
   }
 
   int _nextLocalId = -1;
+  var _msgsRev = 0;
+  var _userPromptsRev = 0;
+  List<String>? _recentUserPromptsCache;
+  var _recentUserPromptsCacheRev = -1;
+  int? _activeMsgsCacheRev;
+  int? _activeMsgsCacheChat;
+  String? _activeMsgsCacheLiveRid;
+  bool? _activeMsgsCachePrompting;
+  List<MsgRow>? _activeMsgsCache;
+
+  void _bumpMsgsRev() {
+    _msgsRev++;
+    _activeMsgsCache = null;
+  }
+
+  void _bumpUserPromptsRev() {
+    _userPromptsRev++;
+    _recentUserPromptsCache = null;
+  }
   int msgNextLocalId() => _nextLocalId--;
   SharedPreferences? _prefs;
   var _loaded = false;
@@ -427,6 +471,9 @@ class ChatStore extends ChangeNotifier {
   }
 
   List<String> get recentUserPrompts {
+    if (_recentUserPromptsCache != null && _recentUserPromptsCacheRev == _userPromptsRev) {
+      return _recentUserPromptsCache!;
+    }
     final seen = <String>{};
     final result = <String>[];
     for (final m in msgs.reversed) {
@@ -437,6 +484,8 @@ class ChatStore extends ChangeNotifier {
         if (result.length >= 50) break;
       }
     }
+    _recentUserPromptsCache = result;
+    _recentUserPromptsCacheRev = _userPromptsRev;
     return result;
   }
 
@@ -457,10 +506,24 @@ class ChatStore extends ChangeNotifier {
   List<MsgRow> get activeMsgs {
     final id = activeChatId;
     if (id == null) return const [];
+    final liveReqId = promptLiveReqId ?? pendingPromptReqId ?? '';
+    final prompting = promptBusyFor(id);
+    if (_activeMsgsCache != null &&
+        _activeMsgsCacheRev == _msgsRev &&
+        _activeMsgsCacheChat == id &&
+        _activeMsgsCacheLiveRid == liveReqId &&
+        _activeMsgsCachePrompting == prompting) {
+      return _activeMsgsCache!;
+    }
     final chatMsgs = [for (final m in msgs) if (m.chatId == id) m];
     chatMsgs.sort(msgOrderCompare);
-    final liveReqId = promptLiveReqId ?? pendingPromptReqId ?? '';
-    return msgsCollapseRetriedAssistants(chatMsgs, liveReqId: liveReqId, prompting: promptBusyFor(id));
+    final out = msgsCollapseRetriedAssistants(chatMsgs, liveReqId: liveReqId, prompting: prompting);
+    _activeMsgsCacheRev = _msgsRev;
+    _activeMsgsCacheChat = id;
+    _activeMsgsCacheLiveRid = liveReqId;
+    _activeMsgsCachePrompting = prompting;
+    _activeMsgsCache = out;
+    return out;
   }
 
   bool threadPromptLiveVisible(int chatId) {
@@ -473,32 +536,22 @@ class ChatStore extends ChangeNotifier {
 
   Future<void> load() async {
     _prefs ??= await SharedPreferences.getInstance();
-    final raw = _prefs!.getString(_chatRowsKey);
-    if (raw != null && raw.isNotEmpty) {
-      try {
-        final rows = jsonDecode(raw) as List;
-        chats = [
-          for (final item in rows)
-            if (item is Map)
-              ChatRow.fromJson(Map<String, dynamic>.from(item))
-        ]..removeWhere((c) => c.id <= 0);
-      } catch (_) {}
+    final chatRaw = _prefs!.getString(_chatRowsKey);
+    final msgRaws = <int, String>{};
+    const msgPrefix = 'c35_chat_msgs_';
+    for (final key in _prefs!.getKeys()) {
+      if (!key.startsWith(msgPrefix)) continue;
+      final id = int.tryParse(key.substring(msgPrefix.length)) ?? 0;
+      if (id <= 0) continue;
+      final raw = _prefs!.getString(key);
+      if (raw != null && raw.isNotEmpty) msgRaws[id] = raw;
     }
-    final loadedMsgs = <MsgRow>[];
-    for (final c in chats) {
-      if (c.id <= 0) continue;
-      final key = _chatMsgsKey(c.id);
-      final msgRaw = _prefs!.getString(key);
-      if (msgRaw == null || msgRaw.isEmpty) continue;
-      try {
-        final rows = jsonDecode(msgRaw) as List;
-        loadedMsgs.addAll([for (final item in rows) if (item is Map) MsgRow.fromJson(Map<String, dynamic>.from(item))]);
-      } catch (_) {}
-    }
-    msgs = loadedMsgs.where((m) => m.chatId > 0).toList();
-    for (final cid in msgs.map((m) => m.chatId).toSet()) {
-      _msgsSortChat(cid);
-    }
+    final payload = _ChatStoreDiskPayload(chatRowsRaw: chatRaw, msgRawsByChatId: msgRaws);
+    final decoded = kIsWeb ? _decodeChatStoreDisk(payload) : await compute(_decodeChatStoreDisk, payload);
+    chats = decoded.chats;
+    msgs = decoded.msgs;
+    _bumpMsgsRev();
+    _bumpUserPromptsRev();
     chatStatusStaleClear();
     final legacyKeys = _prefs!.getKeys().where((k) => k.startsWith('c35_chat_msgs_-') || k == 'c35_chat_msgs_0').toList();
     for (final k in legacyKeys) {
@@ -509,23 +562,50 @@ class ChatStore extends ChangeNotifier {
     }
     _nextLocalId = -1;
     _loaded = true;
+    _notifyWhenIdle();
+  }
+
+  void _notifyWhenIdle() {
+    if (ChatInteractionGate.composerTypingActive) {
+      Timer(const Duration(milliseconds: 350), _notifyWhenIdle);
+      return;
+    }
     notifyListeners();
+  }
+
+  void _schedulePersistChats() {
+    _chatRowsPersistDebounce?.cancel();
+    _chatRowsPersistDebounce = Timer(const Duration(milliseconds: 700), () {
+      unawaited(_persistChats());
+    });
   }
 
   Future<void> _persistChats() async {
     if (!_loaded) return;
+    if (ChatInteractionGate.composerTypingActive) {
+      _schedulePersistChats();
+      return;
+    }
+    _chatRowsPersistDebounce?.cancel();
     _prefs ??= await SharedPreferences.getInstance();
-    await _prefs!.setString(_chatRowsKey, jsonEncode(chats.where((c) => c.id > 0).map((c) => c.toJson()).toList()));
+    final rows = chats.where((c) => c.id > 0).map((c) => c.toJson()).toList();
+    await _prefs!.setString(_chatRowsKey, await _jsonEncodeIsolate(rows));
   }
 
   Future<void> _persistMsgs(int chatId) async {
     if (!_loaded || chatId <= 0) return;
+    if (ChatInteractionGate.composerTypingActive) {
+      _dirtyMsgChatIds.add(chatId);
+      _debouncePersistMsgs(chatId);
+      return;
+    }
     _prefs ??= await SharedPreferences.getInstance();
-    final rows = msgs.where((m) => m.chatId == chatId).map((m) => m.toJson()).toList();
-    await _prefs!.setString(_chatMsgsKey(chatId), jsonEncode(rows));
+    final rows = [for (final m in msgs) if (m.chatId == chatId) m.toJson()];
+    await _prefs!.setString(_chatMsgsKey(chatId), await _jsonEncodeIsolate(rows));
   }
 
   Timer? _msgPersistDebounce;
+  Timer? _chatRowsPersistDebounce;
   Timer? _notifyDebounce;
   final Set<int> _dirtyMsgChatIds = {};
 
@@ -537,25 +617,29 @@ class ChatStore extends ChangeNotifier {
 
   void _notifyListenersDebounced() {
     if (_notifyDebounce?.isActive ?? false) return;
-    _notifyDebounce = Timer(const Duration(milliseconds: 64), _notifyListenersNow);
+    final ms = ChatInteractionGate.composerTypingActive ? 280 : 64;
+    _notifyDebounce = Timer(Duration(milliseconds: ms), _notifyListenersNow);
   }
 
   void _debouncePersistMsgs(int chatId) {
     if (chatId <= 0) return;
     _dirtyMsgChatIds.add(chatId);
     if (_msgPersistDebounce?.isActive ?? false) return;
-    _msgPersistDebounce = Timer(const Duration(milliseconds: 1200), () {
-      _flushDirtyMsgs();
-    });
+    _msgPersistDebounce = Timer(const Duration(milliseconds: 2200), _flushDirtyMsgs);
   }
 
   void _flushDirtyMsgs() {
+    if (ChatInteractionGate.composerTypingActive) {
+      _msgPersistDebounce = Timer(const Duration(milliseconds: 700), _flushDirtyMsgs);
+      return;
+    }
     _msgPersistDebounce?.cancel();
     _msgPersistDebounce = null;
-    for (final cid in _dirtyMsgChatIds) {
+    final dirty = _dirtyMsgChatIds.toList();
+    _dirtyMsgChatIds.clear();
+    for (final cid in dirty) {
       unawaited(_persistMsgs(cid));
     }
-    _dirtyMsgChatIds.clear();
   }
 
   void _touch() {
@@ -575,7 +659,9 @@ class ChatStore extends ChangeNotifier {
     }
   }
 
-  void _touchMsgs(int chatId, {bool debounce = false}) {
+  void _touchMsgs(int chatId, {bool debounce = false, MsgRow? userPromptTouch}) {
+    if (userPromptTouch?.role == 'user') _bumpUserPromptsRev();
+    _bumpMsgsRev();
     _msgsSortChat(chatId);
     if (debounce) {
       _debouncePersistMsgs(chatId);
@@ -886,6 +972,7 @@ class ChatStore extends ChangeNotifier {
   void chatIdMigrate(int from, int to) {
     if (from == to || from == 0 || to == 0) return;
     msgs = [for (final m in msgs) m.chatId == from ? m.copyWith(chatId: to) : m];
+    _bumpMsgsRev();
     chats.removeWhere((c) => c.id == from);
     if (activeChatId == from) activeChatId = to;
     if (promptChatId == from) promptChatId = to;
@@ -932,6 +1019,7 @@ class ChatStore extends ChangeNotifier {
     if (pendingIdx >= 0) {
       final old = chats[pendingIdx];
       msgs = [for (final m in msgs) m.chatId == old.id ? m.copyWith(chatId: id) : m];
+      _bumpMsgsRev();
       chats.removeAt(pendingIdx);
       if (activeChatId == old.id) activeChatId = id;
       if (promptChatId == old.id) promptChatId = id;
@@ -1122,7 +1210,7 @@ class ChatStore extends ChangeNotifier {
           final merged = _msgMerge(msgs[idx], row);
           msgs[idx] = merged;
           if (touchPreview) _chatPreviewTouch(merged.chatId, merged.content, atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch);
-          if (notify) _touchMsgs(row.chatId);
+          if (notify) _touchMsgs(row.chatId, userPromptTouch: row);
           return;
         }
       }
@@ -1141,7 +1229,7 @@ class ChatStore extends ChangeNotifier {
             atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch,
           );
         }
-        if (notify) _touchMsgs(row.chatId);
+        if (notify) _touchMsgs(row.chatId, userPromptTouch: row);
         return;
       }
     }
@@ -1161,7 +1249,7 @@ class ChatStore extends ChangeNotifier {
             atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch,
           );
         }
-        if (notify) _touchMsgs(row.chatId);
+        if (notify) _touchMsgs(row.chatId, userPromptTouch: row);
         return;
       }
     }
@@ -1176,7 +1264,7 @@ class ChatStore extends ChangeNotifier {
           atMs: merged.createdAtMs > 0 ? merged.createdAtMs : DateTime.now().millisecondsSinceEpoch,
         );
       }
-      if (notify) _touchMsgs(row.chatId);
+      if (notify) _touchMsgs(row.chatId, userPromptTouch: row);
       return;
     }
     msgs.add(row);
@@ -1187,7 +1275,7 @@ class ChatStore extends ChangeNotifier {
         atMs: row.createdAtMs > 0 ? row.createdAtMs : DateTime.now().millisecondsSinceEpoch,
       );
     }
-    if (notify) _touchMsgs(row.chatId);
+    if (notify) _touchMsgs(row.chatId, userPromptTouch: row);
   }
 
   void _msgsDedupeTrailingUsers(int chatId) {
@@ -1218,6 +1306,7 @@ class ChatStore extends ChangeNotifier {
 
   void msgPutFromServer(ChatMsg m, {MsgRow? prior}) {
     if (m.id.toInt() > 0 && _tombstonedMsgIds.contains(m.id.toInt())) return;
+    if (m.reqId.trim().isNotEmpty && msgStreamCancelled(m.reqId)) return;
     final role = switch (m.role) {
       ChatMsgRole.CHAT_MSG_ROLE_USER => 'user',
       ChatMsgRole.CHAT_MSG_ROLE_ASSISTANT => 'assistant',
@@ -1292,6 +1381,11 @@ class ChatStore extends ChangeNotifier {
     final cid = chatId ?? promptChatId;
     if (cid == null) return;
     final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    if (!msgStreamAccepts(rid)) return;
+    if (msgStreamLooksLikeSteerLeak(text)) {
+      msgStreamThought(text, chatId: cid, reqId: rid);
+      return;
+    }
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
@@ -1317,6 +1411,7 @@ class ChatStore extends ChangeNotifier {
     final cid = chatId ?? promptChatId;
     if (cid == null) return;
     final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    if (!msgStreamAccepts(rid)) return;
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
@@ -1333,6 +1428,7 @@ class ChatStore extends ChangeNotifier {
     final cid = chatId ?? promptChatId;
     if (cid == null) return;
     final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
+    if (!msgStreamAccepts(rid)) return;
     final m = _turnAssistant(chatId: cid, reqId: rid);
     if (m != null) {
       if (rid.isNotEmpty && m.reqId.isNotEmpty && m.reqId != rid) return;
@@ -1445,6 +1541,42 @@ class ChatStore extends ChangeNotifier {
     promptStartedAtMs = 0;
     pendingPromptReqId = null;
     promptLiveReqId = null;
+    promptStopping = false;
+    promptStoppingReqId = null;
+    rootStreamReqId = null;
+  }
+
+  MsgRow _scrubAssistantAfterCancel(MsgRow m) {
+    var content = m.content;
+    var thought = m.thought;
+    if (msgStreamLooksLikeSteerLeak(content)) content = '';
+    if (msgStreamLooksLikeSteerLeak(thought)) thought = '';
+    thought = msgThoughtStripPlaceholders(thought);
+    return m.copyWith(content: content, thought: thought, error: '');
+  }
+
+  void promptStoppingBegin({required String reqId, int? chatId}) {
+    final rid = reqId.trim();
+    if (rid.isEmpty) return;
+    promptStopping = true;
+    promptStoppingReqId = rid;
+    if (chatId != null) promptChatId = chatId;
+    notifyListeners();
+  }
+
+  void msgStreamCancel({int? chatId, String reqId = ''}) {
+    final cid = chatId ?? promptChatId;
+    if (cid == null) return;
+    final rid = reqId.trim().isNotEmpty ? reqId.trim() : (promptStoppingReqId ?? promptLiveReqId ?? pendingPromptReqId ?? '');
+    if (rid.isNotEmpty) msgStreamCancelledMark(rid);
+    final i = _assistantIdx(cid, reqId: rid);
+    if (i != null) {
+      msgs[i] = _scrubAssistantAfterCancel(msgs[i]);
+    }
+    _chatStatusPut(cid, status: 'done', unread: cid != activeChatId);
+    _promptClear();
+    _flushDirtyMsgs();
+    _touchMsgs(cid);
   }
 
   /// When server already finished the turn but client stream state stalled (reconnect / key reuse).
@@ -1503,6 +1635,11 @@ class ChatStore extends ChangeNotifier {
       promptChatId = chatId ?? promptChatId;
       pendingPromptReqId = reqId;
       promptLiveReqId = reqId?.trim().isNotEmpty == true ? reqId!.trim() : pendingPromptReqId;
+      final rid = reqId?.trim() ?? '';
+      if (rid.isNotEmpty) {
+        rootStreamReqId = rid;
+        _streamCancelledReqIds.remove(rid);
+      }
       promptStartedAtMs = DateTime.now().millisecondsSinceEpoch;
     } else {
       final id = chatId ?? promptChatId;
@@ -1569,6 +1706,7 @@ class ChatStore extends ChangeNotifier {
   }
 
   void chatClearMsgs(int id) {
+    _bumpUserPromptsRev();
     msgs.removeWhere((m) => m.chatId == id);
     if (promptChatId == id) _promptClear();
     for (final c in chats) {
@@ -1584,6 +1722,7 @@ class ChatStore extends ChangeNotifier {
   }
 
   void chatHistoryClearAll() {
+    _bumpUserPromptsRev();
     msgs.clear();
     _promptClear();
     for (final c in chats) {
@@ -1682,6 +1821,7 @@ class ChatStore extends ChangeNotifier {
     }
     chatStickyMentionsRebuild(chatId);
     if (newestAt > 0) _chatPreviewTouch(chatId, newestPreview, atMs: newestAt);
+    _bumpUserPromptsRev();
     _touchMsgs(chatId);
   }
 
@@ -1870,4 +2010,70 @@ class ChatStore extends ChangeNotifier {
     _flushDirtyMsgs();
     super.dispose();
   }
+}
+
+class _ChatStoreDiskPayload {
+  const _ChatStoreDiskPayload({this.chatRowsRaw, required this.msgRawsByChatId});
+
+  final String? chatRowsRaw;
+  final Map<int, String> msgRawsByChatId;
+}
+
+class _ChatStoreDiskResult {
+  const _ChatStoreDiskResult({required this.chats, required this.msgs});
+
+  final List<ChatRow> chats;
+  final List<MsgRow> msgs;
+}
+
+Future<String> _jsonEncodeIsolate(Object value) async {
+  if (kIsWeb) return jsonEncode(value);
+  return compute(jsonEncode, value);
+}
+
+List<MsgRow> _sortDiskMsgs(List<MsgRow> msgs) {
+  if (msgs.length < 2) return msgs;
+  final out = List<MsgRow>.from(msgs);
+  final chatIds = out.map((m) => m.chatId).toSet();
+  for (final cid in chatIds) {
+    final indices = <int>[];
+    for (var i = 0; i < out.length; i++) {
+      if (out[i].chatId == cid) indices.add(i);
+    }
+    if (indices.length < 2) continue;
+    final sorted = indices.map((i) => out[i]).toList()..sort(msgOrderCompare);
+    for (var j = 0; j < indices.length; j++) {
+      out[indices[j]] = sorted[j];
+    }
+  }
+  return out;
+}
+
+_ChatStoreDiskResult _decodeChatStoreDisk(_ChatStoreDiskPayload payload) {
+  var chats = <ChatRow>[];
+  final raw = payload.chatRowsRaw;
+  if (raw != null && raw.isNotEmpty) {
+    try {
+      final rows = jsonDecode(raw) as List;
+      chats = [
+        for (final item in rows)
+          if (item is Map) ChatRow.fromJson(Map<String, dynamic>.from(item))
+      ]..removeWhere((c) => c.id <= 0);
+    } catch (_) {
+      chats = [];
+    }
+  }
+
+  final loadedMsgs = <MsgRow>[];
+  for (final c in chats) {
+    final msgRaw = payload.msgRawsByChatId[c.id];
+    if (msgRaw == null || msgRaw.isEmpty) continue;
+    try {
+      final rows = jsonDecode(msgRaw) as List;
+      loadedMsgs.addAll([for (final item in rows) if (item is Map) MsgRow.fromJson(Map<String, dynamic>.from(item))]);
+    } catch (_) {}
+  }
+
+  final msgs = _sortDiskMsgs([for (final m in loadedMsgs) if (m.chatId > 0) m]);
+  return _ChatStoreDiskResult(chats: chats, msgs: msgs);
 }

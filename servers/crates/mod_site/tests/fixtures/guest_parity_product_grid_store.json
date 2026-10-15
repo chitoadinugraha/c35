@@ -1,0 +1,20 @@
+{
+  "block_type": "product_grid",
+  "expected_data_guest": "site_product",
+  "site_meta": {
+    "guest_layout": "store",
+    "lang": "id"
+  },
+  "props": {
+    "filter": "all",
+    "title": "Katalog"
+  },
+  "assert_contains": [
+    "guest-catalog-search",
+    "guest-catalog-search-input",
+    "Cari produk",
+    "guest-section-eyebrow",
+    "product-grid-title"
+  ],
+  "assert_not_contains": []
+}

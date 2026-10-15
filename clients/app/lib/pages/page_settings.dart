@@ -41,6 +41,8 @@ import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
 import 'package:alienai_c35/pages/page_allow_control.dart' show ThisPcRegister;
 import 'package:alienai_c35/pages/mail/page_mail.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
+import 'package:alienai_c35/pages/page_sites.dart';
+import 'package:alienai_c35/widgets/sites/ui_staff_site_picker_dialog.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/ai/ui_bot_memories_sheet.dart';
 import 'package:alienai_c35/widgets/skill/ui_skill_master_detail.dart';
@@ -507,6 +509,19 @@ class _PageSettingsState extends State<PageSettings> {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: conn)));
   }
 
+  void _openDirectorEditSite() {
+    final conn = widget.chatConn;
+    if (conn == null) return;
+    uiStaffSitePickerOpen(
+      context: context,
+      chatConn: conn,
+      onEdit: (siteIid) => Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => PageSites(chatConn: conn, siteIid: siteIid)),
+      ),
+    );
+  }
+
   void _openFinancePayments() => Navigator.push(
         context,
         MaterialPageRoute<void>(
@@ -521,6 +536,7 @@ class _PageSettingsState extends State<PageSettings> {
 
   UiAccountRoleBadgesAction get _badgeAction => UiAccountRoleBadgesAction(
         onRootConsole: Session.instance.isRoot && widget.chatConn != null ? _openRootConsole : null,
+        onDirectorEditSite: Session.instance.isDirectorStaff && widget.chatConn != null ? _openDirectorEditSite : null,
         onFinancePayments: _financeStaff ? _openFinancePayments : null,
         onFinanceReceiveAccounts: _financeStaff ? _openFinanceReceiveAccounts : null,
         onMarketingGenerateVoucher: null,

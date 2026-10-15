@@ -15,6 +15,8 @@ import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/site/site_link_display.dart';
 import 'package:alienai_c35/c/site/site_link_platform.dart';
 import 'package:alienai_c35/c/site/site_product_json.dart';
+import 'package:alienai_c35/c/site/site_queue_board.dart';
+import 'package:alienai_c35/c/site/site_queue_meta.dart';
 import 'package:alienai_c35/c/site/design/site_theme_modernize.dart';
 import 'package:fixnum/fixnum.dart';
 
@@ -33,11 +35,18 @@ SiteRow siteRowFromIdentity(IdentityListRow row) {
   );
 }
 
-Future<List<SiteRow>> siteListFetch(ChatConn conn, {bool archived = false}) async {
+Future<List<SiteRow>> siteListFetch(
+  ChatConn conn, {
+  bool archived = false,
+  String query = '',
+  int limit = 40,
+}) async {
+  final q = query.trim();
   try {
-    final res = await conn.siteList(archived: archived);
-    if (res.sites.isNotEmpty) return res.sites;
+    final res = await conn.siteList(archived: archived, query: q, limit: limit);
+    if (res.sites.isNotEmpty || q.isNotEmpty) return res.sites;
   } catch (_) {}
+  if (q.isNotEmpty) return const [];
   final res = await identityList(conn, const ['site'], includeArchived: archived);
   return res.rows.map(siteRowFromIdentity).toList(growable: false);
 }
@@ -484,6 +493,43 @@ class SiteApi {
     if (!res.ok) throw 'presence location put failed';
   }
 
+  Future<SitePresenceStaffContext> presenceStaffContext(int siteIid) async {
+    final res = await conn.sitePresenceContext(siteIid);
+    if (!res.hasContext()) throw 'presence context unavailable';
+    return res.context;
+  }
+
+  Future<SitePresenceRecord> presenceClockIn(int siteIid, {String shiftId = ''}) async {
+    final res = await conn.sitePresenceClockIn(siteIid, shiftId: shiftId);
+    if (!res.hasRecord()) throw 'clock in failed';
+    return res.record;
+  }
+
+  Future<SitePresenceRecord> presenceClockOut(int siteIid) async {
+    final res = await conn.sitePresenceClockOut(siteIid);
+    if (!res.hasRecord()) throw 'clock out failed';
+    return res.record;
+  }
+
+  Future<List<SitePresenceRecord>> presenceRecordList(
+    int siteIid, {
+    int granteeIid = 0,
+    int limit = 50,
+  }) async {
+    final res = await conn.sitePresenceRecordList(siteIid, granteeIid: granteeIid, limit: limit);
+    return res.records;
+  }
+
+  Future<List<SitePayrollCompensation>> payrollCompensationList(int siteIid) async {
+    final res = await conn.sitePayrollCompensationList(siteIid);
+    return res.items;
+  }
+
+  Future<int> payrollCompensationPut(int siteIid, SitePayrollCompensation item) async {
+    final res = await conn.sitePayrollCompensationPut(siteIid, item);
+    return res.compId.toInt();
+  }
+
   Future<void> transferOwnership(int siteIid, int targetIid) async {
     final res = await conn.siteTransferOwnership(siteIid, targetIid);
     if (!res.ok) throw 'transfer ownership failed';
@@ -520,7 +566,43 @@ class SiteApi {
     return res.servingTicketNo;
   }
 
-  SiteQueue queueNew(int siteIid) => SiteQueue(siteIid: Int64(siteIid), queueId: Int64(1), name: 'Main', isActive: true);
+  Future<SiteQueueBoardSnapshot> queueBoard(int siteIid, int queueId) async {
+    final res = await conn.siteQueueBoard(siteIid, queueId: queueId);
+    if (!res.hasBoard()) throw 'Queue board unavailable';
+    return SiteQueueBoardSnapshot.fromProto(res.board, queueId: queueId);
+  }
+
+  Future<int> queueCallNext(int siteIid, {required int queueId}) async {
+    final res = await conn.siteQueueCallNext(siteIid, queueId: queueId);
+    if (res.hasTicket()) return res.ticket.ticketNo;
+    return queueAdvanceServing(siteIid, queueId: queueId);
+  }
+
+  Future<void> queueTicketSetStatus(
+    int siteIid, {
+    required int queueId,
+    required int ticketId,
+    required String status,
+  }) async {
+    await conn.siteQueueTicketSetStatus(
+      siteIid,
+      queueId: queueId,
+      ticketId: ticketId,
+      status: status,
+    );
+  }
+
+  SiteQueue queueNew(int siteIid, {Iterable<SiteQueue> existing = const []}) {
+    var maxId = 0;
+    for (final q in existing) {
+      final id = q.queueId.toInt();
+      if (id > maxId) maxId = id;
+    }
+    final nextId = maxId == 0 ? 1 : maxId + 1;
+    final q = SiteQueue(siteIid: Int64(siteIid), queueId: Int64(nextId), name: 'Counter $nextId', isActive: true);
+    siteQueueApplyMeta(q, SiteQueueMeta(sortOrder: maxId));
+    return q;
+  }
 
   Future<List<SiteDomain>> domainList(int siteIid) async {
     final res = await conn.siteDomainList(siteIid);

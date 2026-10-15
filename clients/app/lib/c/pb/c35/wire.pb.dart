@@ -3272,6 +3272,17 @@ enum WsReq_Body {
   sessionFocus,
   siteAssistantGet,
   siteAssistantEnsure,
+  siteQueueBoard,
+  siteQueueCallNext,
+  siteQueueTicketSetStatus,
+  siteQueueReset,
+  siteQueueTicketList,
+  sitePresenceContext,
+  sitePresenceClockIn,
+  sitePresenceClockOut,
+  sitePresenceRecordList,
+  sitePayrollCompensationList,
+  sitePayrollCompensationPut,
   notSet
 }
 
@@ -3442,6 +3453,17 @@ class WsReq extends $pb.GeneratedMessage {
     $14.ReqSessionFocus? sessionFocus,
     $18.ReqSiteAssistantGet? siteAssistantGet,
     $18.ReqSiteAssistantEnsure? siteAssistantEnsure,
+    $18.ReqSiteQueueBoard? siteQueueBoard,
+    $18.ReqSiteQueueCallNext? siteQueueCallNext,
+    $18.ReqSiteQueueTicketSetStatus? siteQueueTicketSetStatus,
+    $18.ReqSiteQueueReset? siteQueueReset,
+    $18.ReqSiteQueueTicketList? siteQueueTicketList,
+    $18.ReqSitePresenceContext? sitePresenceContext,
+    $18.ReqSitePresenceClockIn? sitePresenceClockIn,
+    $18.ReqSitePresenceClockOut? sitePresenceClockOut,
+    $18.ReqSitePresenceRecordList? sitePresenceRecordList,
+    $18.ReqSitePayrollCompensationList? sitePayrollCompensationList,
+    $18.ReqSitePayrollCompensationPut? sitePayrollCompensationPut,
   }) {
     final result = WsReq._();
     if (reqId != null) result.reqId = reqId;
@@ -3640,6 +3662,25 @@ class WsReq extends $pb.GeneratedMessage {
     if (siteAssistantGet != null) result.siteAssistantGet = siteAssistantGet;
     if (siteAssistantEnsure != null)
       result.siteAssistantEnsure = siteAssistantEnsure;
+    if (siteQueueBoard != null) result.siteQueueBoard = siteQueueBoard;
+    if (siteQueueCallNext != null) result.siteQueueCallNext = siteQueueCallNext;
+    if (siteQueueTicketSetStatus != null)
+      result.siteQueueTicketSetStatus = siteQueueTicketSetStatus;
+    if (siteQueueReset != null) result.siteQueueReset = siteQueueReset;
+    if (siteQueueTicketList != null)
+      result.siteQueueTicketList = siteQueueTicketList;
+    if (sitePresenceContext != null)
+      result.sitePresenceContext = sitePresenceContext;
+    if (sitePresenceClockIn != null)
+      result.sitePresenceClockIn = sitePresenceClockIn;
+    if (sitePresenceClockOut != null)
+      result.sitePresenceClockOut = sitePresenceClockOut;
+    if (sitePresenceRecordList != null)
+      result.sitePresenceRecordList = sitePresenceRecordList;
+    if (sitePayrollCompensationList != null)
+      result.sitePayrollCompensationList = sitePayrollCompensationList;
+    if (sitePayrollCompensationPut != null)
+      result.sitePayrollCompensationPut = sitePayrollCompensationPut;
     return result;
   }
 
@@ -3816,6 +3857,17 @@ class WsReq extends $pb.GeneratedMessage {
     224: WsReq_Body.sessionFocus,
     225: WsReq_Body.siteAssistantGet,
     226: WsReq_Body.siteAssistantEnsure,
+    228: WsReq_Body.siteQueueBoard,
+    229: WsReq_Body.siteQueueCallNext,
+    230: WsReq_Body.siteQueueTicketSetStatus,
+    231: WsReq_Body.siteQueueReset,
+    232: WsReq_Body.siteQueueTicketList,
+    233: WsReq_Body.sitePresenceContext,
+    234: WsReq_Body.sitePresenceClockIn,
+    235: WsReq_Body.sitePresenceClockOut,
+    236: WsReq_Body.sitePresenceRecordList,
+    237: WsReq_Body.sitePayrollCompensationList,
+    238: WsReq_Body.sitePayrollCompensationPut,
     0: WsReq_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -3985,7 +4037,18 @@ class WsReq extends $pb.GeneratedMessage {
       221,
       224,
       225,
-      226
+      226,
+      228,
+      229,
+      230,
+      231,
+      232,
+      233,
+      234,
+      235,
+      236,
+      237,
+      238
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$14.ReqSessionInit>(2, _omitFieldNames ? '' : 'sessionInit',
@@ -4367,6 +4430,37 @@ class WsReq extends $pb.GeneratedMessage {
     ..aOM<$18.ReqSiteAssistantEnsure>(
         226, _omitFieldNames ? '' : 'siteAssistantEnsure',
         subBuilder: $18.ReqSiteAssistantEnsure.$_createMessage)
+    ..aOM<$18.ReqSiteQueueBoard>(228, _omitFieldNames ? '' : 'siteQueueBoard',
+        subBuilder: $18.ReqSiteQueueBoard.$_createMessage)
+    ..aOM<$18.ReqSiteQueueCallNext>(
+        229, _omitFieldNames ? '' : 'siteQueueCallNext',
+        subBuilder: $18.ReqSiteQueueCallNext.$_createMessage)
+    ..aOM<$18.ReqSiteQueueTicketSetStatus>(
+        230, _omitFieldNames ? '' : 'siteQueueTicketSetStatus',
+        subBuilder: $18.ReqSiteQueueTicketSetStatus.$_createMessage)
+    ..aOM<$18.ReqSiteQueueReset>(231, _omitFieldNames ? '' : 'siteQueueReset',
+        subBuilder: $18.ReqSiteQueueReset.$_createMessage)
+    ..aOM<$18.ReqSiteQueueTicketList>(
+        232, _omitFieldNames ? '' : 'siteQueueTicketList',
+        subBuilder: $18.ReqSiteQueueTicketList.$_createMessage)
+    ..aOM<$18.ReqSitePresenceContext>(
+        233, _omitFieldNames ? '' : 'sitePresenceContext',
+        subBuilder: $18.ReqSitePresenceContext.$_createMessage)
+    ..aOM<$18.ReqSitePresenceClockIn>(
+        234, _omitFieldNames ? '' : 'sitePresenceClockIn',
+        subBuilder: $18.ReqSitePresenceClockIn.$_createMessage)
+    ..aOM<$18.ReqSitePresenceClockOut>(
+        235, _omitFieldNames ? '' : 'sitePresenceClockOut',
+        subBuilder: $18.ReqSitePresenceClockOut.$_createMessage)
+    ..aOM<$18.ReqSitePresenceRecordList>(
+        236, _omitFieldNames ? '' : 'sitePresenceRecordList',
+        subBuilder: $18.ReqSitePresenceRecordList.$_createMessage)
+    ..aOM<$18.ReqSitePayrollCompensationList>(
+        237, _omitFieldNames ? '' : 'sitePayrollCompensationList',
+        subBuilder: $18.ReqSitePayrollCompensationList.$_createMessage)
+    ..aOM<$18.ReqSitePayrollCompensationPut>(
+        238, _omitFieldNames ? '' : 'sitePayrollCompensationPut',
+        subBuilder: $18.ReqSitePayrollCompensationPut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -4552,6 +4646,17 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(224)
   @$pb.TagNumber(225)
   @$pb.TagNumber(226)
+  @$pb.TagNumber(228)
+  @$pb.TagNumber(229)
+  @$pb.TagNumber(230)
+  @$pb.TagNumber(231)
+  @$pb.TagNumber(232)
+  @$pb.TagNumber(233)
+  @$pb.TagNumber(234)
+  @$pb.TagNumber(235)
+  @$pb.TagNumber(236)
+  @$pb.TagNumber(237)
+  @$pb.TagNumber(238)
   WsReq_Body whichBody() => _WsReq_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(3)
@@ -4716,6 +4821,17 @@ class WsReq extends $pb.GeneratedMessage {
   @$pb.TagNumber(224)
   @$pb.TagNumber(225)
   @$pb.TagNumber(226)
+  @$pb.TagNumber(228)
+  @$pb.TagNumber(229)
+  @$pb.TagNumber(230)
+  @$pb.TagNumber(231)
+  @$pb.TagNumber(232)
+  @$pb.TagNumber(233)
+  @$pb.TagNumber(234)
+  @$pb.TagNumber(235)
+  @$pb.TagNumber(236)
+  @$pb.TagNumber(237)
+  @$pb.TagNumber(238)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -6567,6 +6683,141 @@ class WsReq extends $pb.GeneratedMessage {
   void clearSiteAssistantEnsure() => $_clearField(226);
   @$pb.TagNumber(226)
   $18.ReqSiteAssistantEnsure ensureSiteAssistantEnsure() => $_ensure(163);
+
+  @$pb.TagNumber(228)
+  $18.ReqSiteQueueBoard get siteQueueBoard => $_getN(164);
+  @$pb.TagNumber(228)
+  set siteQueueBoard($18.ReqSiteQueueBoard value) => $_setField(228, value);
+  @$pb.TagNumber(228)
+  $core.bool hasSiteQueueBoard() => $_has(164);
+  @$pb.TagNumber(228)
+  void clearSiteQueueBoard() => $_clearField(228);
+  @$pb.TagNumber(228)
+  $18.ReqSiteQueueBoard ensureSiteQueueBoard() => $_ensure(164);
+
+  @$pb.TagNumber(229)
+  $18.ReqSiteQueueCallNext get siteQueueCallNext => $_getN(165);
+  @$pb.TagNumber(229)
+  set siteQueueCallNext($18.ReqSiteQueueCallNext value) =>
+      $_setField(229, value);
+  @$pb.TagNumber(229)
+  $core.bool hasSiteQueueCallNext() => $_has(165);
+  @$pb.TagNumber(229)
+  void clearSiteQueueCallNext() => $_clearField(229);
+  @$pb.TagNumber(229)
+  $18.ReqSiteQueueCallNext ensureSiteQueueCallNext() => $_ensure(165);
+
+  @$pb.TagNumber(230)
+  $18.ReqSiteQueueTicketSetStatus get siteQueueTicketSetStatus => $_getN(166);
+  @$pb.TagNumber(230)
+  set siteQueueTicketSetStatus($18.ReqSiteQueueTicketSetStatus value) =>
+      $_setField(230, value);
+  @$pb.TagNumber(230)
+  $core.bool hasSiteQueueTicketSetStatus() => $_has(166);
+  @$pb.TagNumber(230)
+  void clearSiteQueueTicketSetStatus() => $_clearField(230);
+  @$pb.TagNumber(230)
+  $18.ReqSiteQueueTicketSetStatus ensureSiteQueueTicketSetStatus() =>
+      $_ensure(166);
+
+  @$pb.TagNumber(231)
+  $18.ReqSiteQueueReset get siteQueueReset => $_getN(167);
+  @$pb.TagNumber(231)
+  set siteQueueReset($18.ReqSiteQueueReset value) => $_setField(231, value);
+  @$pb.TagNumber(231)
+  $core.bool hasSiteQueueReset() => $_has(167);
+  @$pb.TagNumber(231)
+  void clearSiteQueueReset() => $_clearField(231);
+  @$pb.TagNumber(231)
+  $18.ReqSiteQueueReset ensureSiteQueueReset() => $_ensure(167);
+
+  @$pb.TagNumber(232)
+  $18.ReqSiteQueueTicketList get siteQueueTicketList => $_getN(168);
+  @$pb.TagNumber(232)
+  set siteQueueTicketList($18.ReqSiteQueueTicketList value) =>
+      $_setField(232, value);
+  @$pb.TagNumber(232)
+  $core.bool hasSiteQueueTicketList() => $_has(168);
+  @$pb.TagNumber(232)
+  void clearSiteQueueTicketList() => $_clearField(232);
+  @$pb.TagNumber(232)
+  $18.ReqSiteQueueTicketList ensureSiteQueueTicketList() => $_ensure(168);
+
+  @$pb.TagNumber(233)
+  $18.ReqSitePresenceContext get sitePresenceContext => $_getN(169);
+  @$pb.TagNumber(233)
+  set sitePresenceContext($18.ReqSitePresenceContext value) =>
+      $_setField(233, value);
+  @$pb.TagNumber(233)
+  $core.bool hasSitePresenceContext() => $_has(169);
+  @$pb.TagNumber(233)
+  void clearSitePresenceContext() => $_clearField(233);
+  @$pb.TagNumber(233)
+  $18.ReqSitePresenceContext ensureSitePresenceContext() => $_ensure(169);
+
+  @$pb.TagNumber(234)
+  $18.ReqSitePresenceClockIn get sitePresenceClockIn => $_getN(170);
+  @$pb.TagNumber(234)
+  set sitePresenceClockIn($18.ReqSitePresenceClockIn value) =>
+      $_setField(234, value);
+  @$pb.TagNumber(234)
+  $core.bool hasSitePresenceClockIn() => $_has(170);
+  @$pb.TagNumber(234)
+  void clearSitePresenceClockIn() => $_clearField(234);
+  @$pb.TagNumber(234)
+  $18.ReqSitePresenceClockIn ensureSitePresenceClockIn() => $_ensure(170);
+
+  @$pb.TagNumber(235)
+  $18.ReqSitePresenceClockOut get sitePresenceClockOut => $_getN(171);
+  @$pb.TagNumber(235)
+  set sitePresenceClockOut($18.ReqSitePresenceClockOut value) =>
+      $_setField(235, value);
+  @$pb.TagNumber(235)
+  $core.bool hasSitePresenceClockOut() => $_has(171);
+  @$pb.TagNumber(235)
+  void clearSitePresenceClockOut() => $_clearField(235);
+  @$pb.TagNumber(235)
+  $18.ReqSitePresenceClockOut ensureSitePresenceClockOut() => $_ensure(171);
+
+  @$pb.TagNumber(236)
+  $18.ReqSitePresenceRecordList get sitePresenceRecordList => $_getN(172);
+  @$pb.TagNumber(236)
+  set sitePresenceRecordList($18.ReqSitePresenceRecordList value) =>
+      $_setField(236, value);
+  @$pb.TagNumber(236)
+  $core.bool hasSitePresenceRecordList() => $_has(172);
+  @$pb.TagNumber(236)
+  void clearSitePresenceRecordList() => $_clearField(236);
+  @$pb.TagNumber(236)
+  $18.ReqSitePresenceRecordList ensureSitePresenceRecordList() => $_ensure(172);
+
+  @$pb.TagNumber(237)
+  $18.ReqSitePayrollCompensationList get sitePayrollCompensationList =>
+      $_getN(173);
+  @$pb.TagNumber(237)
+  set sitePayrollCompensationList($18.ReqSitePayrollCompensationList value) =>
+      $_setField(237, value);
+  @$pb.TagNumber(237)
+  $core.bool hasSitePayrollCompensationList() => $_has(173);
+  @$pb.TagNumber(237)
+  void clearSitePayrollCompensationList() => $_clearField(237);
+  @$pb.TagNumber(237)
+  $18.ReqSitePayrollCompensationList ensureSitePayrollCompensationList() =>
+      $_ensure(173);
+
+  @$pb.TagNumber(238)
+  $18.ReqSitePayrollCompensationPut get sitePayrollCompensationPut =>
+      $_getN(174);
+  @$pb.TagNumber(238)
+  set sitePayrollCompensationPut($18.ReqSitePayrollCompensationPut value) =>
+      $_setField(238, value);
+  @$pb.TagNumber(238)
+  $core.bool hasSitePayrollCompensationPut() => $_has(174);
+  @$pb.TagNumber(238)
+  void clearSitePayrollCompensationPut() => $_clearField(238);
+  @$pb.TagNumber(238)
+  $18.ReqSitePayrollCompensationPut ensureSitePayrollCompensationPut() =>
+      $_ensure(174);
 }
 
 enum WsRes_Body {
@@ -6748,6 +6999,17 @@ enum WsRes_Body {
   siteAssistantGet,
   siteAssistantEnsure,
   appReleaseNudge,
+  siteQueueBoard,
+  siteQueueCallNext,
+  siteQueueTicketSetStatus,
+  siteQueueReset,
+  siteQueueTicketList,
+  sitePresenceContext,
+  sitePresenceClockIn,
+  sitePresenceClockOut,
+  sitePresenceRecordList,
+  sitePayrollCompensationList,
+  sitePayrollCompensationPut,
   notSet
 }
 
@@ -6933,6 +7195,17 @@ class WsRes extends $pb.GeneratedMessage {
     $18.ResSiteAssistantGet? siteAssistantGet,
     $18.ResSiteAssistantEnsure? siteAssistantEnsure,
     AppReleaseNudge? appReleaseNudge,
+    $18.ResSiteQueueBoard? siteQueueBoard,
+    $18.ResSiteQueueCallNext? siteQueueCallNext,
+    $18.ResSiteQueueTicketSetStatus? siteQueueTicketSetStatus,
+    $18.ResSiteQueueReset? siteQueueReset,
+    $18.ResSiteQueueTicketList? siteQueueTicketList,
+    $18.ResSitePresenceContext? sitePresenceContext,
+    $18.ResSitePresenceClockIn? sitePresenceClockIn,
+    $18.ResSitePresenceClockOut? sitePresenceClockOut,
+    $18.ResSitePresenceRecordList? sitePresenceRecordList,
+    $18.ResSitePayrollCompensationList? sitePayrollCompensationList,
+    $18.ResSitePayrollCompensationPut? sitePayrollCompensationPut,
   }) {
     final result = WsRes._();
     if (reqId != null) result.reqId = reqId;
@@ -7146,6 +7419,25 @@ class WsRes extends $pb.GeneratedMessage {
     if (siteAssistantEnsure != null)
       result.siteAssistantEnsure = siteAssistantEnsure;
     if (appReleaseNudge != null) result.appReleaseNudge = appReleaseNudge;
+    if (siteQueueBoard != null) result.siteQueueBoard = siteQueueBoard;
+    if (siteQueueCallNext != null) result.siteQueueCallNext = siteQueueCallNext;
+    if (siteQueueTicketSetStatus != null)
+      result.siteQueueTicketSetStatus = siteQueueTicketSetStatus;
+    if (siteQueueReset != null) result.siteQueueReset = siteQueueReset;
+    if (siteQueueTicketList != null)
+      result.siteQueueTicketList = siteQueueTicketList;
+    if (sitePresenceContext != null)
+      result.sitePresenceContext = sitePresenceContext;
+    if (sitePresenceClockIn != null)
+      result.sitePresenceClockIn = sitePresenceClockIn;
+    if (sitePresenceClockOut != null)
+      result.sitePresenceClockOut = sitePresenceClockOut;
+    if (sitePresenceRecordList != null)
+      result.sitePresenceRecordList = sitePresenceRecordList;
+    if (sitePayrollCompensationList != null)
+      result.sitePayrollCompensationList = sitePayrollCompensationList;
+    if (sitePayrollCompensationPut != null)
+      result.sitePayrollCompensationPut = sitePayrollCompensationPut;
     return result;
   }
 
@@ -7337,6 +7629,17 @@ class WsRes extends $pb.GeneratedMessage {
     225: WsRes_Body.siteAssistantGet,
     226: WsRes_Body.siteAssistantEnsure,
     227: WsRes_Body.appReleaseNudge,
+    228: WsRes_Body.siteQueueBoard,
+    229: WsRes_Body.siteQueueCallNext,
+    230: WsRes_Body.siteQueueTicketSetStatus,
+    231: WsRes_Body.siteQueueReset,
+    232: WsRes_Body.siteQueueTicketList,
+    233: WsRes_Body.sitePresenceContext,
+    234: WsRes_Body.sitePresenceClockIn,
+    235: WsRes_Body.sitePresenceClockOut,
+    236: WsRes_Body.sitePresenceRecordList,
+    237: WsRes_Body.sitePayrollCompensationList,
+    238: WsRes_Body.sitePayrollCompensationPut,
     0: WsRes_Body.notSet
   };
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
@@ -7521,7 +7824,18 @@ class WsRes extends $pb.GeneratedMessage {
       224,
       225,
       226,
-      227
+      227,
+      228,
+      229,
+      230,
+      231,
+      232,
+      233,
+      234,
+      235,
+      236,
+      237,
+      238
     ])
     ..aOS(1, _omitFieldNames ? '' : 'reqId')
     ..aOM<$26.Err>(2, _omitFieldNames ? '' : 'err',
@@ -7935,6 +8249,37 @@ class WsRes extends $pb.GeneratedMessage {
         subBuilder: $18.ResSiteAssistantEnsure.$_createMessage)
     ..aOM<AppReleaseNudge>(227, _omitFieldNames ? '' : 'appReleaseNudge',
         subBuilder: AppReleaseNudge.$_createMessage)
+    ..aOM<$18.ResSiteQueueBoard>(228, _omitFieldNames ? '' : 'siteQueueBoard',
+        subBuilder: $18.ResSiteQueueBoard.$_createMessage)
+    ..aOM<$18.ResSiteQueueCallNext>(
+        229, _omitFieldNames ? '' : 'siteQueueCallNext',
+        subBuilder: $18.ResSiteQueueCallNext.$_createMessage)
+    ..aOM<$18.ResSiteQueueTicketSetStatus>(
+        230, _omitFieldNames ? '' : 'siteQueueTicketSetStatus',
+        subBuilder: $18.ResSiteQueueTicketSetStatus.$_createMessage)
+    ..aOM<$18.ResSiteQueueReset>(231, _omitFieldNames ? '' : 'siteQueueReset',
+        subBuilder: $18.ResSiteQueueReset.$_createMessage)
+    ..aOM<$18.ResSiteQueueTicketList>(
+        232, _omitFieldNames ? '' : 'siteQueueTicketList',
+        subBuilder: $18.ResSiteQueueTicketList.$_createMessage)
+    ..aOM<$18.ResSitePresenceContext>(
+        233, _omitFieldNames ? '' : 'sitePresenceContext',
+        subBuilder: $18.ResSitePresenceContext.$_createMessage)
+    ..aOM<$18.ResSitePresenceClockIn>(
+        234, _omitFieldNames ? '' : 'sitePresenceClockIn',
+        subBuilder: $18.ResSitePresenceClockIn.$_createMessage)
+    ..aOM<$18.ResSitePresenceClockOut>(
+        235, _omitFieldNames ? '' : 'sitePresenceClockOut',
+        subBuilder: $18.ResSitePresenceClockOut.$_createMessage)
+    ..aOM<$18.ResSitePresenceRecordList>(
+        236, _omitFieldNames ? '' : 'sitePresenceRecordList',
+        subBuilder: $18.ResSitePresenceRecordList.$_createMessage)
+    ..aOM<$18.ResSitePayrollCompensationList>(
+        237, _omitFieldNames ? '' : 'sitePayrollCompensationList',
+        subBuilder: $18.ResSitePayrollCompensationList.$_createMessage)
+    ..aOM<$18.ResSitePayrollCompensationPut>(
+        238, _omitFieldNames ? '' : 'sitePayrollCompensationPut',
+        subBuilder: $18.ResSitePayrollCompensationPut.$_createMessage)
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -8135,6 +8480,17 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(225)
   @$pb.TagNumber(226)
   @$pb.TagNumber(227)
+  @$pb.TagNumber(228)
+  @$pb.TagNumber(229)
+  @$pb.TagNumber(230)
+  @$pb.TagNumber(231)
+  @$pb.TagNumber(232)
+  @$pb.TagNumber(233)
+  @$pb.TagNumber(234)
+  @$pb.TagNumber(235)
+  @$pb.TagNumber(236)
+  @$pb.TagNumber(237)
+  @$pb.TagNumber(238)
   WsRes_Body whichBody() => _WsRes_BodyByTag[$_whichOneof(0)]!;
   @$pb.TagNumber(2)
   @$pb.TagNumber(10)
@@ -8314,6 +8670,17 @@ class WsRes extends $pb.GeneratedMessage {
   @$pb.TagNumber(225)
   @$pb.TagNumber(226)
   @$pb.TagNumber(227)
+  @$pb.TagNumber(228)
+  @$pb.TagNumber(229)
+  @$pb.TagNumber(230)
+  @$pb.TagNumber(231)
+  @$pb.TagNumber(232)
+  @$pb.TagNumber(233)
+  @$pb.TagNumber(234)
+  @$pb.TagNumber(235)
+  @$pb.TagNumber(236)
+  @$pb.TagNumber(237)
+  @$pb.TagNumber(238)
   void clearBody() => $_clearField($_whichOneof(0));
 
   @$pb.TagNumber(1)
@@ -10328,6 +10695,141 @@ class WsRes extends $pb.GeneratedMessage {
   void clearAppReleaseNudge() => $_clearField(227);
   @$pb.TagNumber(227)
   AppReleaseNudge ensureAppReleaseNudge() => $_ensure(178);
+
+  @$pb.TagNumber(228)
+  $18.ResSiteQueueBoard get siteQueueBoard => $_getN(179);
+  @$pb.TagNumber(228)
+  set siteQueueBoard($18.ResSiteQueueBoard value) => $_setField(228, value);
+  @$pb.TagNumber(228)
+  $core.bool hasSiteQueueBoard() => $_has(179);
+  @$pb.TagNumber(228)
+  void clearSiteQueueBoard() => $_clearField(228);
+  @$pb.TagNumber(228)
+  $18.ResSiteQueueBoard ensureSiteQueueBoard() => $_ensure(179);
+
+  @$pb.TagNumber(229)
+  $18.ResSiteQueueCallNext get siteQueueCallNext => $_getN(180);
+  @$pb.TagNumber(229)
+  set siteQueueCallNext($18.ResSiteQueueCallNext value) =>
+      $_setField(229, value);
+  @$pb.TagNumber(229)
+  $core.bool hasSiteQueueCallNext() => $_has(180);
+  @$pb.TagNumber(229)
+  void clearSiteQueueCallNext() => $_clearField(229);
+  @$pb.TagNumber(229)
+  $18.ResSiteQueueCallNext ensureSiteQueueCallNext() => $_ensure(180);
+
+  @$pb.TagNumber(230)
+  $18.ResSiteQueueTicketSetStatus get siteQueueTicketSetStatus => $_getN(181);
+  @$pb.TagNumber(230)
+  set siteQueueTicketSetStatus($18.ResSiteQueueTicketSetStatus value) =>
+      $_setField(230, value);
+  @$pb.TagNumber(230)
+  $core.bool hasSiteQueueTicketSetStatus() => $_has(181);
+  @$pb.TagNumber(230)
+  void clearSiteQueueTicketSetStatus() => $_clearField(230);
+  @$pb.TagNumber(230)
+  $18.ResSiteQueueTicketSetStatus ensureSiteQueueTicketSetStatus() =>
+      $_ensure(181);
+
+  @$pb.TagNumber(231)
+  $18.ResSiteQueueReset get siteQueueReset => $_getN(182);
+  @$pb.TagNumber(231)
+  set siteQueueReset($18.ResSiteQueueReset value) => $_setField(231, value);
+  @$pb.TagNumber(231)
+  $core.bool hasSiteQueueReset() => $_has(182);
+  @$pb.TagNumber(231)
+  void clearSiteQueueReset() => $_clearField(231);
+  @$pb.TagNumber(231)
+  $18.ResSiteQueueReset ensureSiteQueueReset() => $_ensure(182);
+
+  @$pb.TagNumber(232)
+  $18.ResSiteQueueTicketList get siteQueueTicketList => $_getN(183);
+  @$pb.TagNumber(232)
+  set siteQueueTicketList($18.ResSiteQueueTicketList value) =>
+      $_setField(232, value);
+  @$pb.TagNumber(232)
+  $core.bool hasSiteQueueTicketList() => $_has(183);
+  @$pb.TagNumber(232)
+  void clearSiteQueueTicketList() => $_clearField(232);
+  @$pb.TagNumber(232)
+  $18.ResSiteQueueTicketList ensureSiteQueueTicketList() => $_ensure(183);
+
+  @$pb.TagNumber(233)
+  $18.ResSitePresenceContext get sitePresenceContext => $_getN(184);
+  @$pb.TagNumber(233)
+  set sitePresenceContext($18.ResSitePresenceContext value) =>
+      $_setField(233, value);
+  @$pb.TagNumber(233)
+  $core.bool hasSitePresenceContext() => $_has(184);
+  @$pb.TagNumber(233)
+  void clearSitePresenceContext() => $_clearField(233);
+  @$pb.TagNumber(233)
+  $18.ResSitePresenceContext ensureSitePresenceContext() => $_ensure(184);
+
+  @$pb.TagNumber(234)
+  $18.ResSitePresenceClockIn get sitePresenceClockIn => $_getN(185);
+  @$pb.TagNumber(234)
+  set sitePresenceClockIn($18.ResSitePresenceClockIn value) =>
+      $_setField(234, value);
+  @$pb.TagNumber(234)
+  $core.bool hasSitePresenceClockIn() => $_has(185);
+  @$pb.TagNumber(234)
+  void clearSitePresenceClockIn() => $_clearField(234);
+  @$pb.TagNumber(234)
+  $18.ResSitePresenceClockIn ensureSitePresenceClockIn() => $_ensure(185);
+
+  @$pb.TagNumber(235)
+  $18.ResSitePresenceClockOut get sitePresenceClockOut => $_getN(186);
+  @$pb.TagNumber(235)
+  set sitePresenceClockOut($18.ResSitePresenceClockOut value) =>
+      $_setField(235, value);
+  @$pb.TagNumber(235)
+  $core.bool hasSitePresenceClockOut() => $_has(186);
+  @$pb.TagNumber(235)
+  void clearSitePresenceClockOut() => $_clearField(235);
+  @$pb.TagNumber(235)
+  $18.ResSitePresenceClockOut ensureSitePresenceClockOut() => $_ensure(186);
+
+  @$pb.TagNumber(236)
+  $18.ResSitePresenceRecordList get sitePresenceRecordList => $_getN(187);
+  @$pb.TagNumber(236)
+  set sitePresenceRecordList($18.ResSitePresenceRecordList value) =>
+      $_setField(236, value);
+  @$pb.TagNumber(236)
+  $core.bool hasSitePresenceRecordList() => $_has(187);
+  @$pb.TagNumber(236)
+  void clearSitePresenceRecordList() => $_clearField(236);
+  @$pb.TagNumber(236)
+  $18.ResSitePresenceRecordList ensureSitePresenceRecordList() => $_ensure(187);
+
+  @$pb.TagNumber(237)
+  $18.ResSitePayrollCompensationList get sitePayrollCompensationList =>
+      $_getN(188);
+  @$pb.TagNumber(237)
+  set sitePayrollCompensationList($18.ResSitePayrollCompensationList value) =>
+      $_setField(237, value);
+  @$pb.TagNumber(237)
+  $core.bool hasSitePayrollCompensationList() => $_has(188);
+  @$pb.TagNumber(237)
+  void clearSitePayrollCompensationList() => $_clearField(237);
+  @$pb.TagNumber(237)
+  $18.ResSitePayrollCompensationList ensureSitePayrollCompensationList() =>
+      $_ensure(188);
+
+  @$pb.TagNumber(238)
+  $18.ResSitePayrollCompensationPut get sitePayrollCompensationPut =>
+      $_getN(189);
+  @$pb.TagNumber(238)
+  set sitePayrollCompensationPut($18.ResSitePayrollCompensationPut value) =>
+      $_setField(238, value);
+  @$pb.TagNumber(238)
+  $core.bool hasSitePayrollCompensationPut() => $_has(189);
+  @$pb.TagNumber(238)
+  void clearSitePayrollCompensationPut() => $_clearField(238);
+  @$pb.TagNumber(238)
+  $18.ResSitePayrollCompensationPut ensureSitePayrollCompensationPut() =>
+      $_ensure(189);
 }
 
 /// Instant OTA nudge for connected app WebSockets (Windows desktop).

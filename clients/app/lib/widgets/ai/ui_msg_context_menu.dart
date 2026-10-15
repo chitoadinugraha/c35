@@ -158,6 +158,79 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   return items;
 }
 
+/// Desktop / pointer-anchored menu (no [SelectionArea]).
+Widget msgBubbleContextMenuAt(
+  BuildContext context,
+  Offset primaryAnchor, {
+  Offset? secondaryAnchor,
+  required List<ChatMessageMenuItem> items,
+}) {
+  return ChatMessageContextMenu(
+    anchors: TextSelectionToolbarAnchors(
+      primaryAnchor: primaryAnchor,
+      secondaryAnchor: secondaryAnchor ?? primaryAnchor,
+    ),
+    items: items,
+  );
+}
+
+/// One-shot overlay menu; dismisses on outside tap or when [onDismiss] runs.
+OverlayEntry showMsgBubbleContextMenuOverlay({
+  required BuildContext context,
+  required Offset anchor,
+  required List<ChatMessageMenuItem> items,
+  VoidCallback? onDismiss,
+}) {
+  final overlay = Overlay.of(context, rootOverlay: true);
+  late OverlayEntry entry;
+  var open = true;
+  void dismiss() {
+    if (!open) return;
+    open = false;
+    entry.remove();
+    onDismiss?.call();
+  }
+
+  entry = OverlayEntry(
+    builder: (ctx) => Stack(
+      fit: StackFit.expand,
+      children: [
+        Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (_) => dismiss(),
+          child: const SizedBox.expand(),
+        ),
+        msgBubbleContextMenuAt(ctx, anchor, items: items),
+      ],
+    ),
+  );
+  overlay.insert(entry);
+  return entry;
+}
+
+List<ChatMessageMenuItem> msgBubbleMenuItemsWithDismiss(
+  List<ChatMessageMenuItem> items,
+  VoidCallback dismiss,
+) {
+  ChatMessageMenuAction wrapAction(ChatMessageMenuAction a) => ChatMessageMenuAction(
+        label: a.label,
+        icon: a.icon,
+        shortcut: a.shortcut,
+        onPressed: () {
+          dismiss();
+          a.onPressed();
+        },
+      );
+  return [
+    for (final item in items)
+      switch (item) {
+        ChatMessageMenuAction a => wrapAction(a),
+        ChatMessageMenuDivider d => d,
+        ChatMessageMenuButtonRow r => ChatMessageMenuButtonRow(actions: [for (final a in r.actions) wrapAction(a)]),
+      },
+  ];
+}
+
 Widget msgBubbleContextMenu(
   BuildContext context,
   SelectableRegionState selectableRegionState, {
@@ -192,5 +265,10 @@ Widget msgBubbleContextMenu(
     onBadAnswer: onBadAnswer,
   );
 
-  return ChatMessageContextMenu(anchors: selectableRegionState.contextMenuAnchors, items: items);
+  return msgBubbleContextMenuAt(
+    context,
+    selectableRegionState.contextMenuAnchors.primaryAnchor,
+    secondaryAnchor: selectableRegionState.contextMenuAnchors.secondaryAnchor,
+    items: items,
+  );
 }

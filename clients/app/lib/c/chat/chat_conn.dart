@@ -124,6 +124,7 @@ class ChatConn {
   final _reconnectedCtrl = StreamController<void>.broadcast();
   final _socketAttachedCtrl = StreamController<void>.broadcast();
   final _promptPending = <String, StreamController<PromptStreamEvent>>{};
+  final _abortedPromptReqIds = <String>{};
   final _rpcPending = <String, Completer<WsRes>>{};
   final _syncPushCtrl = StreamController<SyncPush>.broadcast();
   final _billingBalanceCtrl = StreamController<BillingPushBalance>.broadcast();
@@ -560,6 +561,14 @@ class ChatConn {
         _rpcComplete(reqId, res);
         return;
       }
+    }
+
+    if (reqId.isNotEmpty && _abortedPromptReqIds.contains(reqId)) {
+      if (res.hasPromptEnd() || res.hasPromptFail()) {
+        _abortedPromptReqIds.remove(reqId);
+        _promptPending.remove(reqId);
+      }
+      return;
     }
 
     final ctrl = _promptPending[reqId];
@@ -1128,8 +1137,8 @@ class ChatConn {
         (res) => res.skillRunReport,
       );
 
-  Future<ResSiteList> siteList({bool archived = false}) => _rpc<ResSiteList>(
-        WsReq(siteList: ReqSiteList(archived: archived)),
+  Future<ResSiteList> siteList({bool archived = false, String query = '', int limit = 0}) => _rpc<ResSiteList>(
+        WsReq(siteList: ReqSiteList(archived: archived, query: query, limit: limit)),
         (res) => res.siteList,
       );
 
@@ -1356,6 +1365,55 @@ class ChatConn {
         (res) => res.sitePresenceLocationPut,
       );
 
+  Future<ResSitePresenceContext> sitePresenceContext(int siteIid) => _rpc<ResSitePresenceContext>(
+        WsReq(sitePresenceContext: ReqSitePresenceContext(siteIid: Int64(siteIid))),
+        (res) => res.sitePresenceContext,
+      );
+
+  Future<ResSitePresenceClockIn> sitePresenceClockIn(int siteIid, {String shiftId = ''}) =>
+      _rpc<ResSitePresenceClockIn>(
+        WsReq(
+          sitePresenceClockIn: ReqSitePresenceClockIn(siteIid: Int64(siteIid), shiftId: shiftId),
+        ),
+        (res) => res.sitePresenceClockIn,
+      );
+
+  Future<ResSitePresenceClockOut> sitePresenceClockOut(int siteIid) => _rpc<ResSitePresenceClockOut>(
+        WsReq(sitePresenceClockOut: ReqSitePresenceClockOut(siteIid: Int64(siteIid))),
+        (res) => res.sitePresenceClockOut,
+      );
+
+  Future<ResSitePresenceRecordList> sitePresenceRecordList(
+    int siteIid, {
+    int granteeIid = 0,
+    int limit = 50,
+  }) =>
+      _rpc<ResSitePresenceRecordList>(
+        WsReq(
+          sitePresenceRecordList: ReqSitePresenceRecordList(
+            siteIid: Int64(siteIid),
+            granteeIid: Int64(granteeIid),
+            limit: limit,
+          ),
+        ),
+        (res) => res.sitePresenceRecordList,
+      );
+
+  Future<ResSitePayrollCompensationList> sitePayrollCompensationList(int siteIid) =>
+      _rpc<ResSitePayrollCompensationList>(
+        WsReq(sitePayrollCompensationList: ReqSitePayrollCompensationList(siteIid: Int64(siteIid))),
+        (res) => res.sitePayrollCompensationList,
+      );
+
+  Future<ResSitePayrollCompensationPut> sitePayrollCompensationPut(
+    int siteIid,
+    SitePayrollCompensation item,
+  ) =>
+      _rpc<ResSitePayrollCompensationPut>(
+        WsReq(sitePayrollCompensationPut: ReqSitePayrollCompensationPut(siteIid: Int64(siteIid), item: item)),
+        (res) => res.sitePayrollCompensationPut,
+      );
+
   Future<ResSiteQueueList> siteQueueList(int siteIid) => _rpc<ResSiteQueueList>(
         WsReq(siteQueueList: ReqSiteQueueList(siteIid: Int64(siteIid))),
         (res) => res.siteQueueList,
@@ -1369,6 +1427,36 @@ class ChatConn {
   Future<ResSiteQueueAdvance> siteQueueAdvance(int siteIid, {int queueId = 1}) => _rpc<ResSiteQueueAdvance>(
         WsReq(siteQueueAdvance: ReqSiteQueueAdvance(siteIid: Int64(siteIid), queueId: Int64(queueId))),
         (res) => res.siteQueueAdvance,
+      );
+
+  Future<ResSiteQueueBoard> siteQueueBoard(int siteIid, {required int queueId}) =>
+      _rpc<ResSiteQueueBoard>(
+        WsReq(siteQueueBoard: ReqSiteQueueBoard(siteIid: Int64(siteIid), queueId: Int64(queueId))),
+        (res) => res.siteQueueBoard,
+      );
+
+  Future<ResSiteQueueCallNext> siteQueueCallNext(int siteIid, {required int queueId}) =>
+      _rpc<ResSiteQueueCallNext>(
+        WsReq(siteQueueCallNext: ReqSiteQueueCallNext(siteIid: Int64(siteIid), queueId: Int64(queueId))),
+        (res) => res.siteQueueCallNext,
+      );
+
+  Future<ResSiteQueueTicketSetStatus> siteQueueTicketSetStatus(
+    int siteIid, {
+    required int queueId,
+    required int ticketId,
+    required String status,
+  }) =>
+      _rpc<ResSiteQueueTicketSetStatus>(
+        WsReq(
+          siteQueueTicketSetStatus: ReqSiteQueueTicketSetStatus(
+            siteIid: Int64(siteIid),
+            queueId: Int64(queueId),
+            ticketId: Int64(ticketId),
+            status: status,
+          ),
+        ),
+        (res) => res.siteQueueTicketSetStatus,
       );
 
   Future<ResSiteDomainList> siteDomainList(int siteIid) => _rpc<ResSiteDomainList>(
@@ -1625,9 +1713,32 @@ class ChatConn {
     );
   }
 
+  /// End the local prompt stream immediately; server abort may still be in flight.
+  void promptStreamAbortLocal({String? reqId, String message = 'Cancelled'}) {
+    final id = (reqId ?? lastPromptReqId ?? '').trim();
+    if (id.isEmpty) return;
+    _abortedPromptReqIds.add(id);
+    final ctrl = _promptPending[id];
+    if (ctrl != null && !ctrl.isClosed) {
+      ctrl.add(PromptStreamEvent.fail(message));
+      unawaited(ctrl.close());
+    }
+    _promptPending.remove(id);
+  }
+
+  bool promptStreamWasAborted(String reqId) => _abortedPromptReqIds.contains(reqId.trim());
+
+  void promptStreamAbortAck(String reqId) {
+    final id = reqId.trim();
+    if (id.isEmpty) return;
+    _abortedPromptReqIds.remove(id);
+  }
+
   Future<void> promptAbort({Int64 chatId = Int64.ZERO, String reqId = ''}) async {
+    final rid = reqId.trim();
+    if (rid.isNotEmpty) promptStreamAbortLocal(reqId: rid);
     final req = ReqPromptAbort(chatId: chatId);
-    if (reqId.isNotEmpty) req.reqId = reqId;
+    if (rid.isNotEmpty) req.reqId = rid;
     await _rpc<ResChatStop>(
       WsReq(promptAbort: req),
       (res) => res.hasChatStop() ? res.chatStop : ResChatStop(),

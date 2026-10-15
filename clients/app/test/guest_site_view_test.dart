@@ -1,9 +1,20 @@
+import 'dart:convert';
+
+import 'package:alienai_c35/c/site/guest_assistant_api.dart';
+import 'package:alienai_c35/guest_site/guest_site_assistant.dart';
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
+import 'package:alienai_c35/guest_site/guest_site_queue_sheet.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_layout.dart';
+import 'package:alienai_c35/guest_site/guest_site_member.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
 import 'package:alienai_c35/guest_site/guest_site_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+
 
 void main() {
   test('GuestSiteBoot.fromSiteDoc builds boot from preview doc', () {
@@ -57,6 +68,143 @@ void main() {
     expect(boot.homeBlocks.length, 1);
     expect(boot.homeBlocks.first['type'], 'hero');
     expect(boot.accentColor, const Color(0xFF2563EB));
+  });
+
+  test('guestLayoutMode uses store layout from meta', () {
+    expect(guestLayoutMode({'guest_layout': 'store'}, productCount: 1), 'store');
+    expect(guestLayoutMode({}, productCount: 9), 'store');
+    expect(guestLayoutMode({}, productCount: 3), 'hub');
+  });
+
+  test('guestSiteMemberPortalEnabled follows capabilities', () {
+    expect(guestSiteMemberPortalEnabled({'member_portal': false}), isFalse);
+    expect(guestSiteMemberPortalEnabled({'member_portal': true}), isTrue);
+    expect(guestSiteMemberPortalEnabled({'commerce': true}), isTrue);
+  });
+
+  testWidgets('GuestSiteView skips hero when hub_profile is on the page', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteView.bootJson(
+            bootJson: {
+              'site_iid': 1,
+              'name': 'Hub',
+              'alien_id': 'hub',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {},
+              'meta': {},
+              'pages': [
+                {
+                  'blocks': [
+                    {
+                      'id': 'p1',
+                      'type': 'hub_profile',
+                      'props': {'title': 'Profile Title', 'subtitle': 'Bio'},
+                    },
+                    {
+                      'id': 'h1',
+                      'type': 'hero',
+                      'props': {'title': 'Duplicate Hero'},
+                    },
+                  ],
+                },
+              ],
+              'capabilities': {},
+              'product_preload': {},
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Profile Title'), findsOneWidget);
+    expect(find.text('Duplicate Hero'), findsNothing);
+  });
+
+  testWidgets('GuestSiteView shows shop and posts hub tabs when grid and feed coexist', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteView.bootJson(
+            bootJson: {
+              'site_id': 1,
+              'name': 'Hub',
+              'alien_id': 'hub',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {},
+              'meta': {'lang': 'id'},
+              'pages': [
+                {
+                  'blocks': [
+                    {'id': 'g1', 'type': 'product_grid', 'props': {'title': 'Menu'}},
+                    {'id': 'f1', 'type': 'social_feed', 'props': {'title': 'Kabar'}},
+                  ],
+                },
+              ],
+              'capabilities': {},
+              'product_preload': {
+                'g1': [
+                  {'product_id': 1, 'name': 'Kopi', 'price': 1000},
+                ],
+              },
+              'posts_preload': [
+                {'post_id': 1, 'title': 'Promo'},
+              ],
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Menu'), findsOneWidget);
+    expect(find.text('Toko'), findsOneWidget);
+    expect(find.text('Posting'), findsOneWidget);
+    expect(find.text('Promo'), findsNothing);
+    await tester.tap(find.text('Posting'));
+    await tester.pump();
+    expect(find.text('Promo'), findsOneWidget);
+    expect(find.text('Kopi'), findsNothing);
+  });
+
+  testWidgets('GuestSiteView product grid shows category chips', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteView.bootJson(
+            bootJson: {
+              'site_id': 1,
+              'name': 'Shop',
+              'alien_id': 'shop',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {},
+              'meta': {'lang': 'id'},
+              'pages': [
+                {
+                  'blocks': [
+                    {'id': 'g1', 'type': 'product_grid', 'props': {'title': 'Menu'}},
+                  ],
+                },
+              ],
+              'capabilities': {},
+              'product_preload': {
+                'g1': [
+                  {'product_id': 1, 'name': 'Kopi', 'price': 1000, 'category': 'Drinks'},
+                  {'product_id': 2, 'name': 'Roti', 'price': 2000, 'category': 'Food'},
+                ],
+              },
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Semua'), findsOneWidget);
+    expect(find.text('Drinks'), findsOneWidget);
+    expect(find.text('Food'), findsOneWidget);
   });
 
   testWidgets('GuestSiteView.bootJson renders hero title', (tester) async {
@@ -220,6 +368,41 @@ void main() {
     expect(guestSiteMapLabel({'address': 'Jl. Sudirman', 'lat': 1, 'lng': 2}), 'Jl. Sudirman');
   });
 
+  test('guestQueueResolveFields prefers props then boot queues', () {
+    final fromProps = guestQueueResolveFields(
+      props: {
+        'queue_id': 3,
+        'fields': [
+          {'name': 'guest', 'label': 'Nama Tamu', 'type': 'text'},
+        ],
+      },
+      bootQueues: const [
+        {
+          'queue_id': 3,
+          'fields': [
+            {'name': 'boot', 'label': 'Boot', 'type': 'text'},
+          ],
+        },
+      ],
+      queueId: 3,
+    );
+    expect(fromProps.single['name'], 'guest');
+
+    final fromBoot = guestQueueResolveFields(
+      props: {'queue_id': 5},
+      bootQueues: const [
+        {
+          'queue_id': 5,
+          'fields': [
+            {'name': 'meja', 'label': 'No. Meja', 'type': 'text'},
+          ],
+        },
+      ],
+      queueId: 5,
+    );
+    expect(fromBoot.single['name'], 'meja');
+  });
+
   test('guest stock count follows stock_show_to_customer', () {
     expect(guestProductVisibleStock({'stock_show_to_customer': true, 'stock': 4}), 4);
     expect(guestProductVisibleStock({'stock_show_to_customer': true, 'stock_qty': 7}), 7);
@@ -253,7 +436,13 @@ void main() {
                     {
                       'id': 'q1',
                       'type': 'queue',
-                      'props': {'title': 'Antrian', 'queue_id': 3},
+                      'props': {
+                        'title': 'Antrian',
+                        'queue_id': 3,
+                        'fields': [
+                          {'name': 'name', 'label': 'Nama Lengkap', 'type': 'text', 'required': true},
+                        ],
+                      },
                     },
                     {
                       'id': 'e1',
@@ -282,15 +471,19 @@ void main() {
     );
 
     expect(find.text('Jl. Sudirman'), findsOneWidget);
+    expect(find.byKey(const Key('guest-queue-block')), findsOneWidget);
     expect(find.text('Ambil nomor'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('guest-queue-open')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-queue-field-name')), findsOneWidget);
     expect(find.text('https://example.com/menu'), findsOneWidget);
     expect(find.text('Custom HTML is on the published page only.'), findsOneWidget);
     expect(find.textContaining('alert'), findsNothing);
     expect(find.textContaining('secret'), findsNothing);
     expect(find.byKey(const Key('guest-form')), findsOneWidget);
-    expect(find.text('Nama Lengkap'), findsOneWidget);
-    expect(find.text('WhatsApp / No. HP'), findsOneWidget);
-    expect(find.text('Pesan / Permintaan'), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const Key('guest-form')), matching: find.text('Nama Lengkap')), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const Key('guest-form')), matching: find.text('WhatsApp / No. HP')), findsOneWidget);
+    expect(find.descendant(of: find.byKey(const Key('guest-form')), matching: find.text('Pesan / Permintaan')), findsOneWidget);
   });
 
   testWidgets('contact form shows site error when site id missing', (tester) async {
@@ -505,4 +698,137 @@ void main() {
     expect(find.byKey(const Key('guest-post-detail')), findsOneWidget);
     expect(find.text('Full text'), findsOneWidget);
   });
+
+  testWidgets('Guest assistant call FAB renders when call_enabled is true', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteAssistantLayer(
+            boot: GuestSiteBoot.fromJson({
+              'site_iid': 123,
+              'name': 'Cafe',
+              'alien_id': 'cafe',
+              'mode': 'draft',
+              'meta': {
+                'ai_assistant': {
+                  'chat_enabled': false,
+                  'call_enabled': true,
+                  'call_intro': 'Talk with our barista',
+                },
+              },
+              'pages': [],
+            }),
+            child: const SizedBox.expand(child: Text('Storefront')),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-assistant-call')), findsOneWidget);
+  });
+
+  testWidgets('Guest assistant call start invokes setup and shows error UI on failure', (tester) async {
+    var setupCalled = false;
+    String? requestBody;
+    final mockClient = _MockHttpClient((request) async {
+      if (request.url.path.contains('/live/setup')) {
+        setupCalled = true;
+        if (request is http.Request) {
+          requestBody = request.body;
+        }
+        return http.Response(
+          jsonEncode({'ok': false, 'error': 'Site owner voice quota exhausted'}),
+          403,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      return http.Response('not found', 404);
+    });
+
+    SharedPreferences.setMockInitialValues({});
+
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteAssistantLayer(
+            httpClient: mockClient,
+            boot: GuestSiteBoot.fromJson({
+              'site_iid': 456,
+              'name': 'Cafe',
+              'alien_id': 'cafe',
+              'mode': 'draft',
+              'meta': {
+                'ai_assistant': {
+                  'chat_enabled': false,
+                  'call_enabled': true,
+                  'call_intro': 'Talk with our barista',
+                },
+              },
+              'pages': [],
+            }),
+            child: const SizedBox.expand(child: Text('Storefront')),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final fab = find.byKey(const Key('guest-assistant-call'));
+    expect(fab, findsOneWidget);
+    await tester.tap(fab);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+
+    expect(setupCalled, isTrue);
+    expect(requestBody?.contains('"site_iid":456') ?? false, isTrue);
+    expect(requestBody?.contains('"boot_mode":"draft"') ?? false, isTrue);
+    expect(find.byKey(const Key('guest-live-call-error')), findsOneWidget);
+    expect(find.text('Site owner voice quota exhausted'), findsOneWidget);
+
+    // Tap dismiss
+    await tester.tap(find.byKey(const Key('guest-live-call-dismiss')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('guest-live-call-error')), findsNothing);
+  });
+
+  test('GuestAssistantApi.liveSetup parses response successfully', () async {
+    final mockClient = _MockHttpClient((request) async {
+      return http.Response(
+        jsonEncode({
+          'ok': true,
+          'req_id': 'req_777',
+          'live_session_id': 'sess_888',
+          'ws_path': '/v1/live/ws?ticket=tk_999',
+          'max_duration_sec': 900,
+        }),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final res = await GuestAssistantApi.liveSetup(
+      siteIid: 123,
+      visitorId: 'v_abc',
+      bootMode: 'published',
+      client: mockClient,
+    );
+    expect(res.ok, isTrue);
+    expect(res.liveSessionId, 'sess_888');
+    expect(res.wsPath, '/v1/live/ws?ticket=tk_999');
+    expect(res.maxDurationSec, 900);
+  });
 }
+
+class _MockHttpClient extends http.BaseClient {
+  _MockHttpClient(this._handler);
+  final Future<http.Response> Function(http.BaseRequest) _handler;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final resp = await _handler(request);
+    return http.StreamedResponse(Stream.value(resp.bodyBytes), resp.statusCode, headers: resp.headers);
+  }
+}
+

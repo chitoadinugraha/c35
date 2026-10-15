@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:alienai_c35/c/chat/chat_interaction_gate.dart';
 import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/c/files/msg_attachment.dart';
@@ -13,6 +14,7 @@ import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:alienai_c35/widgets/ai/composer_attachment_history.dart';
+import 'package:alienai_c35/widgets/ai/composer_draft_host.dart';
 import 'package:alienai_c35/widgets/ai/composer_stage_host.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/composer_action.dart';
@@ -29,6 +31,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:pasteboard/pasteboard.dart';
 
@@ -119,6 +122,8 @@ class InComposer extends StatefulWidget {
     this.onTestMultitask,
     this.compact = false,
     this.stageHost,
+    this.draftHost,
+    this.onDraftChanged,
   });
 
   /// Bot / simple chat: attach + mic only — no @ mentions, model chip, slash menu, or follow-ups.
@@ -150,6 +155,8 @@ class InComposer extends StatefulWidget {
   final bool viewerIsRoot;
   final VoidCallback? onTestMultitask;
   final ComposerStageHost? stageHost;
+  final ComposerDraftHost? draftHost;
+  final VoidCallback? onDraftChanged;
 
   @override
   State<InComposer> createState() => _InComposerState();
@@ -184,6 +191,8 @@ class _InComposerState extends State<InComposer> {
   var _draftText = '';
   var _highlightedSlashIndex = 0;
   var _wasStacked = false;
+  var _mentionPickerWasActive = false;
+  var _slashQueryWasActive = false;
   double _inputAreaWidth = 0;
   ComposerMentionSpanBuilder? _composerSpanBuilder;
   List<CatalogMention> _composerSpanBuilderMentions = const [];
@@ -386,9 +395,13 @@ class _InComposerState extends State<InComposer> {
     final textAfter = _controller.text.substring(sel.baseOffset);
     final atIndex = textBefore.lastIndexOf('@');
     if (atIndex < 0) return;
-    final newText = textBefore.substring(0, atIndex) + textAfter;
+    var cut = atIndex;
+    if (cut > 0 && textBefore[cut - 1] == '[') {
+      cut -= 1;
+    }
+    final newText = textBefore.substring(0, cut) + textAfter;
     _controller.text = newText;
-    _controller.selection = TextSelection.collapsed(offset: atIndex);
+    _controller.selection = TextSelection.collapsed(offset: cut);
   }
 
   void _dismissMentionPicker() {
@@ -581,27 +594,42 @@ class _InComposerState extends State<InComposer> {
     _clearActiveMentionQuery();
     final offset = _controller.selection.isValid ? _controller.selection.baseOffset : _controller.text.length;
     final text = _controller.text;
-    final before = text.substring(0, offset.clamp(0, text.length));
+    final before = composerMentionStripTrailingOpenBracketShell(text.substring(0, offset.clamp(0, text.length)));
     final after = text.substring(offset.clamp(0, text.length));
     final token = composerMentionToken(m.id);
     final needsSpace = before.isNotEmpty && !before.endsWith(' ') && !before.endsWith('\n');
     final insert = '${needsSpace ? ' ' : ''}$token ';
-    final newText = before + insert + after;
-    final cursor = before.length + insert.length;
+    final newText = composerMentionStripBracketShellAroundTokens(before + insert + after);
+    final cursor = newText.length - after.length;
     _controller.value = TextEditingValue(text: newText, selection: TextSelection.collapsed(offset: cursor));
+    if (composerMentionStickyId(m.id) &&
+        widget.onMentionToggle != null &&
+        !widget.selectedMentionIds.contains(m.id)) {
+      widget.onMentionToggle!(m.id);
+    }
     setState(() {});
     _requestComposerFocus(cursor);
   }
 
   void _onFocusChange() {
     if (!mounted) return;
+    if (_focus.hasFocus) ChatInteractionGate.markComposerActive();
     setState(() => _focused = _focus.hasFocus);
-    if (_focus.hasFocus) unawaited(SttService.instance.prewarm());
+    if (_focus.hasFocus) {
+      SchedulerBinding.instance.scheduleTask(() => unawaited(SttService.instance.prewarm()), Priority.idle);
+    }
   }
 
   void _attachmentHistoryRecord() => _attachmentHistory.record();
 
   void _attachmentHistoryClear() => _attachmentHistory.clear();
+
+  void _notifyDraftChanged() => widget.onDraftChanged?.call();
+
+  void _restoreDraftAttachments(List<StagedMedia> items) {
+    _attachmentHistory.clear();
+    if (items.isNotEmpty) _attachments.addAll(items);
+  }
 
   bool _attachmentHistoryUndo() => _attachmentHistory.undo();
 
@@ -610,6 +638,31 @@ class _InComposerState extends State<InComposer> {
   void _composerMarkAttachmentEdit() => _composerLastEditAttachments = true;
 
   void _composerMarkTextEdit() => _composerLastEditAttachments = false;
+
+  void _onComposerTextChanged() {
+    ChatInteractionGate.markComposerActive();
+    _composerMarkTextEdit();
+    final hadFocus = _focus.hasFocus;
+    final sel = _controller.selection;
+    final mentionActive = _mentionPickerActive;
+    final slashActive = _activeSlashQuery != null;
+    final needsUiRebuild = mentionActive || slashActive || _mentionPickerWasActive || _slashQueryWasActive;
+    _mentionPickerWasActive = mentionActive;
+    _slashQueryWasActive = slashActive;
+    if (needsUiRebuild) {
+      if (mentionActive) _mentionMenuHighlight.value = 0;
+      setState(() {});
+      _syncMentionMenuOverlay();
+      if (mentionActive) _measureComposerShell();
+    }
+    _syncComposerStackedLayout(_shouldUseStackedLayout(context, _inputAreaWidth));
+    if (hadFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _focus.hasFocus) return;
+        _restoreComposerFocus(sel);
+      });
+    }
+  }
 
   bool _composerLineNavigationShortcut(KeyDownEvent event) {
     if (!composerTextLineNavigationKey(event)) return false;
@@ -654,6 +707,17 @@ class _InComposerState extends State<InComposer> {
   void initState() {
     super.initState();
     widget.stageHost?.attach(_stageItems);
+    widget.draftHost?.attach(
+      readAttachments: () => ComposerAttachmentHistory.snapshot(_attachments),
+      restoreAttachments: (items) {
+        _restoreDraftAttachments(items);
+        if (mounted) setState(() {});
+      },
+      clearAttachments: () {
+        _attachmentHistoryClear();
+        if (mounted) setState(() {});
+      },
+    );
     _focus.addListener(_onFocusChange);
     _focus.onKeyEvent = _onKeyEvent;
   }
@@ -661,6 +725,7 @@ class _InComposerState extends State<InComposer> {
   @override
   void dispose() {
     widget.stageHost?.detach();
+    widget.draftHost?.detach();
     _mentionListScrollController.dispose();
     _mentionMenuHighlight.dispose();
     _removeMentionMenuOverlay();
@@ -814,6 +879,7 @@ class _InComposerState extends State<InComposer> {
     for (final item in items) {
       unawaited(_uploadItem(item));
     }
+    _notifyDraftChanged();
   }
 
   void _replaceItem(int i, StagedMedia next) {
@@ -822,6 +888,7 @@ class _InComposerState extends State<InComposer> {
     _composerMarkAttachmentEdit();
     setState(() => _attachments[i] = next);
     unawaited(_uploadItem(next));
+    _notifyDraftChanged();
   }
 
   Future<void> _uploadItem(StagedMedia item) async {
@@ -834,7 +901,10 @@ class _InComposerState extends State<InComposer> {
       });
       if (!mounted || res == null) return;
       final i = _attachments.indexWhere((m) => m.id == item.id);
-      if (i >= 0) setState(() => _attachments[i] = _attachments[i].copyWith(hash: res.hash, uploadProgress: 1.0));
+      if (i >= 0) {
+        setState(() => _attachments[i] = _attachments[i].copyWith(hash: res.hash, uploadProgress: 1.0));
+        _notifyDraftChanged();
+      }
     } catch (_) {
       if (!mounted) return;
       final i = _attachments.indexWhere((m) => m.id == item.id);
@@ -888,10 +958,10 @@ class _InComposerState extends State<InComposer> {
     }
 
     final draft = _textWithoutActiveMentionDraft;
-    final mentionIds = [
-      ...composerMentionIdsParse(draft),
-      ...widget.selectedMentionIds.where((id) => id != 'image' && !_inlineMentionIds.contains(id)),
-    ].toList(growable: false);
+    final mentionIds = composerMentionIdsForWire(
+      fromComposer: widget.selectedMentionIds,
+      text: draft,
+    );
 
     var submitText = widget.compact ? draft.trim() : composerMentionTextForWire(draft, _composerMentions, mentionIds: mentionIds);
     if (!widget.compact && (submitText.startsWith('/ask ') || submitText == '/ask')) {
@@ -1420,19 +1490,7 @@ class _InComposerState extends State<InComposer> {
           textAlignVertical: stacked ? TextAlignVertical.top : TextAlignVertical.center,
           style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
           cursorColor: zinc100,
-          onChanged: (_) {
-            _composerMarkTextEdit();
-            final hadFocus = _focus.hasFocus;
-            final sel = _controller.selection;
-            setState(() {});
-            _syncComposerStackedLayout(_shouldUseStackedLayout(context, _inputAreaWidth));
-            if (hadFocus) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!mounted || _focus.hasFocus) return;
-                _restoreComposerFocus(sel);
-              });
-            }
-          },
+          onChanged: (_) => _onComposerTextChanged(),
           decoration: InputDecoration(
             hintText: _hintText,
             hintStyle: const TextStyle(color: zinc500, fontSize: 14, height: 1.35),
@@ -1459,22 +1517,7 @@ class _InComposerState extends State<InComposer> {
       style: const TextStyle(color: zinc100, fontSize: 14, height: 1.35),
       cursorColor: zinc100,
       specialTextSpanBuilder: _composerSpecialTextSpanBuilder(),
-      onChanged: (_) {
-        _composerMarkTextEdit();
-        final hadFocus = _focus.hasFocus;
-        final sel = _controller.selection;
-        _mentionMenuHighlight.value = 0;
-        setState(() {});
-        _syncMentionMenuOverlay();
-        if (_mentionPickerActive) _measureComposerShell();
-        _syncComposerStackedLayout(_shouldUseStackedLayout(context, _inputAreaWidth));
-        if (hadFocus) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted || _focus.hasFocus) return;
-            _restoreComposerFocus(sel);
-          });
-        }
-      },
+      onChanged: (_) => _onComposerTextChanged(),
       decoration: InputDecoration(
         hintText: _hintText,
         hintStyle: const TextStyle(color: zinc500, fontSize: 14, height: 1.35),
@@ -1586,6 +1629,7 @@ class _InComposerState extends State<InComposer> {
                               _attachmentHistoryRecord();
                               _composerMarkAttachmentEdit();
                               setState(() => _attachments.removeAt(i));
+                              _notifyDraftChanged();
                             }
                           : null,
                       onReplace: widget.enabled && !widget.busy ? (next) => _replaceItem(i, next) : null,
@@ -1605,6 +1649,7 @@ class _InComposerState extends State<InComposer> {
                   _attachmentHistoryRecord();
                   _composerMarkAttachmentEdit();
                   setState(() => _attachments.removeAt(idx));
+                  _notifyDraftChanged();
                 }
               },
             ),

@@ -121,8 +121,7 @@ pub fn history_prune_for_prompt(content: &str, blocks_json: &str) -> String {
         }
     }
     if out.len() > 12_000 {
-        out.truncate(12_000);
-        out.push_str("…");
+        out = crate::text_utf8::truncate_utf8_bytes(&out, 12_000, "…");
     }
     out
 }

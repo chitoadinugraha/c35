@@ -11,6 +11,7 @@ import 'package:alienai_c35/c/cas/cas_client.dart';
 import 'package:alienai_c35/c/catalog/catalog_translation_cache.dart';
 import 'package:alienai_c35/c/chat/chat_block.dart';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/chat/composer_draft_store.dart';
 import 'package:alienai_c35/c/conn/server_host.dart';
 import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/chat/chat_title.dart';
@@ -74,6 +75,7 @@ import 'package:alienai_c35/widgets/referral/ui_referral_commission_sheet.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:alienai_c35/widgets/ai/ui_assistant_model_chip.dart';
 import 'package:alienai_c35/widgets/ai/ui_talk_stage.dart';
+import 'package:alienai_c35/widgets/ai/composer_draft_host.dart';
 import 'package:alienai_c35/widgets/ai/composer_stage_host.dart';
 import 'package:alienai_c35/widgets/ai/in_composer.dart';
 import 'package:alienai_c35/widgets/ai/msg_trace_view.dart';
@@ -100,6 +102,7 @@ import 'package:alienai_c35/widgets/billing/ui_billing_plan_sheet.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
 import 'package:alienai_c35/widgets/sites/ui_pos_link_host.dart';
 import 'package:alienai_c35/widgets/sites/ui_sites_picker_dialog.dart';
+import 'package:alienai_c35/widgets/sites/ui_staff_site_picker_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
@@ -137,6 +140,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   final _composerCtrl = TextEditingController();
   final _composerFocus = FocusNode();
   final _composerStageHost = ComposerStageHost();
+  final _composerDraftHost = ComposerDraftHost();
   final _conn = ChatConn();
   late final VoiceApi _voiceApi = VoiceApi(_conn);
   final _consumptionApi = ConsumptionApi();
@@ -171,6 +175,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   var _retrying = false;
   var _hintRunning = false;
   String? _selectedPlain;
+  OverlayEntry? _desktopMsgMenuEntry;
+  Timer? _composerDraftDebounce;
   String? _uiLang;
   Timer? _promptWatchdog;
   Timer? _promptHardWatchdog;
@@ -191,6 +197,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     TtsService.instance.bindVoiceApi(_voiceApi);
     if (Session.instance.modelId.isNotEmpty) _model = AgentModel.of(Session.instance.modelId, _store.models);
     _timeline.attach();
+    _composerCtrl.addListener(_composerDraftScheduleSave);
     _connStatusLast = _conn.status.value;
     _connStatusListener = _onConnStatusChanged;
     _conn.status.addListener(_connStatusListener!);
@@ -737,6 +744,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _dismissDesktopMsgMenu();
     WidgetsBinding.instance.removeObserver(this);
     _promptWatchdogCancel();
     _promptConnGuardUnbind();
@@ -766,6 +774,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     ShareToHomeBridge.instance.setHomeReady(false);
     ShareInbound.instance.onPayload = null;
     ShareInbound.instance.stop();
+    _composerDraftDebounce?.cancel();
+    _composerCtrl.removeListener(_composerDraftScheduleSave);
     _composerCtrl.dispose();
     _composerFocus.dispose();
     super.dispose();
@@ -784,6 +794,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       lError('catalog load: $e');
     }
     await PromptUsagePrefs.instance.load();
+    await ComposerDraftStore.instance.restoreForUid(Session.instance.uid);
     if (mounted) setState(() => _catalogReady = true);
     try {
       await _connConnect();
@@ -795,7 +806,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         }
       }
       if (mounted) {
-        setState(() => _mentionContextSyncFromChat(restoreComposer: true));
+        final draft = ComposerDraftStore.instance.get(_composerDraftChatKey);
+        if (draft != null && (draft.text.isNotEmpty || draft.mentionIds.isNotEmpty)) {
+          _composerDraftRestore();
+        } else {
+          setState(() => _mentionContextSyncFromChat(restoreComposer: true));
+        }
       }
       if (mounted) _model = AgentModel.of(Session.instance.modelId, _store.models);
       _syncSub = _conn.onSyncPush.listen(_onSyncPush);
@@ -938,8 +954,55 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
   }
 
-  void _composerReset() {
+  int? get _composerDraftChatKey => _store.activeChatId;
+
+  void _composerDraftScheduleSave() {
+    _composerDraftDebounce?.cancel();
+    _composerDraftDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      ComposerDraftStore.instance.put(
+        _composerDraftChatKey,
+        text: _composerCtrl.text,
+        mentionIds: _mentionIds,
+        stagedAttachments: _composerDraftHost.readAttachments(),
+      );
+    });
+  }
+
+  void _composerDraftSaveNow() {
+    _composerDraftDebounce?.cancel();
+    ComposerDraftStore.instance.put(
+      _composerDraftChatKey,
+      text: _composerCtrl.text,
+      mentionIds: _mentionIds,
+      stagedAttachments: _composerDraftHost.readAttachments(),
+    );
+  }
+
+  void _composerDraftRestore() {
+    final draft = ComposerDraftStore.instance.get(_composerDraftChatKey);
+    if (draft != null && !draft.isEmpty) {
+      _composerCtrl.text = draft.text;
+      final len = draft.text.length;
+      _composerCtrl.selection = TextSelection.collapsed(offset: len);
+      _mentionIds
+        ..clear()
+        ..addAll(draft.mentionIds);
+      _composerDraftHost.restoreAttachments([
+        for (final a in draft.attachments) a.toStaged(),
+      ]);
+      return;
+    }
     _composerCtrl.clear();
+    _composerDraftHost.clearAttachments();
+    _mentionIdsSyncFromChat();
+    _composerStickyMentionsRestore();
+  }
+
+  void _composerReset({bool clearDraft = false}) {
+    if (clearDraft) ComposerDraftStore.instance.remove(_composerDraftChatKey);
+    _composerCtrl.clear();
+    _composerDraftHost.clearAttachments();
     _composerFocus.unfocus();
   }
 
@@ -973,11 +1036,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   void _newChat() {
+    _composerDraftSaveNow();
     _promptTokens = 0;
     _usage = const ContextUsageParts();
     _store.chatNew();
-    _mentionIds.clear();
-    _composerReset();
+    _composerDraftRestore();
     _canvasStore.clear();
     _timeline.scrollToBottom(force: true);
     _closeHistoryDrawerIfNarrow();
@@ -1003,6 +1066,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Future<void> _selectChat(int id) async {
+    _composerDraftSaveNow();
     _promptTokens = 0;
     _usage = const ContextUsageParts();
     _closeHistoryDrawerIfNarrow();
@@ -1012,8 +1076,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       if (m.chatId == id && m.id > lastSeenMsgId) lastSeenMsgId = m.id;
     }
     unawaited(_conn.sessionFocus(chatId: id, lastSeenMsgId: lastSeenMsgId).catchError((_) => ResSessionFocus()));
-    _composerReset();
-    _mentionContextSyncFromChat(restoreComposer: true);
+    _composerDraftRestore();
     _canvasStore.clear();
     final locale = CatalogTranslationCache.instance.lang;
     try {
@@ -1022,7 +1085,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       _store.promptReconcileFromServerMsgs(id, _store.msgs.where((m) => m.chatId == id));
     } catch (_) {}
     if (!mounted) return;
-    setState(() => _mentionContextSyncFromChat(restoreComposer: true));
+    setState(() {});
     _timeline.scrollToBottom(force: true);
   }
 
@@ -1124,6 +1187,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       );
 
   Future<void> _signOut() async {
+    _composerDraftSaveNow();
+    await ComposerDraftStore.instance.clearForUid(Session.instance.uid);
     await _conn.disconnect();
     await widget.auth.signOut();
   }
@@ -1147,6 +1212,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         MaterialPageRoute<void>(
           builder: (_) => PageSites(chatConn: _conn, siteIid: siteIid, initialTabRoute: initialTabRoute),
         ),
+      );
+
+  void _openDirectorEditSite() => uiStaffSitePickerOpen(
+        context: context,
+        chatConn: _conn,
+        onEdit: (siteIid) => _openSiteAdmin(siteIid, initialTabRoute: null),
       );
 
   void _openMail() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageMail(chatConn: _conn)));
@@ -1213,6 +1284,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           onDevices: _openDevices,
           onSites: _openSites,
           onRootConsole: Session.instance.isRoot ? _openRootConsole : null,
+          onDirectorEditSite: Session.instance.isDirectorStaff ? _openDirectorEditSite : null,
           onMail: Session.instance.canUseMail || mailInboxBus.menuVisible ? _openMail : null,
           onNotifications: _openNotifyHistory,
           composerModel: _model,
@@ -1249,6 +1321,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final chatId = _store.activeChatId;
       if (chatId != null) _store.chatStickyMentionsPut(chatId, _mentionIds.toList());
     });
+    _composerDraftScheduleSave();
   }
 
   void _toolModeToggle() => setState(() => _toolMode = _toolMode == 'ask' ? 'agent' : 'ask');
@@ -1272,7 +1345,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         onNavigate: _hintNavigate,
         context: context,
       );
-      if (mounted) _composerReset();
+      if (mounted) _composerReset(clearDraft: true);
     } finally {
       _hintRunning = false;
     }
@@ -1300,23 +1373,27 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Future<void> _composerSend(String text, List<MsgAttachment> attachments, {bool retry = false, int? retryChatId, String? toolMode, List<String>? mentionIds, String? displayContent, bool talk = false}) async {
     var trimmed = text.trim();
-    var mids = (mentionIds ?? _mentionIds.toList()).where((id) => id != 'image').toList(growable: false);
     var uiContent = (displayContent ?? trimmed).trim();
+    var composerMentionIds = mentionIds;
     if (composerSendIsTestMultitask(uiContent) || composerSendIsTestMultitask(trimmed)) {
       final p = composerTestMultitaskPayload();
       trimmed = p.text;
       uiContent = p.displayContent;
-      mids = p.mentionIds;
+      composerMentionIds = p.mentionIds;
     }
-    if (trimmed.isEmpty && attachments.isEmpty && mids.isEmpty) return;
+    final earlyChatId = retry ? (retryChatId ?? _store.activeChatId) : _store.activeChatId;
     final catalogMentions = _store.mentionCatalog.mentions;
-    final wireMentionIds = [
-      ...mids,
-      ...composerMentionIdsParse(uiContent),
-      ...composerMentionIdsCollect(uiContent),
-    ];
+    var wireMentionIds = composerMentionIdsForWire(
+      fromComposer: composerMentionIds,
+      selectedSticky: _mentionIds,
+      chatSticky: earlyChatId != null ? _store.chatStickyMentionsFor(earlyChatId) : const [],
+      text: uiContent,
+    );
+    if (trimmed.isEmpty && attachments.isEmpty && wireMentionIds.isEmpty) return;
+    final draftKeyBeforeSend = _store.activeChatId;
     final wireText = composerMentionTextForWire(uiContent, catalogMentions, mentionIds: wireMentionIds);
     if (wireText.isEmpty && attachments.isEmpty && wireMentionIds.isEmpty) return;
+    ComposerDraftStore.instance.remove(draftKeyBeforeSend);
     final previewLine = composerMentionTextHasTokens(uiContent)
         ? composerMentionTextForPrompt(
             uiContent,
@@ -1372,7 +1449,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       _store.chatStickyMentionsMerge(chatId, wireMentionIds);
     }
     if (mounted) {
-      setState(() => _mentionContextSyncFromChat(restoreComposer: false));
+      setState(() => _mentionContextSyncFromChat(restoreComposer: true));
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -1437,6 +1514,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     }
     try {
       await for (final ev in promptStream) {
+        if (_conn.promptStreamWasAborted(reqId)) break;
         if (ev.kind == 'start') {
           if (ev.chatId != Int64.ZERO) {
             final startId = ev.chatId.toInt();
@@ -1449,7 +1527,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               previewLine: previewLine,
               mentions: catalogMentions,
             );
-            if (startId != localChatId) _store.chatIdMigrate(localChatId, startId);
+            if (startId != localChatId) {
+              _store.chatIdMigrate(localChatId, startId);
+              ComposerDraftStore.instance.migrateKey(localChatId, startId);
+            }
             _store.chatPutFromServer(
               Chat(id: ev.chatId, title: title),
               ChatMember(chatId: ev.chatId, lastMsgPreview: previewLine, lastMsgTsMs: Int64(now)),
@@ -1464,6 +1545,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         if (ev.kind == 'delta') {
           _promptWatchdogReset(reqId);
           final rid = (_conn.lastPromptReqId ?? reqId).trim();
+          if (!_store.msgStreamAccepts(rid)) continue;
           if (ev.thought) {
             _store.msgStreamThought(ev.text, chatId: streamChatId, reqId: rid);
             if (rid.isNotEmpty && ev.text.contains('Using ')) {
@@ -1516,6 +1598,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         }
         if (ev.kind == 'fail') {
           final rid = (_conn.lastPromptReqId ?? reqId).trim();
+          if (_conn.promptStreamWasAborted(rid) || ev.message.trim().toLowerCase() == 'cancelled') {
+            _store.msgStreamCancel(chatId: streamChatId, reqId: rid);
+            _conn.promptStreamAbortAck(rid);
+            break;
+          }
           _store.msgStreamFail(msgErrorNormalize(ev.message), chatId: streamChatId, startedAtMs: promptStartedAtMs, reqId: rid);
           continue;
         }
@@ -1528,9 +1615,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         _store.msgStreamFail(msgErrorNormalize(e), chatId: streamChatId, startedAtMs: promptStartedAtMs, reqId: rid);
       }
     } finally {
+      if (_conn.promptStreamWasAborted(reqId)) {
+        _store.msgStreamCancel(chatId: streamChatId, reqId: reqId);
+        _conn.promptStreamAbortAck(reqId);
+      }
       _promptWatchdogCancel();
       _promptConnGuardUnbind();
-      _store.msgStreamFinalize(chatId: streamChatId, model: _model.id, startedAtMs: promptStartedAtMs);
+      if (!_store.msgStreamCancelled(reqId)) {
+        _store.msgStreamFinalize(chatId: streamChatId, model: _model.id, startedAtMs: promptStartedAtMs);
+      }
       for (final cid in {streamChatId, localChatId}) {
         if (_store.promptBusyFor(cid)) _store.promptBusyPut(false, chatId: cid);
       }
@@ -1548,17 +1641,23 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Future<void> _abortPrompt() async {
+    final id = _store.promptChatId ?? _store.activeChatId;
+    final reqId = (_store.pendingPromptReqId ?? _store.promptLiveReqId ?? '').trim();
+    if (id == null || reqId.isEmpty) return;
     _talkTtsQueue?.cancel();
     _promptConnGuardUnbind();
-    final id = _store.promptChatId ?? _store.activeChatId;
-    final reqId = _store.pendingPromptReqId ?? '';
-    try {
-      await _conn.promptAbort(
-        chatId: id != null && id > 0 ? Int64(id) : Int64.ZERO,
-        reqId: reqId,
-      );
-    } catch (_) {}
-    if (id != null) _store.promptBusyPut(false, chatId: id);
+    _promptWatchdogCancel();
+    _store.promptStoppingBegin(reqId: reqId, chatId: id);
+    _conn.promptStreamAbortLocal(reqId: reqId);
+    if (mounted) setState(() {});
+    unawaited(() async {
+      try {
+        await _conn.promptAbort(
+          chatId: id > 0 ? Int64(id) : Int64.ZERO,
+          reqId: reqId,
+        );
+      } catch (_) {}
+    }());
   }
 
   Future<void> _abortChildRun(int chatId, String reqId) async {
@@ -1665,23 +1764,58 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget _threadContextMenu(BuildContext ctx, SelectableRegionState state) {
-    final messages = _store.activeMsgs;
-    if (messages.isEmpty) return const SizedBox.shrink();
-    final i = _menuMsgIndex.clamp(0, messages.length - 1);
-    final m = messages[i];
-    final isUser = m.role == 'user';
-    final plain = _plainForMsg(m);
-    final lastUserIdx = messages.lastIndexWhere((x) => x.role == 'user');
-    final lastAssistantIdx = messages.lastIndexWhere((x) => x.role == 'assistant');
-    final showRetry = !_store.promptBusyFor(m.chatId) && (i == lastUserIdx || i == lastAssistantIdx);
-    final imageBlock = !isUser ? ChatBlock.imageFirst(m.blocksJson) : null;
-    final showImageUpgrade = imageBlock != null && !ChatBlock.imageIsHd(imageBlock) && !_store.promptBusyFor(m.chatId);
-    return msgBubbleContextMenu(
+  void _dismissDesktopMsgMenu() {
+    _desktopMsgMenuEntry?.remove();
+    _desktopMsgMenuEntry = null;
+  }
+
+  void _openDesktopMessageMenu(
+    BuildContext ctx,
+    MsgRow m,
+    int index, {
+    required Offset globalPosition,
+    required int lastUserIdx,
+    required int lastAssistantIdx,
+  }) {
+    _dismissDesktopMsgMenu();
+    final items = _messageBubbleMenuItems(
       ctx,
-      state,
+      m: m,
+      index: index,
+      lastUserIdx: lastUserIdx,
+      lastAssistantIdx: lastAssistantIdx,
+    );
+    if (items.isEmpty) return;
+    _desktopMsgMenuEntry = showMsgBubbleContextMenuOverlay(
+      context: ctx,
+      anchor: globalPosition,
+      items: msgBubbleMenuItemsWithDismiss(items, _dismissDesktopMsgMenu),
+      onDismiss: () => _desktopMsgMenuEntry = null,
+    );
+  }
+
+  List<ChatMessageMenuItem> _messageBubbleMenuItems(
+    BuildContext ctx, {
+    required MsgRow m,
+    required int index,
+    required int lastUserIdx,
+    required int lastAssistantIdx,
+    String? selectedText,
+  }) {
+    final isUser = m.role == 'user';
+    final plain = msgDisplayContent(m).trim();
+    final showRetry = !_store.promptBusyFor(m.chatId) && (index == lastUserIdx || index == lastAssistantIdx);
+    ChatBlock? imageBlock;
+    var showImageUpgrade = false;
+    if (!isUser && m.blocksJson.contains('"image"')) {
+      imageBlock = ChatBlock.imageFirst(m.blocksJson);
+      showImageUpgrade = imageBlock != null && !ChatBlock.imageIsHd(imageBlock) && !_store.promptBusyFor(m.chatId);
+    }
+    final imageBlockCaptured = imageBlock;
+    return msgBubbleMenuItems(
+      ctx,
       plainText: plain,
-      selectedText: _selectedPlain,
+      selectedText: selectedText,
       viewerIsRoot: sessionViewerIsRoot(),
       isAssistant: !isUser,
       reqId: m.reqId,
@@ -1689,20 +1823,42 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       onSpeak: !isUser && plain.isNotEmpty
           ? () {
               ContextMenuController.removeAny();
-              unawaited(_speak(plain));
+              unawaited(_speak(_plainForMsg(m)));
             }
           : null,
       showRetry: showRetry,
       onRetryLastTurn: showRetry ? () => unawaited(_retryLastTurn(m.chatId)) : null,
       onImageUpgradeHd: showImageUpgrade
           ? () {
-              final b = ChatBlock.imageFirst(m.blocksJson);
-              if (b != null) unawaited(_imageUpgradeHd(b));
+              if (imageBlockCaptured != null) unawaited(_imageUpgradeHd(imageBlockCaptured));
             }
           : null,
       conn: _conn,
       onGoodAnswer: !isUser && m.id > 0 ? () => unawaited(_feedback(m, ChatFeedbackVote.CHAT_FEEDBACK_VOTE_GOOD)) : null,
       onBadAnswer: !isUser && m.id > 0 ? () => unawaited(_feedback(m, ChatFeedbackVote.CHAT_FEEDBACK_VOTE_BAD)) : null,
+    );
+  }
+
+  Widget _threadContextMenu(BuildContext ctx, SelectableRegionState state) {
+    final messages = _store.activeMsgs;
+    if (messages.isEmpty) return const SizedBox.shrink();
+    final i = _menuMsgIndex.clamp(0, messages.length - 1);
+    final m = messages[i];
+    final lastUserIdx = messages.lastIndexWhere((x) => x.role == 'user');
+    final lastAssistantIdx = messages.lastIndexWhere((x) => x.role == 'assistant');
+    final items = _messageBubbleMenuItems(
+      ctx,
+      m: m,
+      index: i,
+      lastUserIdx: lastUserIdx,
+      lastAssistantIdx: lastAssistantIdx,
+      selectedText: _selectedPlain,
+    );
+    return msgBubbleContextMenuAt(
+      ctx,
+      state.contextMenuAnchors.primaryAnchor,
+      secondaryAnchor: state.contextMenuAnchors.secondaryAnchor,
+      items: items,
     );
   }
 
@@ -2050,7 +2206,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 mentions: _store.mentionCatalog.mentions,
               ));
     final busy = _store.promptBusyFor(_store.activeChatId);
-    final showWelcome = user == null && assistant == null && !busy;
+    final stopping = _store.promptStopping;
+    final showWelcome = user == null && assistant == null && !busy && !stopping;
     return UiTalkStage(
       assistant: assistant,
       userText: userText,
@@ -2058,7 +2215,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       listening: _talkRecording,
       transcribing: SttService.instance.isTranscribing.value,
       busy: busy,
-      busyStartedAtMs: busy ? _store.promptStartedAtMs : null,
+      stopping: stopping,
+      busyStartedAtMs: (busy || stopping) ? _store.promptStartedAtMs : null,
+      onStopPrompt: stopping ? null : _abortPrompt,
       speakEnabled: VoicePrefs.instance.talkSpeakEnabled,
       onMic: () => unawaited(_talkMic()),
       onSendTranscript: _talkRecording && !_talkMicStopInFlight ? () => unawaited(_talkMicStop()) : null,
@@ -2090,6 +2249,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           child: InComposer(
               key: const ValueKey('chat_composer'),
               stageHost: _composerStageHost,
+              draftHost: _composerDraftHost,
+              onDraftChanged: _composerDraftScheduleSave,
               controller: _composerCtrl,
               focusNode: _composerFocus,
               model: _model,
@@ -2120,7 +2281,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   Widget _chatColumn({required bool wide}) => Column(
         children: [
-          RepaintBoundary(child: _chatHeader(wide: wide)),
+          RepaintBoundary(
+            child: ListenableBuilder(
+              listenable: _store,
+              builder: (context, _) => _chatHeader(wide: wide),
+            ),
+          ),
           Expanded(
             child: ListenableBuilder(
               listenable: VoicePrefs.instance,
@@ -2129,7 +2295,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                   return Column(
                     children: [
                       Expanded(child: RepaintBoundary(child: _threadBody())),
-                      _chatComposer(),
+                      _HomeChatComposer(home: this),
                     ],
                   );
                 }
@@ -2181,7 +2347,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }) {
     final isUser = m.role == 'user';
     final liveReqId = _store.promptLiveReqId ?? _store.pendingPromptReqId ?? '';
-    final promptingThis = !isUser && _store.promptBusyFor(m.chatId) && m.reqId.isNotEmpty && m.reqId == liveReqId;
+    final stoppingThis = !isUser && _store.promptStopping && m.reqId.isNotEmpty && m.reqId == (_store.promptStoppingReqId ?? '');
+    final promptingThis = !isUser &&
+        m.reqId.isNotEmpty &&
+        m.reqId == liveReqId &&
+        (_store.promptBusyFor(m.chatId) || stoppingThis);
     final usageStreaming = !isUser && msgUsageStreaming(busy: _store.promptBusyFor(m.chatId), msgReqId: m.reqId, liveReqId: liveReqId);
     final copyHeader = msgCopyHeader(
       role: m.role,
@@ -2209,7 +2379,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         content = '';
       }
       final hasError = err.isNotEmpty;
-      final inThoughtPhase = promptingThis && content.trim().isEmpty && !hasError;
+      final inThoughtPhase = promptingThis && content.trim().isEmpty && !hasError && !stoppingThis;
       final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);
       final showTraceChips = m.reqId.isNotEmpty;
       final blocks = ChatBlock.decodeList(m.blocksJson);
@@ -2221,14 +2391,16 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           UiMsgCopyPrefix(text: copyHeader, leadingNewlines: copyGap),
-          if (thoughtView.thought != null)
+          if (thoughtView.thought != null || stoppingThis || inThoughtPhase)
             UiMsgThought(
-              text: thoughtView.thought!,
+              text: thoughtView.thought ?? (stoppingThis ? 'Stopping…' : ''),
               thinking: inThoughtPhase,
+              stopping: stoppingThis,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
               liveLabel: inThoughtPhase
                   ? msgThoughtLiveStatusLabel(thought: m.thought, defaultLabel: _model.thinkingStatusLabel)
                   : null,
+              onStop: promptingThis && !stoppingThis ? _abortPrompt : null,
             ),
           if (showTraceChips)
             UiMsgTraceLoader(
@@ -2439,7 +2611,12 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget _threadThinkingTail() => UiPromptThinkingIndicator(startedAtMs: _store.promptStartedAtMs, model: _model);
+  Widget _threadThinkingTail() => UiPromptThinkingIndicator(
+        startedAtMs: _store.promptStartedAtMs,
+        model: _model,
+        stopping: _store.promptStopping,
+        onStop: _store.promptStopping ? null : _abortPrompt,
+      );
 
   Widget _threadBody() => ListenableBuilder(
         listenable: _store,
@@ -2448,42 +2625,60 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           if (_store.activeChatId == null && msgs.isEmpty) return _threadHero();
           if (msgs.isEmpty) return _threadHero();
           final cid = _store.activeChatId;
-          final showThinkingTail = cid != null && _store.promptBusyFor(cid) && !_store.threadPromptLiveVisible(cid);
+          final showThinkingTail = cid != null &&
+              !_store.threadPromptLiveVisible(cid) &&
+              (_store.promptBusyFor(cid) || (_store.promptStopping && _store.promptChatId == cid));
           final itemCount = msgs.length + (showThinkingTail ? 1 : 0);
+          final lastUserIdx = msgs.lastIndexWhere((x) => x.role == 'user');
           final lastAssistantIdx = msgs.lastIndexWhere((x) => x.role == 'assistant');
           final decksBefore = cid == null ? const <SlideDeckData?>[] : _presentationDecksBefore(msgs, cid);
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: SelectionArea(
-                  onSelectionChanged: (c) => _selectedPlain = c?.plainText,
-                  contextMenuBuilder: _threadContextMenu,
-                  child: UiChatTimeline(
-                    key: ValueKey(_store.activeChatId ?? 'hero'),
-                    controller: _timeline,
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    itemCount: itemCount,
-                    itemBuilder: (context, i) {
-                      if (showThinkingTail && i >= msgs.length) return _threadThinkingTail();
-                      if (i >= msgs.length) return const SizedBox.shrink();
-                      final m = msgs[i];
-                      return Listener(
-                        onPointerDown: (_) => _menuMsgIndex = i,
-                        child: KeyedSubtree(
-                          key: ValueKey(msgTileKey(m)),
-                          child: _msgTile(
+          final timeline = UiChatTimeline(
+            key: ValueKey(_store.activeChatId ?? 'hero'),
+            controller: _timeline,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            itemCount: itemCount,
+            itemBuilder: (context, i) {
+              if (showThinkingTail && i >= msgs.length) return _threadThinkingTail();
+              if (i >= msgs.length) return const SizedBox.shrink();
+              final m = msgs[i];
+              return Listener(
+                onPointerDown: (_) => _menuMsgIndex = i,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.deferToChild,
+                  onSecondaryTapDown: uiDesktopEmbedder
+                      ? (d) => _openDesktopMessageMenu(
+                            context,
                             m,
-                            i: i,
-                            count: msgs.length,
+                            i,
+                            globalPosition: d.globalPosition,
+                            lastUserIdx: lastUserIdx,
                             lastAssistantIdx: lastAssistantIdx,
-                            presentationDeckPrior: i < decksBefore.length ? decksBefore[i] : null,
-                          ),
-                        ),
-                      );
-                    },
+                          )
+                      : null,
+                  child: KeyedSubtree(
+                    key: ValueKey(msgTileKey(m)),
+                    child: _msgTile(
+                      m,
+                      i: i,
+                      count: msgs.length,
+                      lastAssistantIdx: lastAssistantIdx,
+                      presentationDeckPrior: i < decksBefore.length ? decksBefore[i] : null,
+                    ),
                   ),
                 ),
-              ),
+              );
+            },
+          );
+          final threadList = uiDesktopEmbedder
+              ? timeline
+              : SelectionArea(
+                  onSelectionChanged: (c) => _selectedPlain = c?.plainText,
+                  contextMenuBuilder: _threadContextMenu,
+                  child: timeline,
+                );
+          return Stack(
+            children: [
+              Positioned.fill(child: threadList),
               Positioned(
                 bottom: uiSafeBottomInset(context, 12),
                 right: 20,
@@ -2506,55 +2701,156 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     return UiPosLinkHost(
       chatConn: _conn,
       child: ListenableBuilder(
-      listenable: Listenable.merge([_store, _canvasStore]),
-      builder: (context, _) {
-        return Scaffold(
-          key: _scaffoldKey,
-          backgroundColor: _bg,
-          drawer: wide ? null : Drawer(backgroundColor: _bg, child: SafeArea(child: _historySidebar())),
-          endDrawer: wide || !_canvasStore.hasArtifact
-              ? null
-              : Drawer(
-                  backgroundColor: _bg,
-                  child: SafeArea(
-                    child: UiCanvasPanel(
-                      store: _canvasStore,
-                      onPromptIterate: _onCanvasIterate,
-                      onPromptExport: _onCanvasExport,
-                      onClose: () => Navigator.of(context).pop(),
+        listenable: _canvasStore,
+        builder: (context, _) {
+          return Scaffold(
+            key: _scaffoldKey,
+            backgroundColor: _bg,
+            drawer: wide ? null : Drawer(backgroundColor: _bg, child: SafeArea(child: _historySidebar())),
+            endDrawer: wide || !_canvasStore.hasArtifact
+                ? null
+                : Drawer(
+                    backgroundColor: _bg,
+                    child: SafeArea(
+                      child: UiCanvasPanel(
+                        store: _canvasStore,
+                        onPromptIterate: _onCanvasIterate,
+                        onPromptExport: _onCanvasExport,
+                        onClose: () => Navigator.of(context).pop(),
+                      ),
                     ),
                   ),
-                ),
-          body: wide
-              ? SafeArea(
-                  child: Row(
-                    children: [
-                      RepaintBoundary(
-                        child: SizedBox(
-                          width: 280,
-                          child: DecoratedBox(
-                            decoration: const BoxDecoration(border: Border(right: BorderSide(color: _border))),
-                            child: _historySidebar(),
+            body: wide
+                ? SafeArea(
+                    child: Row(
+                      children: [
+                        RepaintBoundary(
+                          child: SizedBox(
+                            width: 280,
+                            child: DecoratedBox(
+                              decoration: const BoxDecoration(border: Border(right: BorderSide(color: _border))),
+                              child: _historySidebar(),
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(child: _chatColumn(wide: true)),
-                      if (_canvasStore.isOpen && _canvasStore.hasArtifact)
-                        SizedBox(
-                          width: 480,
-                          child: UiCanvasPanel(
-                            store: _canvasStore,
-                            onPromptIterate: _onCanvasIterate,
-                            onPromptExport: _onCanvasExport,
+                        Expanded(child: _chatColumn(wide: true)),
+                        if (_canvasStore.isOpen && _canvasStore.hasArtifact)
+                          SizedBox(
+                            width: 480,
+                            child: UiCanvasPanel(
+                              store: _canvasStore,
+                              onPromptIterate: _onCanvasIterate,
+                              onPromptExport: _onCanvasExport,
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                )
-              : _chatColumn(wide: false),
-        );
-      },
-    ),
+                      ],
+                    ),
+                  )
+                : _chatColumn(wide: false),
+          );
+        },
+      ),
     );
   }
+}
+
+/// Composer isolated from chat-thread [ChatStore] updates (streaming, sync) so typing stays smooth.
+class _HomeChatComposer extends StatefulWidget {
+  const _HomeChatComposer({required this.home});
+
+  final _PageAIHomeState home;
+
+  @override
+  State<_HomeChatComposer> createState() => _HomeChatComposerState();
+}
+
+class _HomeChatComposerState extends State<_HomeChatComposer> {
+  late VoidCallback _onStore;
+  late VoidCallback _onMentions;
+  late VoidCallback _onFollowups;
+
+  var _busy = false;
+  var _catalogReady = false;
+  var _modelsReady = false;
+  var _mentionRev = -1;
+  var _followupCount = -1;
+  var _modelsLen = -1;
+  var _activeChatId = -2;
+  var _modelId = '';
+  var _mentionKey = '';
+  var _promptHistoryLen = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    final h = widget.home;
+    _onStore = () => _syncFromStore();
+    _onMentions = () => _syncFromStore();
+    _onFollowups = () => _syncFromStore(followupsOnly: true);
+    h._store.addListener(_onStore);
+    h._store.mentionCatalog.addListener(_onMentions);
+    PromptFollowupStore.instance.addListener(_onFollowups);
+    _syncFromStore(force: true);
+  }
+
+  @override
+  void dispose() {
+    final h = widget.home;
+    h._store.removeListener(_onStore);
+    h._store.mentionCatalog.removeListener(_onMentions);
+    PromptFollowupStore.instance.removeListener(_onFollowups);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeChatComposer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncFromStore();
+  }
+
+  void _syncFromStore({bool force = false, bool followupsOnly = false}) {
+    if (!mounted) return;
+    final h = widget.home;
+    final cid = h._store.activeChatId;
+    final busy = h._store.promptBusyFor(cid);
+    final mentionRev = h._store.mentionCatalog.rev;
+    final followupCount = PromptFollowupStore.instance.items.length;
+    final modelsLen = h._store.models.length;
+    final modelId = h._model.id;
+    final catalogReady = h._catalogReady;
+    final modelsReady = h._modelsReady;
+    final mentionKey = h._mentionIds.join(',');
+    final promptHistoryLen = busy ? _promptHistoryLen : h._store.recentUserPrompts.length;
+
+    if (!force &&
+        !followupsOnly &&
+        busy == _busy &&
+        catalogReady == _catalogReady &&
+        modelsReady == _modelsReady &&
+        mentionRev == _mentionRev &&
+        followupCount == _followupCount &&
+        modelsLen == _modelsLen &&
+        cid == _activeChatId &&
+        modelId == _modelId &&
+        mentionKey == _mentionKey &&
+        promptHistoryLen == _promptHistoryLen) {
+      return;
+    }
+    if (followupsOnly && followupCount == _followupCount) return;
+
+    _busy = busy;
+    _catalogReady = catalogReady;
+    _modelsReady = modelsReady;
+    _mentionRev = mentionRev;
+    _followupCount = followupCount;
+    _modelsLen = modelsLen;
+    _activeChatId = cid ?? -1;
+    _modelId = modelId;
+    _mentionKey = mentionKey;
+    _promptHistoryLen = promptHistoryLen;
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.home._chatComposer();
 }

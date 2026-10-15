@@ -5,6 +5,7 @@
 #   .\_\scripts\deploy\publish_app_release.ps1 -Tester
 #   .\_\scripts\deploy\publish_app_release.ps1 -AndroidOnly
 #   .\_\scripts\deploy\publish_app_release.ps1 -WindowsOnly
+#   .\_\scripts\deploy\publish_web_app.ps1   (preferred for Flutter web)
 #   .\_\scripts\deploy\publish_app_release.ps1 -WebOnly
 #   .\_\scripts\deploy\publish_app_release.ps1 -PromoteOnly 240
 #   .\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote

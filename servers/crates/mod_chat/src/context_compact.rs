@@ -101,12 +101,7 @@ pub fn summary_merge(old: &str, new: &str) -> String {
 }
 
 fn cap_summary(s: &str) -> String {
-    if s.len() <= SUMMARY_MAX_LEN {
-        return s.to_string();
-    }
-    let mut out = s[..SUMMARY_MAX_LEN].to_string();
-    out.push_str("…");
-    out
+    crate::text_utf8::truncate_utf8_bytes(s, SUMMARY_MAX_LEN, "…")
 }
 
 #[derive(Deserialize)]

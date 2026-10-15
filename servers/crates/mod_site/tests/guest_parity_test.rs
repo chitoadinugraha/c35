@@ -2,7 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use c35_mod_site::guest_design::GuestDesign;
-use c35_mod_site::render::{block_html_render, product_detail_article_html, ProductRow};
+use c35_mod_site::render::{
+    block_html_render, guest_storefront_chrome_html, product_detail_article_html, ProductRow,
+};
 use c35_mod_site::site_boot_json_assemble;
 use c35_proto::{SiteBootMode, SitePost};
 use serde::Deserialize;
@@ -46,6 +48,8 @@ struct ParityFixture {
     expected_data_guest: String,
     props: Value,
     #[serde(default)]
+    site_meta: Value,
+    #[serde(default)]
     hub_posts: Vec<ParityHubPost>,
     #[serde(default)]
     assert_contains: Vec<String>,
@@ -72,6 +76,11 @@ fn parity_fixture_paths() -> Vec<PathBuf> {
 
 fn render_parity_block(fixture: &ParityFixture, design: &GuestDesign) -> String {
     let hub_posts: Vec<SitePost> = fixture.hub_posts.iter().map(|p| p.to_site_post()).collect();
+    let site_meta = if fixture.site_meta.is_null() {
+        json!({})
+    } else {
+        fixture.site_meta.clone()
+    };
     block_html_render(
         &fixture.block_type,
         &fixture.props,
@@ -84,7 +93,7 @@ fn render_parity_block(fixture: &ParityFixture, design: &GuestDesign) -> String 
         None,
         design,
         &[],
-        &json!({}),
+        &site_meta,
     )
 }
 
@@ -359,6 +368,130 @@ fn parity_shell_cart_inset_in_css() {
         css.contains("max-width: 720px") || css.contains("var(--guest-page-max"),
         "cart/main width should use guest layout tokens"
     );
+}
+
+#[test]
+fn parity_product_grid_store_layout_renders_catalog_search() {
+    let design = GuestDesign::from_theme_json("{}");
+    let meta = json!({ "guest_layout": "store", "lang": "en" });
+    let html = block_html_render(
+        "product_grid",
+        &json!({ "title": "Menu" }),
+        &[],
+        &json!({}),
+        None,
+        1,
+        &[],
+        &[],
+        None,
+        &design,
+        &[],
+        &meta,
+    );
+    assert!(html.contains("guest-catalog-search"));
+    assert!(html.contains("guest-catalog-search-input"));
+    assert!(
+        html.contains("Search products") || html.contains("Cari produk"),
+        "catalog search placeholder missing: {html}"
+    );
+}
+
+#[test]
+fn parity_product_grid_hub_layout_omits_catalog_search_until_store_threshold() {
+    let design = GuestDesign::from_theme_json("{}");
+    let html = block_html_render(
+        "product_grid",
+        &json!({}),
+        &[],
+        &json!({}),
+        None,
+        1,
+        &[],
+        &[],
+        None,
+        &design,
+        &[],
+        &json!({}),
+    );
+    assert!(!html.contains("guest-catalog-search"));
+}
+
+#[test]
+fn parity_hub_profile_hero_includes_member_and_share_actions() {
+    let design = GuestDesign::from_theme_json("{}");
+    let html = block_html_render(
+        "hub_profile",
+        &json!({ "title": "Shop", "subtitle": "Bio" }),
+        &[],
+        &json!({}),
+        None,
+        1,
+        &[],
+        &[],
+        None,
+        &design,
+        &[],
+        &json!({}),
+    );
+    assert!(html.contains("guest-hub-actions"));
+    assert!(html.contains("guest-hero-member-btn"));
+    assert!(html.contains("guest-hero-share-btn"));
+}
+
+#[test]
+fn parity_storefront_chrome_includes_sticky_and_orders_chip() {
+    let chrome = guest_storefront_chrome_html();
+    assert!(chrome.contains("c35-guest-sticky"));
+    assert!(chrome.contains("guest-sticky-member"));
+    assert!(chrome.contains("c35-guest-orders-chip"));
+    assert!(chrome.contains("data-guest=\"cart\""));
+}
+
+#[test]
+fn parity_hero_block_omitted_when_hub_profile_on_page() {
+    let design = GuestDesign::from_theme_json("{}");
+    let hub = block_html_render(
+        "hub_profile",
+        &json!({ "title": "Hub", "subtitle": "Bio" }),
+        &[],
+        &json!({}),
+        None,
+        1,
+        &[],
+        &[],
+        None,
+        &design,
+        &[],
+        &json!({}),
+    );
+    let hero = block_html_render(
+        "hero",
+        &json!({ "title": "Duplicate", "subtitle": "Skip me" }),
+        &[],
+        &json!({}),
+        None,
+        1,
+        &[],
+        &[],
+        None,
+        &design,
+        &[],
+        &json!({}),
+    );
+    let block_types = ["hub_profile", "hero", "links"];
+    let has_hub_profile = block_types.iter().any(|t| *t == "hub_profile");
+    let body: String = block_types
+        .iter()
+        .filter(|t| !(**t == "hero" && has_hub_profile))
+        .map(|t| match *t {
+            "hub_profile" => hub.as_str(),
+            "hero" => hero.as_str(),
+            _ => "",
+        })
+        .collect();
+    assert!(body.contains("data-guest=\"profile\""));
+    assert!(!body.contains("data-guest=\"hero\""));
+    assert!(!body.contains("Duplicate"));
 }
 
 #[test]

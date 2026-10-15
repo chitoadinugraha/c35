@@ -179,8 +179,8 @@ fn parse_site_iid(body: &Bytes) -> i64 {
     if let Ok(r) = ReqSiteGuestMemberMe::decode(body.clone()) {
         return r.site_iid;
     }
-    if let Ok(v) = serde_json::from_slice::<serde_json::Value>(body) {
-        return v.get("site_iid").and_then(|x| x.as_i64()).unwrap_or(0);
+    if let Ok(v) = serde_json::from_slice::<GuestMemberMeBody>(body) {
+        return v.site_iid;
     }
     0
 }

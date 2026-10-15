@@ -31,6 +31,18 @@ if (-not $env:C35_SERVER_URL) {
 # Device egress CONNECT proxy (local listener; use http://127.0.0.1:8443 in lease smoke tests)
 if (-not $env:C35_EGRESS_PROXY_ENABLED) { $env:C35_EGRESS_PROXY_ENABLED = '1' }
 if (-not $env:C35_EGRESS_PROXY_PUBLIC_URL) { $env:C35_EGRESS_PROXY_PUBLIC_URL = 'http://127.0.0.1:8443' }
+# Absolute CAS path so cwd (cargo-watch / loop) does not split cache dirs.
+if (-not $env:CAS_DIR) {
+    $env:CAS_DIR = (Join-Path $root '.cache/cas')
+}
+
+# Stale dev processes fight over the listen port and look like a crash loop.
+foreach ($name in @('server_ai', 'cargo-watch')) {
+    Get-Process -Name $name -ErrorAction SilentlyContinue | ForEach-Object {
+        Write-Host "==> stopping stale $($_.ProcessName) pid $($_.Id)"
+        Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+    }
+}
 
 & $stopScript -Port $port
 

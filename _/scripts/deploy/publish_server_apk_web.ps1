@@ -18,6 +18,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 $serverScript = Join-Path $PSScriptRoot 'publish_server.ps1'
 $appScript = Join-Path $PSScriptRoot 'publish_app_release.ps1'
+$webScript = Join-Path $PSScriptRoot 'publish_web_app.ps1'
 $deployDir = Join-Path $repoRoot '_\scripts\deploy'
 $logDir = Join-Path $repoRoot '.cache\publish-perf'
 
@@ -78,7 +79,7 @@ if ($SkipWindows) {
 Remove-Item Env:DEPLOY_SKIP_VERSION_BUMP -ErrorAction SilentlyContinue
 
 Write-Host '==> Flutter web (S3 + /version/web, single pubspec bump)'
-& $appScript -WebOnly -SkipDartGet
+& $webScript -SkipDartGet
 if ($LASTEXITCODE -ne 0) { throw 'web publish failed' }
 
 Write-Host '==> publish_server_apk_web done'

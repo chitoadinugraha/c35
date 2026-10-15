@@ -277,6 +277,54 @@ Talk Mode and Live Call share voice UI elements, but operate on two distinct exe
    - Real-time bidirectional streaming (Gemini Multimodal Live API, ChatGPT Realtime, Grok Voice).
    - Server-side tool execution, live camera frames, screen perception, and hot handover support.
 
+## Guest storefront Live Call
+
+Guest storefront Live Call provides duplex voice interaction for visitors browsing published or draft storefronts, completely separate from the Home Live Call flow.
+
+### Architecture & Contrasts with Home Live Call
+
+| Dimension | Home Live Call | Guest storefront Live Call |
+|-----------|----------------|----------------------------|
+| **Authentication** | User session JWT on persistent app WebSocket | Anonymous visitor — no user session or JWT required |
+| **Setup Initiation** | `ReqLiveStart` (`live_start = 179`) on authenticated app WS | Public HTTP setup: `POST /v1/site/guest-assistant/live/setup` |
+| **Visitor Tracking** | Authenticated user `user_iid` | Anonymous client-generated `visitor_id` (stored in `localStorage`) |
+| **Ticket & Scope** | User session ticket (`scope: app_live`) | Live ticket signed with `scope: site_guest`, `site_iid`, `visitor_id`, `data_mode` (`published` \| `draft`) |
+| **WebSocket Path** | Direct app connection or `/v1/live/ws` | `/v1/live/ws?ticket={guest_ticket}` using the returned `ws_path` |
+| **Tool Pipeline** | Full cluster tools (`web_search`, `device_screenshot`, etc.) | Site guest tool catalog only (`site.guest.cart.get`, `site.guest.cart.patch`, `site.tx.preview` when `commerce` capability is active). **Strictly no web search or provider grounding** (`web-grounding-cluster-only.mdc`). |
+| **Prompt Context** | User memory, devices, sticky mentions | `site_guest_context` (site knowledge + `[SITE PRODUCTS]` catalog + guest prompt steering from `inst.site.guest.call`) |
+| **Billing Target** | Calling user's Frontier quota pool / cash wallet | Site owner (`site.config.owner_iid`) Frontier quota pool (`ai.log` metadata: `scope: site_guest`, `site_iid`, `visitor_id`) |
+| **Default Live Offer** | `live.alienai` | Default **`live.alienai`** (`gemini-3.8-live` + guest site inst), with runtime override via environment variable **`C35_GUEST_LIVE_OFFER_ID`** |
+
+### Setup Protocol Flow
+
+1. **Setup RPC**: Client calls `POST /v1/site/guest-assistant/live/setup` with `ReqSiteGuestAssistantLiveSetup`:
+   ```json
+   {
+     "site_iid": 12345,
+     "visitor_id": "v-uuid-...",
+     "boot_mode": "published",
+     "locale": "id",
+     "req_id": "req-..."
+   }
+   ```
+2. **Server Verification & Preflight**:
+   - Validates `site_iid` exists and `ai_assistant.call_enabled` is active.
+   - Evaluates `boot_mode`: `published` checks active published snapshot; `draft` verifies preview authorization or draft availability.
+   - Applies guest rate limiting (keyed by `(site_iid, client_ip)`).
+   - Validates owner billing status: ensures site owner (`site.config.owner_iid`) has adequate Frontier quota or balance, placing a live reservation hold.
+3. **Ticket Issue & Response**:
+   - Issues a scoped guest live ticket containing claims: `{scope: "site_guest", site_iid, visitor_id, data_mode, owner_iid}`.
+   - Responds with `ResSiteGuestAssistantLiveSetup`:
+     - `live_session_id`: unique live session identifier.
+     - `ws_path`: `/v1/live/ws?ticket=<encoded_ticket>`
+     - `max_duration_sec`: session duration cap hint for UI timers.
+4. **WebSocket Session**:
+   - Client connects WebSocket to `ws_path`.
+   - Upstream Live bridge establishes duplex audio stream with Gemini Live using `site_guest_context` and site guest tool catalog.
+   - Audio downlink uses `LiveWsAudio` (magic `0xC3 0x35` + protobuf) or raw PCM, with UI client playing via `LivePcmPlayoutWeb` or native jitter buffers.
+   - Settle on disconnect: unconsumed hold released, actual elapsed seconds metered and billed to `owner_iid`.
+
+
 ## Supported clients
 
 | Client | Live Call |

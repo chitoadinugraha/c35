@@ -32,6 +32,14 @@ class LivePcmPlayoutWeb implements LivePcmPlayout {
   var _started = false;
 
   @override
+  int get scheduledAheadMs {
+    final ctx = _ctx;
+    if (!_started || ctx == null) return 0;
+    final aheadSec = _scheduledEndTime - ctx.currentTime;
+    return (aheadSec <= 0) ? 0 : (aheadSec * 1000).toInt();
+  }
+
+  @override
   Future<void> start(int sampleRateHz) async {
     _sampleRate = sampleRateHz;
     _ctx = _ensureWebAudioContext();
@@ -40,6 +48,7 @@ class LivePcmPlayoutWeb implements LivePcmPlayout {
     _scheduledEndTime = now + 0.05;
     _started = true;
   }
+
 
   @override
   Future<void> write(Uint8List pcm) async {

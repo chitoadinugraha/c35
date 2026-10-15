@@ -53,6 +53,20 @@ pub fn gemini_thinking_config(model: &str, level: &str) -> Value {
     json!({ "thinkingBudget": budget, "includeThoughts": budget > 0 })
 }
 
+/// Omit `thinkingConfig` on flash-lite when thinking is off — some Gemini endpoints reject budget 0.
+pub fn gemini_thinking_config_for_request(model: &str, level: &str) -> Option<Value> {
+    let cfg = gemini_thinking_config(model, level);
+    let m = model.to_ascii_lowercase();
+    let gemini3 = m.contains("gemini-3") && !m.contains("flash-lite");
+    if gemini3 {
+        return Some(cfg);
+    }
+    if cfg.get("thinkingBudget").and_then(|v| v.as_i64()) == Some(0) {
+        return None;
+    }
+    Some(cfg)
+}
+
 pub fn parse_candidate(v: &Value) -> ParseOut {
     let in_tok = v["usageMetadata"]["promptTokenCount"].as_i64().unwrap_or(0) as i32;
     let out_tok = v["usageMetadata"]["candidatesTokenCount"]
@@ -272,6 +286,13 @@ mod tests {
         assert!(cfg.get("thinkingLevel").is_none());
         assert_eq!(cfg["thinkingBudget"], 0);
         assert_eq!(cfg["includeThoughts"], false);
+    }
+
+    #[test]
+    fn gemini_thinking_config_for_request_omits_flash_lite_off() {
+        assert!(gemini_thinking_config_for_request("gemini-3.1-flash-lite", "off").is_none());
+        assert!(gemini_thinking_config_for_request("gemini-2.5-flash-lite", "none").is_none());
+        assert!(gemini_thinking_config_for_request("gemini-3.1-flash-lite", "low").is_some());
     }
 
     #[test]

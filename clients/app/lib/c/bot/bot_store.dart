@@ -96,6 +96,43 @@ class BotStore extends ChangeNotifier {
   bool get composerBusy => _composerSending;
   int get composerBusySinceMs => _composerBusySinceMs;
 
+  /// In-app bot test chat: waiting for the bot reply (not WhatsApp/channel).
+  bool chatAppPromptBusy(String? chatId) {
+    if (!chatIsApp(chatId)) return false;
+    final id = int.tryParse(chatId ?? '') ?? 0;
+    if (id <= 0) return false;
+    return _composerSending || _typingParty[id] == 'bot';
+  }
+
+  String? _chatAppLiveReqId(String chatId) {
+    final id = int.tryParse(chatId) ?? 0;
+    if (id <= 0) return null;
+    final msgs = _msgs[id] ?? const [];
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      final m = msgs[i];
+      if (m.role == 'user' && m.reqId.trim().isNotEmpty) return m.reqId.trim();
+    }
+    return null;
+  }
+
+  Future<void> chatAppAbortPrompt(String chatId) async {
+    if (!chatIsApp(chatId)) return;
+    final id = int.tryParse(chatId) ?? 0;
+    if (id <= 0) return;
+    final reqId = _chatAppLiveReqId(chatId) ?? '';
+    _typingPut(id, null);
+    _composerBusyEnd();
+    notifyListeners();
+    try {
+      await ensureConnected();
+      await _conn.promptAbort(chatId: Int64(id), reqId: reqId);
+      await loadMessages(chatId);
+    } catch (e) {
+      lError('bot app abort: $e');
+    }
+    notifyListeners();
+  }
+
   void _composerBusyBegin() {
     if (!_composerSending) _composerBusySinceMs = DateTime.now().millisecondsSinceEpoch;
     _composerSending = true;

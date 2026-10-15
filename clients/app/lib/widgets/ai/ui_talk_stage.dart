@@ -29,6 +29,8 @@ class UiTalkStage extends StatelessWidget {
     required this.onAttach,
     required this.onModel,
     this.onSendTranscript,
+    this.onStopPrompt,
+    this.stopping = false,
     this.blocks = const [],
     this.usage,
     this.consumptionApi,
@@ -60,6 +62,8 @@ class UiTalkStage extends StatelessWidget {
   final VoidCallback onAttach;
   final VoidCallback onModel;
   final VoidCallback? onSendTranscript;
+  final VoidCallback? onStopPrompt;
+  final bool stopping;
   final List<ChatBlock> blocks;
   final MsgUsageStats? usage;
   final ConsumptionApi? consumptionApi;
@@ -92,7 +96,8 @@ class UiTalkStage extends StatelessWidget {
   Widget build(BuildContext context) {
     final row = assistant;
     final assistantText = row == null ? '' : msgDisplayContent(row).trim();
-    final showWelcome = welcome != null && assistantText.isEmpty && !busy;
+    final liveBusy = busy || stopping;
+    final showWelcome = welcome != null && assistantText.isEmpty && !liveBusy;
     final placeholder = assistantText.isEmpty && listening ? 'Listening' : assistantText;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -257,10 +262,11 @@ class UiTalkStage extends StatelessWidget {
       );
 
   Widget _mic() {
-    final color = busy ? _stop : (listening ? _accent : _text);
-    final iconColor = busy || listening ? _text : const Color(0xFF18181B);
+    final live = busy || stopping;
+    final color = live ? _stop : (listening ? _accent : _text);
+    final iconColor = live || listening ? _text : const Color(0xFF18181B);
     return Tooltip(
-      message: busy ? 'Stop' : (listening ? 'Tap to send' : 'Mic'),
+      message: live ? 'Stop' : (listening ? 'Tap to send' : 'Mic'),
       child: Material(
         color: color,
         shape: const CircleBorder(),
@@ -270,7 +276,7 @@ class UiTalkStage extends StatelessWidget {
           child: SizedBox(
             width: 72,
             height: 72,
-            child: Icon(busy ? Icons.stop_rounded : Icons.mic_rounded, size: 30, color: iconColor),
+            child: Icon(live ? Icons.stop_rounded : Icons.mic_rounded, size: 30, color: iconColor),
           ),
         ),
       ),
@@ -341,10 +347,16 @@ class UiTalkStage extends StatelessWidget {
   Widget _usageLine() => ListenableBuilder(
         listenable: PromptUsagePrefs.instance,
         builder: (context, _) {
-          if (busy) {
+          if (busy || stopping) {
             return Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
-              child: UiPromptThinkingIndicator(startedAtMs: busyStartedAtMs, align: Alignment.center, model: model),
+              child: UiPromptThinkingIndicator(
+                startedAtMs: busyStartedAtMs,
+                align: Alignment.center,
+                model: model,
+                stopping: stopping,
+                onStop: stopping ? null : onStopPrompt,
+              ),
             );
           }
           if (transcribing) {

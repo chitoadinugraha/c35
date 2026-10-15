@@ -1,6 +1,7 @@
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
+import 'package:alienai_c35/guest_site/guest_site_layout.dart';
 import 'package:flutter/services.dart';
 
 /// Sentinel stored on `site.product.price` for quote-only items.
@@ -14,15 +15,22 @@ String guestProductPriceLabel(int price, {GuestSiteI18n i18n = GuestSiteI18n.eng
 
 bool guestProductCanAddToCart(int price) => price > 0;
 
-/// `grid` (default) or `list`.
-String productGridDisplay(Map<String, dynamic> props, {Map<String, dynamic>? meta}) {
+/// `grid` or `list` (store layout defaults to list when unset).
+String productGridDisplay(
+  Map<String, dynamic> props, {
+  Map<String, dynamic>? meta,
+  int productCount = 0,
+}) {
   final raw = props['display']?.toString().trim().toLowerCase() ?? '';
   if (raw == 'list') return 'list';
   if (raw == 'grid' || raw == 'card') return 'grid';
   final metaRaw = meta?['catalog_display']?.toString().trim().toLowerCase() ?? '';
   if (metaRaw == 'list') return 'list';
   if (metaRaw == 'grid' || metaRaw == 'card') return 'grid';
-  return 'list';
+  if (guestLayoutMode(meta ?? const {}, productCount: productCount) == 'store') {
+    return 'list';
+  }
+  return 'grid';
 }
 
 String _picHashOnly(String pic) {

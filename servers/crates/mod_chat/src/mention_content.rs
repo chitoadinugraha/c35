@@ -16,6 +16,18 @@ pub fn mention_id_from_bracket(kind: &str, body: &str) -> Option<String> {
 
 pub fn mention_bracket_for_id(canonical: &str) -> String {
     let t = canonical.trim();
+    if t.starts_with("[@") {
+        if let Some(end) = t.find(']') {
+            let inner = &t[2..end];
+            if let Some(colon) = inner.find(':') {
+                let kind = &inner[..colon];
+                let body = &inner[colon + 1..];
+                if let Some(id) = mention_id_from_bracket(kind, body) {
+                    return mention_bracket_for_id(&id);
+                }
+            }
+        }
+    }
     if let Some(n) = t.strip_prefix("iid:") {
         return format!("[@iid:{n}]");
     }
@@ -65,11 +77,18 @@ pub fn mention_bracket_fixup_nesting(text: &str) -> String {
     let mut s = text.to_string();
     for _ in 0..8 {
         let prev = s.clone();
-        s = s.replace("[@@[@[@iid:", "[@iid:");
-        s = s.replace("[@@[@iid:", "[@iid:");
-        s = s.replace("[@[@iid:", "[@iid:");
-        if s.starts_with("[@") && s.contains("[@iid:") && !s.starts_with("[@iid:") {
-            let idx = s.find("[@iid:").unwrap_or(0);
+        while s.contains("[@[@") {
+            s = s.replacen("[@[@", "[@", 1);
+        }
+        while s.contains("[@@[") {
+            s = s.replacen("[@@[", "[@[", 1);
+        }
+        if s.starts_with("[@") && !s.starts_with("[@iid:") && !s.starts_with("[@catalog:") && !s.starts_with("[@drive:") {
+            let idx = ["[@iid:", "[@catalog:", "[@drive:"]
+                .iter()
+                .filter_map(|p| s.find(p))
+                .min()
+                .unwrap_or(0);
             if idx > 0 {
                 s = s[idx..].to_string();
             }
@@ -149,7 +168,8 @@ pub fn mention_content_normalize(text: &str, _mention_ids: &[String]) -> String 
         out.push(bytes[i] as char);
         i += 1;
     }
-    plain_iid_replace(&out).trim().to_string()
+    let trimmed = plain_iid_replace(&out).trim().to_string();
+    mention_bracket_fixup_nesting(&trimmed)
 }
 
 #[cfg(test)]
@@ -171,6 +191,17 @@ mod tests {
         let out = mention_content_normalize("ping iid:42 ke google", &[]);
         assert!(out.contains("[@iid:42]"));
         assert!(!out.contains(" ping iid:42"));
+    }
+
+    #[test]
+    fn normalize_collapses_nested_device_bracket() {
+        let raw = "[@[@iid:98063412749627392]]tambahkan 5 baris contoh";
+        let out = mention_content_normalize(raw, &[]);
+        assert!(
+            out.starts_with("[@iid:98063412749627392]"),
+            "got: {out}"
+        );
+        assert!(!out.contains("[@["), "got: {out}");
     }
 
     #[test]

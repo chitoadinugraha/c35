@@ -214,6 +214,9 @@ message SiteRow {
 
 message ReqSiteList {
   bool archived = 1;
+  /// Root/director only: platform-wide lazy search (name, alien_id, or site iid).
+  string query = 2;
+  int32 limit = 3;
 }
 
 message ResSiteList {
@@ -612,6 +615,25 @@ message ResSiteGuestProductList {
   string next_cursor = 2;
 }
 
+// ================================= Guest Assistant Live Call Setup
+
+message ReqSiteGuestAssistantLiveSetup {
+  int64 site_iid = 1;
+  string visitor_id = 2;
+  string boot_mode = 3;  // "published" | "draft"
+  string locale = 4;
+  string req_id = 5;
+}
+
+message ResSiteGuestAssistantLiveSetup {
+  bool ok = 1;
+  string error = 2;
+  string req_id = 3;
+  string live_session_id = 4;
+  string ws_path = 5;   // full path+query for guest WS (includes guest ticket)
+  int32 max_duration_sec = 6;  // optional cap hint for UI
+}
+
 // ================================= Staff grants (identity_grant on site_iid)
 
 message SiteGrant {
@@ -807,10 +829,54 @@ message SiteQueue {
   int32 serving_ticket_no = 8;
   bool is_active = 9;
   string meta_json = 10;
+  string description = 11;
+  string fields_json = 12;
+  bool take_online = 13;
+  string reset_policy_json = 14;
+  int32 sort_order = 15;
 
   int64 created_ts_ms = 20;
   int64 updated_ts_ms = 21;
   int64 deleted_ts_ms = 22;
+}
+
+message SiteQueueRun {
+  int64 site_iid = 1;
+  int64 run_id = 2;
+  int64 queue_id = 3;
+  int32 next_number = 4;
+  int32 serving_number = 5;
+  string status = 6;
+  string reset_reason = 7;
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+  int64 closed_ts_ms = 22;
+}
+
+message SiteQueueTicket {
+  int64 site_iid = 1;
+  int64 ticket_id = 2;
+  int64 queue_id = 3;
+  int64 run_id = 4;
+  int32 ticket_no = 5;
+  string display_label = 6;
+  string status = 7;
+  string guest_name = 8;
+  string guest_phone = 9;
+  string answers_json = 10;
+  string track_token = 11;
+  int64 called_at_ms = 12;
+  int64 done_at_ms = 13;
+  int64 created_ts_ms = 20;
+  int64 updated_ts_ms = 21;
+}
+
+message SiteQueueBoard {
+  SiteQueue queue = 1;
+  SiteQueueRun run = 2;
+  repeated SiteQueueTicket waiting = 3;
+  SiteQueueTicket serving = 4;
+  SiteQueueTicket called = 5;
 }
 
 message ReqSiteQueueList {
@@ -837,5 +903,184 @@ message ReqSiteQueueAdvance {
 
 message ResSiteQueueAdvance {
   int32 serving_ticket_no = 1;
+}
+
+message ReqSiteQueueBoard {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+}
+
+message ResSiteQueueBoard {
+  SiteQueueBoard board = 1;
+}
+
+message ReqSiteQueueCallNext {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+}
+
+message ResSiteQueueCallNext {
+  SiteQueueTicket ticket = 1;
+}
+
+message ReqSiteQueueTicketSetStatus {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+  int64 ticket_id = 3;
+  string status = 4;
+}
+
+message ResSiteQueueTicketSetStatus {
+  SiteQueueTicket ticket = 1;
+}
+
+message ReqSiteQueueReset {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+}
+
+message ResSiteQueueReset {
+  int64 run_id = 1;
+}
+
+message ReqSiteQueueTicketList {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+  int32 limit = 3;
+  string status = 4;
+}
+
+message ResSiteQueueTicketList {
+  repeated SiteQueueTicket tickets = 1;
+}
+
+// Guest queue HTTP uses JSON; these mirror wire shapes for clients/codegen.
+message ReqGuestQueueTake {
+  int64 site_iid = 1;
+  int64 queue_id = 2;
+  string answers_json = 3;
+  string guest_name = 4;
+  string guest_phone = 5;
+}
+
+message ResGuestQueueTake {
+  bool ok = 1;
+  string error = 2;
+  int64 ticket_id = 3;
+  int32 ticket_no = 4;
+  string display_label = 5;
+  string track_token = 6;
+  int64 queue_id = 7;
+  int32 serving_ticket_no = 8;
+}
+
+message ReqGuestQueueTrack {
+  int64 site_iid = 1;
+  string track_token = 2;
+}
+
+message ResGuestQueueTrack {
+  bool ok = 1;
+  string error = 2;
+  int64 queue_id = 3;
+  int32 ticket_no = 4;
+  string display_label = 5;
+  string status = 6;
+  int32 serving_number = 7;
+  int32 position_ahead = 8;
+  int64 ticket_id = 9;
+}
+
+// ================================= Optional staff attendance (site.presence_record)
+
+message SitePresenceRecord {
+  int64 record_id = 1;
+  int64 site_iid = 2;
+  int64 grantee_iid = 3;
+  string shift_id = 4;
+  string kind = 5;
+  int64 at_ms = 6;
+  string session_id = 7;
+  int32 work_duration_min = 8;
+  string attendance_method = 9;
+  string status = 10;
+  string reason = 11;
+}
+
+message SitePresenceStaffContext {
+  repeated string work_shift_ids = 1;
+  string open_session_id = 2;
+  int64 open_clock_in_ms = 3;
+  bool can_clock_in = 4;
+  bool can_clock_out = 5;
+  string message = 6;
+}
+
+message ReqSitePresenceContext {
+  int64 site_iid = 1;
+}
+
+message ResSitePresenceContext {
+  SitePresenceStaffContext context = 1;
+}
+
+message ReqSitePresenceClockIn {
+  int64 site_iid = 1;
+  string shift_id = 2;
+}
+
+message ResSitePresenceClockIn {
+  SitePresenceRecord record = 1;
+  string session_id = 2;
+}
+
+message ReqSitePresenceClockOut {
+  int64 site_iid = 1;
+}
+
+message ResSitePresenceClockOut {
+  SitePresenceRecord record = 1;
+  int32 work_duration_min = 2;
+}
+
+message ReqSitePresenceRecordList {
+  int64 site_iid = 1;
+  int64 grantee_iid = 2;
+  int32 limit = 3;
+}
+
+message ResSitePresenceRecordList {
+  repeated SitePresenceRecord records = 1;
+}
+
+// ================================= Payroll compensation (optional rates)
+
+message SitePayrollCompensation {
+  int64 comp_id = 1;
+  int64 site_iid = 2;
+  int64 grantee_iid = 3;
+  string pay_basis = 4;
+  int64 amount = 5;
+  string shift_id = 6;
+  string effective_from = 7;
+  string label = 8;
+  bool is_active = 9;
+}
+
+message ReqSitePayrollCompensationList {
+  int64 site_iid = 1;
+}
+
+message ResSitePayrollCompensationList {
+  repeated SitePayrollCompensation items = 1;
+}
+
+message ReqSitePayrollCompensationPut {
+  int64 site_iid = 1;
+  SitePayrollCompensation item = 2;
+}
+
+message ResSitePayrollCompensationPut {
+  int64 comp_id = 1;
 }
 

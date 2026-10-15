@@ -411,6 +411,7 @@ pub async fn live_openai_run(
         &offer,
         duration,
         video_secs,
+        ticket.guest.as_ref(),
     )
     .await
     {

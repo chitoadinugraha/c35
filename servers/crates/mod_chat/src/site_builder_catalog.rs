@@ -62,8 +62,8 @@ fn catalog_segment_rows(segment: &str) -> Vec<CatalogProductRow> {
     let Some(harga_idx) = lower.rfind(" harga ") else {
         return vec![];
     };
-    let name = seg[..harga_idx].trim();
-    let price_raw = seg[harga_idx + " harga ".len()..].trim();
+    let name = lower[..harga_idx].trim();
+    let price_raw = lower[harga_idx + " harga ".len()..].trim();
     if name.is_empty() {
         return vec![];
     }

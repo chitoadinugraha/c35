@@ -48,6 +48,26 @@ bool msgThoughtIsToolCallingLine(String raw) {
 String msgThoughtStripPlaceholders(String raw) =>
     raw.split('\n').where((line) => !msgThoughtIsPlaceholder(line) && !msgThoughtIsToolCallingLine(line)).join('\n').trim();
 
+/// Compose / device steering leaked into the visible answer stream (not end-user text).
+bool msgStreamLooksLikeSteerLeak(String raw) {
+  final t = raw.trimLeft();
+  if (t.isEmpty) return false;
+  if (t.startsWith('[') && t.contains(']')) {
+    final head = t.split(']').first.toUpperCase();
+    if (head.contains('GOOGLE SHEETS') ||
+        head.contains('GOOGLE FORMS') ||
+        head.contains('RETRY') ||
+        head.contains('COMPUTER USE') ||
+        head.contains('DELEGATE')) {
+      return true;
+    }
+  }
+  return t.startsWith('[GOOGLE SHEETS') ||
+      t.startsWith('[GOOGLE FORMS') ||
+      t.startsWith('[RETRY]') ||
+      t.startsWith('[COMPUTER USE');
+}
+
 /// Live status row while the assistant row has no answer text yet (tool hops, prepare).
 String msgThoughtLiveStatusLabel({required String thought, required String defaultLabel}) {
   final lines = thought.split('\n');

@@ -105,11 +105,13 @@ class SitePage extends $pb.GeneratedMessage {
     $core.String? path,
     $core.String? title,
     $core.Iterable<SiteBlock>? blocks,
+    $core.String? audience,
   }) {
     final result = SitePage._();
     if (path != null) result.path = path;
     if (title != null) result.title = title;
     if (blocks != null) result.blocks.addAll(blocks);
+    if (audience != null) result.audience = audience;
     return result;
   }
 
@@ -130,6 +132,7 @@ class SitePage extends $pb.GeneratedMessage {
     ..aOS(2, _omitFieldNames ? '' : 'title')
     ..pPM<SiteBlock>(3, _omitFieldNames ? '' : 'blocks',
         subBuilder: SiteBlock.$_createMessage)
+    ..aOS(4, _omitFieldNames ? '' : 'audience')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -172,6 +175,15 @@ class SitePage extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(3)
   $pb.PbList<SiteBlock> get blocks => $_getList(2);
+
+  @$pb.TagNumber(4)
+  $core.String get audience => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set audience($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAudience() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAudience() => $_clearField(4);
 }
 
 class SiteDoc extends $pb.GeneratedMessage {
@@ -2377,9 +2389,13 @@ class SiteRow extends $pb.GeneratedMessage {
 class ReqSiteList extends $pb.GeneratedMessage {
   factory ReqSiteList({
     $core.bool? archived,
+    $core.String? query,
+    $core.int? limit,
   }) {
     final result = ReqSiteList._();
     if (archived != null) result.archived = archived;
+    if (query != null) result.query = query;
+    if (limit != null) result.limit = limit;
     return result;
   }
 
@@ -2397,6 +2413,8 @@ class ReqSiteList extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: ReqSiteList.$_createMessage)
     ..aOB(1, _omitFieldNames ? '' : 'archived')
+    ..aOS(2, _omitFieldNames ? '' : 'query')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2429,6 +2447,25 @@ class ReqSiteList extends $pb.GeneratedMessage {
   $core.bool hasArchived() => $_has(0);
   @$pb.TagNumber(1)
   void clearArchived() => $_clearField(1);
+
+  /// / Root/director only: platform-wide lazy search (name, alien_id, or site iid).
+  @$pb.TagNumber(2)
+  $core.String get query => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set query($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQuery() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQuery() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
 }
 
 class ResSiteList extends $pb.GeneratedMessage {
@@ -7506,6 +7543,240 @@ class ResSiteGuestProductList extends $pb.GeneratedMessage {
   void clearNextCursor() => $_clearField(2);
 }
 
+class ReqSiteGuestAssistantLiveSetup extends $pb.GeneratedMessage {
+  factory ReqSiteGuestAssistantLiveSetup({
+    $fixnum.Int64? siteIid,
+    $core.String? visitorId,
+    $core.String? bootMode,
+    $core.String? locale,
+    $core.String? reqId,
+  }) {
+    final result = ReqSiteGuestAssistantLiveSetup._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (visitorId != null) result.visitorId = visitorId;
+    if (bootMode != null) result.bootMode = bootMode;
+    if (locale != null) result.locale = locale;
+    if (reqId != null) result.reqId = reqId;
+    return result;
+  }
+
+  ReqSiteGuestAssistantLiveSetup._();
+
+  factory ReqSiteGuestAssistantLiveSetup.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestAssistantLiveSetup()..mergeFromBuffer(data, registry);
+  factory ReqSiteGuestAssistantLiveSetup.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestAssistantLiveSetup()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteGuestAssistantLiveSetup',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteGuestAssistantLiveSetup.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'visitorId')
+    ..aOS(3, _omitFieldNames ? '' : 'bootMode')
+    ..aOS(4, _omitFieldNames ? '' : 'locale')
+    ..aOS(5, _omitFieldNames ? '' : 'reqId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestAssistantLiveSetup clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestAssistantLiveSetup copyWith(
+          void Function(ReqSiteGuestAssistantLiveSetup) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqSiteGuestAssistantLiveSetup))
+          as ReqSiteGuestAssistantLiveSetup;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteGuestAssistantLiveSetup() / ReqSiteGuestAssistantLiveSetup.new instead')
+  static ReqSiteGuestAssistantLiveSetup create() =>
+      ReqSiteGuestAssistantLiveSetup._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqSiteGuestAssistantLiveSetup._();
+  @$core.override
+  ReqSiteGuestAssistantLiveSetup createEmptyInstance() =>
+      ReqSiteGuestAssistantLiveSetup._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteGuestAssistantLiveSetup getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteGuestAssistantLiveSetup>(
+          ReqSiteGuestAssistantLiveSetup.$_createMessage);
+  static ReqSiteGuestAssistantLiveSetup? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get visitorId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set visitorId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasVisitorId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearVisitorId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get bootMode => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set bootMode($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasBootMode() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearBootMode() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get locale => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set locale($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasLocale() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearLocale() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get reqId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set reqId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasReqId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearReqId() => $_clearField(5);
+}
+
+class ResSiteGuestAssistantLiveSetup extends $pb.GeneratedMessage {
+  factory ResSiteGuestAssistantLiveSetup({
+    $core.bool? ok,
+    $core.String? error,
+    $core.String? reqId,
+    $core.String? liveSessionId,
+    $core.String? wsPath,
+    $core.int? maxDurationSec,
+  }) {
+    final result = ResSiteGuestAssistantLiveSetup._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (reqId != null) result.reqId = reqId;
+    if (liveSessionId != null) result.liveSessionId = liveSessionId;
+    if (wsPath != null) result.wsPath = wsPath;
+    if (maxDurationSec != null) result.maxDurationSec = maxDurationSec;
+    return result;
+  }
+
+  ResSiteGuestAssistantLiveSetup._();
+
+  factory ResSiteGuestAssistantLiveSetup.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestAssistantLiveSetup()..mergeFromBuffer(data, registry);
+  factory ResSiteGuestAssistantLiveSetup.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestAssistantLiveSetup()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteGuestAssistantLiveSetup',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteGuestAssistantLiveSetup.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aOS(3, _omitFieldNames ? '' : 'reqId')
+    ..aOS(4, _omitFieldNames ? '' : 'liveSessionId')
+    ..aOS(5, _omitFieldNames ? '' : 'wsPath')
+    ..aI(6, _omitFieldNames ? '' : 'maxDurationSec')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestAssistantLiveSetup clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestAssistantLiveSetup copyWith(
+          void Function(ResSiteGuestAssistantLiveSetup) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResSiteGuestAssistantLiveSetup))
+          as ResSiteGuestAssistantLiveSetup;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteGuestAssistantLiveSetup() / ResSiteGuestAssistantLiveSetup.new instead')
+  static ResSiteGuestAssistantLiveSetup create() =>
+      ResSiteGuestAssistantLiveSetup._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResSiteGuestAssistantLiveSetup._();
+  @$core.override
+  ResSiteGuestAssistantLiveSetup createEmptyInstance() =>
+      ResSiteGuestAssistantLiveSetup._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteGuestAssistantLiveSetup getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteGuestAssistantLiveSetup>(
+          ResSiteGuestAssistantLiveSetup.$_createMessage);
+  static ResSiteGuestAssistantLiveSetup? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get reqId => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set reqId($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasReqId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearReqId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get liveSessionId => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set liveSessionId($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasLiveSessionId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearLiveSessionId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get wsPath => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set wsPath($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasWsPath() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearWsPath() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.int get maxDurationSec => $_getIZ(5);
+  @$pb.TagNumber(6)
+  set maxDurationSec($core.int value) => $_setSignedInt32(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMaxDurationSec() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMaxDurationSec() => $_clearField(6);
+}
+
 class SiteGrant extends $pb.GeneratedMessage {
   factory SiteGrant({
     $fixnum.Int64? siteIid,
@@ -9749,6 +10020,11 @@ class SiteQueue extends $pb.GeneratedMessage {
     $core.int? servingTicketNo,
     $core.bool? isActive,
     $core.String? metaJson,
+    $core.String? description,
+    $core.String? fieldsJson,
+    $core.bool? takeOnline,
+    $core.String? resetPolicyJson,
+    $core.int? sortOrder,
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
@@ -9764,6 +10040,11 @@ class SiteQueue extends $pb.GeneratedMessage {
     if (servingTicketNo != null) result.servingTicketNo = servingTicketNo;
     if (isActive != null) result.isActive = isActive;
     if (metaJson != null) result.metaJson = metaJson;
+    if (description != null) result.description = description;
+    if (fieldsJson != null) result.fieldsJson = fieldsJson;
+    if (takeOnline != null) result.takeOnline = takeOnline;
+    if (resetPolicyJson != null) result.resetPolicyJson = resetPolicyJson;
+    if (sortOrder != null) result.sortOrder = sortOrder;
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
@@ -9793,6 +10074,11 @@ class SiteQueue extends $pb.GeneratedMessage {
     ..aI(8, _omitFieldNames ? '' : 'servingTicketNo')
     ..aOB(9, _omitFieldNames ? '' : 'isActive')
     ..aOS(10, _omitFieldNames ? '' : 'metaJson')
+    ..aOS(11, _omitFieldNames ? '' : 'description')
+    ..aOS(12, _omitFieldNames ? '' : 'fieldsJson')
+    ..aOB(13, _omitFieldNames ? '' : 'takeOnline')
+    ..aOS(14, _omitFieldNames ? '' : 'resetPolicyJson')
+    ..aI(15, _omitFieldNames ? '' : 'sortOrder')
     ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(22, _omitFieldNames ? '' : 'deletedTsMs')
@@ -9908,32 +10194,579 @@ class SiteQueue extends $pb.GeneratedMessage {
   @$pb.TagNumber(10)
   void clearMetaJson() => $_clearField(10);
 
+  @$pb.TagNumber(11)
+  $core.String get description => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set description($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasDescription() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearDescription() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.String get fieldsJson => $_getSZ(11);
+  @$pb.TagNumber(12)
+  set fieldsJson($core.String value) => $_setString(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasFieldsJson() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearFieldsJson() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $core.bool get takeOnline => $_getBF(12);
+  @$pb.TagNumber(13)
+  set takeOnline($core.bool value) => $_setBool(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasTakeOnline() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearTakeOnline() => $_clearField(13);
+
+  @$pb.TagNumber(14)
+  $core.String get resetPolicyJson => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set resetPolicyJson($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasResetPolicyJson() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearResetPolicyJson() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get sortOrder => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set sortOrder($core.int value) => $_setSignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasSortOrder() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearSortOrder() => $_clearField(15);
+
   @$pb.TagNumber(20)
-  $fixnum.Int64 get createdTsMs => $_getI64(10);
+  $fixnum.Int64 get createdTsMs => $_getI64(15);
   @$pb.TagNumber(20)
-  set createdTsMs($fixnum.Int64 value) => $_setInt64(10, value);
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(15, value);
   @$pb.TagNumber(20)
-  $core.bool hasCreatedTsMs() => $_has(10);
+  $core.bool hasCreatedTsMs() => $_has(15);
   @$pb.TagNumber(20)
   void clearCreatedTsMs() => $_clearField(20);
 
   @$pb.TagNumber(21)
-  $fixnum.Int64 get updatedTsMs => $_getI64(11);
+  $fixnum.Int64 get updatedTsMs => $_getI64(16);
   @$pb.TagNumber(21)
-  set updatedTsMs($fixnum.Int64 value) => $_setInt64(11, value);
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(16, value);
   @$pb.TagNumber(21)
-  $core.bool hasUpdatedTsMs() => $_has(11);
+  $core.bool hasUpdatedTsMs() => $_has(16);
   @$pb.TagNumber(21)
   void clearUpdatedTsMs() => $_clearField(21);
 
   @$pb.TagNumber(22)
-  $fixnum.Int64 get deletedTsMs => $_getI64(12);
+  $fixnum.Int64 get deletedTsMs => $_getI64(17);
   @$pb.TagNumber(22)
-  set deletedTsMs($fixnum.Int64 value) => $_setInt64(12, value);
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(17, value);
   @$pb.TagNumber(22)
-  $core.bool hasDeletedTsMs() => $_has(12);
+  $core.bool hasDeletedTsMs() => $_has(17);
   @$pb.TagNumber(22)
   void clearDeletedTsMs() => $_clearField(22);
+}
+
+class SiteQueueRun extends $pb.GeneratedMessage {
+  factory SiteQueueRun({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? runId,
+    $fixnum.Int64? queueId,
+    $core.int? nextNumber,
+    $core.int? servingNumber,
+    $core.String? status,
+    $core.String? resetReason,
+    $fixnum.Int64? createdTsMs,
+    $fixnum.Int64? updatedTsMs,
+    $fixnum.Int64? closedTsMs,
+  }) {
+    final result = SiteQueueRun._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (runId != null) result.runId = runId;
+    if (queueId != null) result.queueId = queueId;
+    if (nextNumber != null) result.nextNumber = nextNumber;
+    if (servingNumber != null) result.servingNumber = servingNumber;
+    if (status != null) result.status = status;
+    if (resetReason != null) result.resetReason = resetReason;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    if (closedTsMs != null) result.closedTsMs = closedTsMs;
+    return result;
+  }
+
+  SiteQueueRun._();
+
+  factory SiteQueueRun.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueueRun()..mergeFromBuffer(data, registry);
+  factory SiteQueueRun.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueueRun()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SiteQueueRun',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SiteQueueRun.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'runId')
+    ..aInt64(3, _omitFieldNames ? '' : 'queueId')
+    ..aI(4, _omitFieldNames ? '' : 'nextNumber')
+    ..aI(5, _omitFieldNames ? '' : 'servingNumber')
+    ..aOS(6, _omitFieldNames ? '' : 'status')
+    ..aOS(7, _omitFieldNames ? '' : 'resetReason')
+    ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
+    ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
+    ..aInt64(22, _omitFieldNames ? '' : 'closedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueueRun clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueueRun copyWith(void Function(SiteQueueRun) updates) =>
+      super.copyWith((message) => updates(message as SiteQueueRun))
+          as SiteQueueRun;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SiteQueueRun() / SiteQueueRun.new instead')
+  static SiteQueueRun create() => SiteQueueRun._();
+  static $pb.GeneratedMessage $_createMessage() => SiteQueueRun._();
+  @$core.override
+  SiteQueueRun createEmptyInstance() => SiteQueueRun._();
+  @$core.pragma('dart2js:noInline')
+  static SiteQueueRun getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SiteQueueRun>(
+          SiteQueueRun.$_createMessage);
+  static SiteQueueRun? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get runId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set runId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRunId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRunId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get queueId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set queueId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasQueueId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearQueueId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get nextNumber => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set nextNumber($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasNextNumber() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearNextNumber() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get servingNumber => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set servingNumber($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasServingNumber() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearServingNumber() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get status => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set status($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasStatus() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearStatus() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get resetReason => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set resetReason($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasResetReason() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearResetReason() => $_clearField(7);
+
+  @$pb.TagNumber(20)
+  $fixnum.Int64 get createdTsMs => $_getI64(7);
+  @$pb.TagNumber(20)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(20)
+  $core.bool hasCreatedTsMs() => $_has(7);
+  @$pb.TagNumber(20)
+  void clearCreatedTsMs() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $fixnum.Int64 get updatedTsMs => $_getI64(8);
+  @$pb.TagNumber(21)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(21)
+  $core.bool hasUpdatedTsMs() => $_has(8);
+  @$pb.TagNumber(21)
+  void clearUpdatedTsMs() => $_clearField(21);
+
+  @$pb.TagNumber(22)
+  $fixnum.Int64 get closedTsMs => $_getI64(9);
+  @$pb.TagNumber(22)
+  set closedTsMs($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(22)
+  $core.bool hasClosedTsMs() => $_has(9);
+  @$pb.TagNumber(22)
+  void clearClosedTsMs() => $_clearField(22);
+}
+
+class SiteQueueTicket extends $pb.GeneratedMessage {
+  factory SiteQueueTicket({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? ticketId,
+    $fixnum.Int64? queueId,
+    $fixnum.Int64? runId,
+    $core.int? ticketNo,
+    $core.String? displayLabel,
+    $core.String? status,
+    $core.String? guestName,
+    $core.String? guestPhone,
+    $core.String? answersJson,
+    $core.String? trackToken,
+    $fixnum.Int64? calledAtMs,
+    $fixnum.Int64? doneAtMs,
+    $fixnum.Int64? createdTsMs,
+    $fixnum.Int64? updatedTsMs,
+  }) {
+    final result = SiteQueueTicket._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (ticketId != null) result.ticketId = ticketId;
+    if (queueId != null) result.queueId = queueId;
+    if (runId != null) result.runId = runId;
+    if (ticketNo != null) result.ticketNo = ticketNo;
+    if (displayLabel != null) result.displayLabel = displayLabel;
+    if (status != null) result.status = status;
+    if (guestName != null) result.guestName = guestName;
+    if (guestPhone != null) result.guestPhone = guestPhone;
+    if (answersJson != null) result.answersJson = answersJson;
+    if (trackToken != null) result.trackToken = trackToken;
+    if (calledAtMs != null) result.calledAtMs = calledAtMs;
+    if (doneAtMs != null) result.doneAtMs = doneAtMs;
+    if (createdTsMs != null) result.createdTsMs = createdTsMs;
+    if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
+    return result;
+  }
+
+  SiteQueueTicket._();
+
+  factory SiteQueueTicket.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueueTicket()..mergeFromBuffer(data, registry);
+  factory SiteQueueTicket.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueueTicket()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SiteQueueTicket',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SiteQueueTicket.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'ticketId')
+    ..aInt64(3, _omitFieldNames ? '' : 'queueId')
+    ..aInt64(4, _omitFieldNames ? '' : 'runId')
+    ..aI(5, _omitFieldNames ? '' : 'ticketNo')
+    ..aOS(6, _omitFieldNames ? '' : 'displayLabel')
+    ..aOS(7, _omitFieldNames ? '' : 'status')
+    ..aOS(8, _omitFieldNames ? '' : 'guestName')
+    ..aOS(9, _omitFieldNames ? '' : 'guestPhone')
+    ..aOS(10, _omitFieldNames ? '' : 'answersJson')
+    ..aOS(11, _omitFieldNames ? '' : 'trackToken')
+    ..aInt64(12, _omitFieldNames ? '' : 'calledAtMs')
+    ..aInt64(13, _omitFieldNames ? '' : 'doneAtMs')
+    ..aInt64(20, _omitFieldNames ? '' : 'createdTsMs')
+    ..aInt64(21, _omitFieldNames ? '' : 'updatedTsMs')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueueTicket clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueueTicket copyWith(void Function(SiteQueueTicket) updates) =>
+      super.copyWith((message) => updates(message as SiteQueueTicket))
+          as SiteQueueTicket;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SiteQueueTicket() / SiteQueueTicket.new instead')
+  static SiteQueueTicket create() => SiteQueueTicket._();
+  static $pb.GeneratedMessage $_createMessage() => SiteQueueTicket._();
+  @$core.override
+  SiteQueueTicket createEmptyInstance() => SiteQueueTicket._();
+  @$core.pragma('dart2js:noInline')
+  static SiteQueueTicket getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SiteQueueTicket>(
+          SiteQueueTicket.$_createMessage);
+  static SiteQueueTicket? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get ticketId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set ticketId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTicketId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTicketId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get queueId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set queueId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasQueueId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearQueueId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get runId => $_getI64(3);
+  @$pb.TagNumber(4)
+  set runId($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasRunId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearRunId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get ticketNo => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set ticketNo($core.int value) => $_setSignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasTicketNo() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearTicketNo() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get displayLabel => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set displayLabel($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasDisplayLabel() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearDisplayLabel() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get status => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set status($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasStatus() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearStatus() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get guestName => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set guestName($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasGuestName() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearGuestName() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get guestPhone => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set guestPhone($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasGuestPhone() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearGuestPhone() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get answersJson => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set answersJson($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasAnswersJson() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearAnswersJson() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get trackToken => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set trackToken($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasTrackToken() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearTrackToken() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get calledAtMs => $_getI64(11);
+  @$pb.TagNumber(12)
+  set calledAtMs($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasCalledAtMs() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearCalledAtMs() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  $fixnum.Int64 get doneAtMs => $_getI64(12);
+  @$pb.TagNumber(13)
+  set doneAtMs($fixnum.Int64 value) => $_setInt64(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasDoneAtMs() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearDoneAtMs() => $_clearField(13);
+
+  @$pb.TagNumber(20)
+  $fixnum.Int64 get createdTsMs => $_getI64(13);
+  @$pb.TagNumber(20)
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(13, value);
+  @$pb.TagNumber(20)
+  $core.bool hasCreatedTsMs() => $_has(13);
+  @$pb.TagNumber(20)
+  void clearCreatedTsMs() => $_clearField(20);
+
+  @$pb.TagNumber(21)
+  $fixnum.Int64 get updatedTsMs => $_getI64(14);
+  @$pb.TagNumber(21)
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(14, value);
+  @$pb.TagNumber(21)
+  $core.bool hasUpdatedTsMs() => $_has(14);
+  @$pb.TagNumber(21)
+  void clearUpdatedTsMs() => $_clearField(21);
+}
+
+class SiteQueueBoard extends $pb.GeneratedMessage {
+  factory SiteQueueBoard({
+    SiteQueue? queue,
+    SiteQueueRun? run,
+    $core.Iterable<SiteQueueTicket>? waiting,
+    SiteQueueTicket? serving,
+    SiteQueueTicket? called,
+  }) {
+    final result = SiteQueueBoard._();
+    if (queue != null) result.queue = queue;
+    if (run != null) result.run = run;
+    if (waiting != null) result.waiting.addAll(waiting);
+    if (serving != null) result.serving = serving;
+    if (called != null) result.called = called;
+    return result;
+  }
+
+  SiteQueueBoard._();
+
+  factory SiteQueueBoard.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueueBoard()..mergeFromBuffer(data, registry);
+  factory SiteQueueBoard.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteQueueBoard()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SiteQueueBoard',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SiteQueueBoard.$_createMessage)
+    ..aOM<SiteQueue>(1, _omitFieldNames ? '' : 'queue',
+        subBuilder: SiteQueue.$_createMessage)
+    ..aOM<SiteQueueRun>(2, _omitFieldNames ? '' : 'run',
+        subBuilder: SiteQueueRun.$_createMessage)
+    ..pPM<SiteQueueTicket>(3, _omitFieldNames ? '' : 'waiting',
+        subBuilder: SiteQueueTicket.$_createMessage)
+    ..aOM<SiteQueueTicket>(4, _omitFieldNames ? '' : 'serving',
+        subBuilder: SiteQueueTicket.$_createMessage)
+    ..aOM<SiteQueueTicket>(5, _omitFieldNames ? '' : 'called',
+        subBuilder: SiteQueueTicket.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueueBoard clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteQueueBoard copyWith(void Function(SiteQueueBoard) updates) =>
+      super.copyWith((message) => updates(message as SiteQueueBoard))
+          as SiteQueueBoard;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SiteQueueBoard() / SiteQueueBoard.new instead')
+  static SiteQueueBoard create() => SiteQueueBoard._();
+  static $pb.GeneratedMessage $_createMessage() => SiteQueueBoard._();
+  @$core.override
+  SiteQueueBoard createEmptyInstance() => SiteQueueBoard._();
+  @$core.pragma('dart2js:noInline')
+  static SiteQueueBoard getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SiteQueueBoard>(
+          SiteQueueBoard.$_createMessage);
+  static SiteQueueBoard? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SiteQueue get queue => $_getN(0);
+  @$pb.TagNumber(1)
+  set queue(SiteQueue value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasQueue() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearQueue() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SiteQueue ensureQueue() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  SiteQueueRun get run => $_getN(1);
+  @$pb.TagNumber(2)
+  set run(SiteQueueRun value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasRun() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearRun() => $_clearField(2);
+  @$pb.TagNumber(2)
+  SiteQueueRun ensureRun() => $_ensure(1);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<SiteQueueTicket> get waiting => $_getList(2);
+
+  @$pb.TagNumber(4)
+  SiteQueueTicket get serving => $_getN(3);
+  @$pb.TagNumber(4)
+  set serving(SiteQueueTicket value) => $_setField(4, value);
+  @$pb.TagNumber(4)
+  $core.bool hasServing() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearServing() => $_clearField(4);
+  @$pb.TagNumber(4)
+  SiteQueueTicket ensureServing() => $_ensure(3);
+
+  @$pb.TagNumber(5)
+  SiteQueueTicket get called => $_getN(4);
+  @$pb.TagNumber(5)
+  set called(SiteQueueTicket value) => $_setField(5, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCalled() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCalled() => $_clearField(5);
+  @$pb.TagNumber(5)
+  SiteQueueTicket ensureCalled() => $_ensure(4);
 }
 
 class ReqSiteQueueList extends $pb.GeneratedMessage {
@@ -10300,6 +11133,2423 @@ class ResSiteQueueAdvance extends $pb.GeneratedMessage {
   $core.bool hasServingTicketNo() => $_has(0);
   @$pb.TagNumber(1)
   void clearServingTicketNo() => $_clearField(1);
+}
+
+class ReqSiteQueueBoard extends $pb.GeneratedMessage {
+  factory ReqSiteQueueBoard({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? queueId,
+  }) {
+    final result = ReqSiteQueueBoard._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (queueId != null) result.queueId = queueId;
+    return result;
+  }
+
+  ReqSiteQueueBoard._();
+
+  factory ReqSiteQueueBoard.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueBoard()..mergeFromBuffer(data, registry);
+  factory ReqSiteQueueBoard.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueBoard()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteQueueBoard',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteQueueBoard.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'queueId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueBoard clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueBoard copyWith(void Function(ReqSiteQueueBoard) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteQueueBoard))
+          as ReqSiteQueueBoard;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSiteQueueBoard() / ReqSiteQueueBoard.new instead')
+  static ReqSiteQueueBoard create() => ReqSiteQueueBoard._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteQueueBoard._();
+  @$core.override
+  ReqSiteQueueBoard createEmptyInstance() => ReqSiteQueueBoard._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteQueueBoard getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqSiteQueueBoard>(
+          ReqSiteQueueBoard.$_createMessage);
+  static ReqSiteQueueBoard? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get queueId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set queueId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQueueId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQueueId() => $_clearField(2);
+}
+
+class ResSiteQueueBoard extends $pb.GeneratedMessage {
+  factory ResSiteQueueBoard({
+    SiteQueueBoard? board,
+  }) {
+    final result = ResSiteQueueBoard._();
+    if (board != null) result.board = board;
+    return result;
+  }
+
+  ResSiteQueueBoard._();
+
+  factory ResSiteQueueBoard.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueBoard()..mergeFromBuffer(data, registry);
+  factory ResSiteQueueBoard.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueBoard()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteQueueBoard',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteQueueBoard.$_createMessage)
+    ..aOM<SiteQueueBoard>(1, _omitFieldNames ? '' : 'board',
+        subBuilder: SiteQueueBoard.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueBoard clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueBoard copyWith(void Function(ResSiteQueueBoard) updates) =>
+      super.copyWith((message) => updates(message as ResSiteQueueBoard))
+          as ResSiteQueueBoard;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSiteQueueBoard() / ResSiteQueueBoard.new instead')
+  static ResSiteQueueBoard create() => ResSiteQueueBoard._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteQueueBoard._();
+  @$core.override
+  ResSiteQueueBoard createEmptyInstance() => ResSiteQueueBoard._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteQueueBoard getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResSiteQueueBoard>(
+          ResSiteQueueBoard.$_createMessage);
+  static ResSiteQueueBoard? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SiteQueueBoard get board => $_getN(0);
+  @$pb.TagNumber(1)
+  set board(SiteQueueBoard value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasBoard() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearBoard() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SiteQueueBoard ensureBoard() => $_ensure(0);
+}
+
+class ReqSiteQueueCallNext extends $pb.GeneratedMessage {
+  factory ReqSiteQueueCallNext({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? queueId,
+  }) {
+    final result = ReqSiteQueueCallNext._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (queueId != null) result.queueId = queueId;
+    return result;
+  }
+
+  ReqSiteQueueCallNext._();
+
+  factory ReqSiteQueueCallNext.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueCallNext()..mergeFromBuffer(data, registry);
+  factory ReqSiteQueueCallNext.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueCallNext()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteQueueCallNext',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteQueueCallNext.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'queueId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueCallNext clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueCallNext copyWith(void Function(ReqSiteQueueCallNext) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteQueueCallNext))
+          as ReqSiteQueueCallNext;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteQueueCallNext() / ReqSiteQueueCallNext.new instead')
+  static ReqSiteQueueCallNext create() => ReqSiteQueueCallNext._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteQueueCallNext._();
+  @$core.override
+  ReqSiteQueueCallNext createEmptyInstance() => ReqSiteQueueCallNext._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteQueueCallNext getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteQueueCallNext>(
+          ReqSiteQueueCallNext.$_createMessage);
+  static ReqSiteQueueCallNext? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get queueId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set queueId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQueueId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQueueId() => $_clearField(2);
+}
+
+class ResSiteQueueCallNext extends $pb.GeneratedMessage {
+  factory ResSiteQueueCallNext({
+    SiteQueueTicket? ticket,
+  }) {
+    final result = ResSiteQueueCallNext._();
+    if (ticket != null) result.ticket = ticket;
+    return result;
+  }
+
+  ResSiteQueueCallNext._();
+
+  factory ResSiteQueueCallNext.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueCallNext()..mergeFromBuffer(data, registry);
+  factory ResSiteQueueCallNext.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueCallNext()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteQueueCallNext',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteQueueCallNext.$_createMessage)
+    ..aOM<SiteQueueTicket>(1, _omitFieldNames ? '' : 'ticket',
+        subBuilder: SiteQueueTicket.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueCallNext clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueCallNext copyWith(void Function(ResSiteQueueCallNext) updates) =>
+      super.copyWith((message) => updates(message as ResSiteQueueCallNext))
+          as ResSiteQueueCallNext;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteQueueCallNext() / ResSiteQueueCallNext.new instead')
+  static ResSiteQueueCallNext create() => ResSiteQueueCallNext._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteQueueCallNext._();
+  @$core.override
+  ResSiteQueueCallNext createEmptyInstance() => ResSiteQueueCallNext._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteQueueCallNext getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteQueueCallNext>(
+          ResSiteQueueCallNext.$_createMessage);
+  static ResSiteQueueCallNext? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SiteQueueTicket get ticket => $_getN(0);
+  @$pb.TagNumber(1)
+  set ticket(SiteQueueTicket value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTicket() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTicket() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SiteQueueTicket ensureTicket() => $_ensure(0);
+}
+
+class ReqSiteQueueTicketSetStatus extends $pb.GeneratedMessage {
+  factory ReqSiteQueueTicketSetStatus({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? queueId,
+    $fixnum.Int64? ticketId,
+    $core.String? status,
+  }) {
+    final result = ReqSiteQueueTicketSetStatus._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (queueId != null) result.queueId = queueId;
+    if (ticketId != null) result.ticketId = ticketId;
+    if (status != null) result.status = status;
+    return result;
+  }
+
+  ReqSiteQueueTicketSetStatus._();
+
+  factory ReqSiteQueueTicketSetStatus.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueTicketSetStatus()..mergeFromBuffer(data, registry);
+  factory ReqSiteQueueTicketSetStatus.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueTicketSetStatus()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteQueueTicketSetStatus',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteQueueTicketSetStatus.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'queueId')
+    ..aInt64(3, _omitFieldNames ? '' : 'ticketId')
+    ..aOS(4, _omitFieldNames ? '' : 'status')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueTicketSetStatus clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueTicketSetStatus copyWith(
+          void Function(ReqSiteQueueTicketSetStatus) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqSiteQueueTicketSetStatus))
+          as ReqSiteQueueTicketSetStatus;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteQueueTicketSetStatus() / ReqSiteQueueTicketSetStatus.new instead')
+  static ReqSiteQueueTicketSetStatus create() =>
+      ReqSiteQueueTicketSetStatus._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqSiteQueueTicketSetStatus._();
+  @$core.override
+  ReqSiteQueueTicketSetStatus createEmptyInstance() =>
+      ReqSiteQueueTicketSetStatus._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteQueueTicketSetStatus getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteQueueTicketSetStatus>(
+          ReqSiteQueueTicketSetStatus.$_createMessage);
+  static ReqSiteQueueTicketSetStatus? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get queueId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set queueId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQueueId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQueueId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get ticketId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set ticketId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTicketId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTicketId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get status => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set status($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStatus() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStatus() => $_clearField(4);
+}
+
+class ResSiteQueueTicketSetStatus extends $pb.GeneratedMessage {
+  factory ResSiteQueueTicketSetStatus({
+    SiteQueueTicket? ticket,
+  }) {
+    final result = ResSiteQueueTicketSetStatus._();
+    if (ticket != null) result.ticket = ticket;
+    return result;
+  }
+
+  ResSiteQueueTicketSetStatus._();
+
+  factory ResSiteQueueTicketSetStatus.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueTicketSetStatus()..mergeFromBuffer(data, registry);
+  factory ResSiteQueueTicketSetStatus.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueTicketSetStatus()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteQueueTicketSetStatus',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteQueueTicketSetStatus.$_createMessage)
+    ..aOM<SiteQueueTicket>(1, _omitFieldNames ? '' : 'ticket',
+        subBuilder: SiteQueueTicket.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueTicketSetStatus clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueTicketSetStatus copyWith(
+          void Function(ResSiteQueueTicketSetStatus) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResSiteQueueTicketSetStatus))
+          as ResSiteQueueTicketSetStatus;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteQueueTicketSetStatus() / ResSiteQueueTicketSetStatus.new instead')
+  static ResSiteQueueTicketSetStatus create() =>
+      ResSiteQueueTicketSetStatus._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResSiteQueueTicketSetStatus._();
+  @$core.override
+  ResSiteQueueTicketSetStatus createEmptyInstance() =>
+      ResSiteQueueTicketSetStatus._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteQueueTicketSetStatus getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteQueueTicketSetStatus>(
+          ResSiteQueueTicketSetStatus.$_createMessage);
+  static ResSiteQueueTicketSetStatus? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SiteQueueTicket get ticket => $_getN(0);
+  @$pb.TagNumber(1)
+  set ticket(SiteQueueTicket value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTicket() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTicket() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SiteQueueTicket ensureTicket() => $_ensure(0);
+}
+
+class ReqSiteQueueReset extends $pb.GeneratedMessage {
+  factory ReqSiteQueueReset({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? queueId,
+  }) {
+    final result = ReqSiteQueueReset._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (queueId != null) result.queueId = queueId;
+    return result;
+  }
+
+  ReqSiteQueueReset._();
+
+  factory ReqSiteQueueReset.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueReset()..mergeFromBuffer(data, registry);
+  factory ReqSiteQueueReset.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueReset()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteQueueReset',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteQueueReset.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'queueId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueReset clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueReset copyWith(void Function(ReqSiteQueueReset) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteQueueReset))
+          as ReqSiteQueueReset;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqSiteQueueReset() / ReqSiteQueueReset.new instead')
+  static ReqSiteQueueReset create() => ReqSiteQueueReset._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteQueueReset._();
+  @$core.override
+  ReqSiteQueueReset createEmptyInstance() => ReqSiteQueueReset._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteQueueReset getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqSiteQueueReset>(
+          ReqSiteQueueReset.$_createMessage);
+  static ReqSiteQueueReset? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get queueId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set queueId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQueueId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQueueId() => $_clearField(2);
+}
+
+class ResSiteQueueReset extends $pb.GeneratedMessage {
+  factory ResSiteQueueReset({
+    $fixnum.Int64? runId,
+  }) {
+    final result = ResSiteQueueReset._();
+    if (runId != null) result.runId = runId;
+    return result;
+  }
+
+  ResSiteQueueReset._();
+
+  factory ResSiteQueueReset.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueReset()..mergeFromBuffer(data, registry);
+  factory ResSiteQueueReset.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueReset()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteQueueReset',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteQueueReset.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'runId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueReset clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueReset copyWith(void Function(ResSiteQueueReset) updates) =>
+      super.copyWith((message) => updates(message as ResSiteQueueReset))
+          as ResSiteQueueReset;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResSiteQueueReset() / ResSiteQueueReset.new instead')
+  static ResSiteQueueReset create() => ResSiteQueueReset._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteQueueReset._();
+  @$core.override
+  ResSiteQueueReset createEmptyInstance() => ResSiteQueueReset._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteQueueReset getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResSiteQueueReset>(
+          ResSiteQueueReset.$_createMessage);
+  static ResSiteQueueReset? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get runId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set runId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRunId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRunId() => $_clearField(1);
+}
+
+class ReqSiteQueueTicketList extends $pb.GeneratedMessage {
+  factory ReqSiteQueueTicketList({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? queueId,
+    $core.int? limit,
+    $core.String? status,
+  }) {
+    final result = ReqSiteQueueTicketList._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (queueId != null) result.queueId = queueId;
+    if (limit != null) result.limit = limit;
+    if (status != null) result.status = status;
+    return result;
+  }
+
+  ReqSiteQueueTicketList._();
+
+  factory ReqSiteQueueTicketList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueTicketList()..mergeFromBuffer(data, registry);
+  factory ReqSiteQueueTicketList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteQueueTicketList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteQueueTicketList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteQueueTicketList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'queueId')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..aOS(4, _omitFieldNames ? '' : 'status')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueTicketList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteQueueTicketList copyWith(
+          void Function(ReqSiteQueueTicketList) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteQueueTicketList))
+          as ReqSiteQueueTicketList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteQueueTicketList() / ReqSiteQueueTicketList.new instead')
+  static ReqSiteQueueTicketList create() => ReqSiteQueueTicketList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteQueueTicketList._();
+  @$core.override
+  ReqSiteQueueTicketList createEmptyInstance() => ReqSiteQueueTicketList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteQueueTicketList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteQueueTicketList>(
+          ReqSiteQueueTicketList.$_createMessage);
+  static ReqSiteQueueTicketList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get queueId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set queueId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQueueId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQueueId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get status => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set status($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStatus() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStatus() => $_clearField(4);
+}
+
+class ResSiteQueueTicketList extends $pb.GeneratedMessage {
+  factory ResSiteQueueTicketList({
+    $core.Iterable<SiteQueueTicket>? tickets,
+  }) {
+    final result = ResSiteQueueTicketList._();
+    if (tickets != null) result.tickets.addAll(tickets);
+    return result;
+  }
+
+  ResSiteQueueTicketList._();
+
+  factory ResSiteQueueTicketList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueTicketList()..mergeFromBuffer(data, registry);
+  factory ResSiteQueueTicketList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteQueueTicketList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteQueueTicketList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteQueueTicketList.$_createMessage)
+    ..pPM<SiteQueueTicket>(1, _omitFieldNames ? '' : 'tickets',
+        subBuilder: SiteQueueTicket.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueTicketList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteQueueTicketList copyWith(
+          void Function(ResSiteQueueTicketList) updates) =>
+      super.copyWith((message) => updates(message as ResSiteQueueTicketList))
+          as ResSiteQueueTicketList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteQueueTicketList() / ResSiteQueueTicketList.new instead')
+  static ResSiteQueueTicketList create() => ResSiteQueueTicketList._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteQueueTicketList._();
+  @$core.override
+  ResSiteQueueTicketList createEmptyInstance() => ResSiteQueueTicketList._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteQueueTicketList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteQueueTicketList>(
+          ResSiteQueueTicketList.$_createMessage);
+  static ResSiteQueueTicketList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SiteQueueTicket> get tickets => $_getList(0);
+}
+
+/// Guest queue HTTP uses JSON; these mirror wire shapes for clients/codegen.
+class ReqGuestQueueTake extends $pb.GeneratedMessage {
+  factory ReqGuestQueueTake({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? queueId,
+    $core.String? answersJson,
+    $core.String? guestName,
+    $core.String? guestPhone,
+  }) {
+    final result = ReqGuestQueueTake._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (queueId != null) result.queueId = queueId;
+    if (answersJson != null) result.answersJson = answersJson;
+    if (guestName != null) result.guestName = guestName;
+    if (guestPhone != null) result.guestPhone = guestPhone;
+    return result;
+  }
+
+  ReqGuestQueueTake._();
+
+  factory ReqGuestQueueTake.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqGuestQueueTake()..mergeFromBuffer(data, registry);
+  factory ReqGuestQueueTake.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqGuestQueueTake()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqGuestQueueTake',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqGuestQueueTake.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'queueId')
+    ..aOS(3, _omitFieldNames ? '' : 'answersJson')
+    ..aOS(4, _omitFieldNames ? '' : 'guestName')
+    ..aOS(5, _omitFieldNames ? '' : 'guestPhone')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqGuestQueueTake clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqGuestQueueTake copyWith(void Function(ReqGuestQueueTake) updates) =>
+      super.copyWith((message) => updates(message as ReqGuestQueueTake))
+          as ReqGuestQueueTake;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqGuestQueueTake() / ReqGuestQueueTake.new instead')
+  static ReqGuestQueueTake create() => ReqGuestQueueTake._();
+  static $pb.GeneratedMessage $_createMessage() => ReqGuestQueueTake._();
+  @$core.override
+  ReqGuestQueueTake createEmptyInstance() => ReqGuestQueueTake._();
+  @$core.pragma('dart2js:noInline')
+  static ReqGuestQueueTake getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ReqGuestQueueTake>(
+          ReqGuestQueueTake.$_createMessage);
+  static ReqGuestQueueTake? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get queueId => $_getI64(1);
+  @$pb.TagNumber(2)
+  set queueId($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasQueueId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearQueueId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get answersJson => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set answersJson($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasAnswersJson() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearAnswersJson() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get guestName => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set guestName($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasGuestName() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearGuestName() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get guestPhone => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set guestPhone($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasGuestPhone() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearGuestPhone() => $_clearField(5);
+}
+
+class ResGuestQueueTake extends $pb.GeneratedMessage {
+  factory ResGuestQueueTake({
+    $core.bool? ok,
+    $core.String? error,
+    $fixnum.Int64? ticketId,
+    $core.int? ticketNo,
+    $core.String? displayLabel,
+    $core.String? trackToken,
+    $fixnum.Int64? queueId,
+    $core.int? servingTicketNo,
+  }) {
+    final result = ResGuestQueueTake._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (ticketId != null) result.ticketId = ticketId;
+    if (ticketNo != null) result.ticketNo = ticketNo;
+    if (displayLabel != null) result.displayLabel = displayLabel;
+    if (trackToken != null) result.trackToken = trackToken;
+    if (queueId != null) result.queueId = queueId;
+    if (servingTicketNo != null) result.servingTicketNo = servingTicketNo;
+    return result;
+  }
+
+  ResGuestQueueTake._();
+
+  factory ResGuestQueueTake.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResGuestQueueTake()..mergeFromBuffer(data, registry);
+  factory ResGuestQueueTake.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResGuestQueueTake()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResGuestQueueTake',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResGuestQueueTake.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aInt64(3, _omitFieldNames ? '' : 'ticketId')
+    ..aI(4, _omitFieldNames ? '' : 'ticketNo')
+    ..aOS(5, _omitFieldNames ? '' : 'displayLabel')
+    ..aOS(6, _omitFieldNames ? '' : 'trackToken')
+    ..aInt64(7, _omitFieldNames ? '' : 'queueId')
+    ..aI(8, _omitFieldNames ? '' : 'servingTicketNo')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResGuestQueueTake clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResGuestQueueTake copyWith(void Function(ResGuestQueueTake) updates) =>
+      super.copyWith((message) => updates(message as ResGuestQueueTake))
+          as ResGuestQueueTake;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResGuestQueueTake() / ResGuestQueueTake.new instead')
+  static ResGuestQueueTake create() => ResGuestQueueTake._();
+  static $pb.GeneratedMessage $_createMessage() => ResGuestQueueTake._();
+  @$core.override
+  ResGuestQueueTake createEmptyInstance() => ResGuestQueueTake._();
+  @$core.pragma('dart2js:noInline')
+  static ResGuestQueueTake getDefault() =>
+      _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ResGuestQueueTake>(
+          ResGuestQueueTake.$_createMessage);
+  static ResGuestQueueTake? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get ticketId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set ticketId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTicketId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTicketId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get ticketNo => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set ticketNo($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTicketNo() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTicketNo() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get displayLabel => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set displayLabel($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasDisplayLabel() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearDisplayLabel() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get trackToken => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set trackToken($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasTrackToken() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearTrackToken() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get queueId => $_getI64(6);
+  @$pb.TagNumber(7)
+  set queueId($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasQueueId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearQueueId() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get servingTicketNo => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set servingTicketNo($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasServingTicketNo() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearServingTicketNo() => $_clearField(8);
+}
+
+class ReqGuestQueueTrack extends $pb.GeneratedMessage {
+  factory ReqGuestQueueTrack({
+    $fixnum.Int64? siteIid,
+    $core.String? trackToken,
+  }) {
+    final result = ReqGuestQueueTrack._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (trackToken != null) result.trackToken = trackToken;
+    return result;
+  }
+
+  ReqGuestQueueTrack._();
+
+  factory ReqGuestQueueTrack.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqGuestQueueTrack()..mergeFromBuffer(data, registry);
+  factory ReqGuestQueueTrack.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqGuestQueueTrack()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqGuestQueueTrack',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqGuestQueueTrack.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'trackToken')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqGuestQueueTrack clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqGuestQueueTrack copyWith(void Function(ReqGuestQueueTrack) updates) =>
+      super.copyWith((message) => updates(message as ReqGuestQueueTrack))
+          as ReqGuestQueueTrack;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ReqGuestQueueTrack() / ReqGuestQueueTrack.new instead')
+  static ReqGuestQueueTrack create() => ReqGuestQueueTrack._();
+  static $pb.GeneratedMessage $_createMessage() => ReqGuestQueueTrack._();
+  @$core.override
+  ReqGuestQueueTrack createEmptyInstance() => ReqGuestQueueTrack._();
+  @$core.pragma('dart2js:noInline')
+  static ReqGuestQueueTrack getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqGuestQueueTrack>(
+          ReqGuestQueueTrack.$_createMessage);
+  static ReqGuestQueueTrack? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get trackToken => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set trackToken($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTrackToken() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTrackToken() => $_clearField(2);
+}
+
+class ResGuestQueueTrack extends $pb.GeneratedMessage {
+  factory ResGuestQueueTrack({
+    $core.bool? ok,
+    $core.String? error,
+    $fixnum.Int64? queueId,
+    $core.int? ticketNo,
+    $core.String? displayLabel,
+    $core.String? status,
+    $core.int? servingNumber,
+    $core.int? positionAhead,
+    $fixnum.Int64? ticketId,
+  }) {
+    final result = ResGuestQueueTrack._();
+    if (ok != null) result.ok = ok;
+    if (error != null) result.error = error;
+    if (queueId != null) result.queueId = queueId;
+    if (ticketNo != null) result.ticketNo = ticketNo;
+    if (displayLabel != null) result.displayLabel = displayLabel;
+    if (status != null) result.status = status;
+    if (servingNumber != null) result.servingNumber = servingNumber;
+    if (positionAhead != null) result.positionAhead = positionAhead;
+    if (ticketId != null) result.ticketId = ticketId;
+    return result;
+  }
+
+  ResGuestQueueTrack._();
+
+  factory ResGuestQueueTrack.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResGuestQueueTrack()..mergeFromBuffer(data, registry);
+  factory ResGuestQueueTrack.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResGuestQueueTrack()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResGuestQueueTrack',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResGuestQueueTrack.$_createMessage)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'error')
+    ..aInt64(3, _omitFieldNames ? '' : 'queueId')
+    ..aI(4, _omitFieldNames ? '' : 'ticketNo')
+    ..aOS(5, _omitFieldNames ? '' : 'displayLabel')
+    ..aOS(6, _omitFieldNames ? '' : 'status')
+    ..aI(7, _omitFieldNames ? '' : 'servingNumber')
+    ..aI(8, _omitFieldNames ? '' : 'positionAhead')
+    ..aInt64(9, _omitFieldNames ? '' : 'ticketId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResGuestQueueTrack clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResGuestQueueTrack copyWith(void Function(ResGuestQueueTrack) updates) =>
+      super.copyWith((message) => updates(message as ResGuestQueueTrack))
+          as ResGuestQueueTrack;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use ResGuestQueueTrack() / ResGuestQueueTrack.new instead')
+  static ResGuestQueueTrack create() => ResGuestQueueTrack._();
+  static $pb.GeneratedMessage $_createMessage() => ResGuestQueueTrack._();
+  @$core.override
+  ResGuestQueueTrack createEmptyInstance() => ResGuestQueueTrack._();
+  @$core.pragma('dart2js:noInline')
+  static ResGuestQueueTrack getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResGuestQueueTrack>(
+          ResGuestQueueTrack.$_createMessage);
+  static ResGuestQueueTrack? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get error => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set error($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasError() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearError() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get queueId => $_getI64(2);
+  @$pb.TagNumber(3)
+  set queueId($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasQueueId() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearQueueId() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.int get ticketNo => $_getIZ(3);
+  @$pb.TagNumber(4)
+  set ticketNo($core.int value) => $_setSignedInt32(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTicketNo() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTicketNo() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get displayLabel => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set displayLabel($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasDisplayLabel() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearDisplayLabel() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get status => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set status($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasStatus() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearStatus() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.int get servingNumber => $_getIZ(6);
+  @$pb.TagNumber(7)
+  set servingNumber($core.int value) => $_setSignedInt32(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasServingNumber() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearServingNumber() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get positionAhead => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set positionAhead($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasPositionAhead() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearPositionAhead() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get ticketId => $_getI64(8);
+  @$pb.TagNumber(9)
+  set ticketId($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasTicketId() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearTicketId() => $_clearField(9);
+}
+
+class SitePresenceRecord extends $pb.GeneratedMessage {
+  factory SitePresenceRecord({
+    $fixnum.Int64? recordId,
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? granteeIid,
+    $core.String? shiftId,
+    $core.String? kind,
+    $fixnum.Int64? atMs,
+    $core.String? sessionId,
+    $core.int? workDurationMin,
+    $core.String? attendanceMethod,
+    $core.String? status,
+    $core.String? reason,
+  }) {
+    final result = SitePresenceRecord._();
+    if (recordId != null) result.recordId = recordId;
+    if (siteIid != null) result.siteIid = siteIid;
+    if (granteeIid != null) result.granteeIid = granteeIid;
+    if (shiftId != null) result.shiftId = shiftId;
+    if (kind != null) result.kind = kind;
+    if (atMs != null) result.atMs = atMs;
+    if (sessionId != null) result.sessionId = sessionId;
+    if (workDurationMin != null) result.workDurationMin = workDurationMin;
+    if (attendanceMethod != null) result.attendanceMethod = attendanceMethod;
+    if (status != null) result.status = status;
+    if (reason != null) result.reason = reason;
+    return result;
+  }
+
+  SitePresenceRecord._();
+
+  factory SitePresenceRecord.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SitePresenceRecord()..mergeFromBuffer(data, registry);
+  factory SitePresenceRecord.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SitePresenceRecord()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SitePresenceRecord',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SitePresenceRecord.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'recordId')
+    ..aInt64(2, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(3, _omitFieldNames ? '' : 'granteeIid')
+    ..aOS(4, _omitFieldNames ? '' : 'shiftId')
+    ..aOS(5, _omitFieldNames ? '' : 'kind')
+    ..aInt64(6, _omitFieldNames ? '' : 'atMs')
+    ..aOS(7, _omitFieldNames ? '' : 'sessionId')
+    ..aI(8, _omitFieldNames ? '' : 'workDurationMin')
+    ..aOS(9, _omitFieldNames ? '' : 'attendanceMethod')
+    ..aOS(10, _omitFieldNames ? '' : 'status')
+    ..aOS(11, _omitFieldNames ? '' : 'reason')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SitePresenceRecord clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SitePresenceRecord copyWith(void Function(SitePresenceRecord) updates) =>
+      super.copyWith((message) => updates(message as SitePresenceRecord))
+          as SitePresenceRecord;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated('Use SitePresenceRecord() / SitePresenceRecord.new instead')
+  static SitePresenceRecord create() => SitePresenceRecord._();
+  static $pb.GeneratedMessage $_createMessage() => SitePresenceRecord._();
+  @$core.override
+  SitePresenceRecord createEmptyInstance() => SitePresenceRecord._();
+  @$core.pragma('dart2js:noInline')
+  static SitePresenceRecord getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SitePresenceRecord>(
+          SitePresenceRecord.$_createMessage);
+  static SitePresenceRecord? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get recordId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set recordId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRecordId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRecordId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get siteIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set siteIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSiteIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSiteIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get granteeIid => $_getI64(2);
+  @$pb.TagNumber(3)
+  set granteeIid($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasGranteeIid() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearGranteeIid() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get shiftId => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set shiftId($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasShiftId() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearShiftId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get kind => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set kind($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasKind() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearKind() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get atMs => $_getI64(5);
+  @$pb.TagNumber(6)
+  set atMs($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasAtMs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearAtMs() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get sessionId => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set sessionId($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasSessionId() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearSessionId() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get workDurationMin => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set workDurationMin($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasWorkDurationMin() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearWorkDurationMin() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.String get attendanceMethod => $_getSZ(8);
+  @$pb.TagNumber(9)
+  set attendanceMethod($core.String value) => $_setString(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasAttendanceMethod() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearAttendanceMethod() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get status => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set status($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasStatus() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearStatus() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.String get reason => $_getSZ(10);
+  @$pb.TagNumber(11)
+  set reason($core.String value) => $_setString(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasReason() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearReason() => $_clearField(11);
+}
+
+class SitePresenceStaffContext extends $pb.GeneratedMessage {
+  factory SitePresenceStaffContext({
+    $core.Iterable<$core.String>? workShiftIds,
+    $core.String? openSessionId,
+    $fixnum.Int64? openClockInMs,
+    $core.bool? canClockIn,
+    $core.bool? canClockOut,
+    $core.String? message,
+  }) {
+    final result = SitePresenceStaffContext._();
+    if (workShiftIds != null) result.workShiftIds.addAll(workShiftIds);
+    if (openSessionId != null) result.openSessionId = openSessionId;
+    if (openClockInMs != null) result.openClockInMs = openClockInMs;
+    if (canClockIn != null) result.canClockIn = canClockIn;
+    if (canClockOut != null) result.canClockOut = canClockOut;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  SitePresenceStaffContext._();
+
+  factory SitePresenceStaffContext.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SitePresenceStaffContext()..mergeFromBuffer(data, registry);
+  factory SitePresenceStaffContext.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SitePresenceStaffContext()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SitePresenceStaffContext',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SitePresenceStaffContext.$_createMessage)
+    ..pPS(1, _omitFieldNames ? '' : 'workShiftIds')
+    ..aOS(2, _omitFieldNames ? '' : 'openSessionId')
+    ..aInt64(3, _omitFieldNames ? '' : 'openClockInMs')
+    ..aOB(4, _omitFieldNames ? '' : 'canClockIn')
+    ..aOB(5, _omitFieldNames ? '' : 'canClockOut')
+    ..aOS(6, _omitFieldNames ? '' : 'message')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SitePresenceStaffContext clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SitePresenceStaffContext copyWith(
+          void Function(SitePresenceStaffContext) updates) =>
+      super.copyWith((message) => updates(message as SitePresenceStaffContext))
+          as SitePresenceStaffContext;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use SitePresenceStaffContext() / SitePresenceStaffContext.new instead')
+  static SitePresenceStaffContext create() => SitePresenceStaffContext._();
+  static $pb.GeneratedMessage $_createMessage() => SitePresenceStaffContext._();
+  @$core.override
+  SitePresenceStaffContext createEmptyInstance() =>
+      SitePresenceStaffContext._();
+  @$core.pragma('dart2js:noInline')
+  static SitePresenceStaffContext getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SitePresenceStaffContext>(
+          SitePresenceStaffContext.$_createMessage);
+  static SitePresenceStaffContext? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<$core.String> get workShiftIds => $_getList(0);
+
+  @$pb.TagNumber(2)
+  $core.String get openSessionId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set openSessionId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasOpenSessionId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearOpenSessionId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get openClockInMs => $_getI64(2);
+  @$pb.TagNumber(3)
+  set openClockInMs($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasOpenClockInMs() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearOpenClockInMs() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get canClockIn => $_getBF(3);
+  @$pb.TagNumber(4)
+  set canClockIn($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasCanClockIn() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearCanClockIn() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.bool get canClockOut => $_getBF(4);
+  @$pb.TagNumber(5)
+  set canClockOut($core.bool value) => $_setBool(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCanClockOut() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCanClockOut() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get message => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set message($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMessage() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMessage() => $_clearField(6);
+}
+
+class ReqSitePresenceContext extends $pb.GeneratedMessage {
+  factory ReqSitePresenceContext({
+    $fixnum.Int64? siteIid,
+  }) {
+    final result = ReqSitePresenceContext._();
+    if (siteIid != null) result.siteIid = siteIid;
+    return result;
+  }
+
+  ReqSitePresenceContext._();
+
+  factory ReqSitePresenceContext.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceContext()..mergeFromBuffer(data, registry);
+  factory ReqSitePresenceContext.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceContext()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSitePresenceContext',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSitePresenceContext.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceContext clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceContext copyWith(
+          void Function(ReqSitePresenceContext) updates) =>
+      super.copyWith((message) => updates(message as ReqSitePresenceContext))
+          as ReqSitePresenceContext;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSitePresenceContext() / ReqSitePresenceContext.new instead')
+  static ReqSitePresenceContext create() => ReqSitePresenceContext._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSitePresenceContext._();
+  @$core.override
+  ReqSitePresenceContext createEmptyInstance() => ReqSitePresenceContext._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSitePresenceContext getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSitePresenceContext>(
+          ReqSitePresenceContext.$_createMessage);
+  static ReqSitePresenceContext? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+}
+
+class ResSitePresenceContext extends $pb.GeneratedMessage {
+  factory ResSitePresenceContext({
+    SitePresenceStaffContext? context,
+  }) {
+    final result = ResSitePresenceContext._();
+    if (context != null) result.context = context;
+    return result;
+  }
+
+  ResSitePresenceContext._();
+
+  factory ResSitePresenceContext.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceContext()..mergeFromBuffer(data, registry);
+  factory ResSitePresenceContext.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceContext()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSitePresenceContext',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSitePresenceContext.$_createMessage)
+    ..aOM<SitePresenceStaffContext>(1, _omitFieldNames ? '' : 'context',
+        subBuilder: SitePresenceStaffContext.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceContext clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceContext copyWith(
+          void Function(ResSitePresenceContext) updates) =>
+      super.copyWith((message) => updates(message as ResSitePresenceContext))
+          as ResSitePresenceContext;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSitePresenceContext() / ResSitePresenceContext.new instead')
+  static ResSitePresenceContext create() => ResSitePresenceContext._();
+  static $pb.GeneratedMessage $_createMessage() => ResSitePresenceContext._();
+  @$core.override
+  ResSitePresenceContext createEmptyInstance() => ResSitePresenceContext._();
+  @$core.pragma('dart2js:noInline')
+  static ResSitePresenceContext getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSitePresenceContext>(
+          ResSitePresenceContext.$_createMessage);
+  static ResSitePresenceContext? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SitePresenceStaffContext get context => $_getN(0);
+  @$pb.TagNumber(1)
+  set context(SitePresenceStaffContext value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasContext() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearContext() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SitePresenceStaffContext ensureContext() => $_ensure(0);
+}
+
+class ReqSitePresenceClockIn extends $pb.GeneratedMessage {
+  factory ReqSitePresenceClockIn({
+    $fixnum.Int64? siteIid,
+    $core.String? shiftId,
+  }) {
+    final result = ReqSitePresenceClockIn._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (shiftId != null) result.shiftId = shiftId;
+    return result;
+  }
+
+  ReqSitePresenceClockIn._();
+
+  factory ReqSitePresenceClockIn.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceClockIn()..mergeFromBuffer(data, registry);
+  factory ReqSitePresenceClockIn.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceClockIn()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSitePresenceClockIn',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSitePresenceClockIn.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'shiftId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceClockIn clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceClockIn copyWith(
+          void Function(ReqSitePresenceClockIn) updates) =>
+      super.copyWith((message) => updates(message as ReqSitePresenceClockIn))
+          as ReqSitePresenceClockIn;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSitePresenceClockIn() / ReqSitePresenceClockIn.new instead')
+  static ReqSitePresenceClockIn create() => ReqSitePresenceClockIn._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSitePresenceClockIn._();
+  @$core.override
+  ReqSitePresenceClockIn createEmptyInstance() => ReqSitePresenceClockIn._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSitePresenceClockIn getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSitePresenceClockIn>(
+          ReqSitePresenceClockIn.$_createMessage);
+  static ReqSitePresenceClockIn? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get shiftId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set shiftId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasShiftId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearShiftId() => $_clearField(2);
+}
+
+class ResSitePresenceClockIn extends $pb.GeneratedMessage {
+  factory ResSitePresenceClockIn({
+    SitePresenceRecord? record,
+    $core.String? sessionId,
+  }) {
+    final result = ResSitePresenceClockIn._();
+    if (record != null) result.record = record;
+    if (sessionId != null) result.sessionId = sessionId;
+    return result;
+  }
+
+  ResSitePresenceClockIn._();
+
+  factory ResSitePresenceClockIn.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceClockIn()..mergeFromBuffer(data, registry);
+  factory ResSitePresenceClockIn.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceClockIn()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSitePresenceClockIn',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSitePresenceClockIn.$_createMessage)
+    ..aOM<SitePresenceRecord>(1, _omitFieldNames ? '' : 'record',
+        subBuilder: SitePresenceRecord.$_createMessage)
+    ..aOS(2, _omitFieldNames ? '' : 'sessionId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceClockIn clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceClockIn copyWith(
+          void Function(ResSitePresenceClockIn) updates) =>
+      super.copyWith((message) => updates(message as ResSitePresenceClockIn))
+          as ResSitePresenceClockIn;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSitePresenceClockIn() / ResSitePresenceClockIn.new instead')
+  static ResSitePresenceClockIn create() => ResSitePresenceClockIn._();
+  static $pb.GeneratedMessage $_createMessage() => ResSitePresenceClockIn._();
+  @$core.override
+  ResSitePresenceClockIn createEmptyInstance() => ResSitePresenceClockIn._();
+  @$core.pragma('dart2js:noInline')
+  static ResSitePresenceClockIn getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSitePresenceClockIn>(
+          ResSitePresenceClockIn.$_createMessage);
+  static ResSitePresenceClockIn? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SitePresenceRecord get record => $_getN(0);
+  @$pb.TagNumber(1)
+  set record(SitePresenceRecord value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRecord() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRecord() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SitePresenceRecord ensureRecord() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.String get sessionId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set sessionId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSessionId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSessionId() => $_clearField(2);
+}
+
+class ReqSitePresenceClockOut extends $pb.GeneratedMessage {
+  factory ReqSitePresenceClockOut({
+    $fixnum.Int64? siteIid,
+  }) {
+    final result = ReqSitePresenceClockOut._();
+    if (siteIid != null) result.siteIid = siteIid;
+    return result;
+  }
+
+  ReqSitePresenceClockOut._();
+
+  factory ReqSitePresenceClockOut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceClockOut()..mergeFromBuffer(data, registry);
+  factory ReqSitePresenceClockOut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceClockOut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSitePresenceClockOut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSitePresenceClockOut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceClockOut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceClockOut copyWith(
+          void Function(ReqSitePresenceClockOut) updates) =>
+      super.copyWith((message) => updates(message as ReqSitePresenceClockOut))
+          as ReqSitePresenceClockOut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSitePresenceClockOut() / ReqSitePresenceClockOut.new instead')
+  static ReqSitePresenceClockOut create() => ReqSitePresenceClockOut._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSitePresenceClockOut._();
+  @$core.override
+  ReqSitePresenceClockOut createEmptyInstance() => ReqSitePresenceClockOut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSitePresenceClockOut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSitePresenceClockOut>(
+          ReqSitePresenceClockOut.$_createMessage);
+  static ReqSitePresenceClockOut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+}
+
+class ResSitePresenceClockOut extends $pb.GeneratedMessage {
+  factory ResSitePresenceClockOut({
+    SitePresenceRecord? record,
+    $core.int? workDurationMin,
+  }) {
+    final result = ResSitePresenceClockOut._();
+    if (record != null) result.record = record;
+    if (workDurationMin != null) result.workDurationMin = workDurationMin;
+    return result;
+  }
+
+  ResSitePresenceClockOut._();
+
+  factory ResSitePresenceClockOut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceClockOut()..mergeFromBuffer(data, registry);
+  factory ResSitePresenceClockOut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceClockOut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSitePresenceClockOut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSitePresenceClockOut.$_createMessage)
+    ..aOM<SitePresenceRecord>(1, _omitFieldNames ? '' : 'record',
+        subBuilder: SitePresenceRecord.$_createMessage)
+    ..aI(2, _omitFieldNames ? '' : 'workDurationMin')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceClockOut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceClockOut copyWith(
+          void Function(ResSitePresenceClockOut) updates) =>
+      super.copyWith((message) => updates(message as ResSitePresenceClockOut))
+          as ResSitePresenceClockOut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSitePresenceClockOut() / ResSitePresenceClockOut.new instead')
+  static ResSitePresenceClockOut create() => ResSitePresenceClockOut._();
+  static $pb.GeneratedMessage $_createMessage() => ResSitePresenceClockOut._();
+  @$core.override
+  ResSitePresenceClockOut createEmptyInstance() => ResSitePresenceClockOut._();
+  @$core.pragma('dart2js:noInline')
+  static ResSitePresenceClockOut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSitePresenceClockOut>(
+          ResSitePresenceClockOut.$_createMessage);
+  static ResSitePresenceClockOut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  SitePresenceRecord get record => $_getN(0);
+  @$pb.TagNumber(1)
+  set record(SitePresenceRecord value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasRecord() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearRecord() => $_clearField(1);
+  @$pb.TagNumber(1)
+  SitePresenceRecord ensureRecord() => $_ensure(0);
+
+  @$pb.TagNumber(2)
+  $core.int get workDurationMin => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set workDurationMin($core.int value) => $_setSignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasWorkDurationMin() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearWorkDurationMin() => $_clearField(2);
+}
+
+class ReqSitePresenceRecordList extends $pb.GeneratedMessage {
+  factory ReqSitePresenceRecordList({
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? granteeIid,
+    $core.int? limit,
+  }) {
+    final result = ReqSitePresenceRecordList._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (granteeIid != null) result.granteeIid = granteeIid;
+    if (limit != null) result.limit = limit;
+    return result;
+  }
+
+  ReqSitePresenceRecordList._();
+
+  factory ReqSitePresenceRecordList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceRecordList()..mergeFromBuffer(data, registry);
+  factory ReqSitePresenceRecordList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePresenceRecordList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSitePresenceRecordList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSitePresenceRecordList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(2, _omitFieldNames ? '' : 'granteeIid')
+    ..aI(3, _omitFieldNames ? '' : 'limit')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceRecordList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePresenceRecordList copyWith(
+          void Function(ReqSitePresenceRecordList) updates) =>
+      super.copyWith((message) => updates(message as ReqSitePresenceRecordList))
+          as ReqSitePresenceRecordList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSitePresenceRecordList() / ReqSitePresenceRecordList.new instead')
+  static ReqSitePresenceRecordList create() => ReqSitePresenceRecordList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqSitePresenceRecordList._();
+  @$core.override
+  ReqSitePresenceRecordList createEmptyInstance() =>
+      ReqSitePresenceRecordList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSitePresenceRecordList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSitePresenceRecordList>(
+          ReqSitePresenceRecordList.$_createMessage);
+  static ReqSitePresenceRecordList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get granteeIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set granteeIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasGranteeIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearGranteeIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.int get limit => $_getIZ(2);
+  @$pb.TagNumber(3)
+  set limit($core.int value) => $_setSignedInt32(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasLimit() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearLimit() => $_clearField(3);
+}
+
+class ResSitePresenceRecordList extends $pb.GeneratedMessage {
+  factory ResSitePresenceRecordList({
+    $core.Iterable<SitePresenceRecord>? records,
+  }) {
+    final result = ResSitePresenceRecordList._();
+    if (records != null) result.records.addAll(records);
+    return result;
+  }
+
+  ResSitePresenceRecordList._();
+
+  factory ResSitePresenceRecordList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceRecordList()..mergeFromBuffer(data, registry);
+  factory ResSitePresenceRecordList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePresenceRecordList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSitePresenceRecordList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSitePresenceRecordList.$_createMessage)
+    ..pPM<SitePresenceRecord>(1, _omitFieldNames ? '' : 'records',
+        subBuilder: SitePresenceRecord.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceRecordList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePresenceRecordList copyWith(
+          void Function(ResSitePresenceRecordList) updates) =>
+      super.copyWith((message) => updates(message as ResSitePresenceRecordList))
+          as ResSitePresenceRecordList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSitePresenceRecordList() / ResSitePresenceRecordList.new instead')
+  static ResSitePresenceRecordList create() => ResSitePresenceRecordList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResSitePresenceRecordList._();
+  @$core.override
+  ResSitePresenceRecordList createEmptyInstance() =>
+      ResSitePresenceRecordList._();
+  @$core.pragma('dart2js:noInline')
+  static ResSitePresenceRecordList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSitePresenceRecordList>(
+          ResSitePresenceRecordList.$_createMessage);
+  static ResSitePresenceRecordList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SitePresenceRecord> get records => $_getList(0);
+}
+
+class SitePayrollCompensation extends $pb.GeneratedMessage {
+  factory SitePayrollCompensation({
+    $fixnum.Int64? compId,
+    $fixnum.Int64? siteIid,
+    $fixnum.Int64? granteeIid,
+    $core.String? payBasis,
+    $fixnum.Int64? amount,
+    $core.String? shiftId,
+    $core.String? effectiveFrom,
+    $core.String? label,
+    $core.bool? isActive,
+  }) {
+    final result = SitePayrollCompensation._();
+    if (compId != null) result.compId = compId;
+    if (siteIid != null) result.siteIid = siteIid;
+    if (granteeIid != null) result.granteeIid = granteeIid;
+    if (payBasis != null) result.payBasis = payBasis;
+    if (amount != null) result.amount = amount;
+    if (shiftId != null) result.shiftId = shiftId;
+    if (effectiveFrom != null) result.effectiveFrom = effectiveFrom;
+    if (label != null) result.label = label;
+    if (isActive != null) result.isActive = isActive;
+    return result;
+  }
+
+  SitePayrollCompensation._();
+
+  factory SitePayrollCompensation.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SitePayrollCompensation()..mergeFromBuffer(data, registry);
+  factory SitePayrollCompensation.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SitePayrollCompensation()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SitePayrollCompensation',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SitePayrollCompensation.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'compId')
+    ..aInt64(2, _omitFieldNames ? '' : 'siteIid')
+    ..aInt64(3, _omitFieldNames ? '' : 'granteeIid')
+    ..aOS(4, _omitFieldNames ? '' : 'payBasis')
+    ..aInt64(5, _omitFieldNames ? '' : 'amount')
+    ..aOS(6, _omitFieldNames ? '' : 'shiftId')
+    ..aOS(7, _omitFieldNames ? '' : 'effectiveFrom')
+    ..aOS(8, _omitFieldNames ? '' : 'label')
+    ..aOB(9, _omitFieldNames ? '' : 'isActive')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SitePayrollCompensation clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SitePayrollCompensation copyWith(
+          void Function(SitePayrollCompensation) updates) =>
+      super.copyWith((message) => updates(message as SitePayrollCompensation))
+          as SitePayrollCompensation;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use SitePayrollCompensation() / SitePayrollCompensation.new instead')
+  static SitePayrollCompensation create() => SitePayrollCompensation._();
+  static $pb.GeneratedMessage $_createMessage() => SitePayrollCompensation._();
+  @$core.override
+  SitePayrollCompensation createEmptyInstance() => SitePayrollCompensation._();
+  @$core.pragma('dart2js:noInline')
+  static SitePayrollCompensation getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SitePayrollCompensation>(
+          SitePayrollCompensation.$_createMessage);
+  static SitePayrollCompensation? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get compId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set compId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCompId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCompId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $fixnum.Int64 get siteIid => $_getI64(1);
+  @$pb.TagNumber(2)
+  set siteIid($fixnum.Int64 value) => $_setInt64(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSiteIid() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSiteIid() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get granteeIid => $_getI64(2);
+  @$pb.TagNumber(3)
+  set granteeIid($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasGranteeIid() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearGranteeIid() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get payBasis => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set payBasis($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasPayBasis() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearPayBasis() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get amount => $_getI64(4);
+  @$pb.TagNumber(5)
+  set amount($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasAmount() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearAmount() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get shiftId => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set shiftId($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasShiftId() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearShiftId() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get effectiveFrom => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set effectiveFrom($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasEffectiveFrom() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearEffectiveFrom() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.String get label => $_getSZ(7);
+  @$pb.TagNumber(8)
+  set label($core.String value) => $_setString(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasLabel() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearLabel() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.bool get isActive => $_getBF(8);
+  @$pb.TagNumber(9)
+  set isActive($core.bool value) => $_setBool(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasIsActive() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearIsActive() => $_clearField(9);
+}
+
+class ReqSitePayrollCompensationList extends $pb.GeneratedMessage {
+  factory ReqSitePayrollCompensationList({
+    $fixnum.Int64? siteIid,
+  }) {
+    final result = ReqSitePayrollCompensationList._();
+    if (siteIid != null) result.siteIid = siteIid;
+    return result;
+  }
+
+  ReqSitePayrollCompensationList._();
+
+  factory ReqSitePayrollCompensationList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePayrollCompensationList()..mergeFromBuffer(data, registry);
+  factory ReqSitePayrollCompensationList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePayrollCompensationList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSitePayrollCompensationList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSitePayrollCompensationList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePayrollCompensationList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePayrollCompensationList copyWith(
+          void Function(ReqSitePayrollCompensationList) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqSitePayrollCompensationList))
+          as ReqSitePayrollCompensationList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSitePayrollCompensationList() / ReqSitePayrollCompensationList.new instead')
+  static ReqSitePayrollCompensationList create() =>
+      ReqSitePayrollCompensationList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqSitePayrollCompensationList._();
+  @$core.override
+  ReqSitePayrollCompensationList createEmptyInstance() =>
+      ReqSitePayrollCompensationList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSitePayrollCompensationList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSitePayrollCompensationList>(
+          ReqSitePayrollCompensationList.$_createMessage);
+  static ReqSitePayrollCompensationList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+}
+
+class ResSitePayrollCompensationList extends $pb.GeneratedMessage {
+  factory ResSitePayrollCompensationList({
+    $core.Iterable<SitePayrollCompensation>? items,
+  }) {
+    final result = ResSitePayrollCompensationList._();
+    if (items != null) result.items.addAll(items);
+    return result;
+  }
+
+  ResSitePayrollCompensationList._();
+
+  factory ResSitePayrollCompensationList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePayrollCompensationList()..mergeFromBuffer(data, registry);
+  factory ResSitePayrollCompensationList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePayrollCompensationList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSitePayrollCompensationList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSitePayrollCompensationList.$_createMessage)
+    ..pPM<SitePayrollCompensation>(1, _omitFieldNames ? '' : 'items',
+        subBuilder: SitePayrollCompensation.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePayrollCompensationList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePayrollCompensationList copyWith(
+          void Function(ResSitePayrollCompensationList) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResSitePayrollCompensationList))
+          as ResSitePayrollCompensationList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSitePayrollCompensationList() / ResSitePayrollCompensationList.new instead')
+  static ResSitePayrollCompensationList create() =>
+      ResSitePayrollCompensationList._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResSitePayrollCompensationList._();
+  @$core.override
+  ResSitePayrollCompensationList createEmptyInstance() =>
+      ResSitePayrollCompensationList._();
+  @$core.pragma('dart2js:noInline')
+  static ResSitePayrollCompensationList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSitePayrollCompensationList>(
+          ResSitePayrollCompensationList.$_createMessage);
+  static ResSitePayrollCompensationList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SitePayrollCompensation> get items => $_getList(0);
+}
+
+class ReqSitePayrollCompensationPut extends $pb.GeneratedMessage {
+  factory ReqSitePayrollCompensationPut({
+    $fixnum.Int64? siteIid,
+    SitePayrollCompensation? item,
+  }) {
+    final result = ReqSitePayrollCompensationPut._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (item != null) result.item = item;
+    return result;
+  }
+
+  ReqSitePayrollCompensationPut._();
+
+  factory ReqSitePayrollCompensationPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePayrollCompensationPut()..mergeFromBuffer(data, registry);
+  factory ReqSitePayrollCompensationPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSitePayrollCompensationPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSitePayrollCompensationPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSitePayrollCompensationPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOM<SitePayrollCompensation>(2, _omitFieldNames ? '' : 'item',
+        subBuilder: SitePayrollCompensation.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePayrollCompensationPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSitePayrollCompensationPut copyWith(
+          void Function(ReqSitePayrollCompensationPut) updates) =>
+      super.copyWith(
+              (message) => updates(message as ReqSitePayrollCompensationPut))
+          as ReqSitePayrollCompensationPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSitePayrollCompensationPut() / ReqSitePayrollCompensationPut.new instead')
+  static ReqSitePayrollCompensationPut create() =>
+      ReqSitePayrollCompensationPut._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ReqSitePayrollCompensationPut._();
+  @$core.override
+  ReqSitePayrollCompensationPut createEmptyInstance() =>
+      ReqSitePayrollCompensationPut._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSitePayrollCompensationPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSitePayrollCompensationPut>(
+          ReqSitePayrollCompensationPut.$_createMessage);
+  static ReqSitePayrollCompensationPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  SitePayrollCompensation get item => $_getN(1);
+  @$pb.TagNumber(2)
+  set item(SitePayrollCompensation value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasItem() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearItem() => $_clearField(2);
+  @$pb.TagNumber(2)
+  SitePayrollCompensation ensureItem() => $_ensure(1);
+}
+
+class ResSitePayrollCompensationPut extends $pb.GeneratedMessage {
+  factory ResSitePayrollCompensationPut({
+    $fixnum.Int64? compId,
+  }) {
+    final result = ResSitePayrollCompensationPut._();
+    if (compId != null) result.compId = compId;
+    return result;
+  }
+
+  ResSitePayrollCompensationPut._();
+
+  factory ResSitePayrollCompensationPut.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePayrollCompensationPut()..mergeFromBuffer(data, registry);
+  factory ResSitePayrollCompensationPut.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSitePayrollCompensationPut()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSitePayrollCompensationPut',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSitePayrollCompensationPut.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'compId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePayrollCompensationPut clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSitePayrollCompensationPut copyWith(
+          void Function(ResSitePayrollCompensationPut) updates) =>
+      super.copyWith(
+              (message) => updates(message as ResSitePayrollCompensationPut))
+          as ResSitePayrollCompensationPut;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSitePayrollCompensationPut() / ResSitePayrollCompensationPut.new instead')
+  static ResSitePayrollCompensationPut create() =>
+      ResSitePayrollCompensationPut._();
+  static $pb.GeneratedMessage $_createMessage() =>
+      ResSitePayrollCompensationPut._();
+  @$core.override
+  ResSitePayrollCompensationPut createEmptyInstance() =>
+      ResSitePayrollCompensationPut._();
+  @$core.pragma('dart2js:noInline')
+  static ResSitePayrollCompensationPut getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSitePayrollCompensationPut>(
+          ResSitePayrollCompensationPut.$_createMessage);
+  static ResSitePayrollCompensationPut? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get compId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set compId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasCompId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearCompId() => $_clearField(1);
 }
 
 const $core.bool _omitFieldNames =

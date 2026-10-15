@@ -5,7 +5,6 @@ import 'dart:ui';
 import 'package:alienai_c35/c/site/guest_assistant_api.dart';
 import 'package:alienai_c35/c/site/guest_order_api.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
-import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/guest_site/guest_site_commerce_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_member.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
@@ -771,11 +770,18 @@ class GuestSiteCommerceSheetHost extends StatelessWidget {
 }
 
 class GuestSiteCartChrome extends StatelessWidget {
-  const GuestSiteCartChrome({super.key, required this.controller, required this.accent, required this.child});
+  const GuestSiteCartChrome({
+    super.key,
+    required this.controller,
+    required this.accent,
+    required this.child,
+    this.memberPortalEnabled = true,
+  });
 
   final GuestSiteCartController controller;
   final Color accent;
   final Widget child;
+  final bool memberPortalEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -788,7 +794,12 @@ class GuestSiteCartChrome extends StatelessWidget {
         builder: (context, _) => Stack(
           children: [
             child,
-            GuestSiteOrdersChip(siteIid: controller.siteIid, accent: accent, controller: controller),
+            GuestSiteOrdersChip(
+              siteIid: controller.siteIid,
+              accent: accent,
+              controller: controller,
+              memberPortalEnabled: memberPortalEnabled,
+            ),
             if (controller.count > 0 && !controller.sheetOpen)
               Positioned(
                 left: 12,
@@ -1444,11 +1455,18 @@ class GuestSiteCheckoutSheetPanel extends StatelessWidget {
 }
 
 class GuestSiteOrdersChip extends StatefulWidget {
-  const GuestSiteOrdersChip({super.key, required this.siteIid, required this.accent, this.controller});
+  const GuestSiteOrdersChip({
+    super.key,
+    required this.siteIid,
+    required this.accent,
+    this.controller,
+    this.memberPortalEnabled = true,
+  });
 
   final int siteIid;
   final Color accent;
   final GuestSiteCartController? controller;
+  final bool memberPortalEnabled;
 
   @override
   State<GuestSiteOrdersChip> createState() => _GuestSiteOrdersChipState();
@@ -1480,8 +1498,7 @@ class _GuestSiteOrdersChipState extends State<GuestSiteOrdersChip> {
 
   @override
   Widget build(BuildContext context) {
-    final showPortal = sessionAuthToken().isNotEmpty;
-    if (_count <= 0 && !showPortal) return const SizedBox.shrink();
+    if (_count <= 0 && !widget.memberPortalEnabled) return const SizedBox.shrink();
     return Positioned(
       top: 12,
       right: 12,

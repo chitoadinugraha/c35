@@ -52,6 +52,7 @@ fn sample_doc() -> SiteDoc {
             SitePage {
                 path: "/".into(),
                 title: "Home".into(),
+                audience: "public".into(),
                 blocks: vec![
                     SiteBlock {
                         id: "b1".into(),
@@ -82,6 +83,7 @@ fn site_doc_validate_accepts_contact_form_and_cta_label() {
         pages: vec![SitePage {
             path: "/".into(),
             title: "Test".into(),
+            audience: "public".into(),
             blocks: vec![
                 SiteBlock {
                     id: "h1".into(),
@@ -106,6 +108,7 @@ fn site_doc_validate_rejects_unknown_block() {
         pages: vec![SitePage {
             path: "/".into(),
             title: "X".into(),
+            audience: "public".into(),
             blocks: vec![SiteBlock {
                 id: "b1".into(),
                 r#type: "unknown".into(),
@@ -129,6 +132,7 @@ fn guest_favicon_prefers_meta_avatar_url() {
         pages: vec![SitePage {
             path: "/".into(),
             title: "Home".into(),
+            audience: "public".into(),
             blocks: vec![],
         }],
         theme_json: "{}".into(),

@@ -350,7 +350,7 @@ async fn process_prompt_job(
                     Ok(false) => {}
                     Err(e) => warn!("[c35:prompt_run] cancel poll: {e}"),
                 }
-                tokio::time::sleep(Duration::from_millis(500)).await;
+                tokio::time::sleep(Duration::from_millis(150)).await;
             }
         });
 

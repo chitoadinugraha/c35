@@ -540,7 +540,14 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           detailId: _nav.catalogDetailId,
           onDetailIdChanged: (id) => _scheduleCatalogDetailId(id, section: shown),
         ),
-      'queue' => UiSiteQueueEditor(api: widget.api, siteIid: _siteIid, queueEnabled: _caps.queue),
+      'queue' => UiSiteQueueEditor(
+          api: widget.api,
+          siteIid: _siteIid,
+          queueEnabled: _caps.queue,
+          masterDetail: masterDetail,
+          detailId: _nav.catalogDetailId,
+          onDetailIdChanged: (id) => _scheduleCatalogDetailId(id, section: shown),
+        ),
       'attendance' => UiSiteAttendanceEditor(
           api: widget.api,
           siteIid: _siteIid,

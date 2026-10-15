@@ -786,6 +786,22 @@ void main() {
     expect(store.msgs.single.content, '        def foo():\n......');
   });
 
+  test('msgStreamCancel blocks further chunks and scrubs steer leak', () {
+    final store = ChatStore();
+    store.msgs = [
+      MsgRow(id: 1, chatId: 1, role: 'user', content: 'ubah A2', reqId: 'r1'),
+      MsgRow(id: 2, chatId: 1, role: 'assistant', content: '', reqId: 'r1'),
+    ];
+    store.promptBusyPut(true, chatId: 1, reqId: 'r1');
+    store.msgStreamContent('[GOOGLE SHEETS ON DEVICE] Always screenshot…', chatId: 1, reqId: 'r1');
+    expect(store.msgs.last.thought, contains('GOOGLE SHEETS'));
+    expect(store.msgs.last.content, isEmpty);
+    store.msgStreamCancel(chatId: 1, reqId: 'r1');
+    expect(store.msgs.last.thought, isEmpty);
+    store.msgStreamContent('should not apply', chatId: 1, reqId: 'r1');
+    expect(store.msgs.last.content, isEmpty);
+  });
+
   test('msgStreamThought preserves repeated tokens', () {
     final store = ChatStore();
     store.msgs = [MsgRow(id: 11, chatId: 1, role: 'assistant', content: '')];

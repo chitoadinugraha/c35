@@ -5,7 +5,9 @@ use c35_proto::{SiteDoc, SiteLink, SitePost};
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
-use crate::commerce_boot::{commerce_boot_build, order_progress_steps_json, site_published_meta_json};
+use crate::commerce_boot::{
+    commerce_boot_build, order_progress_steps_json, queue_boot_build, site_published_meta_json,
+};
 use crate::site_config::{site_capabilities_get, site_order_fulfillment_enabled};
 use crate::site_assistant::site_assistant_boot_extras;
 use crate::doc::site_doc_from_json;
@@ -13,6 +15,7 @@ use crate::product_design::{
     product_card_price_style, product_card_subtitle_style, product_card_title_style,
     product_design_from_site_meta,
 };
+use crate::guest_renderer::GUEST_RENDERER_VERSION;
 use crate::guest_design::{featured_contacts_load, FeaturedContact, GuestDesign, ProfileDesign};
 use crate::link_display::site_link_display_normalize;
 use crate::link_platform_icon::link_platform_icon_html;
@@ -98,8 +101,9 @@ pub fn product_card_html_i18n(
         String::new()
     };
     format!(
-        r#"<article class="product-card guest-product-tile" data-pid="{pid}"{cat_attr}{reserve_attr}><div class="guest-product-thumb-wrap">{badge_html}{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom{bottom_class}">{price_row}{action}</div></div></article>"#,
+        r#"<article class="product-card guest-product-tile" data-pid="{pid}" data-name="{search_name}"{cat_attr}{reserve_attr}><div class="guest-product-thumb-wrap">{badge_html}{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-info"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}<div class="product-bottom{bottom_class}">{price_row}{action}</div></div></article>"#,
         pid = p.product_id,
+        search_name = esc_attr(&p.name.to_lowercase()),
         cat_attr = cat_attr,
         reserve_attr = reserve_attr,
         badge_html = badge_html,
@@ -162,8 +166,9 @@ pub fn product_list_row_html_i18n(
         format!(r#"<span class="price"{price_attr}>{price}</span>"#, price_attr = price_attr, price = esc(&price_str))
     };
     format!(
-        r#"<article class="product-list-row guest-product-tile" data-pid="{pid}"{cat_attr}{reserve_attr}><div class="product-list-thumb">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-list-body"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}</div><div class="product-list-trail">{price_html}{action}</div></article>"#,
+        r#"<article class="product-list-row guest-product-tile" data-pid="{pid}" data-name="{search_name}"{cat_attr}{reserve_attr}><div class="product-list-thumb">{img}<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div><div class="product-list-body"><h3{title_attr}>{name}</h3><p{subtitle_attr}>{desc}</p>{stock}</div><div class="product-list-trail">{price_html}{action}</div></article>"#,
         pid = p.product_id,
+        search_name = esc_attr(&p.name.to_lowercase()),
         cat_attr = cat_attr,
         reserve_attr = reserve_attr,
         img = img,
@@ -253,11 +258,8 @@ fn product_detail_actions(p: &ProductRow) -> String {
         return String::new();
     }
     format!(
-        r#"<button type="button" class="guest-add-btn" onclick="c35GuestCart.add({}, '{}', {}, '{}')">+ Pesan</button>"#,
+        r#"<button type="button" class="guest-add-btn" onclick="c35GuestCart.openOrder({})">+ Pesan</button>"#,
         p.product_id,
-        esc_js(&p.name),
-        p.price,
-        esc_js(&pic_url(&p.pic)),
     )
 }
 
@@ -360,14 +362,6 @@ fn esc(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
-}
-
-fn esc_js(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('\'', "\\'")
-        .replace('"', "\\\"")
-        .replace('\r', "")
-        .replace('\n', " ")
 }
 
 async fn site_capabilities(pool: &PgPool, site_iid: i64) -> Value {
@@ -541,6 +535,88 @@ fn contact_field_html(field: &Value) -> String {
         esc(label),
         esc(field_type),
         esc(name)
+    )
+}
+
+fn social_feed_items_html(props: &Value, hub_posts: &[SitePost]) -> String {
+    let limit = props
+        .get("limit")
+        .and_then(|x| x.as_i64())
+        .unwrap_or(20)
+        .clamp(1, 20) as usize;
+    hub_posts
+        .iter()
+        .take(limit)
+        .map(post_feed_card_html)
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("")
+}
+
+fn guest_hub_default_tab(design: &GuestDesign) -> &'static str {
+    let t = design.profile.hub_default_tab.trim().to_ascii_lowercase();
+    if t == "posts" {
+        "posts"
+    } else {
+        "shop"
+    }
+}
+
+fn guest_hub_catalog_tabs_html(
+    shop_section: &str,
+    posts_items: &str,
+    default_tab: &str,
+    i18n: &GuestI18n,
+) -> String {
+    if posts_items.trim().is_empty() {
+        return shop_section.to_string();
+    }
+    let posts_first = default_tab == "posts";
+    let shop_active = !posts_first;
+    let shop_tab_class = if shop_active {
+        " guest-hub-catalog-tab is-active"
+    } else {
+        " guest-hub-catalog-tab"
+    };
+    let posts_tab_class = if posts_first {
+        " guest-hub-catalog-tab is-active"
+    } else {
+        " guest-hub-catalog-tab"
+    };
+    let shop_panel_hidden = if shop_active {
+        ""
+    } else {
+        " hidden"
+    };
+    let posts_panel_hidden = if posts_first {
+        ""
+    } else {
+        " hidden"
+    };
+    format!(
+        r#"<section class="block guest-hub-catalog" data-guest="hub_catalog"><div class="guest-hub-catalog-tabs" role="tablist"><button type="button" class="{shop_tab_class}" data-hub-tab="shop" role="tab" aria-selected="{shop_sel}">{shop}</button><button type="button" class="{posts_tab_class}" data-hub-tab="posts" role="tab" aria-selected="{posts_sel}">{posts}</button></div><div class="guest-hub-catalog-panel" data-hub-panel="shop" role="tabpanel"{shop_panel_hidden}>{shop_section}</div><div class="guest-hub-catalog-panel" data-hub-panel="posts" role="tabpanel"{posts_panel_hidden}><ul class="social-feed-list">{posts_items}</ul></div></section>"#,
+        shop_tab_class = shop_tab_class.trim(),
+        posts_tab_class = posts_tab_class.trim(),
+        shop_sel = if shop_active { "true" } else { "false" },
+        posts_sel = if posts_first { "true" } else { "false" },
+        shop = esc(i18n.hub_tab_shop()),
+        posts = esc(i18n.hub_tab_posts()),
+        shop_panel_hidden = shop_panel_hidden,
+        posts_panel_hidden = posts_panel_hidden,
+        shop_section = shop_section,
+        posts_items = posts_items,
+    )
+}
+
+fn product_grid_search_html(product_count: usize, site_meta: &Value, i18n: &GuestI18n) -> String {
+    let layout = guest_layout_mode(site_meta, product_count);
+    if layout != "store" && product_count < 9 {
+        return String::new();
+    }
+    let placeholder = i18n.catalog_search_placeholder();
+    format!(
+        r#"<div class="guest-catalog-search" role="search"><input type="search" class="guest-catalog-search-input" placeholder="{ph}" aria-label="{ph}" autocomplete="off"/></div>"#,
+        ph = esc_attr(&placeholder),
     )
 }
 
@@ -737,12 +813,24 @@ pub fn guest_root_css(design: &GuestDesign) -> String {
     } else {
         "Inter, system-ui, sans-serif"
     };
+    let tone = if design.dark { "dark" } else { "light" };
+    let bd = design.backdrop_params_resolve();
+    let backdrop_intensity = bd.get("intensity").copied().unwrap_or(0.55);
+    let backdrop_softness = bd.get("softness").copied().unwrap_or(0.7);
+    let backdrop_scale = bd.get("scale").copied().unwrap_or(1.0);
     format!(
-        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};--card-shadow:{card_shadow};--card-border-width:{border_w}px;--card-border-opacity:{border_op};--card-padding:{card_padding};--card-blur:{card_blur};--card-opacity:{card_opacity};--card-tint-strength:{card_tint};--guest-font:{font_stack};--hub-title-size:{hub_title};--hub-bio-size:{hub_bio};--hub-avatar-size:{hub_avatar};--product-title-size:{product_title};--product-subtitle-size:{product_subtitle};--product-price-size:{product_price};--product-title-transform:{title_transform};}}",
+        ":root{{--accent:{accent};--page-bg:{page_bg};--fg:{fg};--muted:{muted};--theme-base:{theme_base};--surface:{surface};--outline:{outline};--guest-tone:{tone};--backdrop-intensity:{backdrop_intensity};--backdrop-softness:{backdrop_softness};--backdrop-scale:{backdrop_scale};--card-radius:{radius};--card-bg:{card_bg};--card-border:{card_border};--card-shadow:{card_shadow};--card-border-width:{border_w}px;--card-border-opacity:{border_op};--card-padding:{card_padding};--card-blur:{card_blur};--card-opacity:{card_opacity};--card-tint-strength:{card_tint};--guest-font:{font_stack};--hub-title-size:{hub_title};--hub-bio-size:{hub_bio};--hub-avatar-size:{hub_avatar};--product-title-size:{product_title};--product-subtitle-size:{product_subtitle};--product-price-size:{product_price};--product-title-transform:{title_transform};}}",
         accent = design.accent,
         page_bg = design.page_bg,
         fg = design.fg,
         muted = design.muted,
+        theme_base = design.base,
+        surface = design.surface,
+        outline = design.outline,
+        tone = tone,
+        backdrop_intensity = backdrop_intensity,
+        backdrop_softness = backdrop_softness,
+        backdrop_scale = backdrop_scale,
         radius = design.card_radius_css(),
         card_bg = design.card_bg,
         card_border = design.card_border,
@@ -765,14 +853,22 @@ pub fn guest_root_css(design: &GuestDesign) -> String {
 }
 
 pub fn guest_shell_html(design: &GuestDesign, inner: &str) -> String {
-    let image = page_bg_image_html(design);
+    let atmosphere = guest_atmosphere_html(design);
+    let tone_class = if design.dark {
+        " guest-tone-dark"
+    } else {
+        " guest-tone-light"
+    };
+    let card_class = guest_card_surface_class(design);
     format!(
-        r#"<style>{root}</style><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront" style="background-color:{page_bg};color:{fg}">{image}<main class="wrap guest-page-main">{inner}</main></body>"#,
+        r#"<style>{root}</style><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront{tone_class}{card_class}" style="background-color:{page_bg};color:{fg}">{atmosphere}<main class="wrap guest-page-main">{inner}</main></body>"#,
         root = guest_root_css(design),
         bd = design.backdrop_id,
+        tone_class = tone_class,
+        card_class = card_class,
         page_bg = design.page_bg,
         fg = design.fg,
-        image = image,
+        atmosphere = atmosphere,
         inner = inner,
     )
 }
@@ -788,6 +884,36 @@ fn page_bg_image_html(design: &GuestDesign) -> String {
     format!(
         r#"<div class="page-bg-image" style="background-image:url('{}')"></div>"#,
         esc(&url)
+    )
+}
+
+/// Full-page atmosphere (CSA `guest-backdrop` stack) — avoids cropped hero-only gradients.
+fn guest_atmosphere_html(design: &GuestDesign) -> String {
+    let image = page_bg_image_html(design);
+    let preset = guest_backdrop_preset_layer_html(design);
+    let accent = if design.backdrop_id == "none" {
+        r#"<div class="guest-backdrop-accent" aria-hidden="true"></div>"#
+    } else {
+        ""
+    };
+    format!(
+        r#"<div class="guest-backdrop" data-backdrop="{bd}" aria-hidden="true"><div class="guest-backdrop-color" style="background:{page_bg}"></div>{image}{preset}{accent}</div>"#,
+        bd = esc_attr(&design.backdrop_id),
+        page_bg = esc_attr(&design.page_bg),
+        image = image,
+        preset = preset,
+        accent = accent,
+    )
+}
+
+fn guest_backdrop_preset_layer_html(design: &GuestDesign) -> String {
+    let id = design.backdrop_id.as_str();
+    if id == "none" {
+        return String::new();
+    }
+    format!(
+        r#"<div class="guest-backdrop-preset guest-backdrop-preset--{id}" aria-hidden="true"></div>"#,
+        id = esc(id),
     )
 }
 
@@ -949,9 +1075,9 @@ fn guest_hub_hero_inner_html(
     let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
     let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
     let pic_use = profile_pic_url(props, site_meta);
-    let avatar = if !profile.show_avatar || pic_use.is_empty() {
+    let avatar = if !profile.show_avatar {
         String::new()
-    } else {
+    } else if !pic_use.is_empty() {
         let mut style = format!(
             "width:{size};height:{size}",
             size = css_px(profile.avatar_size)
@@ -971,6 +1097,12 @@ fn guest_hub_hero_inner_html(
             r#"<img class="hub-avatar guest-hub-avatar" src="{}" alt="" style="{}" loading="lazy"/>"#,
             esc(&pic_url(&pic_use)),
             esc_attr(&style)
+        )
+    } else {
+        let size = css_px(profile.avatar_size);
+        format!(
+            r#"<div class="hub-avatar guest-hub-avatar guest-hub-avatar--fallback" style="width:{size};height:{size};margin:0 auto 12px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent);"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg></div>"#,
+            size = size
         )
     };
     let title_html = if profile.show_title {
@@ -1009,9 +1141,15 @@ fn guest_hub_hero_inner_html(
         String::new()
     };
     let share_btn = r#"<button type="button" class="guest-hero-share-btn" onclick="c35GuestShare()" aria-label="Share Store" title="Share">&#128279;</button>"#;
-    format!(
-        "{share_btn}{avatar}{title_html}{bio_html}{cta_html}",
+    let member_btn = r#"<button type="button" id="c35-guest-hub-member" class="guest-hero-member-btn" style="display:none;" onclick="c35GuestOrders.open()" title="Akun">Akun</button>"#;
+    let top_actions = format!(
+        r#"<div class="guest-hub-actions">{member_btn}{share_btn}</div>"#,
+        member_btn = member_btn,
         share_btn = share_btn,
+    );
+    format!(
+        "{top_actions}{avatar}{title_html}{bio_html}{cta_html}",
+        top_actions = top_actions,
         avatar = avatar,
         title_html = title_html,
         bio_html = bio_html,
@@ -1091,7 +1229,7 @@ pub fn block_html_render(
             } else {
                 product_design
             };
-            let display = product_grid_display(props, site_meta);
+            let display = product_grid_display(props, site_meta, products.len());
             let items = if display == "list" {
                 products
                     .iter()
@@ -1123,10 +1261,15 @@ pub fn block_html_render(
                 .and_then(|x| x.as_str())
                 .filter(|s| !s.trim().is_empty())
                 .unwrap_or(i18n.catalog_default_title());
-            let heading = format!(r#"<h2 class="product-grid-title">{}</h2>"#, esc(grid_title));
+            let heading = format!(
+                r#"<p class="guest-section-eyebrow">{}</p><h2 class="product-grid-title">{}</h2>"#,
+                esc(i18n.catalog_section_eyebrow()),
+                esc(grid_title),
+            );
+            let search = product_grid_search_html(products.len(), site_meta, &i18n);
             let filters = product_grid_category_filters_html(products, category, &i18n);
             format!(
-                r#"<section class="block product-grid" data-guest="site_product" data-display="{display}" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{heading}{filters}{card_open}<div class="{layout_class}">{items}</div>{load_more}{card_close}</section>"#,
+                r#"<section class="block product-grid" data-guest="site_product" data-display="{display}" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{heading}{search}{filters}{card_open}<div class="{layout_class}">{items}</div>{load_more}{card_close}</section>"#,
                 display = esc(display),
                 bid = esc(block_id),
                 sid = site_iid,
@@ -1379,12 +1522,27 @@ pub fn block_html_render(
             } else {
                 format!(r#"<p class="queue-mode">{}</p>"#, esc(mode))
             };
+            let fields = props
+                .get("fields")
+                .cloned()
+                .filter(|v| v.is_array())
+                .unwrap_or_else(|| Value::Array(vec![]));
+            let fields_json = esc(
+                &serde_json::to_string(&fields).unwrap_or_else(|_| "[]".to_string()),
+            );
+            let take_online = props
+                .get("take_online")
+                .and_then(|x| x.as_bool())
+                .unwrap_or(true);
+            let take_online_attr = if take_online { "1" } else { "0" };
             format!(
-                r#"<section class="block queue" data-site-iid="{site_iid}" data-queue-id="{queue_id}"><div class="queue"><h3>{title}</h3>{mode_html}<p class="queue-status" id="c35-queue-status"></p><button type="button" class="guest-queue-btn" onclick="c35GuestQueue.take(this)">Ambil nomor</button></div></section>"#,
+                r#"<section class="block queue" data-guest="queue" data-site-iid="{site_iid}" data-queue-id="{queue_id}" data-queue-fields="{fields_json}" data-take-online="{take_online_attr}"><div class="queue"><h3>{title}</h3>{mode_html}<p class="queue-status" id="c35-queue-status"></p><button type="button" class="guest-queue-btn" onclick="c35GuestQueue.open(this)">Ambil nomor</button></div></section>"#,
                 site_iid = site_iid,
                 queue_id = queue_id,
                 title = esc(title),
-                mode_html = mode_html
+                mode_html = mode_html,
+                fields_json = fields_json,
+                take_online_attr = take_online_attr,
             )
         }
         "embed" => {
@@ -1444,6 +1602,10 @@ pub async fn page_html_render(
     };
     let product_design = product_design_from_site_meta(&site_meta);
     let doc_title = site_doc_html_title(site_name, &site_meta, &page.title);
+    let has_hub_profile = page
+        .blocks
+        .iter()
+        .any(|b| b.r#type == "hub_profile");
     let hub_shows_hours = page.blocks.iter().any(|b| {
         if b.r#type != "hub_profile" {
             return false;
@@ -1455,10 +1617,38 @@ pub async fn page_html_render(
         };
         props.get("show_hours").and_then(|x| x.as_bool()).unwrap_or(false)
     });
+    let i18n = GuestI18n::from_meta(&site_meta);
+    let page_has_product_grid = page.blocks.iter().any(|b| b.r#type == "product_grid");
+    let page_has_social_feed = page.blocks.iter().any(|b| b.r#type == "social_feed");
+    let hub_tabs_candidate =
+        page_has_product_grid && page_has_social_feed && !hub_posts.is_empty();
+    let social_feed_props: Value = page
+        .blocks
+        .iter()
+        .find(|b| b.r#type == "social_feed")
+        .map(|b| {
+            if b.props_json.is_empty() {
+                Value::Object(Default::default())
+            } else {
+                serde_json::from_str(&b.props_json)
+                    .unwrap_or(Value::Object(Default::default()))
+            }
+        })
+        .unwrap_or(Value::Object(Default::default()));
     let mut body = String::new();
     let mut catalog_product_count = 0usize;
+    let mut emitted_hub_tabs = false;
     for block in &page.blocks {
+        if block.r#type == "hero" && has_hub_profile {
+            continue;
+        }
         if block.r#type == "hours" && hub_shows_hours {
+            continue;
+        }
+        if block.r#type == "social_feed" && emitted_hub_tabs {
+            continue;
+        }
+        if block.r#type == "social_feed" && hub_tabs_candidate && !emitted_hub_tabs {
             continue;
         }
         let props: Value = if block.props_json.is_empty() {
@@ -1482,7 +1672,7 @@ pub async fn page_html_render(
         } else {
             (vec![], None)
         };
-        body.push_str(&block_html_render(
+        let html = block_html_render(
             &block.r#type,
             &props,
             &products,
@@ -1495,9 +1685,41 @@ pub async fn page_html_render(
             &design,
             &featured,
             &site_meta,
-        ));
+        );
+        if block.r#type == "product_grid" && hub_tabs_candidate && !products.is_empty() {
+            let posts_items = social_feed_items_html(&social_feed_props, &hub_posts);
+            if !posts_items.is_empty() {
+                body.push_str(&guest_hub_catalog_tabs_html(
+                    &html,
+                    &posts_items,
+                    guest_hub_default_tab(&design),
+                    &i18n,
+                ));
+                emitted_hub_tabs = true;
+                continue;
+            }
+        }
+        body.push_str(&html);
+        if block.r#type == "product_grid"
+            && hub_tabs_candidate
+            && products.is_empty()
+            && !emitted_hub_tabs
+        {
+            let posts_items = social_feed_items_html(&social_feed_props, &hub_posts);
+            if !posts_items.is_empty() {
+                let feed_title = social_feed_props
+                    .get("title")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("Update");
+                body.push_str(&format!(
+                    r#"<section class="block social-feed" data-guest="social_feed"><h2>{title}</h2><ul class="social-feed-list">{items}</ul></section>"#,
+                    title = esc(feed_title),
+                    items = posts_items,
+                ));
+                emitted_hub_tabs = true;
+            }
+        }
     }
-    let i18n = GuestI18n::from_meta(&site_meta);
     let layout = guest_layout_mode(&site_meta, catalog_product_count);
     let page_max = guest_layout_page_max_css(layout);
     let grid_min = guest_layout_grid_min_css(layout);
@@ -1507,7 +1729,7 @@ pub async fn page_html_render(
         page_max = page_max,
         grid_min = grid_min,
     );
-    let image = page_bg_image_html(&design);
+    let atmosphere = guest_atmosphere_html(&design);
     let identity_pic = site_identity_pic(pool, site_iid).await;
     let favicon_tags = guest_favicon_head_markup(&guest_site_favicon_url(&site_meta, doc, &identity_pic));
     let tone_class = if design.dark {
@@ -1520,66 +1742,7 @@ pub async fn page_html_render(
         r#"<!DOCTYPE html><html lang="{html_lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}{fonts}<style>
 {root}
 {layout_root}
-body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-feature-settings:"liga" 1,"calt" 1;-webkit-font-smoothing:antialiased;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
-.wrap{{max-width:var(--guest-page-max,720px);margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
-.block{{margin:0 0 24px}}
-.hero{{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,var(--accent),#111);color:#fff;padding:48px 24px}}
-.hero-inner{{position:relative;z-index:1}}
-.hero-bg img{{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}}
-.product-grid .grid{{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--guest-grid-min,168px),1fr));gap:16px}}
-@media(min-width:1024px){{body.guest-layout-store .product-grid .grid{{grid-template-columns:repeat(4,minmax(0,1fr))}}}}
-.product-grid .list{{display:flex;flex-direction:column;gap:8px}}
-.product-list-row{{display:flex;gap:10px;align-items:flex-start;padding:12px;background:var(--card-bg,#fff);border-radius:var(--card-radius,14px);border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent));box-shadow:0 2px 8px rgba(0,0,0,.04);font-variant-numeric:tabular-nums;transition:transform .22s cubic-bezier(.16,1,.3,1),box-shadow .22s cubic-bezier(.16,1,.3,1),border-color .22s ease}}
-.product-list-row:hover{{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.08);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}}
-.product-list-thumb{{flex:0 0 56px;width:56px;height:56px;border-radius:10px;overflow:hidden}}
-.product-list-thumb img,.product-list-thumb .product-ph{{width:56px;height:56px;object-fit:cover}}
-.product-list-body{{flex:1;min-width:0}}
-.product-list-body h3{{margin:0;font-size:14px;font-weight:600;letter-spacing:-0.01em;line-height:1.35}}
-.product-list-body p{{margin:4px 0 0;font-size:12px;color:var(--muted,#666);line-height:1.45}}
-.product-list-trail{{display:flex;flex-direction:column;align-items:flex-end;gap:4px}}
-.guest-pic-thumb{{cursor:zoom-in}}
-.product-card{{background:var(--card-bg,#fff);border-radius:var(--card-radius,14px);overflow:hidden;border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent));box-shadow:0 2px 8px rgba(0,0,0,.04);display:flex;flex-direction:column;font-variant-numeric:tabular-nums;transition:transform .22s cubic-bezier(.16,1,.3,1),box-shadow .22s cubic-bezier(.16,1,.3,1),border-color .22s ease}}
-.product-card:hover{{transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.08);border-color:color-mix(in srgb,var(--accent) 30%,transparent)}}
-.product-card .guest-product-thumb-wrap{{overflow:hidden;border-radius:calc(var(--card-radius,14px) - 2px) calc(var(--card-radius,14px) - 2px) 0 0}}
-.product-card .guest-product-thumb-wrap img{{width:100%;aspect-ratio:1;object-fit:cover;display:block;transition:transform .3s cubic-bezier(.16,1,.3,1)}}
-.product-card:hover .guest-product-thumb-wrap img{{transform:scale(1.03)}}
-.product-card img{{width:100%;aspect-ratio:1;object-fit:cover;display:block}}
-.product-card .product-ph{{width:100%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#f4f4f5}}
-.product-card .product-ph svg{{width:28%;height:28%}}
-.product-card .product-info{{padding:14px;display:flex;flex-direction:column;flex:1}}
-.product-card h3{{margin:0 0 6px;font-size:14px;font-weight:600;letter-spacing:-0.01em;line-height:1.35}}
-.product-card p{{margin:0 0 10px;font-size:12px;color:var(--muted,#71717a);line-height:1.45;flex:1}}
-.product-bottom{{display:flex;align-items:center;justify-content:space-between;gap:8px}}
-.product-bottom .price{{font-weight:700;color:var(--accent);font-size:14px;font-variant-numeric:tabular-nums;letter-spacing:-0.01em}}
-.guest-add-btn{{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s ease}}
-.guest-add-btn:hover{{opacity:.88}}
-.guest-load-more-btn{{display:block;margin:16px auto 0;background:var(--card-bg);color:var(--text);border:1px solid var(--card-border);border-radius:10px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .15s ease,color .15s ease}}
-.guest-load-more-btn:hover{{border-color:var(--accent);color:var(--accent)}}
-.gallery{{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}}
-.gallery img{{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px}}
-.links{{list-style:none;padding:0;margin:0}}
-.links li{{margin:8px 0}}
-.contact-form label{{display:block;margin:0 0 12px}}
-.contact-form input, .contact-form textarea{{width:100%;padding:10px 12px;border:1px solid color-mix(in srgb,var(--muted,#a1a1aa) 35%,transparent);border-radius:10px;box-sizing:border-box;font-family:inherit;background:transparent;color:inherit}}
-.contact-form button[type="submit"]{{background:var(--accent);color:#fff;border:0;padding:10px 20px;border-radius:10px;font-weight:600;cursor:pointer}}
-.hours{{width:100%;border-collapse:collapse}}
-.hours td{{padding:8px 10px;border-bottom:1px solid color-mix(in srgb,var(--muted,#a1a1aa) 20%,transparent)}}
-.map a{{color:var(--accent)}}
-.queue{{padding:16px;background:var(--card-bg,#fff);border-radius:var(--card-radius,14px);border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent))}}
-.guest-queue-btn,.guest-order-poll-btn{{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:8px 16px;font-weight:600;cursor:pointer;margin-top:8px}}
-.block.hub-profile{{margin:0 0 16px;padding:0}}
-.hub-avatar{{width:80px;height:80px;border-radius:50%;object-fit:cover;margin:0 auto 12px;display:block;box-shadow:0 10px 30px rgba(0,0,0,.12),0 0 0 3px color-mix(in srgb,var(--card-bg,#fff) 85%,transparent);transition:transform .25s cubic-bezier(.16,1,.3,1)}}
-.hub-chips{{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:12px}}
-.hub-chip{{display:inline-flex;align-items:center;padding:6px 14px;border-radius:999px;background:var(--card-bg,#fff);border:1px solid var(--card-border,color-mix(in srgb,var(--muted,#a1a1aa) 22%,transparent));font-size:12px;color:var(--fg,#18181b);text-decoration:none;box-shadow:0 2px 6px rgba(0,0,0,.03)}}
-.hub-chip-muted{{color:var(--muted,#71717a)}}
-.order-track label{{display:block;margin:12px 0}}
-.order-track input{{width:100%;padding:10px 12px;border:1px solid color-mix(in srgb,var(--muted,#a1a1aa) 35%,transparent);border-radius:10px;box-sizing:border-box;background:transparent;color:inherit}}
-.product-detail .price{{font-size:15px;font-weight:700;margin:8px 0;font-variant-numeric:tabular-nums;color:var(--accent)}}
-.product-detail-pic{{width:100%;max-height:300px;object-fit:cover;border-radius:12px;margin-bottom:12px}}
-.product-reserve-placeholder{{margin-top:16px;padding:14px;background:var(--card-bg,#fff);border-radius:12px;color:var(--muted,#71717a);font-size:14px;border:1px solid var(--card-border,color-mix(in srgb,var(--fg,#18181b) 8%,transparent))}}
-.embed iframe{{display:block;border-radius:12px}}
-.md{{line-height:1.6}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}{card_class}">{image}<main class="wrap guest-page-main">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css?v={GUEST_RENDERER_VERSION}"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}{card_class}">{atmosphere}<main class="wrap guest-page-main">{body}</main>
 {chrome}
 {client_js}</body></html>"#,
         esc(&doc_title),
@@ -1592,7 +1755,7 @@ body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-fea
         tone_class = tone_class,
         card_class = card_class,
         bd = design.backdrop_id,
-        image = image,
+        atmosphere = atmosphere,
         body = body,
         chrome = guest_storefront_chrome_html(),
         client_js = guest_client_script_tags(pool, site_iid, &theme_effects(&doc.theme_json)).await
@@ -1627,6 +1790,7 @@ pub fn guest_storefront_chrome_html() -> &'static str {
   <div class="guest-sticky-inner">
     <img class="guest-sticky-avatar" alt="" width="32" height="32" hidden/>
     <span class="guest-sticky-title"></span>
+    <button type="button" id="c35-guest-sticky-member" class="guest-sticky-member" style="display:none;" onclick="c35GuestOrders.open()">Akun</button>
     <a class="guest-sticky-cta" hidden></a>
   </div>
 </header>
@@ -1649,6 +1813,9 @@ pub fn guest_storefront_chrome_html() -> &'static str {
 async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value) -> String {
     let meta = site_published_meta_json(pool, site_iid).await;
     let commerce = commerce_boot_build(pool, site_iid, &meta)
+        .await
+        .unwrap_or_else(|_| serde_json::json!({}));
+    let queue_boot = queue_boot_build(pool, site_iid)
         .await
         .unwrap_or_else(|_| serde_json::json!({}));
     let caps = site_capabilities_get(pool, site_iid).await;
@@ -1675,6 +1842,7 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
         "alien_id": alien_id.trim(),
         "api_base": "",
         "commerce_boot": commerce,
+        "queue_boot": queue_boot,
         "order_progress_steps": order_progress_steps_json(order_fulfillment),
         "ai_assistant": assistant.get("ai_assistant").cloned().unwrap_or(Value::Null),
         "knowledge": assistant.get("knowledge").cloned().unwrap_or_else(|| json!([])),
@@ -1692,7 +1860,7 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
 /// non-empty string and whose `active` is not `false`.
 pub fn guest_client_script_markup(guest_json: &str, effects: &Value) -> String {
     let guest_safe = guest_json.replace("</", "<\\/");
-    let v1 = r#"<script defer src="/static/site-guest/site-guest.v1.js"></script>"#;
+    let v1 = format!(r#"<script defer src="/static/site-guest/site-guest.v1.js?v={GUEST_RENDERER_VERSION}"></script>"#);
     if !effects_script_enabled(effects) {
         return format!(
             r#"<script>window.__SITE_GUEST__={guest_safe};window.__SITE_BOOT__={{}};</script>{v1}"#
@@ -1760,18 +1928,6 @@ fn effect_row_loads_script(row: &Value) -> bool {
     overlay_effect_preset_canonical(preset).is_some()
 }
 
-
-const GUEST_STOREFRONT_EXTRA_CSS: &str = r#"
-body.guest-storefront{{position:relative;padding-bottom:0}}
-.guest-page-main{{position:relative;z-index:1;max-width:720px;margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
-.product-detail h1{{margin:12px 0 6px;font-size:16px;font-weight:700}}
-.product-detail p{{margin:0 0 8px;font-size:13px;line-height:1.4;color:var(--muted,#666)}}
-.social-post h1{{margin:12px 0 8px;font-size:16px;font-weight:700}}
-.social-post .post-caption{{color:var(--muted,#666);font-size:13px}}
-.social-post .post-body{{font-size:13px;line-height:1.45}}
-.social-post .post-thumb{{width:100%;max-height:280px;object-fit:cover;border-radius:8px;margin-bottom:12px}}
-.guest-post-carousel{{margin-bottom:12px}}
-"#;
 
 fn post_media_paths(post: &SitePost) -> Vec<String> {
     let media = if post.media_json.is_empty() {
@@ -1926,7 +2082,7 @@ async fn guest_storefront_page_html(
         page_max = page_max,
         grid_min = grid_min,
     );
-    let image = page_bg_image_html(&design);
+    let atmosphere = guest_atmosphere_html(&design);
     let effects = theme_effects(&doc.theme_json);
     let client_js = guest_client_script_tags(pool, site_iid, &effects).await;
     let identity_pic = site_identity_pic(pool, site_iid).await;
@@ -1941,10 +2097,7 @@ async fn guest_storefront_page_html(
         r#"<!DOCTYPE html><html lang="{html_lang}"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>{}</title>{favicon}{fonts}<style>
 {root}
 {layout_root}
-{extra}
-body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-feature-settings:"liga" 1,"calt" 1;-webkit-font-smoothing:antialiased;background-color:var(--page-bg);color:var(--fg);padding-bottom:0}}
-.wrap{{max-width:var(--guest-page-max,720px);margin:0 auto;padding:0 16px 88px;box-sizing:border-box}}
-</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}{card_class}">{image}<main class="wrap guest-page-main">{body}</main>
+</style><link rel="stylesheet" href="/static/site-guest/site-guest.v1.css?v={GUEST_RENDERER_VERSION}"/></head><body data-backdrop="{bd}" class="backdrop-{bd} guest-storefront guest-layout-{layout}{tone_class}{card_class}">{atmosphere}<main class="wrap guest-page-main">{body}</main>
 {chrome}
 {client_js}</body></html>"#,
         esc(document_title),
@@ -1953,12 +2106,11 @@ body{{margin:0;font-family:var(--guest-font,Inter,system-ui,sans-serif);font-fea
         fonts = guest_fonts_head_markup(design.dark),
         root = root,
         layout_root = layout_root,
-        extra = GUEST_STOREFRONT_EXTRA_CSS,
         layout = layout,
         tone_class = tone_class,
         card_class = card_class,
         bd = design.backdrop_id,
-        image = image,
+        atmosphere = atmosphere,
         body = body,
         chrome = guest_storefront_chrome_html(),
         client_js = client_js,

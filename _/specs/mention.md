@@ -20,6 +20,8 @@ Plain `iid:972798…` embedded in sentences was fragile (false positives, ugly r
 
 **Rule:** New mention types MUST use the same `[@kind:…]` pattern in stored text and map to a canonical id in `mention_ids[]` (see below). Do not invent a third ad-hoc string format.
 
+**Anti-nesting:** One bracket token per mention — `[@iid:…]` only. Never wrap a bracket mention in another `[@` shell (`[@[@iid:…]]` is invalid). Composer chips are not brackets; wire conversion must not leave a typed `[@` prefix. Client `composerMentionBracketFixupNesting` + server `mention_bracket_fixup_nesting` collapse legacy nesting on read/write; `_pickMention` strips a trailing open `[@` before inserting a chip.
+
 ---
 
 ## Bracket syntax (message text)

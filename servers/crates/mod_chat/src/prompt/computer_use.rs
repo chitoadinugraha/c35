@@ -120,6 +120,15 @@ pub fn computer_use_goal_met_with_goal(
                 tool_counts,
             );
         }
+        if crate::prompt::google_sheets::user_text_looks_like_google_sheets_desktop(goal) {
+            if !crate::prompt::google_sheets::google_sheets_summary_sufficient(goal, summary) {
+                return false;
+            }
+            return crate::prompt::google_sheets::google_sheets_tool_activity_sufficient(
+                goal,
+                tool_counts,
+            );
+        }
         true
     } else {
         true

@@ -478,11 +478,24 @@ Capability boolean **`analytics`** in `site.config.capabilities_json`. **Default
 - **`referrer`** and **`user_agent`** are truncated to **512** characters at ingest; only **`referrer_host`** is stored on visitor-day rows.
 - **Retention (planned ops):** `site.analytics_visitor_day` detail rows older than **90 days** may be deleted while **`site.analytics_day`** aggregates are kept; `analytics_path_day` / `analytics_link_day` default **365** days (`C35_SITE_ANALYTICS_RETENTION_DAYS`). Documented for operators — job ships in analytics Wave 7.
 
+## Guest AI Assistant (Chat & Live Call)
+
+Storefronts can enable Alien AI assistant widgets for visiting guests:
+- **Chat**: Text conversations via `POST /v1/site/guest-assistant/chat` (SSE streaming or JSON response), accessing site knowledge, catalog context (`[SITE PRODUCTS]`), and guest cart (`site.guest.cart.get`, `site.guest.cart.patch`).
+- **Live Call**: Duplex voice session across published and draft preview storefronts:
+  - Setup via public HTTP `POST /v1/site/guest-assistant/live/setup` (`ReqSiteGuestAssistantLiveSetup`).
+  - Supported on both `boot_mode: "published"` and `boot_mode: "draft"` (preview mode).
+  - Client connects to WebSocket at `/v1/live/ws?ticket={guest_ticket}`.
+  - Live session uses shared `site_guest_context` (knowledge + catalog + guest instructions `inst.site.guest.call`).
+  - Tools: guest cart manipulation (`site.guest.cart.*`) and order preview (`site.tx.preview` for commerce-enabled sites). Strictly no web search / external provider grounding (`web-grounding-cluster-only.mdc`).
+  - Billing: Metered per elapsed second and charged to the site owner (`site.config.owner_iid`), drawing from the owner's Frontier quota pool (`scope: site_guest`).
+  - Default Live Offer: `live.alienai` (overridable by `C35_GUEST_LIVE_OFFER_ID`).
+
 ## Wire
 
 | Proto | Purpose |
 |-------|---------|
-| [`site.proto`](../schemas/proto/c35/site.proto) | SiteDoc, draft, publish, product, contact, object, guest contact RPC |
+| [`site.proto`](../schemas/proto/c35/site.proto) | SiteDoc, draft, publish, product, contact, object, guest contact and live setup RPC |
 | [`collection.proto`](../schemas/proto/c35/collection.proto) | `TableDef` / `ReqCollectionDefList` for UITable |
 | [`tx.proto`](../schemas/proto/c35/tx.proto) | POS + guest checkout (`ReqSiteGuestOrderPut`, `ReqSiteGuestOrderGet`) |
 
@@ -497,6 +510,7 @@ RPC summary:
 - `ReqCollectionDefList` — UITable column metadata
 - `ReqSiteGuestOrderPut/Get` — guest storefront checkout and order status
 - `ReqSiteGuestContactPut` — guest contact form submission
+- `ReqSiteGuestAssistantLiveSetup` / `ResSiteGuestAssistantLiveSetup` — guest live call setup and ticket issuance
 
 Sync collections: `site_draft`, `site_product`, `site_product_embed`, `site_contact`, `site_object`, `site_domain`, `site_config`.
 

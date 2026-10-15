@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
+import 'package:alienai_c35/guest_site/guest_site_member.dart';
 import 'package:alienai_c35/guest_site/guest_site_analytics.dart';
 import 'package:alienai_c35/guest_site/guest_site_assistant.dart';
 import 'package:alienai_c35/guest_site/guest_site_view.dart';
@@ -149,6 +150,7 @@ class _GuestSiteShellState extends State<GuestSiteShell> with WidgetsBindingObse
       child: GuestSiteCartChrome(
         controller: _cart,
         accent: widget.boot.accentColor,
+        memberPortalEnabled: guestSiteMemberPortalEnabled(widget.boot.capabilities),
         child: layered,
       ),
     );

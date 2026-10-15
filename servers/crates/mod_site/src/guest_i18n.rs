@@ -58,6 +58,38 @@ impl GuestI18n {
         }
     }
 
+    pub fn catalog_section_eyebrow(&self) -> &'static str {
+        if self.indonesian {
+            "Katalog"
+        } else {
+            "Catalog"
+        }
+    }
+
+    pub fn catalog_search_placeholder(&self) -> &'static str {
+        if self.indonesian {
+            "Cari produk…"
+        } else {
+            "Search products…"
+        }
+    }
+
+    pub fn hub_tab_shop(&self) -> &'static str {
+        if self.indonesian {
+            "Toko"
+        } else {
+            "Shop"
+        }
+    }
+
+    pub fn hub_tab_posts(&self) -> &'static str {
+        if self.indonesian {
+            "Posting"
+        } else {
+            "Posts"
+        }
+    }
+
     pub fn filter_all(&self) -> &'static str {
         if self.indonesian {
             "Semua"

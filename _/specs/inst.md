@@ -129,6 +129,21 @@ Steering detail: [site-ai.md](site-ai.md).
 - Compare / report: when `[SITE CONTEXTS]` is present, pass those sites. When it is absent, omit `site_iids` so the server aggregates every granted site.
 - Catalog: `inst.site.catalog.stock` is stock lookup, `inst.site.catalog.price` is price lookup, `inst.site.price_compare` is store-vs-web price compare, `inst.site.catalog.write` patches price or stock, and `inst.site.catalog.add` adds a new catalog row via `site.product_put` (confirm site when one site; create site when none; ask which site when several). `inst.site.catalog.add.menu` adds every item from a menu photo or menu list in one turn (`site.product_put` once per item, no extra confirm when the site is named or there is exactly one site). Indonesian board prices are thousands: a printed 10 on a cafe drink is 10000, guessed from the product name. Inst does not pick a site and does not invent an `@site` mention. A price lookup checks `product.stock` before `web.search` and stops when the store has the product. A vs-market question (reasonable, kemahalan, harga pasaran) still runs `web.search` after the store price is known. Stock questions do not fall through to the web. `inst.web_search` still owns `harga` for callers with no site.
 
+### Site guest assistant (chat & live call)
+
+Steering for anonymous visitors browsing published or draft storefront sites (`scope = role:site_guest`, `topic_id = site.guest`).
+
+| `inst` id | `kind` | Triggers | Priority | `include_tools` | `exclude_tools` | Purpose |
+|-----------|--------|----------|----------|-----------------|-----------------|---------|
+| `inst.site.guest.chat` | `trigger` | `always` | 180 | `site.guest.cart.get`, `site.guest.cart.patch`, `site.tx.preview` | `web.search`, `web.visit`, `web.research` | Ground answers in `[SITE KNOWLEDGE]` and `[SITE CONTEXT]`; short helpful replies; steer cart actions. |
+| `inst.site.guest.call` | `trigger` | `live:guest`, `live:voice`, `live`, `call` | 190 | `site.guest.cart.get`, `site.guest.cart.patch`, `site.tx.preview` | `web.search`, `web.visit`, `web.research` | Spoken voice style: 1-3 concise conversational sentences, no markdown tables/lists; steer cart actions. |
+
+**Live setup compose rule:**
+1. During guest live setup (`POST /v1/site/guest-assistant/live/setup`) and live WebSocket sessions (`/v1/live/ws`), prompt compose activates scope `role:site_guest` and injects signals `["live:guest", "live:voice"]`.
+2. This matches `inst.site.guest.call` via trigger `live:guest` / `live:voice`.
+3. Because `inst.site.guest.call` has priority **190** (higher than `inst.site.guest.chat` at **180**), it sorts first when composed alongside `inst.site.guest.chat`. Alternatively, live setup can use call-only compose where `inst.site.guest.call` supersedes `inst.site.guest.chat`, ensuring the model adopts concise spoken brevity without markdown formatting during duplex audio.
+4. Tool catalog is strictly confined to site guest tools (`site.guest.cart.*` + `site.tx.preview` if commerce); web search and external grounding are strictly excluded (`web-grounding-cluster-only.mdc`).
+
 ### Bot draft (`inst.bot.draft`)
 
 Home chat phrase match (`buat bot`, `bikin bot`, `create a bot`, a Google Sheet / Doc / Slide URL). Forces `bot.draft` and drops `web.search` / `web.visit` on that turn. The tool writes the inactive bot and the sheet access mode. The model replies with the tool `summary`.

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/site/design/site_card_style.dart';
+import 'package:alienai_c35/c/site/design/site_hub.dart';
 import 'package:alienai_c35/c/site/design/site_color.dart';
 import 'package:alienai_c35/c/site/design/site_design_models.dart'
     show
@@ -30,6 +31,7 @@ import 'package:alienai_c35/guest_site/guest_site_layout.dart';
 import 'package:alienai_c35/guest_site/guest_site_modal.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/guest_site/guest_site_product.dart';
+import 'package:alienai_c35/guest_site/guest_site_queue_sheet.dart';
 import 'package:alienai_c35/guest_site/guest_site_reservation_sheet.dart';
 import 'package:alienai_c35/guest_site/guest_site_product_design.dart';
 import 'package:alienai_c35/widgets/ai/ui_markdown_body.dart';
@@ -82,6 +84,7 @@ Widget guestSiteBlock({
   Color? foreground,
   Color? muted,
   List<Map<String, dynamic>> orderProgressSteps = const [],
+  List<Map<String, dynamic>> bootQueues = const [],
 }) {
   final type = block['type']?.toString() ?? 'markdown';
   final props = block['props'] is Map<String, dynamic>
@@ -134,6 +137,7 @@ Widget guestSiteBlock({
         profile: design?.profileDesign,
         foreground: fg,
         muted: sub,
+        pageBackground: resolved?.pageBackground ?? const Color(0xFFF8F9FA),
       ),
     'partners_display' => GuestSiteFeaturedStripBlock(
         kind: 'partners',
@@ -158,7 +162,12 @@ Widget guestSiteBlock({
         orderProgressSteps: orderProgressSteps,
       ),
     'map' => GuestSiteMapBlock(props: props, accent: accent),
-    'queue' => GuestSiteQueueBlock(props: props, accent: accent, siteIid: siteIid),
+    'queue' => GuestSiteQueueBlock(
+        props: props,
+        accent: accent,
+        siteIid: siteIid,
+        bootQueues: bootQueues,
+      ),
     'embed' => GuestSiteEmbedBlock(props: props, accent: accent),
     'custom_html' => const GuestSiteCustomHtmlBlock(),
     'hours' => suppressHoursBlock
@@ -224,16 +233,6 @@ class GuestSiteHeroBlock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 36, 20, 26),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            accent.withValues(alpha: 0.22),
-            accent.withValues(alpha: 0.05),
-            Colors.transparent,
-          ],
-          stops: const [0, 0.5, 1],
-        ),
         border: Border(bottom: BorderSide(color: fg.withValues(alpha: 0.05))),
       ),
       child: Stack(
@@ -710,6 +709,83 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
+class GuestSiteHubCatalogTabs extends StatefulWidget {
+  const GuestSiteHubCatalogTabs({
+    super.key,
+    required this.shop,
+    required this.posts,
+    required this.accent,
+    required this.defaultTab,
+    required this.i18n,
+    this.foreground,
+  });
+
+  final Widget shop;
+  final Widget posts;
+  final Color accent;
+  final String defaultTab;
+  final GuestSiteI18n i18n;
+  final Color? foreground;
+
+  @override
+  State<GuestSiteHubCatalogTabs> createState() => _GuestSiteHubCatalogTabsState();
+}
+
+class _GuestSiteHubCatalogTabsState extends State<GuestSiteHubCatalogTabs> {
+  late var _tab = siteHubDefaultTabNormalize(widget.defaultTab);
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = widget.foreground ?? _guestTextPrimary;
+    final muted = fg.withValues(alpha: 0.55);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: fg.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Expanded(child: _hubTab(widget.i18n.hubTabShop, 'shop', fg, muted)),
+                Expanded(child: _hubTab(widget.i18n.hubTabPosts, 'posts', fg, muted)),
+              ],
+            ),
+          ),
+        ),
+        if (_tab == 'shop') widget.shop else widget.posts,
+      ],
+    );
+  }
+
+  Widget _hubTab(String label, String id, Color fg, Color muted) {
+    final selected = _tab == id;
+    return Material(
+      color: selected ? fg.withValues(alpha: 0.06) : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: () => setState(() => _tab = id),
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: selected ? fg : muted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class GuestSiteProductGridBlock extends StatefulWidget {
   const GuestSiteProductGridBlock({
     super.key,
@@ -751,6 +827,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       : widget.initialNextCursor?.trim();
   var _loadingMore = false;
   String? _categoryFilter;
+  String _searchQuery = '';
 
   @override
   void didUpdateWidget(covariant GuestSiteProductGridBlock oldWidget) {
@@ -821,11 +898,23 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         ? _rows
         : List.generate(3, (i) => {'name': 'Item ${i + 1}', 'pic': '', 'price': 0});
     final chips = _categoryChips(rows);
-    final visible = _filteredRows(rows);
-    final catalogDisplay = productGridDisplay(widget.props, meta: widget.catalogMeta);
+    var visible = _filteredRows(rows);
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      visible = visible
+          .where((p) => (p['name']?.toString() ?? '').toLowerCase().contains(q))
+          .toList(growable: false);
+    }
+    final catalogDisplay = productGridDisplay(
+      widget.props,
+      meta: widget.catalogMeta,
+      productCount: rows.length,
+    );
     final layout = guestLayoutMode(widget.catalogMeta, productCount: rows.length);
+    final showSearch = layout == 'store' || rows.length >= 9;
 
     final sectionFg = widget.foreground ?? _guestTextPrimary;
+    final sectionMuted = widget.muted ?? _guestTextSecondary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
@@ -835,6 +924,16 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
+            i18n.catalogSectionEyebrow,
+            style: TextStyle(
+              color: sectionMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
             title,
             style: TextStyle(
               color: sectionFg,
@@ -842,6 +941,29 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               fontWeight: FontWeight.w600,
             ),
           ),
+          if (showSearch) ...[
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('guest-catalog-search'),
+              onChanged: (v) => setState(() => _searchQuery = v),
+              style: TextStyle(color: sectionFg, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: i18n.catalogSearchPlaceholder,
+                hintStyle: TextStyle(color: sectionMuted),
+                filled: true,
+                fillColor: sectionFg.withValues(alpha: 0.04),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: sectionMuted.withValues(alpha: 0.28)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: sectionMuted.withValues(alpha: 0.28)),
+                ),
+              ),
+            ),
+          ],
           if (chips.isNotEmpty) ...[
             const SizedBox(height: 10),
             SingleChildScrollView(
@@ -891,7 +1013,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
                   crossAxisCount: crossAxis,
                   mainAxisSpacing: 12,
                   crossAxisSpacing: 12,
-                  childAspectRatio: 0.72,
+                  childAspectRatio: 0.68,
                 ),
                 itemCount: visible.length,
                 itemBuilder: (_, i) => _productCard(widget.accent, widget.productDesign, visible[i], i18n: i18n),
@@ -974,20 +1096,31 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     final priceLabel = guestProductPriceLabel(price, i18n: i18n);
     final quoteOnly = price == guestProductPriceContact;
 
+    final pid = (p['product_id'] as num?)?.toInt() ?? 0;
     final row = Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: pic.trim().isNotEmpty
-                    ? GuestSitePic(
-                        pic: pic,
-                        height: 56,
-                        width: 56,
-                        fit: BoxFit.cover,
-                        error: _brokenPicPlaceholder(accent),
-                      )
-                    : _productThumbPlaceholder(accent, p['icon']?.toString() ?? ''),
+              SizedBox(
+                width: 68,
+                height: 68,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: pic.trim().isNotEmpty
+                          ? GuestSitePic(
+                              pic: pic,
+                              height: 68,
+                              width: 68,
+                              fit: BoxFit.cover,
+                              error: _brokenPicPlaceholder(accent),
+                            )
+                          : _productThumbPlaceholder(accent, p['icon']?.toString() ?? '', size: 68),
+                    ),
+                    _GuestProductInCartBadge(productId: pid, accent: accent),
+                  ],
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1029,7 +1162,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
             ],
           );
 
-    return _wrapProductTile(onProductTap, row);
+    return _wrapProductTile(onProductTap, row, productId: pid);
   }
 
   Widget _productCard(
@@ -1195,42 +1328,78 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       ],
     );
 
-    return _wrapProductTile(onProductTap, card, rounded: true);
+    final pid = (p['product_id'] as num?)?.toInt() ?? 0;
+    return _wrapProductTile(onProductTap, card, rounded: true, productId: pid);
   }
 
-  Widget _wrapProductTile(VoidCallback onTap, Widget child, {bool rounded = false}) {
-    final resolved = widget.resolved;
-    if (resolved != null && resolved.isBare('site_product')) {
-      return InkWell(onTap: onTap, child: child);
-    }
-    if (resolved != null) {
-      return siteCardWrap(
-        card: resolved.cardFor('site_product'),
-        child: InkWell(onTap: onTap, child: child),
+  Widget _wrapProductTile(
+    VoidCallback onTap,
+    Widget child, {
+    bool rounded = false,
+    int productId = 0,
+  }) {
+    final cart = GuestSiteCartScope.maybeOf(context);
+    Widget wrapped(Widget inner) {
+      final resolved = widget.resolved;
+      if (resolved != null && resolved.isBare('site_product')) {
+        return InkWell(onTap: onTap, child: inner);
+      }
+      if (resolved != null) {
+        return siteCardWrap(
+          card: resolved.cardFor('site_product'),
+          child: InkWell(onTap: onTap, child: inner),
+        );
+      }
+      return Material(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _guestBorder.withValues(alpha: 0.45)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 20,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            clipBehavior: rounded ? Clip.antiAlias : Clip.none,
+            child: inner,
+          ),
+        ),
       );
     }
-    return Material(
-      color: Colors.white.withValues(alpha: 0.04),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _guestBorder.withValues(alpha: 0.45)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          clipBehavior: rounded ? Clip.antiAlias : Clip.none,
-          child: child,
-        ),
-      ),
+
+    if (cart == null || productId <= 0) {
+      return wrapped(child);
+    }
+    return ListenableBuilder(
+      listenable: cart,
+      builder: (context, _) {
+        final inCart = cart.qtyForProduct(productId) > 0;
+        final inner = inCart
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(rounded ? 16 : 14),
+                  border: Border.all(color: widget.accent.withValues(alpha: 0.38)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.accent.withValues(alpha: 0.12),
+                      blurRadius: 18,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: child,
+              )
+            : child;
+        return wrapped(inner);
+      },
     );
   }
 
@@ -1635,6 +1804,7 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
     this.profile,
     this.foreground,
     this.muted,
+    this.pageBackground = const Color(0xFFF8F9FA),
   });
 
   final Map<String, dynamic> props;
@@ -1645,6 +1815,7 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
   final SiteProfileDesignDraft? profile;
   final Color? foreground;
   final Color? muted;
+  final Color pageBackground;
 
   @override
   Widget build(BuildContext context) {
@@ -1652,7 +1823,10 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
     final showLocation = location.isNotEmpty && (profile?.showLocation ?? true);
     final showHours = (profile?.showHours ?? true) && props['show_hours'] == true && openHours.isNotEmpty;
     final sub = muted ?? _guestTextSecondary;
-    return Column(
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         GuestSiteHeroBlock(
@@ -1694,6 +1868,31 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: 44,
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: 0.9,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      pageBackground,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -2240,11 +2439,13 @@ class GuestSiteQueueBlock extends StatefulWidget {
     required this.props,
     required this.accent,
     required this.siteIid,
+    this.bootQueues = const [],
   });
 
   final Map<String, dynamic> props;
   final Color accent;
   final int siteIid;
+  final List<Map<String, dynamic>> bootQueues;
 
   @override
   State<GuestSiteQueueBlock> createState() => _GuestSiteQueueBlockState();
@@ -2253,7 +2454,8 @@ class GuestSiteQueueBlock extends StatefulWidget {
 class _GuestSiteQueueBlockState extends State<GuestSiteQueueBlock> {
   String? _status;
   String? _error;
-  var _busy = false;
+  var _opening = false;
+  GuestQueueTrackPoller? _poller;
 
   int get _queueId {
     final raw = widget.props['queue_id'];
@@ -2262,38 +2464,100 @@ class _GuestSiteQueueBlockState extends State<GuestSiteQueueBlock> {
     return 0;
   }
 
-  Future<void> _take() async {
-    if (widget.siteIid <= 0 || _busy) return;
+  List<Map<String, dynamic>> get _fields => guestQueueResolveFields(
+        props: widget.props,
+        bootQueues: widget.bootQueues,
+        queueId: _queueId,
+      );
+
+  bool get _takeOnline => guestQueueTakeOnline(widget.props, widget.bootQueues, _queueId);
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_restoreTrack());
+  }
+
+  @override
+  void dispose() {
+    _poller?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _restoreTrack() async {
+    if (widget.siteIid <= 0 || _queueId <= 0) return;
+    final token = await guestQueueReadTrackToken(widget.siteIid, _queueId);
+    if (token == null || token.isEmpty || !mounted) return;
+    _startPolling(token);
+  }
+
+  void _startPolling(String trackToken) {
+    _poller?.dispose();
+    _poller = GuestQueueTrackPoller(
+      siteIid: widget.siteIid,
+      trackToken: trackToken,
+      onStatus: (label) {
+        if (mounted) setState(() => _status = label);
+      },
+    );
+    _poller!.start();
+  }
+
+  void _onTaken(Map<String, dynamic> result) {
+    final label = result['display_label']?.toString().trim() ?? '';
+    final trackToken = result['track_token']?.toString().trim() ?? '';
+    if (label.isNotEmpty) {
+      setState(() => _status = label);
+    } else {
+      setState(() => _status = guestQueueFormatTrackStatus(result));
+    }
+    if (trackToken.isNotEmpty) {
+      unawaited(guestQueuePersistTrackToken(widget.siteIid, _queueId, trackToken));
+      _startPolling(trackToken);
+    }
+  }
+
+  Future<void> _openTake() async {
+    if (widget.siteIid <= 0 || _opening) return;
+    if (!_takeOnline) {
+      setState(() => _error = 'Antrian online tidak tersedia');
+      return;
+    }
     setState(() {
-      _busy = true;
+      _opening = true;
       _error = null;
     });
     try {
-      final resp = await http.post(
-        Uri.parse('$authApiProductionUrl/v1/site/guest-queue/take'),
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'site_iid': widget.siteIid,
-          'queue_id': _queueId,
-        }),
+      final title = widget.props['title']?.toString().trim().isNotEmpty == true
+          ? widget.props['title'].toString()
+          : (widget.props['label']?.toString().trim().isNotEmpty == true
+              ? widget.props['label'].toString()
+              : 'Antrian');
+      if (_fields.isEmpty) {
+        final result = await guestQueueTake(
+          siteIid: widget.siteIid,
+          queueId: _queueId,
+          answers: const {},
+        );
+        if (mounted) _onTaken(result);
+        return;
+      }
+      if (!mounted) return;
+      await showGuestSiteQueueSheet(
+        context: context,
+        siteIid: widget.siteIid,
+        queueId: _queueId,
+        title: title,
+        fields: _fields,
+        accent: widget.accent,
+        onTaken: _onTaken,
       );
-      final decoded = jsonDecode(resp.body);
-      if (decoded is! Map) throw StateError('Gagal ambil nomor');
-      if (decoded['ok'] != true) {
-        final err = decoded['error']?.toString().trim() ?? '';
-        throw StateError(err.isEmpty ? 'Gagal ambil nomor' : err);
-      }
-      final ticket = decoded['ticket_no'];
-      final serving = decoded['serving_ticket_no'];
-      if (mounted) {
-        setState(() => _status = 'Nomor Anda: $ticket (sedang dilayani: $serving)');
-      }
     } catch (e) {
       if (mounted) {
         setState(() => _error = e is StateError ? e.message : 'Gagal ambil nomor');
       }
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _opening = false);
     }
   }
 
@@ -2305,38 +2569,46 @@ class _GuestSiteQueueBlockState extends State<GuestSiteQueueBlock> {
             ? widget.props['label'].toString()
             : 'Antrian');
     final mode = widget.props['mode']?.toString() ?? '';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-          if (mode.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(mode, style: const TextStyle(color: _guestTextSecondary, fontSize: 11)),
+    return KeyedSubtree(
+      key: const Key('guest-queue-block'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0x15FFFFFF))),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(color: _guestTextPrimary, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            if (mode.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(mode, style: const TextStyle(color: _guestTextSecondary, fontSize: 11)),
+            ],
+            const SizedBox(height: 8),
+            TextButton(
+              key: const Key('guest-queue-open'),
+              onPressed: widget.siteIid > 0 && !_opening && _takeOnline ? _openTake : null,
+              child: const Text('Ambil nomor'),
+            ),
+            if (_status != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  _status!,
+                  key: const Key('guest-queue-status'),
+                  style: TextStyle(color: widget.accent, fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_error!, style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11)),
+              ),
           ],
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: widget.siteIid > 0 && !_busy ? _take : null,
-            child: const Text('Ambil nomor'),
-          ),
-          if (_status != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(_status!, style: TextStyle(color: widget.accent, fontSize: 12, fontWeight: FontWeight.w600)),
-            ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(_error!, style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11)),
-            ),
-        ],
+        ),
       ),
     );
   }

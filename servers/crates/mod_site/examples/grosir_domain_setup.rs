@@ -67,6 +67,7 @@ async fn main() -> anyhow::Result<()> {
         pages: vec![SitePage {
             path: "/".into(),
             title: "Grosir Prakarya".into(),
+            audience: "public".into(),
             blocks: vec![
                 SiteBlock {
                     id: "hero1".into(),

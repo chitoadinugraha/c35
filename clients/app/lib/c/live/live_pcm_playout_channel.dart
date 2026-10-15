@@ -1,12 +1,14 @@
-import 'dart:typed_data';
-
 import 'package:alienai_c35/c/live/live_pcm_playout.dart';
 import 'package:flutter/services.dart';
+
 
 class LivePcmPlayoutChannel implements LivePcmPlayout {
   static final MethodChannel _channel = MethodChannel(LivePcmPlayout.channelName);
 
   var _started = false;
+
+  @override
+  int get scheduledAheadMs => 0;
 
   @override
   Future<void> start(int sampleRateHz) async {

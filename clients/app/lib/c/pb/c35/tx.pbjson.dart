@@ -1002,6 +1002,118 @@ final $typed_data.Uint8List resSiteGuestOrderGetDescriptor =
     $convert.base64Decode(
         'ChRSZXNTaXRlR3Vlc3RPcmRlckdldBIXCgJ0eBgBIAEoCzIHLmMzNS5UeFICdHg=');
 
+@$core.Deprecated('Use siteGuestOrderSummaryDescriptor instead')
+const SiteGuestOrderSummary$json = {
+  '1': 'SiteGuestOrderSummary',
+  '2': [
+    {'1': 'tx_id', '3': 1, '4': 1, '5': 3, '10': 'txId'},
+    {'1': 'state', '3': 2, '4': 1, '5': 9, '10': 'state'},
+    {'1': 'total', '3': 3, '4': 1, '5': 3, '10': 'total'},
+    {'1': 'time_ts_ms', '3': 4, '4': 1, '5': 3, '10': 'timeTsMs'},
+    {'1': 'progress_label', '3': 5, '4': 1, '5': 9, '10': 'progressLabel'},
+  ],
+};
+
+/// Descriptor for `SiteGuestOrderSummary`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List siteGuestOrderSummaryDescriptor = $convert.base64Decode(
+    'ChVTaXRlR3Vlc3RPcmRlclN1bW1hcnkSEwoFdHhfaWQYASABKANSBHR4SWQSFAoFc3RhdGUYAi'
+    'ABKAlSBXN0YXRlEhQKBXRvdGFsGAMgASgDUgV0b3RhbBIcCgp0aW1lX3RzX21zGAQgASgDUgh0'
+    'aW1lVHNNcxIlCg5wcm9ncmVzc19sYWJlbBgFIAEoCVINcHJvZ3Jlc3NMYWJlbA==');
+
+@$core.Deprecated('Use reqSiteGuestOrderListDescriptor instead')
+const ReqSiteGuestOrderList$json = {
+  '1': 'ReqSiteGuestOrderList',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+  ],
+};
+
+/// Descriptor for `ReqSiteGuestOrderList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteGuestOrderListDescriptor =
+    $convert.base64Decode(
+        'ChVSZXFTaXRlR3Vlc3RPcmRlckxpc3QSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQ=');
+
+@$core.Deprecated('Use resSiteGuestOrderListDescriptor instead')
+const ResSiteGuestOrderList$json = {
+  '1': 'ResSiteGuestOrderList',
+  '2': [
+    {
+      '1': 'orders',
+      '3': 1,
+      '4': 3,
+      '5': 11,
+      '6': '.c35.SiteGuestOrderSummary',
+      '10': 'orders'
+    },
+  ],
+};
+
+/// Descriptor for `ResSiteGuestOrderList`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteGuestOrderListDescriptor = $convert.base64Decode(
+    'ChVSZXNTaXRlR3Vlc3RPcmRlckxpc3QSMgoGb3JkZXJzGAEgAygLMhouYzM1LlNpdGVHdWVzdE'
+    '9yZGVyU3VtbWFyeVIGb3JkZXJz');
+
+@$core.Deprecated('Use reqSiteGuestMemberMeDescriptor instead')
+const ReqSiteGuestMemberMe$json = {
+  '1': 'ReqSiteGuestMemberMe',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+  ],
+};
+
+/// Descriptor for `ReqSiteGuestMemberMe`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteGuestMemberMeDescriptor =
+    $convert.base64Decode(
+        'ChRSZXFTaXRlR3Vlc3RNZW1iZXJNZRIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZA==');
+
+@$core.Deprecated('Use resSiteGuestMemberMeDescriptor instead')
+const ResSiteGuestMemberMe$json = {
+  '1': 'ResSiteGuestMemberMe',
+  '2': [
+    {'1': 'user_iid', '3': 1, '4': 1, '5': 3, '10': 'userIid'},
+    {'1': 'display_name', '3': 2, '4': 1, '5': 9, '10': 'displayName'},
+    {'1': 'pic', '3': 3, '4': 1, '5': 9, '10': 'pic'},
+    {'1': 'email', '3': 4, '4': 1, '5': 9, '10': 'email'},
+    {'1': 'contact_id', '3': 5, '4': 1, '5': 3, '10': 'contactId'},
+  ],
+};
+
+/// Descriptor for `ResSiteGuestMemberMe`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteGuestMemberMeDescriptor = $convert.base64Decode(
+    'ChRSZXNTaXRlR3Vlc3RNZW1iZXJNZRIZCgh1c2VyX2lpZBgBIAEoA1IHdXNlcklpZBIhCgxkaX'
+    'NwbGF5X25hbWUYAiABKAlSC2Rpc3BsYXlOYW1lEhAKA3BpYxgDIAEoCVIDcGljEhQKBWVtYWls'
+    'GAQgASgJUgVlbWFpbBIdCgpjb250YWN0X2lkGAUgASgDUgljb250YWN0SWQ=');
+
+@$core.Deprecated('Use reqSiteGuestMemberMergeDescriptor instead')
+const ReqSiteGuestMemberMerge$json = {
+  '1': 'ReqSiteGuestMemberMerge',
+  '2': [
+    {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {'1': 'visitor_id', '3': 2, '4': 1, '5': 9, '10': 'visitorId'},
+    {'1': 'order_ids', '3': 3, '4': 3, '5': 3, '10': 'orderIds'},
+  ],
+};
+
+/// Descriptor for `ReqSiteGuestMemberMerge`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List reqSiteGuestMemberMergeDescriptor = $convert.base64Decode(
+    'ChdSZXFTaXRlR3Vlc3RNZW1iZXJNZXJnZRIZCghzaXRlX2lpZBgBIAEoA1IHc2l0ZUlpZBIdCg'
+    'p2aXNpdG9yX2lkGAIgASgJUgl2aXNpdG9ySWQSGwoJb3JkZXJfaWRzGAMgAygDUghvcmRlcklk'
+    'cw==');
+
+@$core.Deprecated('Use resSiteGuestMemberMergeDescriptor instead')
+const ResSiteGuestMemberMerge$json = {
+  '1': 'ResSiteGuestMemberMerge',
+  '2': [
+    {'1': 'merged_count', '3': 1, '4': 1, '5': 5, '10': 'mergedCount'},
+  ],
+};
+
+/// Descriptor for `ResSiteGuestMemberMerge`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List resSiteGuestMemberMergeDescriptor =
+    $convert.base64Decode(
+        'ChdSZXNTaXRlR3Vlc3RNZW1iZXJNZXJnZRIhCgxtZXJnZWRfY291bnQYASABKAVSC21lcmdlZE'
+        'NvdW50');
+
 @$core.Deprecated('Use expenseItemInputDescriptor instead')
 const ExpenseItemInput$json = {
   '1': 'ExpenseItemInput',

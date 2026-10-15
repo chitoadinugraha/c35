@@ -4,7 +4,7 @@ ComposerActionKind composerActionKind({required bool streaming, required bool re
     recording
         ? ComposerActionKind.recStop
         : streaming
-            ? (hasText ? ComposerActionKind.send : ComposerActionKind.abort)
+            ? ComposerActionKind.abort
             : hasText
                 ? ComposerActionKind.send
                 : ComposerActionKind.mic;

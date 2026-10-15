@@ -8,7 +8,7 @@ use crate::billing::{live_billing_gate_nats_cached, live_req_id};
 use crate::catalog::live_offer_resolve;
 use crate::session::live_session_register;
 
-fn live_enabled() -> bool {
+pub fn live_enabled() -> bool {
     match std::env::var("C35_LIVE_ENABLED")
         .ok()
         .map(|v| v.trim().to_ascii_lowercase())

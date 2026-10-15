@@ -258,7 +258,7 @@ tool! {
     struct: DeviceInputTool,
     name: "device.input",
     aliases: ["device_input", "device_computer_use"],
-    description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Chrome extension browser devices use CDP trusted keys/clicks (not OS SendKeys); pass tab_id for the target tab. For Google Sheets prefer browser.sheets.* tools. Desktop agents use OS input. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
+    description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Chrome extension browser devices use CDP trusted keys/clicks (not OS SendKeys); pass tab_id for the target tab. On @device Windows Chrome for Google Sheets: goto cells with shortcut ctrl+g + type_text (A2) + enter, then type_text/tab — do not click_and_type grid pixels or shell.run SendKeys. Extension-only browser.sheets.* is a different path. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     ui_calling_key: "tool.device.input.calling",

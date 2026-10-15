@@ -174,8 +174,12 @@ fn guest_design_fixture_renders_tokens_blocks_and_strips() {
 
     assert!(html.contains("--accent:#E11D48"));
     assert!(html.contains("--page-bg:#111111"));
+    assert!(html.contains("--theme-base:"));
+    assert!(html.contains("--guest-tone:"));
     assert!(html.contains("data-backdrop=\"glow\""));
     assert!(html.contains("backdrop-glow"));
+    assert!(html.contains("guest-backdrop"));
+    assert!(html.contains("guest-backdrop-preset--glow"));
 
     let profile_html = section(&html, "profile");
     assert!(profile_html.contains("data-guest=\"profile\""));
@@ -219,6 +223,23 @@ fn guest_root_css_includes_typography_tokens() {
     assert!(css.contains("--card-blur:"));
     assert!(css.contains("--card-opacity:"));
     assert!(css.contains("--card-tint-strength:"));
+    assert!(css.contains("--theme-base:"));
+    assert!(css.contains("--surface:"));
+    assert!(css.contains("--outline:"));
+    assert!(css.contains("--guest-tone:"));
+    assert!(css.contains("--backdrop-intensity:"));
+    assert!(css.contains("--backdrop-softness:"));
+    assert!(css.contains("--backdrop-scale:"));
+}
+
+#[test]
+fn guest_root_css_backdrop_params_from_theme() {
+    let design = GuestDesign::from_theme_json(
+        r##"{"accent":"#ff0000","backdrop":{"id":"glow","params":{"intensity":0.8,"scale":1.2}}}"##,
+    );
+    let css = guest_root_css(&design);
+    assert!(css.contains("--backdrop-intensity:0.8"));
+    assert!(css.contains("--backdrop-scale:1.2"));
 }
 
 #[test]
@@ -285,4 +306,34 @@ fn guest_design_boot_json_fields() {
     assert_eq!(boot["featured_contacts"][0]["name"], "Northwind");
     assert_eq!(boot["featured_contacts"][0]["pic"], "/fs/north?v=thumb");
     assert_eq!(boot["featured_contacts"][0]["featured"], "partners");
+}
+
+#[test]
+fn guest_atmosphere_none_includes_accent_wash() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/guest_atmosphere_none_light.json");
+    let raw = std::fs::read_to_string(path).expect("guest_atmosphere_none_light.json");
+    let design = GuestDesign::from_theme_json(&raw);
+    assert_eq!(design.backdrop_id, "none");
+    let html = guest_shell_html(&design, "");
+    assert!(html.contains("guest-backdrop"));
+    assert!(html.contains("guest-backdrop-color"));
+    assert!(html.contains("guest-backdrop-accent"));
+    assert!(!html.contains("guest-backdrop-preset--"));
+}
+
+#[test]
+fn guest_atmosphere_preset_matrix_emits_preset_layer() {
+    for id in ["glow", "mesh", "grain", "diamond", "aurora"] {
+        let theme = format!(r##"{{"accent":"#E11D48","dark":true,"backdrop":{{"id":"{id}"}}}}"##);
+        let design = GuestDesign::from_theme_json(&theme);
+        let html = guest_shell_html(&design, "");
+        assert!(
+            html.contains(&format!("guest-backdrop-preset--{id}")),
+            "missing preset layer for {id}"
+        );
+        assert!(
+            !html.contains("guest-backdrop-accent"),
+            "accent wash should not appear for preset {id}"
+        );
+    }
 }

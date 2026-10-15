@@ -62,6 +62,8 @@ class Session {
     return _sessionDevRootViewer();
   }
 
+  bool get isDirectorStaff => isRoot || globalRoles.contains('director');
+
   bool get isFinanceStaff => isRoot || globalRoles.any((r) => r == 'finance' || r == 'director');
 
   bool get canIssueBillingVoucher =>

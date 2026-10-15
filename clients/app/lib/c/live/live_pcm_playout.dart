@@ -16,7 +16,11 @@ abstract class LivePcmPlayout {
   /// Tear down web shared [AudioContext] after a call ends.
   static Future<void> disposePlatformAudio() => playout_impl.disposeLivePcmPlayout();
 
+  /// Current audio duration scheduled ahead in the hardware timeline (milliseconds).
+  int get scheduledAheadMs => 0;
+
   Future<void> start(int sampleRateHz);
   Future<void> write(Uint8List pcm);
   Future<void> stop();
 }
+

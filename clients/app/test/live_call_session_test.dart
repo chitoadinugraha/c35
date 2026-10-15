@@ -245,4 +245,19 @@ void main() {
       expect(session.error.value, 'Invalid argument: voice not found');
     });
   });
+
+  group('LiveCallSession - Guest Live Call URI', () {
+    test('guestWsUri builds URI with ticket query param without appending user JWT', () {
+      final uri = LiveCallSession.guestWsUri('/v1/live/ws?ticket=guest_tk_123');
+      expect(uri.contains('/v1/live/ws'), isTrue);
+      expect(uri.contains('ticket=guest_tk_123'), isTrue);
+      expect(uri.contains('jwt='), isFalse);
+    });
+
+    test('guestWsUri preserves full wss URL if already provided', () {
+      const fullUrl = 'wss://api.alienai.id/v1/live/ws?ticket=guest_tk_456';
+      expect(LiveCallSession.guestWsUri(fullUrl), fullUrl);
+    });
+  });
 }
+

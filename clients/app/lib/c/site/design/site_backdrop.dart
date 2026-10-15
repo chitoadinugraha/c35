@@ -140,6 +140,28 @@ Color siteBackdropAccent({required SiteBackdropDraft style, required SiteThemeTo
   return theme.primary;
 }
 
+/// Matches published web `.guest-backdrop-accent` when backdrop preset is `none`.
+Widget siteBackdropAccentWash({required Color accent, double intensity = 0.55}) {
+  final scale = (intensity / 0.55).clamp(0.0, 1.5);
+  return Opacity(
+    opacity: intensity.clamp(0.0, 1.0),
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(0, -1.24),
+          radius: 1.35,
+          colors: [
+            accent.withValues(alpha: 0.2 * scale),
+            accent.withValues(alpha: 0),
+          ],
+          stops: const [0, 0.68],
+        ),
+      ),
+      child: const SizedBox.expand(),
+    ),
+  );
+}
+
 /// Ambient backdrop behind guest preview content.
 Widget siteBackdropLayer({
   required SiteBackdropDraft style,

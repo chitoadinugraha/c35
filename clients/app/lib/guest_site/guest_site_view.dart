@@ -10,6 +10,7 @@ import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
+import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
 import 'package:alienai_c35/guest_site/guest_site_layout.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/guest_site/guest_site_preview_handoff.dart';
@@ -155,6 +156,7 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
     final blocks = boot.homeBlocks;
     final accent = boot.accentColor;
     final openHours = boot.openHoursSlots;
+    final hasHubProfile = blocks.any((b) => b['type']?.toString() == 'hub_profile');
     final hubShowsHours = blocks.any((b) {
       if (b['type']?.toString() != 'hub_profile') return false;
       final props = b['props'];
@@ -178,20 +180,60 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
     // Minimal theme JSON (accent only) still uses a light storefront canvas on web.
     final fg = resolved?.fg ?? const Color(0xFF18181B);
     final muted = resolved?.muted ?? const Color(0xFF71717A);
-    final blockWidgets = <Widget>[
-      for (var i = 0; i < blocks.length; i++)
-        KeyedSubtree(
-          key: widget.blockKeyAt?.call(i),
-          child: guestSiteBlock(
+    final productCount = boot.productPreload.values.fold<int>(0, (n, list) => n + list.length);
+    final gridIdx = blocks.indexWhere((b) => b['type']?.toString() == 'product_grid');
+    final feedIdx = blocks.indexWhere((b) => b['type']?.toString() == 'social_feed');
+    final hubTabsCandidate =
+        gridIdx >= 0 && feedIdx >= 0 && boot.postsPreload.isNotEmpty && productCount > 0;
+    final i18n = GuestSiteI18n.fromMeta(boot.meta);
+    var emittedHubTabs = false;
+    final blockWidgets = <Widget>[];
+    for (var i = 0; i < blocks.length; i++) {
+      final type = blocks[i]['type']?.toString() ?? '';
+      if (type == 'hero' && hasHubProfile) continue;
+      if (hubTabsCandidate && type == 'social_feed') continue;
+      final blockId = blocks[i]['id']?.toString() ?? '';
+      final productRows = boot.productsForBlock(blockId);
+      Widget child = guestSiteBlock(
+        block: blocks[i],
+        accent: accent,
+        siteName: boot.name,
+        siteIid: boot.siteIid,
+        siteAlienId: boot.alienId,
+        productDesign: boot.productDesign,
+        productRows: productRows,
+        commerceObjects: boot.commerceObjects,
+        productNextCursor: boot.nextProductCursorForBlock(blockId),
+        hubLinks: boot.links,
+        postsPreload: boot.postsPreload,
+        openHours: openHours,
+        suppressHoursBlock: hubShowsHours,
+        siteAvatar: boot.avatarUrl,
+        design: renderDesign,
+        featuredContacts: boot.featuredContacts,
+        catalogMeta: boot.meta,
+        foreground: fg,
+        muted: muted,
+        orderProgressSteps: boot.orderProgressSteps,
+        bootQueues: boot.queues,
+      );
+      if (hubTabsCandidate && !emittedHubTabs && type == 'product_grid' && productRows.isNotEmpty) {
+        final feedBlock = blocks[feedIdx];
+        child = GuestSiteHubCatalogTabs(
+          accent: accent,
+          defaultTab: renderDesign?.profileDesign.hubDefaultTab ?? 'shop',
+          i18n: i18n,
+          foreground: fg,
+          shop: guestSiteBlock(
             block: blocks[i],
             accent: accent,
             siteName: boot.name,
             siteIid: boot.siteIid,
             siteAlienId: boot.alienId,
             productDesign: boot.productDesign,
-            productRows: boot.productsForBlock(blocks[i]['id']?.toString() ?? ''),
+            productRows: productRows,
             commerceObjects: boot.commerceObjects,
-            productNextCursor: boot.nextProductCursorForBlock(blocks[i]['id']?.toString() ?? ''),
+            productNextCursor: boot.nextProductCursorForBlock(blockId),
             hubLinks: boot.links,
             postsPreload: boot.postsPreload,
             openHours: openHours,
@@ -203,8 +245,66 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
             foreground: fg,
             muted: muted,
             orderProgressSteps: boot.orderProgressSteps,
+            bootQueues: boot.queues,
           ),
-        ),
+          posts: guestSiteBlock(
+            block: feedBlock,
+            accent: accent,
+            siteName: boot.name,
+            siteIid: boot.siteIid,
+            siteAlienId: boot.alienId,
+            productDesign: boot.productDesign,
+            productRows: const [],
+            commerceObjects: boot.commerceObjects,
+            hubLinks: boot.links,
+            postsPreload: boot.postsPreload,
+            openHours: openHours,
+            suppressHoursBlock: hubShowsHours,
+            siteAvatar: boot.avatarUrl,
+            design: renderDesign,
+            featuredContacts: boot.featuredContacts,
+            catalogMeta: boot.meta,
+            foreground: fg,
+            muted: muted,
+            orderProgressSteps: boot.orderProgressSteps,
+            bootQueues: boot.queues,
+          ),
+        );
+        emittedHubTabs = true;
+      } else if (hubTabsCandidate &&
+          !emittedHubTabs &&
+          type == 'product_grid' &&
+          productRows.isEmpty) {
+        blockWidgets.add(KeyedSubtree(key: widget.blockKeyAt?.call(i), child: child));
+        final feedChild = guestSiteBlock(
+          block: blocks[feedIdx],
+          accent: accent,
+          siteName: boot.name,
+          siteIid: boot.siteIid,
+          siteAlienId: boot.alienId,
+          productDesign: boot.productDesign,
+          productRows: const [],
+          commerceObjects: boot.commerceObjects,
+          hubLinks: boot.links,
+          postsPreload: boot.postsPreload,
+          openHours: openHours,
+          suppressHoursBlock: hubShowsHours,
+          siteAvatar: boot.avatarUrl,
+          design: renderDesign,
+          featuredContacts: boot.featuredContacts,
+          catalogMeta: boot.meta,
+          foreground: fg,
+          muted: muted,
+          orderProgressSteps: boot.orderProgressSteps,
+          bootQueues: boot.queues,
+        );
+        blockWidgets.add(KeyedSubtree(key: widget.blockKeyAt?.call(feedIdx), child: feedChild));
+        emittedHubTabs = true;
+        continue;
+      }
+      blockWidgets.add(KeyedSubtree(key: widget.blockKeyAt?.call(i), child: child));
+    }
+    blockWidgets.addAll([
       if (boot.shouldShowMetaLocation) _GuestSiteMetaLocationChip(accent: accent, label: boot.locationLabel),
       if (boot.shouldShowMetaHours && !hubShowsHours)
         Padding(
@@ -214,13 +314,12 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
       const SizedBox(height: 28),
       Center(child: UiPoweredByAlien(color: muted, strongColor: fg)),
       const SizedBox(height: 88),
-    ];
+    ]);
 
     // CSA `UiSitePreview` scrolls inside the phone frame (ListView), not via an outer wrapper.
     final scrollBehavior = SitePreviewViewportHandoff.maybeOf(context) != null
         ? const SitePreviewHandoffScrollBehavior()
         : const GuestSitePreviewScrollBehavior();
-    final productCount = boot.productPreload.values.fold<int>(0, (n, list) => n + list.length);
     final layout = guestLayoutMode(boot.meta, productCount: productCount);
     final maxW = guestLayoutMaxWidth(layout);
 
@@ -353,25 +452,40 @@ class _GuestSiteCanvas extends StatelessWidget {
   Widget build(BuildContext context) {
     final bg = resolved.background;
     final backdropId = siteBackdropNormalizeId(resolved.backdrop.id);
+    final accent = siteBackdropAccent(style: resolved.backdrop, theme: resolved.theme);
+    final bdParams = siteBackdropParamsResolve(resolved.backdrop);
+    final bdIntensity = (bdParams['intensity'] ?? 0.55).toDouble();
     return ColoredBox(
       color: resolved.pageBackground,
       child: Stack(
         children: [
-          if (bg.type == 'image') Positioned.fill(child: _GuestSiteBackgroundImage(background: bg)),
-          if (bg.overlay > 0)
-            Positioned.fill(
-              child: ColoredBox(
-                color: (bg.overlayTone == 'light' ? Colors.white : Colors.black).withValues(alpha: bg.overlay.clamp(0, 1)),
-              ),
-            ),
           Positioned.fill(
             child: GuestSiteBackdrop(
               key: const Key('guest-backdrop'),
               backdropId: backdropId,
-              child: siteBackdropLayer(
-                style: resolved.backdrop,
-                theme: resolved.theme,
-                child: const SizedBox.expand(),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ColoredBox(color: resolved.pageBackground),
+                  if (bg.type == 'image') Positioned.fill(child: _GuestSiteBackgroundImage(background: bg)),
+                  if (bg.overlay > 0)
+                    Positioned.fill(
+                      child: ColoredBox(
+                        color: (bg.overlayTone == 'light' ? Colors.white : Colors.black)
+                            .withValues(alpha: bg.overlay.clamp(0, 1)),
+                      ),
+                    ),
+                  siteBackdropLayer(
+                    style: resolved.backdrop,
+                    theme: resolved.theme,
+                    child: const SizedBox.expand(),
+                  ),
+                  if (backdropId == 'none')
+                    Positioned.fill(
+                      key: const Key('guest-backdrop-accent'),
+                      child: siteBackdropAccentWash(accent: accent, intensity: bdIntensity),
+                    ),
+                ],
               ),
             ),
           ),

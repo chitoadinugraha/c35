@@ -1623,6 +1623,86 @@ fn compose_device_operate_feds_input_delegate_and_forces_hop1() {
 }
 
 #[test]
+fn compose_device_sheets_sample_rows_title_feds_input() {
+    let tools = cluster_tools();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![],
+        bots: vec![],
+        default_site_iid: None,
+    };
+    let text = "[@iid:98063412749627392]tambahkan 5 baris contoh, ubah judul google sheet jadi Test Anggota";
+    let out = compose_tools_and_inst(
+        &[inst_core_assistant(), inst_device_operate()],
+        text,
+        tools,
+        &[],
+        &[],
+        &[],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(
+        !out.matched_ids.contains(&"inst.mention.sheets".into()),
+        "browser inst.mention.sheets must not win on @device desktop Sheets UI"
+    );
+    assert!(
+        out.matched_ids.contains(&"inst.device.google_sheets".into()),
+        "sample rows + title on @device should inject inst.device.google_sheets"
+    );
+    assert!(
+        out.tools.iter().any(|t| t.name == "device.input"),
+        "device.input must be fed"
+    );
+    assert!(
+        !out.tools.iter().any(|t| t.name == "shell.run"),
+        "shell.run must be excluded on @device Google Sheets UI turns"
+    );
+}
+
+#[test]
+fn compose_device_sheets_header_rename_feds_input_from_iid_in_text() {
+    let tools = cluster_tools();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![],
+        bots: vec![],
+        default_site_iid: None,
+    };
+    let text = "[@iid:98063412749627392]ubah jadi bahasa indonesia, name => nama, rename address jadi alamat, gender jadi jenis kelamin";
+    let out = compose_tools_and_inst(
+        &[inst_core_assistant(), inst_device_operate()],
+        text,
+        tools,
+        &[],
+        &[],
+        &[],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(
+        out.matched_ids.contains(&"inst.device.google_sheets".into()),
+        "rename header follow-up should inject inst.device.google_sheets"
+    );
+    assert!(
+        out.tools.iter().any(|t| t.name == "device.input"),
+        "device.input must be fed when Sheets header edit is detected on @device"
+    );
+    assert!(
+        out.tools.iter().any(|t| t.name == "computer_use.delegate"),
+        "computer_use.delegate must be fed"
+    );
+}
+
+#[test]
 fn compose_browser_only_device_scope_excludes_desktop_and_fs_tools() {
     let catalog = cluster_tools();
     let browser_exclude: Vec<String> =

@@ -246,17 +246,36 @@ pub async fn live_billing_settle(
     offer: &LiveOfferRow,
     duration_secs: f64,
     video_secs: f64,
+    guest: Option<&crate::session::GuestLiveMeta>,
 ) -> Result<()> {
     let wholesale = live_wholesale_usd_with_video(offer, duration_secs, video_secs);
     let duration_ms = (duration_secs * 1000.0).round().clamp(0.0, i32::MAX as f64) as i32;
-    let topic = "live.session";
+    let topic = if guest.is_some() { "site.guest" } else { "live.session" };
     let text = format!("Live call {} ({duration_secs:.1}s)", offer.id);
-    let meta = serde_json::json!({
-        "offer_id": offer.id,
-        "wholesale_usd": wholesale,
-        "duration_secs": duration_secs,
-        "video_secs": video_secs,
-    });
+    let (kind, meta) = if let Some(g) = guest {
+        (
+            "site_guest_live",
+            serde_json::json!({
+                "scope": "site_guest",
+                "site_iid": g.site_iid,
+                "visitor_id": &g.visitor_id,
+                "offer_id": &offer.id,
+                "wholesale_usd": wholesale,
+                "duration_secs": duration_secs,
+                "video_secs": video_secs,
+            }),
+        )
+    } else {
+        (
+            "tool",
+            serde_json::json!({
+                "offer_id": &offer.id,
+                "wholesale_usd": wholesale,
+                "duration_secs": duration_secs,
+                "video_secs": video_secs,
+            }),
+        )
+    };
     let _ = voice_style_settle(
         pool,
         nats,
@@ -264,6 +283,7 @@ pub async fn live_billing_settle(
         row,
         req_id,
         wholesale,
+        kind,
         topic,
         &text,
         &offer.provider_model,
@@ -281,6 +301,7 @@ async fn voice_style_settle(
     row: &BillingRow,
     req_id: &str,
     wholesale_usd: f64,
+    kind: &str,
     topic: &str,
     text: &str,
     model: &str,
@@ -298,7 +319,7 @@ async fn voice_style_settle(
         LogPut {
             class: None,
             owner_iid,
-            kind: "tool",
+            kind,
             topic,
             dv: "",
             req_id: Some(req_id),

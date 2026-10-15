@@ -214,14 +214,12 @@ class _GuestSiteReservationSheetState extends State<GuestSiteReservationSheet> {
       slot.unitsAvailable = result.unitsAvailable;
       slot.freeObjectIds = result.freeObjectIds;
       final free = result.freeObjectIds;
-      if (free != null) {
-        final next = guestReservationAssignmentsFit(slot.assignments, slot.units);
-        for (var i = 0; i < next.length; i++) {
-          final id = next[i]?.siteObjectId ?? 0;
-          if (id > 0 && !free.contains(id)) next[i] = null;
-        }
-        slot.assignments = next;
+      final next = guestReservationAssignmentsFit(slot.assignments, slot.units);
+      for (var i = 0; i < next.length; i++) {
+        final id = next[i]?.siteObjectId ?? 0;
+        if (id > 0 && !free.contains(id)) next[i] = null;
       }
+      slot.assignments = next;
     });
   }
 

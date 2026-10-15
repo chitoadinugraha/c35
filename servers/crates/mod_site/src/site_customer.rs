@@ -7,11 +7,6 @@ use sqlx::{PgPool, Row};
 use crate::site_contact::site_contact_upsert;
 use crate::site_publish::site_published;
 
-pub async fn site_member_portal_enabled(pool: &PgPool, site_iid: i64) -> bool {
-    let caps = crate::site_config::site_capabilities_get(pool, site_iid).await;
-    crate::site_config::site_member_portal_enabled(&caps)
-}
-
 pub async fn site_customer_upsert(pool: &PgPool, site_iid: i64, user_iid: i64) -> Result<i64> {
     if site_iid <= 0 || user_iid <= 0 {
         return Err(anyhow!("site_iid and user_iid required"));

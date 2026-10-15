@@ -472,7 +472,8 @@
       const priceHtml = (!quote && priceLabel) ? '<span class="price">' + escHtml(priceLabel) + '</span>' : '';
       const bottomClass = quote ? ' product-bottom--quote' : '';
       const action = productPurchaseAction(item);
-      return '<article class="product-card guest-product-tile" data-pid="' + pid + '"' + productCategoryAttr(item) + reserveAttr + '>'
+      const searchNameCard = (item.name || '').toLowerCase().replace(/"/g, '&quot;');
+      return '<article class="product-card guest-product-tile" data-pid="' + pid + '" data-name="' + searchNameCard + '"' + productCategoryAttr(item) + reserveAttr + '>'
         + '<div class="guest-product-thumb-wrap">' + badgeHtml + img + '<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div>'
         + '<div class="product-info"><h3>' + name + '</h3><p>' + desc + '</p>'
         + '<div class="product-bottom' + bottomClass + '">' + priceHtml
@@ -508,8 +509,9 @@
       const quote = price === GUEST_PRODUCT_PRICE_CONTACT;
       const priceHtml = (!quote && priceLabel) ? '<span class="price">' + escHtml(priceLabel) + '</span>' : '';
       const action = productPurchaseAction(item);
-      return '<article class="product-list-row guest-product-tile" data-pid="' + pid + '"' + productCategoryAttr(item) + reserveAttr + '>'
-        + '<div class="product-list-thumb">' + img + '</div>'
+      const searchName = (item.name || '').toLowerCase().replace(/"/g, '&quot;');
+      return '<article class="product-list-row guest-product-tile" data-pid="' + pid + '" data-name="' + searchName + '"' + productCategoryAttr(item) + reserveAttr + '>'
+        + '<div class="product-list-thumb">' + img + '<span class="guest-tile-cart-badge" hidden aria-hidden="true"></span></div>'
         + '<div class="product-list-body"><h3>' + name + '</h3><p>' + desc + '</p></div>'
         + '<div class="product-list-trail">' + priceHtml + action + '</div></article>';
     },
@@ -543,6 +545,9 @@
         const rowFn = display === 'list' ? this.productListRowHtml : this.productCardHtml;
         for (const item of items) html += rowFn(item);
         if (layout) layout.insertAdjacentHTML('beforeend', html);
+        if (window.c35GuestCart && window.c35GuestCart.refreshBar) {
+          window.c35GuestCart.refreshBar();
+        }
         const next = (data && data.next_cursor) ? data.next_cursor : '';
         section.setAttribute('data-next-cursor', next);
         if (!next) btn.style.display = 'none';
@@ -558,36 +563,269 @@
     },
   };
 
-  window.c35GuestQueue = window.c35GuestQueue || {
-    async take(btn) {
+  window.c35GuestQueue = window.c35GuestQueue || (function () {
+    const TRACK_POLL_MS = 15000;
+
+    function queueTrackStorageKey(siteIid, queueId) {
+      return 'c35.guest.queue.track.' + siteIid + '.' + queueId;
+    }
+
+    function bootQueues() {
+      const g = window.__SITE_GUEST__ || {};
+      const rows = g.queues;
+      return Array.isArray(rows) ? rows : [];
+    }
+
+    function defaultFields() {
+      return [
+        { name: 'name', label: 'Nama Lengkap', type: 'text', required: true },
+        { name: 'phone', label: 'WhatsApp / No. HP', type: 'tel', required: true },
+      ];
+    }
+
+    function parseFields(section) {
+      const raw = section.getAttribute('data-queue-fields');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length) return parsed;
+        } catch (e) { /* ignore */ }
+      }
+      const queueId = parseInt(section.getAttribute('data-queue-id') || '0', 10);
+      const row = bootQueues().find(function (q) {
+        return Number(q.queue_id) === queueId;
+      });
+      if (row && Array.isArray(row.fields) && row.fields.length) return row.fields;
+      return defaultFields();
+    }
+
+    function takeOnline(section) {
+      const attr = section.getAttribute('data-take-online');
+      return attr !== '0' && attr !== 'false';
+    }
+
+    function queueFieldHtml(field) {
+      const label = escHtml(field.label || field.name || '');
+      const name = escHtml(field.name || field.label || '');
+      const type = escHtml(field.type || 'text');
+      const req = field.required ? ' required' : '';
+      return '<label class="guest-field"><span>' + label + '</span><input type="' + type + '" name="' + name + '"' + req + ' /></label>';
+    }
+
+    function collectAnswers(form, fields) {
+      const fd = new FormData(form);
+      const answers = {};
+      for (const f of fields) {
+        const name = String(f.name || f.label || '').trim();
+        if (!name) continue;
+        answers[name] = String(fd.get(name) || '').trim();
+      }
+      return answers;
+    }
+
+    function validateAnswers(fields, answers) {
+      for (const f of fields) {
+        if (!f.required) continue;
+        const name = String(f.name || f.label || '').trim();
+        if (!name) continue;
+        if (!answers[name]) return 'Lengkapi ' + (f.label || name);
+      }
+      return '';
+    }
+
+    function formatTrackStatus(data) {
+      const label = data.display_label || data.label || '';
+      const serving = data.serving_ticket_no;
+      if (label && serving != null && serving !== '') {
+        return label + ' · Sedang dilayani: ' + serving;
+      }
+      if (label) return label;
+      if (serving != null && serving !== '') return 'Sedang dilayani: ' + serving;
+      return '';
+    }
+
+    async function trackFetch(siteIid, trackToken) {
+      const base = apiBase() + '/v1/site/guest-queue/track';
+      let resp = await fetch(base + '?track_token=' + encodeURIComponent(trackToken), {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      });
+      if (!resp.ok) {
+        resp = await fetch(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ site_iid: siteIid, track_token: trackToken }),
+        });
+      }
+      const data = await resp.json().catch(function () { return {}; });
+      if (!resp.ok || data.ok === false) {
+        throw new Error(data.error || 'Gagal memuat status antrian');
+      }
+      return data;
+    }
+
+    const pollTimers = new Map();
+
+    function stopPoll(key) {
+      const id = pollTimers.get(key);
+      if (id) clearInterval(id);
+      pollTimers.delete(key);
+    }
+
+    function startPoll(section, siteIid, trackToken) {
+      const key = siteIid + ':' + trackToken;
+      stopPoll(key);
+      const statusEl = section.querySelector('.queue-status');
+      const tick = async function () {
+        try {
+          const data = await trackFetch(siteIid, trackToken);
+          if (statusEl) statusEl.textContent = formatTrackStatus(data);
+        } catch (e) { /* ignore transient */ }
+      };
+      tick();
+      pollTimers.set(key, setInterval(tick, TRACK_POLL_MS));
+    }
+
+    function persistTrackToken(siteIid, queueId, trackToken) {
+      try {
+        localStorage.setItem(queueTrackStorageKey(siteIid, queueId), trackToken);
+      } catch (e) { /* ignore */ }
+    }
+
+    function readTrackToken(siteIid, queueId) {
+      try {
+        return localStorage.getItem(queueTrackStorageKey(siteIid, queueId)) || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    async function submitTake(section, siteIid, queueId, answers, statusEl) {
+      const resp = await fetch(apiBase() + '/v1/site/guest-queue/take', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          site_iid: siteIid,
+          queue_id: queueId,
+          answers: answers,
+        }),
+      });
+      const data = await resp.json().catch(function () { return {}; });
+      if (!resp.ok || data.ok === false) {
+        throw new Error(data.error || 'Gagal ambil nomor');
+      }
+      const trackToken = data.track_token || '';
+      const label = data.display_label || '';
+      if (statusEl) {
+        statusEl.textContent = label || formatTrackStatus(data);
+      }
+      if (trackToken) {
+        persistTrackToken(siteIid, queueId, trackToken);
+        startPoll(section, siteIid, trackToken);
+      } else if (data.ticket_no != null) {
+        if (statusEl && !label) {
+          statusEl.textContent = 'Nomor Anda: ' + data.ticket_no
+            + ' · Sedang dilayani: ' + data.serving_ticket_no;
+        }
+        try {
+          if (data.ticket_id) {
+            localStorage.setItem('c35_queue_ticket_' + siteIid, String(data.ticket_id));
+          }
+        } catch (e) { /* ignore */ }
+      }
+      return data;
+    }
+
+    function openSheet(section, siteIid, queueId, fields, title) {
+      const scrim = document.createElement('div');
+      scrim.className = 'guest-sheet-scrim';
+      const sheet = document.createElement('div');
+      sheet.className = 'guest-sheet guest-sheet-tall';
+      sheet.setAttribute('data-guest', 'queue');
+      const heading = escHtml(title || 'Antrian');
+      sheet.innerHTML = '<div class="guest-sheet-handle"></div>'
+        + '<div class="guest-sheet-header"><h2 class="guest-sheet-title-center">' + heading + '</h2>'
+        + '<button type="button" class="guest-icon-btn" data-queue-close aria-label="Close">×</button></div>'
+        + '<form class="guest-sheet-body guest-queue-form">' + fields.map(queueFieldHtml).join('')
+        + '<button type="submit" class="guest-sheet-primary guest-queue-submit">Ambil nomor</button></form>';
+      scrim.appendChild(sheet);
+      document.body.appendChild(scrim);
+
+      function destroy() {
+        scrim.remove();
+      }
+
+      scrim.addEventListener('click', function (e) {
+        if (e.target === scrim) destroy();
+      });
+      sheet.addEventListener('click', function (e) { e.stopPropagation(); });
+      sheet.querySelector('[data-queue-close]').addEventListener('click', destroy);
+      sheet.querySelector('form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const form = e.target;
+        const answers = collectAnswers(form, fields);
+        const err = validateAnswers(fields, answers);
+        if (err) {
+          alert(err);
+          return;
+        }
+        const submitBtn = form.querySelector('.guest-queue-submit');
+        if (submitBtn) submitBtn.disabled = true;
+        const statusEl = section.querySelector('.queue-status');
+        try {
+          await submitTake(section, siteIid, queueId, answers, statusEl);
+          destroy();
+        } catch (err2) {
+          alert(err2.message || String(err2));
+        } finally {
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      });
+    }
+
+    function open(btn) {
       const section = btn && btn.closest ? btn.closest('section.queue') : null;
       if (!section) return;
       const siteIid = siteIidFrom(btn);
       const queueId = parseInt(section.getAttribute('data-queue-id') || '0', 10);
-      const statusEl = section.querySelector('.queue-status');
-      btn.disabled = true;
-      try {
-        const resp = await fetch(apiBase() + '/v1/site/guest-queue/take', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ site_iid: siteIid, queue_id: queueId }),
-        });
-        const data = await resp.json();
-        if (!data.ok) throw new Error(data.error || 'Gagal ambil nomor');
-        if (statusEl) {
-          statusEl.textContent = 'Nomor Anda: ' + data.ticket_no
-            + ' (sedang dilayani: ' + data.serving_ticket_no + ')';
-        }
-        try {
-          localStorage.setItem('c35_queue_ticket_' + siteIid, String(data.ticket_id));
-        } catch (e) { /* ignore */ }
-      } catch (err) {
-        alert(err.message || String(err));
-      } finally {
-        btn.disabled = false;
+      if (!siteIid || !queueId) {
+        alert('Site tidak dikenali');
+        return;
       }
-    },
-  };
+      if (!takeOnline(section)) {
+        alert('Antrian online tidak tersedia');
+        return;
+      }
+      const fields = parseFields(section);
+      const titleEl = section.querySelector('h3');
+      const title = titleEl ? titleEl.textContent : 'Antrian';
+      if (!fields.length) {
+        const statusEl = section.querySelector('.queue-status');
+        btn.disabled = true;
+        submitTake(section, siteIid, queueId, {}, statusEl)
+          .catch(function (err) { alert(err.message || String(err)); })
+          .finally(function () { btn.disabled = false; });
+        return;
+      }
+      openSheet(section, siteIid, queueId, fields, title);
+    }
+
+    function initSection(section) {
+      const siteIid = parseInt(section.getAttribute('data-site-iid') || '0', 10);
+      const queueId = parseInt(section.getAttribute('data-queue-id') || '0', 10);
+      if (!siteIid || !queueId) return;
+      const token = readTrackToken(siteIid, queueId);
+      if (token) startPoll(section, siteIid, token);
+    }
+
+    return {
+      open: open,
+      take: open,
+      init: function () {
+        document.querySelectorAll('section.queue').forEach(initSection);
+      },
+    };
+  })();
 
   function progressLabel(state, steps) {
     const s = `${state || ''}`;
@@ -967,9 +1205,10 @@
       document.querySelectorAll('.guest-product-tile').forEach(function (tile) {
         const pid = parseInt(tile.getAttribute('data-pid') || '0', 10);
         const badge = tile.querySelector('.guest-tile-cart-badge');
-        if (!badge) return;
         const line = items[pid];
         const qty = line && !isSlotLine(line) ? lineQty(line) : 0;
+        tile.classList.toggle('guest-product--incart', qty > 0);
+        if (!badge) return;
         if (qty > 0) {
           badge.hidden = false;
           badge.textContent = String(qty);
@@ -1054,11 +1293,12 @@
       const keys = numpadKeys.map(function (k) {
         return '<button type="button" class="guest-numpad-key" data-numpad="' + escHtml(k) + '">' + (k === 'back' ? '⌫' : k) + '</button>';
       }).join('');
-      const primary = orderQty > 0 ? ('Pesan ' + orderQty + ' item · ' + orderPriceLabel()) : 'Batalkan';
+      const itemWord = orderQty === 1 ? ' Item' : ' Items';
+      const primary = orderQty > 0 ? ('Pesan ' + orderQty + itemWord + ' · ' + orderPriceLabel()) : 'Batalkan';
       return '<div class="guest-sheet-handle"></div><div class="guest-order-card"><div class="guest-order-pic-wrap">' + pic
         + (orderQty > 0 ? '<span class="guest-product-qty">' + orderQty + '</span>' : '') + '</div><div class="guest-order-info"><div class="guest-order-top">'
-        + '<div class="guest-order-name">' + escHtml(p.name || 'Produk') + '</div><div class="guest-order-price">' + formatIdr(p.price || 0) + '</div></div>'
-        + desc + '<label class="guest-note"><span>📝</span><textarea id="c35-order-note" rows="2" placeholder="Catatan (opsional)…">' + escHtml(orderNote) + '</textarea></label>'
+        + '<div class="guest-order-name">' + escHtml(p.name || 'Produk') + '</div><div class="guest-order-price">' + escHtml(orderPriceLabel()) + '</div></div>'
+        + desc + '<label class="guest-note"><span>📝</span><input type="text" id="c35-order-note" value="' + escHtml(orderNote) + '" placeholder="Catatan (opsional)…"/></label>'
         + '</div></div>' + stock + err + '<div class="guest-numpad">' + keys + '</div>'
         + '<button type="button" class="guest-sheet-primary' + (orderQty > 0 ? '' : ' muted') + '" id="c35-order-confirm">' + escHtml(primary) + '</button>';
     }
@@ -1341,6 +1581,47 @@
     return api;
   })();
 
+  function initGuestHubCatalogTabs() {
+    document.querySelectorAll('.guest-hub-catalog-tabs').forEach(function (bar) {
+      if (bar.getAttribute('data-bound') === '1') return;
+      bar.setAttribute('data-bound', '1');
+      const root = bar.closest('.guest-hub-catalog');
+      if (!root) return;
+      bar.addEventListener('click', function (e) {
+        const tab = e.target && e.target.closest ? e.target.closest('.guest-hub-catalog-tab') : null;
+        if (!tab || !bar.contains(tab)) return;
+        const id = tab.getAttribute('data-hub-tab') || 'shop';
+        bar.querySelectorAll('.guest-hub-catalog-tab').forEach(function (btn) {
+          const active = btn === tab;
+          btn.classList.toggle('is-active', active);
+          btn.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        root.querySelectorAll('.guest-hub-catalog-panel').forEach(function (panel) {
+          const show = (panel.getAttribute('data-hub-panel') || '') === id;
+          panel.hidden = !show;
+        });
+      });
+    });
+  }
+
+  function initGuestCatalogSearch() {
+    document.querySelectorAll('.guest-catalog-search-input').forEach(function (input) {
+      if (input.getAttribute('data-bound') === '1') return;
+      input.setAttribute('data-bound', '1');
+      const section = input.closest('section.product-grid');
+      if (!section) return;
+      input.addEventListener('input', function () {
+        const q = (input.value || '').trim().toLowerCase();
+        section.querySelectorAll('.guest-product-tile').forEach(function (tile) {
+          const name = (tile.getAttribute('data-name') || tile.textContent || '').toLowerCase();
+          const show = !q || name.indexOf(q) >= 0;
+          tile.hidden = !show;
+          tile.classList.toggle('is-filtered-out', !show);
+        });
+      });
+    });
+  }
+
   function initGuestCatalogFilters() {
     document.querySelectorAll('.guest-catalog-filters').forEach(function (bar) {
       if (bar.getAttribute('data-bound') === '1') return;
@@ -1401,6 +1682,8 @@
       if (window.__c35CatalogUiBound) return;
       window.__c35CatalogUiBound = true;
       initGuestCatalogFilters();
+      initGuestCatalogSearch();
+      initGuestHubCatalogTabs();
       initGuestStickyBar();
       if (!document.getElementById('c35-guest-pic-lightbox-style')) {
         const st = document.createElement('style');
@@ -2018,12 +2301,165 @@
     let chatDockFab = null;
     let chatPanel = null;
     let callOverlay = null;
+    let callMuteBtn = null;
     let messages = [];
     let chatOpen = false;
     let callActive = false;
+    let callConnecting = false;
+    let callMuted = false;
     let callTimerId = null;
     let callStartedAt = 0;
     let streaming = false;
+
+    let callAudioCtx = null;
+    let callMediaStream = null;
+    let callSourceNode = null;
+    let callProcessorNode = null;
+    let callSilentGain = null;
+    let callWebSocket = null;
+    let callNextPlayTime = 0;
+
+    function ensureAudioContext() {
+      if (!callAudioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          callAudioCtx = new AudioCtx();
+        }
+      }
+      return callAudioCtx;
+    }
+
+    function floatTo16BitPCM(input) {
+      const output = new Int16Array(input.length);
+      for (let i = 0; i < input.length; i++) {
+        const s = Math.max(-1, Math.min(1, input[i]));
+        output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return output.buffer;
+    }
+
+    function downsampleTo16k(input, inputSampleRate) {
+      if (!input || input.length === 0) return new ArrayBuffer(0);
+      if (inputSampleRate === 16000) {
+        return floatTo16BitPCM(input);
+      }
+      const ratio = inputSampleRate / 16000;
+      const newLength = Math.floor(input.length / ratio);
+      const output = new Int16Array(newLength);
+      let offsetResult = 0;
+      let offsetInput = 0;
+      while (offsetResult < output.length) {
+        const nextOffsetInput = Math.round((offsetResult + 1) * ratio);
+        let accum = 0;
+        let count = 0;
+        for (let i = Math.floor(offsetInput); i < nextOffsetInput && i < input.length; i++) {
+          accum += input[i];
+          count++;
+        }
+        const s = count > 0 ? Math.max(-1, Math.min(1, accum / count)) : 0;
+        output[offsetResult] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        offsetResult++;
+        offsetInput = nextOffsetInput;
+      }
+      return output.buffer;
+    }
+
+    /**
+     * Decodes downlink audio frame:
+     * Byte layout:
+     *  - Magic prefix (2 bytes): [0xC3, 0x35]
+     *  - Protobuf LiveWsAudio message:
+     *      field 1 (sample_rate_hz): tag 0x08 ((1 << 3) | 0), varint (typically 24000)
+     *      field 2 (pcm_s16le): tag 0x12 ((2 << 3) | 2), varint length, followed by raw PCM Int16LE bytes
+     * Fallback: if magic prefix is missing, raw PCM is ingested directly (defaulting to 24000Hz).
+     */
+    function decodeLiveWsAudio(data) {
+      const bytes = new Uint8Array(data);
+      let sampleRate = 24000;
+      let pcmBytes = null;
+
+      if (bytes.length >= 2 && bytes[0] === 0xC3 && bytes[1] === 0x35) {
+        let pos = 2;
+        while (pos < bytes.length) {
+          const tagByte = bytes[pos++];
+          const fieldNum = tagByte >> 3;
+          const wireType = tagByte & 0x07;
+          if (wireType === 0) {
+            let val = 0;
+            let shift = 0;
+            while (pos < bytes.length) {
+              const b = bytes[pos++];
+              val |= (b & 0x7F) << shift;
+              if ((b & 0x80) === 0) break;
+              shift += 7;
+            }
+            if (fieldNum === 1) sampleRate = val || 24000;
+          } else if (wireType === 2) {
+            let len = 0;
+            let shift = 0;
+            while (pos < bytes.length) {
+              const b = bytes[pos++];
+              len |= (b & 0x7F) << shift;
+              if ((b & 0x80) === 0) break;
+              shift += 7;
+            }
+            if (fieldNum === 2) {
+              pcmBytes = bytes.subarray(pos, pos + len);
+            }
+            pos += len;
+          } else {
+            break;
+          }
+        }
+      } else {
+        pcmBytes = bytes;
+      }
+      return { sampleRate: sampleRate, pcm: pcmBytes };
+    }
+
+    function schedulePcmPlayout(pcmBytes, sampleRate) {
+      if (!pcmBytes || pcmBytes.length === 0 || !callAudioCtx) return;
+      if (callAudioCtx.state === 'suspended') {
+        callAudioCtx.resume().catch(function () {});
+      }
+      const numSamples = Math.floor(pcmBytes.length / 2);
+      if (numSamples <= 0) return;
+
+      const floats = new Float32Array(numSamples);
+      const dataView = new DataView(pcmBytes.buffer, pcmBytes.byteOffset, pcmBytes.byteLength);
+      for (let i = 0; i < numSamples; i++) {
+        floats[i] = dataView.getInt16(i * 2, true) / 32768.0;
+      }
+
+      const buffer = callAudioCtx.createBuffer(1, numSamples, sampleRate);
+      buffer.copyToChannel(floats, 0, 0);
+
+      const source = callAudioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(callAudioCtx.destination);
+
+      const now = callAudioCtx.currentTime;
+      if (callNextPlayTime < now + 0.02) {
+        callNextPlayTime = now + 0.02;
+      }
+      source.start(callNextPlayTime);
+      callNextPlayTime += numSamples / sampleRate;
+    }
+
+    function resolveWsUrl(wsPath) {
+      if (/^wss?:\/\//i.test(wsPath)) return wsPath;
+      const base = assistantApiBase();
+      let url;
+      if (/^https?:\/\//i.test(base)) {
+        url = new URL(wsPath, base);
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      } else {
+        const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host || 'localhost';
+        url = new URL(wsPath, proto + '//' + host);
+      }
+      return url.href;
+    }
 
     function ensureRoot() {
       if (root) return root;
@@ -2062,7 +2498,13 @@
       if (cfg.callEnabled) {
         host.insertAdjacentHTML('beforeend', fabHtml('call', 'Alien AI call'));
         callFab = host.querySelector('[data-assistant-fab="call"]');
-        callFab.addEventListener('click', function () { api.startCall(); });
+        callFab.addEventListener('click', function () {
+          ensureAudioContext();
+          if (callAudioCtx && callAudioCtx.state === 'suspended') {
+            callAudioCtx.resume().catch(function () {});
+          }
+          api.startCall();
+        });
       }
       syncCartLayout();
     }
@@ -2251,14 +2693,116 @@
       return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
     }
 
-    function removeCallOverlay() {
+    function updateCallStatus(text, isError) {
+      const el = document.getElementById('c35-assistant-call-status');
+      if (!el) return;
+      el.textContent = text;
+      el.classList.toggle('is-error', !!isError);
+    }
+
+    function setCallConnected() {
+      if (!callActive) return;
+      callConnecting = false;
+      callStartedAt = Date.now();
+      if (callOverlay) {
+        callOverlay.classList.add('is-active');
+      }
+      updateCallStatus('Connected');
+      if (callMuteBtn) {
+        callMuteBtn.disabled = false;
+      }
+      if (callTimerId) clearInterval(callTimerId);
+      callTimerId = setInterval(function () {
+        const el = document.getElementById('c35-assistant-call-timer');
+        if (el && callStartedAt > 0) {
+          el.textContent = formatCallElapsed(Date.now() - callStartedAt);
+        }
+      }, 1000);
+    }
+
+    function toggleCallMute() {
+      callMuted = !callMuted;
+      if (callMediaStream) {
+        callMediaStream.getAudioTracks().forEach(function (t) {
+          t.enabled = !callMuted;
+        });
+      }
+      if (callMuteBtn) {
+        callMuteBtn.classList.toggle('is-muted', callMuted);
+        const iconEl = callMuteBtn.querySelector('.call-btn-circle');
+        const labelEl = callMuteBtn.querySelector('.call-btn-label');
+        if (iconEl) iconEl.textContent = callMuted ? '\uD83D\uDD07' : '\uD83C\uDFA4';
+        if (labelEl) labelEl.textContent = callMuted ? 'Unmute' : 'Mute';
+      }
+      if (callMuted) {
+        updateCallStatus('Microphone muted');
+      } else {
+        updateCallStatus('Connected');
+      }
+    }
+
+    function cleanupCallResources() {
       if (callTimerId) {
         clearInterval(callTimerId);
         callTimerId = null;
       }
-      if (callOverlay && callOverlay.parentNode) callOverlay.parentNode.removeChild(callOverlay);
-      callOverlay = null;
       callActive = false;
+      callConnecting = false;
+      callMuted = false;
+      callStartedAt = 0;
+      callNextPlayTime = 0;
+
+      if (callWebSocket) {
+        try {
+          if (callWebSocket.readyState === WebSocket.OPEN) {
+            callWebSocket.send(JSON.stringify({ type: 'hangup' }));
+          }
+        } catch (_) {}
+        try {
+          callWebSocket.close();
+        } catch (_) {}
+        callWebSocket = null;
+      }
+
+      if (callProcessorNode) {
+        try {
+          callProcessorNode.disconnect();
+          callProcessorNode.onaudioprocess = null;
+        } catch (_) {}
+        callProcessorNode = null;
+      }
+
+      if (callSourceNode) {
+        try {
+          callSourceNode.disconnect();
+        } catch (_) {}
+        callSourceNode = null;
+      }
+
+      if (callSilentGain) {
+        try {
+          callSilentGain.disconnect();
+        } catch (_) {}
+        callSilentGain = null;
+      }
+
+      if (callMediaStream) {
+        try {
+          callMediaStream.getTracks().forEach(function (t) {
+            t.stop();
+          });
+        } catch (_) {}
+        callMediaStream = null;
+      }
+    }
+
+    function removeCallOverlay() {
+      cleanupCallResources();
+      if (callOverlay && callOverlay.parentNode) {
+        callOverlay.parentNode.removeChild(callOverlay);
+      }
+      callOverlay = null;
+      callMuteBtn = null;
       document.body.classList.remove('guest-assistant-call-open');
     }
 
@@ -2266,23 +2810,47 @@
       removeCallOverlay();
       const cfg = readAssistantConfig();
       callActive = true;
-      callStartedAt = Date.now();
+      callConnecting = true;
+      callMuted = false;
+      callStartedAt = 0;
       document.body.classList.add('guest-assistant-call-open');
+
       callOverlay = document.createElement('div');
       callOverlay.className = 'guest-assistant-call-root';
       callOverlay.setAttribute('data-guest-assistant', 'call');
+
       const intro = cfg.callIntro ? '<p class="guest-assistant-call-intro">' + escHtml(cfg.callIntro) + '</p>' : '';
-      callOverlay.innerHTML = '<div class="guest-assistant-call-card"><div class="guest-assistant-call-icon" aria-hidden="true">\uD83D\uDD0A</div>'
-        + '<div class="guest-assistant-call-title">Alien AI Call</div>' + intro
+      callOverlay.innerHTML = '<div class="guest-assistant-call-card">'
+        + '<div class="guest-assistant-call-avatar-wrap">'
+        + '<div class="guest-assistant-call-pulse-ring"></div>'
+        + '<div class="guest-assistant-call-avatar" aria-hidden="true">\uD83D\uDCDE</div>'
+        + '</div>'
+        + '<div class="guest-assistant-call-title">Alien AI Call</div>'
+        + intro
+        + '<div class="guest-assistant-call-status" id="c35-assistant-call-status">Connecting…</div>'
         + '<div class="guest-assistant-call-timer" id="c35-assistant-call-timer">00:00</div>'
-        + '<p class="guest-assistant-call-hint">Speakerphone · live session placeholder</p>'
-        + '<button type="button" class="guest-assistant-call-end" id="c35-assistant-call-end">End call</button></div>';
+        + '<div class="guest-assistant-call-wave" id="c35-assistant-call-wave" aria-hidden="true">'
+        + '<span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span><span class="wave-bar"></span>'
+        + '</div>'
+        + '<div class="guest-assistant-call-actions">'
+        + '<button type="button" class="guest-assistant-call-btn guest-assistant-call-mute" id="c35-assistant-call-mute" aria-label="Mute microphone" disabled>'
+        + '<span class="call-btn-circle" aria-hidden="true">\uD83C\uDFA4</span>'
+        + '<span class="call-btn-label">Mute</span>'
+        + '</button>'
+        + '<button type="button" class="guest-assistant-call-btn guest-assistant-call-end" id="c35-assistant-call-end" aria-label="End call">'
+        + '<span class="call-btn-circle" aria-hidden="true">\u2715</span>'
+        + '<span class="call-btn-label">End</span>'
+        + '</button>'
+        + '</div>'
+        + '</div>';
+
       document.body.appendChild(callOverlay);
-      callOverlay.querySelector('#c35-assistant-call-end').addEventListener('click', function () { api.endCall(); });
-      callTimerId = setInterval(function () {
-        const el = document.getElementById('c35-assistant-call-timer');
-        if (el) el.textContent = formatCallElapsed(Date.now() - callStartedAt);
-      }, 1000);
+
+      callMuteBtn = callOverlay.querySelector('#c35-assistant-call-mute');
+      callMuteBtn.addEventListener('click', toggleCallMute);
+      callOverlay.querySelector('#c35-assistant-call-end').addEventListener('click', function () {
+        api.endCall();
+      });
     }
 
     const api = {
@@ -2328,9 +2896,211 @@
           streaming = false;
         }
       },
-      startCall() {
+      async startCall() {
+        if (callActive || callConnecting) return;
         if (!readAssistantConfig().callEnabled) return;
+
+        // W6.4: Web Audio unlock on user gesture
+        ensureAudioContext();
+        if (callAudioCtx && callAudioCtx.state === 'suspended') {
+          callAudioCtx.resume().catch(function () {});
+        }
+
         renderCallOverlay();
+
+        // 1. Mic permission & stream
+        try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('Microphone not supported on this browser');
+          }
+          callMediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              channelCount: 1,
+              sampleRate: 16000,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          });
+        } catch (err) {
+          const msg = (err && err.name === 'NotAllowedError')
+            ? 'Microphone access denied. Please allow microphone in browser.'
+            : ('Microphone unavailable: ' + ((err && err.message) || String(err)));
+          updateCallStatus(msg, true);
+          return;
+        }
+
+        if (!callActive) {
+          if (callMediaStream) {
+            callMediaStream.getTracks().forEach(function (t) { t.stop(); });
+            callMediaStream = null;
+          }
+          return;
+        }
+
+        // 2. Setup request (W6.1: assistantBootMode())
+        let setupData;
+        try {
+          updateCallStatus('Preparing voice session…');
+          const payload = {
+            site_iid: siteIid(),
+            visitor_id: visitorId(),
+            boot_mode: assistantBootMode(),
+          };
+          const resp = await fetch(assistantApiBase() + '/v1/site/guest-assistant/live/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!resp.ok) {
+            const errText = await resp.text();
+            let msg = 'Live call setup failed';
+            try {
+              const j = JSON.parse(errText);
+              if (j.error) msg = j.error;
+            } catch (_) {
+              if (errText) msg = errText;
+            }
+            throw new Error(msg);
+          }
+          setupData = await resp.json();
+          if (!setupData.ok || !setupData.ws_path) {
+            throw new Error(setupData.error || 'Live call setup error');
+          }
+        } catch (err) {
+          updateCallStatus((err && err.message) ? err.message : String(err), true);
+          return;
+        }
+
+        if (!callActive) return;
+
+        // 3. WebSocket connection to ws_path
+        updateCallStatus('Connecting…');
+        const wsUrl = resolveWsUrl(setupData.ws_path);
+        let ws;
+        try {
+          ws = new WebSocket(wsUrl);
+          ws.binaryType = 'arraybuffer';
+          callWebSocket = ws;
+        } catch (err) {
+          updateCallStatus('Failed to connect WebSocket: ' + ((err && err.message) || String(err)), true);
+          return;
+        }
+
+        // 4. Audio uplink
+        try {
+          ensureAudioContext();
+          const source = callAudioCtx.createMediaStreamSource(callMediaStream);
+          const processor = callAudioCtx.createScriptProcessor(2048, 1, 1);
+          callSourceNode = source;
+          callProcessorNode = processor;
+
+          processor.onaudioprocess = function (e) {
+            if (!callActive || callMuted || !callWebSocket || callWebSocket.readyState !== WebSocket.OPEN) return;
+            const input = e.inputBuffer.getChannelData(0);
+            const pcmBuffer = downsampleTo16k(input, callAudioCtx.sampleRate);
+            if (pcmBuffer.byteLength > 0 && callWebSocket.readyState === WebSocket.OPEN) {
+              callWebSocket.send(pcmBuffer);
+            }
+          };
+
+          source.connect(processor);
+          callSilentGain = callAudioCtx.createGain();
+          callSilentGain.gain.value = 0;
+          processor.connect(callSilentGain);
+          callSilentGain.connect(callAudioCtx.destination);
+        } catch (err) {
+          updateCallStatus('Audio uplink setup failed: ' + ((err && err.message) || String(err)), true);
+          return;
+        }
+
+        // 5 & 6. Downlink and control events
+        ws.onopen = function () {
+          updateCallStatus('Connecting to AI…');
+        };
+
+        ws.onmessage = function (event) {
+          if (!callActive) return;
+
+          if (event.data instanceof ArrayBuffer) {
+            const decoded = decodeLiveWsAudio(event.data);
+            if (decoded && decoded.pcm) {
+              schedulePcmPlayout(decoded.pcm, decoded.sampleRate);
+            }
+            return;
+          }
+
+          if (typeof event.data === 'string') {
+            let v = null;
+            try {
+              v = JSON.parse(event.data);
+            } catch (_) {}
+
+            if (!v) {
+              if (event.data.indexOf('setupComplete') >= 0 || event.data.indexOf('"live":"ready"') >= 0) {
+                setCallConnected();
+              }
+              return;
+            }
+
+            if (v.live === 'ready' || v.setupComplete || (v.live && v.live.ready)) {
+              setCallConnected();
+              return;
+            }
+
+            if (v.live === 'hangup' || v.type === 'hangup') {
+              updateCallStatus('Call ended');
+              setTimeout(function () {
+                if (callActive) api.endCall();
+              }, 1200);
+              return;
+            }
+
+            if (v.live === 'tool_start') {
+              const name = v.name ? v.name.replace(/^.*\./, '') : 'catalog';
+              updateCallStatus('Checking ' + name + '…');
+              return;
+            }
+
+            if (v.live === 'tool_end') {
+              if (!callMuted) updateCallStatus('Connected');
+              return;
+            }
+
+            if (v.liveError || v.error) {
+              const err = v.liveError || (typeof v.error === 'object' ? v.error.message : v.error) || 'Voice service error';
+              updateCallStatus(String(err), true);
+              setTimeout(function () {
+                if (callActive) api.endCall();
+              }, 3000);
+              return;
+            }
+
+            if (v.serverContent && v.serverContent.interrupted) {
+              if (callAudioCtx) {
+                callNextPlayTime = callAudioCtx.currentTime + 0.02;
+              }
+              return;
+            }
+          }
+        };
+
+        ws.onerror = function () {
+          if (!callActive) return;
+          updateCallStatus('Connection error', true);
+        };
+
+        ws.onclose = function (e) {
+          if (!callActive) return;
+          if (callStartedAt > 0) {
+            updateCallStatus('Call ended');
+            setTimeout(function () {
+              if (callActive) api.endCall();
+            }, 1000);
+          } else {
+            updateCallStatus('Call disconnected (' + (e.reason || 'closed') + ')', true);
+          }
+        };
       },
       endCall() {
         removeCallOverlay();
@@ -2547,23 +3317,63 @@
       return data.orders || [];
     }
 
+    function renderLocalOrderRows(siteIid, modal) {
+      const list = loadOrders(siteIid);
+      const body = document.getElementById('c35-member-body');
+      if (!body) return;
+      if (!list.length) {
+        body.textContent = 'Belum ada pesanan';
+        return;
+      }
+      body.innerHTML = list.map(function (o) {
+        const id = o.tx_id || o.txId;
+        return '<button type="button" class="guest-order-row" data-tx="' + id + '">#' + id + '</button>';
+      }).join('');
+      body.querySelectorAll('.guest-order-row').forEach(function (btn) {
+        btn.onclick = function () {
+          const txId = parseInt(btn.getAttribute('data-tx') || '0', 10);
+          if (txId && window.c35GuestOrder) {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+            const fakeSection = document.createElement('section');
+            fakeSection.className = 'order-track';
+            fakeSection.innerHTML = '<input class="order-track-tx" value="' + txId + '"><div class="order-track-status"></div><button type="button" class="order-track-poll">Track</button>';
+            document.body.appendChild(fakeSection);
+            window.c35GuestOrder.poll(fakeSection.querySelector('.order-track-poll'));
+            fakeSection.remove();
+          }
+        };
+      });
+    }
+
     function openPortal() {
       const g = window.__SITE_GUEST__ || {};
       const siteIid = g.site_iid || 0;
-      if (!siteIid || !portalEnabled()) return;
+      const localN = siteIid ? loadOrders(siteIid).length : 0;
+      if (!siteIid || (!portalEnabled() && localN === 0)) return;
       const tok = localStorage.getItem(guestAuthTokenKey(siteIid));
       const modal = document.getElementById('c35-guest-modal');
       if (!modal) return;
       modal.style.display = 'flex';
       modal.setAttribute('aria-hidden', 'false');
-      modal.innerHTML = '<div class="guest-sheet"><div class="guest-sheet-header"><strong>Akun</strong><button type="button" class="guest-icon-btn" id="c35-member-close">×</button></div><div class="guest-sheet-body" id="c35-member-body">Memuat…</div></div>';
+      modal.innerHTML = '<div class="guest-sheet guest-sheet-tall guest-member-sheet" onclick="event.stopPropagation()"><div class="guest-sheet-handle"></div><div class="guest-sheet-header"><h2 class="guest-sheet-title-center">Akun</h2><button type="button" class="guest-icon-btn" id="c35-member-close" aria-label="Close">×</button></div><div class="guest-sheet-body" id="c35-member-body">Memuat…</div></div>';
+      modal.onclick = function (e) {
+        if (e.target === modal) {
+          modal.style.display = 'none';
+          modal.setAttribute('aria-hidden', 'true');
+        }
+      };
       document.getElementById('c35-member-close').onclick = function () {
         modal.style.display = 'none';
         modal.setAttribute('aria-hidden', 'true');
       };
       const body = document.getElementById('c35-member-body');
       if (!tok) {
-        body.innerHTML = '<p>Masuk dengan akun Alien untuk melihat pesanan di semua perangkat.</p><button type="button" class="guest-btn-primary" id="c35-member-signin">Masuk</button>';
+        if (!portalEnabled()) {
+          renderLocalOrderRows(siteIid, modal);
+          return;
+        }
+        body.innerHTML = '<p class="guest-member-hint">Masuk dengan akun Alien untuk melihat pesanan di semua perangkat.</p><button type="button" class="guest-sheet-primary" id="c35-member-signin">Masuk</button>';
         document.getElementById('c35-member-signin').onclick = signIn;
         return;
       }
@@ -2606,11 +3416,26 @@
     refreshChip() {
       const g = window.__SITE_GUEST__ || {};
       const siteIid = g.site_iid || 0;
-      const chip = document.getElementById('c35-guest-orders-chip');
-      if (!chip || !siteIid) return;
+      if (!siteIid) return;
       const n = loadOrders(siteIid).length;
-      chip.style.display = n > 0 || g.member_portal_enabled ? 'block' : 'none';
-      chip.textContent = n > 0 ? 'Pesanan saya (' + n + ')' : 'Akun';
+      const visible = n > 0 || !!g.member_portal_enabled;
+      const label = n > 0 ? 'Pesanan saya (' + n + ')' : 'Akun';
+      const hasHub = !!document.querySelector('.guest-hub-hero');
+      const chip = document.getElementById('c35-guest-orders-chip');
+      const hubBtn = document.getElementById('c35-guest-hub-member');
+      const stickyBtn = document.getElementById('c35-guest-sticky-member');
+      if (chip) {
+        chip.style.display = visible && !hasHub ? 'block' : 'none';
+        chip.textContent = label;
+      }
+      if (hubBtn) {
+        hubBtn.style.display = visible ? '' : 'none';
+        hubBtn.textContent = label;
+      }
+      if (stickyBtn) {
+        stickyBtn.style.display = visible ? '' : 'none';
+        stickyBtn.textContent = label;
+      }
     },
     open() {
       if (window.c35GuestMember) window.c35GuestMember.open();
@@ -2620,6 +3445,7 @@
   function guestSiteInit() {
     window.c35GuestCatalogUi.init();
     window.c35GuestReserve.init();
+    if (window.c35GuestQueue && window.c35GuestQueue.init) window.c35GuestQueue.init();
     window.c35GuestPost.init();
     if (window.c35GuestMember) window.c35GuestMember.init();
     window.c35GuestOrders.refreshChip();

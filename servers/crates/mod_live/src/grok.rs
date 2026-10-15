@@ -192,6 +192,7 @@ pub async fn live_grok_run(
         &offer,
         duration,
         video_secs,
+        ticket.guest.as_ref(),
     )
     .await
     {

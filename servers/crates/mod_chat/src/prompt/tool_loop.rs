@@ -20,6 +20,13 @@ use super::computer_use::{
     COMPUTER_USE_CONTINUE_HINT, COMPUTER_USE_FORCE_TOOL_HINT, COMPUTER_USE_INCOMPLETE_FAIL_CLASS,
     COMPUTER_USE_PARENT_INCOMPLETE_HINT,
 };
+use crate::prompt::google_forms::ComputerUseToolCounts;
+use crate::prompt::google_sheets::{
+    google_sheets_device_input_uses_pixel_grid_without_goto,
+    google_sheets_parent_turn_may_finish, google_sheets_shell_command_forbidden,
+    user_text_looks_like_device_spreadsheet_ui, GOOGLE_SHEETS_PARENT_CONTINUE_HINT,
+    GOOGLE_SHEETS_PIXEL_GRID_STEER_HINT, GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT,
+};
 use super::{ChatReq, ChatRes};
 use crate::catalog_web::{catalog_query_arms_web, catalog_web_after_stock, CatalogWebPhase};
 use crate::chat_title_set;
@@ -98,7 +105,7 @@ pub fn prune_previous_screenshots(contents: &mut [Value]) {
 pub fn truncate_large_tool_payload(val: &mut Value, max_chars: usize) {
     match val {
         Value::String(s) => {
-            if s.len() > max_chars {
+            if s.chars().count() > max_chars {
                 let keep: String = s.chars().take(max_chars).collect();
                 *s = format!("{keep}\n\n[...truncated to fit context budget...]");
             }
@@ -168,6 +175,8 @@ pub async fn prompt_cluster_turn(
     let mut text = String::new();
     let mut blocks_json = String::from("[]");
     let mut tools_cost_usd = 0.0f64;
+    let mut device_tool_counts = ComputerUseToolCounts::default();
+    let mut delegate_goal_met = false;
     let model_used = bill_slug.clone();
 
     if tools.is_empty() {
@@ -422,17 +431,24 @@ pub async fn prompt_cluster_turn(
                         } else {
                             60
                         };
-                        let tool_res = tokio::time::timeout(
-                            Duration::from_secs(tool_timeout_secs),
-                            cluster_tool_exec(
-                                client,
-                                name,
-                                args,
-                                turn_ctx_ref,
-                                Some(&tool_call_id),
-                            ),
-                        )
-                        .await;
+                        let cancel_tool = cancel.clone();
+                        let exec = cluster_tool_exec(
+                            client,
+                            name,
+                            args,
+                            turn_ctx_ref,
+                            Some(&tool_call_id),
+                        );
+                        let tool_res = tokio::select! {
+                            res = tokio::time::timeout(Duration::from_secs(tool_timeout_secs), exec) => res,
+                            _ = cancel_tool.cancelled() => Ok((
+                                serde_json::json!({
+                                    "ok": false,
+                                    "error": "aborted"
+                                }),
+                                0.0,
+                            )),
+                        };
                         let (result, tool_cost) = match tool_res {
                             Ok(res) => res,
                             Err(_) => (
@@ -476,6 +492,8 @@ pub async fn prompt_cluster_turn(
             let mut function_parts = Vec::with_capacity(executions.len());
             let mut latest_img_b64 = None;
             let mut catalog_stock_rows: Option<usize> = None;
+            let mut sheets_steer_hint: Option<&'static str> = None;
+            let sheets_turn = user_text_looks_like_device_spreadsheet_ui(&req.user);
 
             for (name, args, gemini_call_id, result, tool_cost, tool_ms, tool_call_id) in executions
             {
@@ -495,6 +513,22 @@ pub async fn prompt_cluster_turn(
                     );
                 }
                 tools_cost_usd += tool_cost;
+                if name == "device.input" {
+                    device_tool_counts.device_input += 1;
+                    if sheets_turn && google_sheets_device_input_uses_pixel_grid_without_goto(&args) {
+                        sheets_steer_hint = Some(GOOGLE_SHEETS_PIXEL_GRID_STEER_HINT);
+                    }
+                } else if name == "device.screenshot" {
+                    device_tool_counts.device_screenshot += 1;
+                } else if name == "shell.run" && sheets_turn {
+                    let cmd = args
+                        .get("command")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if google_sheets_shell_command_forbidden(cmd) {
+                        sheets_steer_hint = Some(GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT);
+                    }
+                }
                 let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
                 if let Some(tr) = tracer {
                     tr.tool_result(&name, &tool_call_id, &args, &result, ok, tool_ms)
@@ -611,6 +645,9 @@ pub async fn prompt_cluster_turn(
                 truncate_large_tool_payload(&mut llm_result, 24_000);
 
                 if is_long_running_delegate_tool(&name) {
+                    if result.get("goal_met").and_then(|v| v.as_bool()) == Some(true) {
+                        delegate_goal_met = true;
+                    }
                     let incomplete = result
                         .get("incomplete")
                         .and_then(|v| v.as_bool())
@@ -657,6 +694,12 @@ pub async fn prompt_cluster_turn(
                             }
                         }
                     ]
+                }));
+            }
+            if let Some(hint) = sheets_steer_hint {
+                contents.push(json!({
+                    "role": "user",
+                    "parts": [{ "text": hint }]
                 }));
             }
 
@@ -777,12 +820,70 @@ pub async fn prompt_cluster_turn(
                 }
                 continue;
             }
+            let reject_sheets_parent = run_kind != "computer_use"
+                && user_text_looks_like_device_spreadsheet_ui(&req.user)
+                && !google_sheets_parent_turn_may_finish(
+                    &req.user,
+                    &out.text,
+                    device_tool_counts,
+                    delegate_goal_met,
+                );
+            if reject_sheets_parent {
+                if wrap || round + 1 >= rounds_max {
+                    let locale = turn_ctx
+                        .as_ref()
+                        .map(|t| t.locale)
+                        .unwrap_or("en");
+                    text = if locale.to_ascii_lowercase().starts_with("id") {
+                        "Automasi Google Sheet di VM belum selesai (belum terverifikasi di screenshot). \
+Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input dengan name box."
+                            .to_string()
+                    } else {
+                        computer_use_stopped_incomplete_message()
+                    };
+                    return Ok(ChatRes {
+                        text,
+                        thought,
+                        blocks_json,
+                        tokens_in,
+                        tokens_out,
+                        model_used,
+                        tools_cost_usd,
+                    });
+                }
+                contents.push(json!({
+                    "role": "model",
+                    "parts": [{ "text": out.text }]
+                }));
+                contents.push(json!({
+                    "role": "user",
+                    "parts": [{ "text": GOOGLE_SHEETS_PARENT_CONTINUE_HINT }]
+                }));
+                if let Some(buf) = delta_buf.as_mut() {
+                    buf.clear();
+                }
+                continue;
+            }
             let reject_cu_bad = run_kind == "computer_use"
                 && !wrap
-                && !computer_use_final_text_acceptable(&out.text);
+                && (!computer_use_final_text_acceptable(&out.text)
+                    || (user_text_looks_like_device_spreadsheet_ui(&req.user)
+                        && !google_sheets_parent_turn_may_finish(
+                            &req.user,
+                            &out.text,
+                            device_tool_counts,
+                            false,
+                        )));
             if reject_cu_bad {
                 cu_text_rejects = cu_text_rejects.saturating_add(1);
-                let hint = if cu_text_rejects >= 3 {
+                let sheets_cu = user_text_looks_like_device_spreadsheet_ui(&req.user);
+                let hint = if sheets_cu {
+                    if cu_text_rejects >= 3 {
+                        COMPUTER_USE_FORCE_TOOL_HINT
+                    } else {
+                        GOOGLE_SHEETS_PARENT_CONTINUE_HINT
+                    }
+                } else if cu_text_rejects >= 3 {
                     COMPUTER_USE_FORCE_TOOL_HINT
                 } else {
                     COMPUTER_USE_CONTINUE_HINT
@@ -1143,19 +1244,7 @@ pub fn user_wants_search(text: &str) -> bool {
 }
 
 pub fn strip_mentions_for_search(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut rem = text;
-    while let Some(start) = rem.find("[@[@") {
-        out.push_str(&rem[..start]);
-        if let Some(end) = rem[start..].find("]]") {
-            rem = &rem[start + end + 2..];
-        } else {
-            rem = "";
-            break;
-        }
-    }
-    out.push_str(rem);
-    out.trim().to_string()
+    crate::mention_content::mention_plain_for_title(text)
 }
 
 pub fn search_query_from_user(text: &str) -> String {

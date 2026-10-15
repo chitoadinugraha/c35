@@ -182,7 +182,6 @@ class _C35AppState extends State<C35App> {
         builder: (context, child) => uiSemanticsGuard(UiErrorHost(
           child: Listener(
             onPointerDown: (_) => AppUpdateService.instance.recordUserActivity(),
-            onPointerMove: (_) => AppUpdateService.instance.recordUserActivity(),
             child: UiWindowsTitleSync(
               child: UiDesktopChrome(child: child ?? const SizedBox.shrink()),
             ),

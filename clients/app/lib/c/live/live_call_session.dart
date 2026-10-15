@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:alienai_c35/c/audio/mic_stream_candidates.dart';
@@ -65,7 +64,7 @@ class LiveCallSession {
   LivePcmPlayout? _streamPlayout;
   Timer? _streamPlayoutTimer;
   static const double _fallbackChunkSec = 0.12;
-  static const int _streamFrameMs = 20;
+  static int get _streamFrameMs => kIsWeb ? 80 : 20;
   var _disposed = false;
   var _userHungUp = false;
   var _outboundLiveBusyTracked = false;
@@ -212,6 +211,24 @@ class LiveCallSession {
     ).toString();
   }
 
+  static String guestWsUri(String wsPath) {
+    final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
+    final u = Uri.parse(base);
+    final scheme = u.scheme == 'https' ? 'wss' : 'ws';
+    final path = wsPath.trim();
+    if (path.startsWith('ws://') || path.startsWith('wss://')) {
+      return path;
+    }
+    final parsed = Uri.parse(path.startsWith('/') ? 'http://x$path' : 'http://x/$path');
+    return Uri(
+      scheme: scheme,
+      host: u.host,
+      port: u.hasPort ? u.port : null,
+      path: parsed.path,
+      queryParameters: parsed.queryParameters.isEmpty ? null : parsed.queryParameters,
+    ).toString();
+  }
+
   void _setOutboundLiveBusy(bool active) {
     if (active == _outboundLiveBusyTracked) return;
     _outboundLiveBusyTracked = active;
@@ -222,12 +239,21 @@ class LiveCallSession {
     }
   }
 
+  Future<void> connectGuest(String wsPath) async {
+    final url = guestWsUri(wsPath);
+    await connectUrl(url);
+  }
+
   Future<void> connect(ResLiveStart res) async {
+    final url = liveWsUri(res);
+    await connectUrl(url);
+  }
+
+  Future<void> connectUrl(String url) async {
     await disconnect();
     if (_disposed) return;
     _userHungUp = false;
     await initAudioContext();
-    final url = liveWsUri(res);
     _ch = WebSocketChannel.connect(Uri.parse(url));
     await _ch!.ready;
     if (_disposed) return;
@@ -252,6 +278,7 @@ class LiveCallSession {
     );
     await _startMic();
   }
+
 
   String? _wsPayload(dynamic data) {
     if (data is String) return data;
@@ -651,7 +678,7 @@ class LiveCallSession {
       await playout.start(_audioSampleRate);
       _streamPlayout = playout;
       _streamPlayoutTimer?.cancel();
-      _streamPlayoutTimer = Timer.periodic(const Duration(milliseconds: _streamFrameMs), (_) {
+      _streamPlayoutTimer = Timer.periodic(Duration(milliseconds: _streamFrameMs), (_) {
         unawaited(_pumpStreamPlayout());
       });
       debugPrint('[LiveCallSession] stream playout active @ ${_audioSampleRate}Hz');
@@ -670,18 +697,30 @@ class LiveCallSession {
       _playBusy = _downlinkPcm.bufferedMs() > 30;
       return;
     }
-    final chunk = _downlinkPcm.takeForPlayback(frameBytes);
-    if (chunk.isNotEmpty) {
+
+    // On web, maintain lookahead scheduling window (150-300ms) in Web Audio timeline
+    // so background tab throttling (clamping Timer.periodic to 1000ms) does not starve playback.
+    const maxWebLookaheadMs = 250;
+    var iterations = 0;
+    while (_downlinkPcm.isNotEmpty && !_disposed) {
+      if (kIsWeb && playout.scheduledAheadMs >= maxWebLookaheadMs && !flush) {
+        break;
+      }
+      final chunk = _downlinkPcm.takeForPlayback(frameBytes);
+      if (chunk.isEmpty) break;
       try {
         await playout.write(chunk);
         _playBusy = true;
       } catch (e) {
         debugPrint('[LiveCallSession] stream write failed: $e');
+        break;
       }
-    } else {
-      _playBusy = _downlinkPcm.isNotEmpty;
+      iterations++;
+      if (!kIsWeb || iterations >= 6) break;
     }
+    _playBusy = _downlinkPcm.isNotEmpty || (kIsWeb && playout.scheduledAheadMs > 20);
   }
+
 
   Future<void> _stopStreamPlayout() async {
     _streamPlayoutTimer?.cancel();

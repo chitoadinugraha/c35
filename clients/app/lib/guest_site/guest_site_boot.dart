@@ -31,6 +31,7 @@ class GuestSiteBoot {
     this.commerceObjects = const [],
     this.commerceBoot = const GuestCommerceBoot(enabled: false),
     this.orderProgressSteps = const [],
+    this.queues = const [],
   });
 
   final int siteIid;
@@ -64,6 +65,9 @@ class GuestSiteBoot {
 
   /// Localized order status steps (`order_progress_steps` from boot / published `__SITE_GUEST__`).
   final List<Map<String, dynamic>> orderProgressSteps;
+
+  /// Boot `queues[]`: `{queue_id, name, prefix, fields, take_online, ...}` when queue cap is on.
+  final List<Map<String, dynamic>> queues;
 
   /// Client-side boot from `site.preview` / tool `doc` (no product preload until `boot_get`).
   factory GuestSiteBoot.fromSiteDoc({
@@ -104,6 +108,7 @@ class GuestSiteBoot {
       commerceObjects: commerceObjectsFrom(doc),
       commerceBoot: GuestCommerceBoot.fromJson(doc['commerce_boot']),
       orderProgressSteps: _mapList(doc['order_progress_steps']),
+      queues: _mapList(doc['queues']),
     );
   }
 
@@ -183,6 +188,7 @@ class GuestSiteBoot {
       commerceObjects: commerceObjectsFrom(json),
       commerceBoot: GuestCommerceBoot.fromJson(json['commerce_boot']),
       orderProgressSteps: _mapList(json['order_progress_steps']),
+      queues: _mapList(json['queues']),
     );
   }
 

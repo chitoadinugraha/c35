@@ -235,6 +235,7 @@ INSERT INTO ai.inst (
 Use device_iid from [MENTION TARGETS]. If several devices are listed, ask which one before tools. \
 Hop 1 — observe: device.screenshot with som=true, or computer_use.delegate with the full user goal (preferred for multi-step UI such as forms, installers, settings wizards). \
 Act — device.input (prefer click_and_type for inputs to clear-and-type cleanly; shortcuts, clicks; screenshot_after=true on clicks) or keep delegating until the goal is done. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. \
+If modals, banners, or side panels block the target UI, dismiss them first (Got it, X, Escape) — do not hand off to the user while overlays are visible. \
 Never tell the user to click through the UI themselves unless a tool failed, consent is required, or inst.browser.2fa-style human step applies. \
 When computer_use.delegate returns goal_met false or incomplete true, do not echo child click steps — say briefly that automation could not finish on the device. If goal_met true, report what was accomplished. \
 Say plainly what you did on the device when finished.',
@@ -252,6 +253,12 @@ Say plainly what you did on the device when finished.',
         'with field',
         'add fields',
         'rename the',
+        'rename address',
+        'rename name',
+        'ubah jadi',
+        'jenis kelamin',
+        'edit cell',
+        'isi sel',
         'rename form',
         'create new form',
         'create a form',
@@ -267,7 +274,12 @@ Say plainly what you did on the device when finished.',
         'settings',
         'close the window',
         'minimize',
-        'maximize'
+        'maximize',
+        'google sheet',
+        'google sheets',
+        'spreadsheet',
+        'sheets.new',
+        'lembar kerja'
     ],
     ARRAY[
         'tool_include:device.screenshot',
@@ -330,6 +342,57 @@ Never tell the user to click through the UI themselves.',
     ARRAY['device.screenshot', 'device.input', 'computer_use.delegate', 'shell.run'],
     ARRAY['web.search', 'web.visit', 'web.research'],
     158,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: Google Sheets in Chrome on @device Windows/desktop (not browser.sheets API)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.google_sheets',
+    'global',
+    'task',
+    'device',
+    ARRAY['device']::TEXT[],
+    '[GOOGLE SHEETS ON DEVICE] Multi-step create/edit in Chrome on the @mentioned PC. device_iid from [MENTION TARGETS]. \
+Prefer computer_use.delegate with the full user goal, or screenshot (som=true) + device.input. \
+Open https://sheets.new or reuse an existing spreadsheet tab — do not stack duplicate tabs. \
+Before typing headers: dismiss onboarding (Got it), Tables side panel (X), promo banners (X), and any modal blocking the grid — screenshot until A1 is reachable. \
+Row 1 headers: jump with the name box (type A1/B1/C1 + Enter), then device.input click_and_type per cell — never guess pixel coords; never PowerShell SendKeys. \
+After each cell screenshot and verify formula bar + name box; row 1 must be only A1–C1 for three headers (D1+ empty). \
+Never tell the user to type in A1/B1/C1 themselves unless every tool attempt failed.',
+    ARRAY[
+        'google sheet',
+        'google sheets',
+        'spreadsheet',
+        'sheets.new',
+        'lembar kerja',
+        'create new sheet',
+        'new google sheet',
+        'with fields',
+        'header',
+        'column'
+    ],
+    ARRAY[
+        'tool_include:device.screenshot',
+        'tool_include:device.input',
+        'tool_include:computer_use.delegate',
+        'tool_include:shell.run'
+    ],
+    ARRAY['device.screenshot', 'device.input', 'computer_use.delegate', 'shell.run'],
+    ARRAY['web.search', 'web.visit', 'web.research', 'browser.sheets.append_row', 'browser.sheets.cell_set'],
+    159,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -528,14 +591,15 @@ INSERT INTO ai.inst (
     priority = EXCLUDED.priority,
     updated_ts = NOW();
 
--- Seed: phrase steering — Google Sheet / spreadsheet (tools gated off general topic)
+-- Seed: phrase steering — Google Sheet / spreadsheet (Chrome extension browser.sheets API; not @device desktop UI)
 INSERT INTO ai.inst (
-    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
 ) VALUES (
     'inst.mention.sheets',
     'global',
     'task',
     'sheets',
+    ARRAY['sheets', 'browser']::TEXT[],
     '[GOOGLE SHEETS] @mention the desktop device when browser_ready=true. If browser_ready=false, hop 1 browser.ensure (run_repairs true) and offer the user_offer: install Google Chrome + Alien AI Remote extension (faster/cheaper than web.search on their saved logins). Then browser.tabs + browser.sheets.* — never web.search/web.visit. Read only range_read (export). One full row: from_row=to_row, start_col, columns, key_col. Bulk: max_rows + from_row/to_row. Append: append_row with row=next_row. Writes: cell_set. Trust llm.summary on write ok.',
     ARRAY[
         'google sheet', 'google sheets', 'spreadsheet', 'googlesheet',
@@ -568,6 +632,7 @@ INSERT INTO ai.inst (
     inst = EXCLUDED.inst,
     kind = EXCLUDED.kind,
     topic_id = EXCLUDED.topic_id,
+    topics = EXCLUDED.topics,
     phrases = EXCLUDED.phrases,
     triggers = EXCLUDED.triggers,
     include_tools = EXCLUDED.include_tools,
@@ -1364,6 +1429,86 @@ Do not call web.search. Reply briefly in the user language after writes.',
     triggers = EXCLUDED.triggers,
     include_tools = EXCLUDED.include_tools,
     exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: guest queue / antrian — live cluster needs inst_put after edit
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.queue',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder'],
+    '[SITE.QUEUE] User wants guest waiting-room queues (antrian): multiple counters, ticket prefix, guest form fields, daily reset, staff call-next board. \
+NOT kitchen/POS order_fulfillment — that is commerce processing. \
+ENABLE: site.config.put with queue true (and attendance false unless they also want HR). One site_iid per call. \
+QUEUES: site.queue.put — name, prefix, take_online, sort_order, fields_json (array of {name,label,type:text|phone,required}), reset_policy_json ({mode:daily|manual,at,timezone}), is_active. \
+Add a queue block on the site doc (type queue, props queue_id, title, fields). Publish after layout changes. \
+Staff uses the Sites → Queue board (call next, skip/done). Guests take numbers on the published site; track link uses track_token. \
+For toggle-only, prefer SITE.CAPABILITIES. Reply briefly after writes.',
+    ARRAY[
+        'antrian', 'queue', 'nomor antrian', 'waiting room', 'take a number', 'ambil nomor',
+        'counter queue', 'poli', 'loket', 'call next', 'panggil nomor',
+        'enable queue', 'aktifkan antrian', 'atur antrian', 'setup queue'
+    ],
+    ARRAY['tool_include:site.config.put', 'tool_include:site.queue.put'],
+    ARRAY['site.config.put', 'site.queue.put'],
+    ARRAY['web.search', 'web.visit'],
+    125,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    kind = EXCLUDED.kind,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: optional staff attendance + payroll setup (clock-in never required globally)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.attendance',
+    'global',
+    'task',
+    '',
+    ARRAY['web.builder'],
+    '[SITE.ATTENDANCE] Optional HR: work schedules, geo areas, voluntary staff clock-in/out, basic pay rates. \
+Clock-in is NEVER mandatory for using the app — only for sites that enable attendance capability. \
+ENABLE: site.config.put attendance true. \
+SHIFTS: site.work_shift.put with slots and attendance_method (button is enough for v1). \
+AREAS: site.presence_location.put for GPS geofence later. \
+TEAM: assign shifts on site.grant.put work_shift_ids. \
+STAFF clock themselves from Sites → Attendance (My clock) when they choose — do not tell users they must clock in. \
+PAY RATES: site.payroll_compensation.put (monthly or hourly amount per grantee). Summaries via attendance records. \
+Do not conflate with device agent presence or guest queue.',
+    ARRAY[
+        'attendance', 'absensi', 'clock in', 'clock out', 'jam kerja', 'jadwal kerja',
+        'work shift', 'shift', 'payroll', 'gaji', 'upah', 'hourly rate',
+        'enable attendance', 'aktifkan absensi', 'presence location', 'area absensi'
+    ],
+    ARRAY[
+        'tool_include:site.config.put',
+        'tool_include:site.work_shift.put',
+        'tool_include:site.presence_location.put',
+        'tool_include:site.grant.put'
+    ],
+    126,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
     kind = EXCLUDED.kind,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
@@ -3364,7 +3509,7 @@ INSERT INTO ai.inst (
         'pesan', 'order', 'keranjang', 'cart', 'checkout', 'produk', 'product', 'menu'
     ],
     ARRAY['always'],
-    ARRAY['site.guest.cart.get', 'site.guest.cart.patch'],
+    ARRAY['site.guest.cart.get', 'site.guest.cart.patch', 'site.tx.preview'],
     ARRAY['web.search', 'web.visit', 'web.research'],
     180,
     'seed',
@@ -3380,3 +3525,36 @@ INSERT INTO ai.inst (
     exclude_tools = EXCLUDED.exclude_tools,
     priority = EXCLUDED.priority,
     updated_ts = NOW();
+
+-- Seed: published site guest live voice call assistant (role:site_guest)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.site.guest.call',
+    'role:site_guest',
+    'trigger',
+    'site.guest',
+    'You are the Alien AI voice assistant on a storefront site. Natural spoken voice style: reply in concise, conversational sentences (1-3 sentences). Never use markdown headings, tables, or long bullet lists. Answer only from [SITE KNOWLEDGE] and [SITE CONTEXT]; do not invent policies, prices, or stock. When the customer wants to add, view, or modify their order, use site.guest.cart.get and site.guest.cart.patch. Do not call web.search, web.visit, or web.research. Match the caller language directly.',
+    ARRAY[
+        'call', 'telepon', 'bicara', 'ngomong', 'suara', 'voice',
+        'pesan', 'order', 'keranjang', 'cart', 'checkout', 'produk', 'product', 'menu',
+        'harga', 'price', 'berapa', 'stok', 'stock'
+    ],
+    ARRAY['live:guest', 'live:voice', 'live', 'call'],
+    ARRAY['site.guest.cart.get', 'site.guest.cart.patch', 'site.tx.preview'],
+    ARRAY['web.search', 'web.visit', 'web.research'],
+    190,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    scope = EXCLUDED.scope,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    inst = EXCLUDED.inst,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+

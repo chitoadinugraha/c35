@@ -255,4 +255,9 @@ class SiteEditorCatalogCache extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  void removeQueue(int queueId) {
+    _queues = _queues.where((q) => q.queueId.toInt() != queueId).toList(growable: false);
+    notifyListeners();
+  }
 }

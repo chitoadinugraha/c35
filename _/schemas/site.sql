@@ -498,11 +498,16 @@ CREATE TABLE IF NOT EXISTS site.queue (
     owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
 
     name                TEXT NOT NULL DEFAULT '',
+    description         TEXT NOT NULL DEFAULT '',
     mode                VARCHAR(32) NOT NULL DEFAULT 'fifo',
     prefix              VARCHAR(16) NOT NULL DEFAULT '',
     last_ticket_no      INT NOT NULL DEFAULT 0,
     serving_ticket_no   INT NOT NULL DEFAULT 0,
     is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+    fields              JSONB NOT NULL DEFAULT '[]',
+    take_online         BOOLEAN NOT NULL DEFAULT TRUE,
+    reset_policy        JSONB NOT NULL DEFAULT '{"mode":"daily","at":"00:00","timezone":"Asia/Jakarta"}',
+    sort_order          INT NOT NULL DEFAULT 0,
     meta_json           JSONB NOT NULL DEFAULT '{}',
 
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -512,6 +517,32 @@ CREATE TABLE IF NOT EXISTS site.queue (
     PRIMARY KEY (site_iid, queue_id)
 );
 
+CREATE TABLE IF NOT EXISTS site.queue_run (
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    run_id              BIGINT NOT NULL,
+    queue_id            BIGINT NOT NULL,
+    owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
+
+    next_number         INT NOT NULL DEFAULT 1,
+    serving_number      INT NOT NULL DEFAULT 0,
+    status              VARCHAR(16) NOT NULL DEFAULT 'open',
+    reset_reason        VARCHAR(32) NOT NULL DEFAULT '',
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    closed_ts           TIMESTAMPTZ,
+
+    PRIMARY KEY (site_iid, run_id),
+    FOREIGN KEY (site_iid, queue_id) REFERENCES site.queue (site_iid, queue_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_site_queue_run_open
+    ON site.queue_run (site_iid, queue_id)
+    WHERE status = 'open' AND closed_ts IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_site_queue_run_queue
+    ON site.queue_run (site_iid, queue_id, created_ts DESC);
+
 CREATE INDEX IF NOT EXISTS idx_site_queue_site_sync
     ON site.queue (site_iid, updated_ts)
     WHERE deleted_ts IS NULL;
@@ -520,12 +551,18 @@ CREATE TABLE IF NOT EXISTS site.queue_ticket (
     site_iid            BIGINT NOT NULL,
     ticket_id           BIGINT NOT NULL,
     queue_id            BIGINT NOT NULL,
+    run_id              BIGINT NOT NULL DEFAULT 0,
     owner_iid           BIGINT NOT NULL REFERENCES ai.identity(id),
 
     ticket_no           INT NOT NULL DEFAULT 0,
+    track_token         VARCHAR(64) NOT NULL DEFAULT '',
+    display_label       TEXT NOT NULL DEFAULT '',
     guest_name          TEXT NOT NULL DEFAULT '',
     guest_phone         TEXT NOT NULL DEFAULT '',
+    answers             JSONB NOT NULL DEFAULT '{}',
     status              VARCHAR(16) NOT NULL DEFAULT 'waiting',
+    called_at           TIMESTAMPTZ,
+    done_at             TIMESTAMPTZ,
     meta_json           JSONB NOT NULL DEFAULT '{}',
 
     created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -536,8 +573,16 @@ CREATE TABLE IF NOT EXISTS site.queue_ticket (
     FOREIGN KEY (site_iid, queue_id) REFERENCES site.queue (site_iid, queue_id)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_site_queue_ticket_track_token
+    ON site.queue_ticket (track_token)
+    WHERE track_token <> '' AND deleted_ts IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_site_queue_ticket_queue
     ON site.queue_ticket (site_iid, queue_id, ticket_no DESC)
+    WHERE deleted_ts IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_site_queue_ticket_run_status
+    ON site.queue_ticket (site_iid, queue_id, run_id, status)
     WHERE deleted_ts IS NULL;
 
 -- ------------------------------------------------------------------------------
@@ -661,4 +706,63 @@ CREATE INDEX IF NOT EXISTS idx_site_member_face_grantee_active
 
 CREATE INDEX IF NOT EXISTS idx_site_member_face_site_active
     ON site.member_face (site_iid)
+    WHERE deleted_ts IS NULL AND is_active = TRUE;
+
+-- ------------------------------------------------------------------------------
+-- Staff presence (optional clock-in — not required to use the product)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS site.presence_record (
+    record_id           BIGINT PRIMARY KEY,
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    grantee_iid         BIGINT NOT NULL REFERENCES ai.identity(id),
+    shift_id            TEXT NOT NULL DEFAULT '',
+    kind                VARCHAR(16) NOT NULL,
+    at                  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    session_id          TEXT NOT NULL DEFAULT '',
+    work_duration_min   INT,
+    attendance_method   VARCHAR(32) NOT NULL DEFAULT 'button',
+    status              VARCHAR(16) NOT NULL DEFAULT 'verified',
+    reason              TEXT NOT NULL DEFAULT '',
+    lat                 DOUBLE PRECISION,
+    lng                 DOUBLE PRECISION,
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT chk_site_presence_record_kind CHECK (kind IN ('clock_in', 'clock_out', 'leave')),
+    CONSTRAINT chk_site_presence_record_status CHECK (status IN ('verified', 'flagged', 'rejected'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_presence_record_site_grantee_at
+    ON site.presence_record (site_iid, grantee_iid, at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_site_presence_record_session
+    ON site.presence_record (site_iid, session_id)
+    WHERE session_id <> '';
+
+-- ------------------------------------------------------------------------------
+-- Payroll compensation (optional; full pay runs deferred)
+-- ------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS site.payroll_compensation (
+    comp_id             BIGINT PRIMARY KEY,
+    site_iid            BIGINT NOT NULL REFERENCES ai.identity(id),
+    grantee_iid         BIGINT NOT NULL REFERENCES ai.identity(id),
+    pay_basis           VARCHAR(16) NOT NULL,
+    amount              BIGINT NOT NULL DEFAULT 0,
+    shift_id            TEXT NOT NULL DEFAULT '',
+    effective_from      DATE NOT NULL DEFAULT CURRENT_DATE,
+    label               TEXT NOT NULL DEFAULT '',
+    is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_ts          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_ts          TIMESTAMPTZ,
+
+    CONSTRAINT chk_site_payroll_comp_basis CHECK (pay_basis IN ('monthly', 'hourly')),
+    CONSTRAINT chk_site_payroll_comp_amount CHECK (amount >= 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_site_payroll_comp_site_grantee
+    ON site.payroll_compensation (site_iid, grantee_iid)
     WHERE deleted_ts IS NULL AND is_active = TRUE;

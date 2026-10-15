@@ -1,3 +1,4 @@
+mod text_utf8;
 mod asset_tag;
 mod bot_draft;
 mod bot_meta;
@@ -55,6 +56,7 @@ mod stock_report_run;
 mod commerce_tx_followup;
 mod site_commerce_compose;
 mod site_guest_cart;
+pub mod site_guest_context;
 mod site_guest_turn;
 mod tx_browse_render;
 mod viz_chart;
@@ -133,10 +135,16 @@ pub use device_context::{
 pub use bot_session::{bot_session_billing_snapshot, bot_session_on_turn, bot_prompt_runtime};
 pub use channel_prompt_turn::channel_prompt_turn;
 pub use site_guest_cart::guest_cart_patch;
+pub use site_guest_context::{
+    guest_call_enabled, guest_chat_enabled, guest_site_data_mode_from_boot_mode,
+    knowledge_prompt_block, site_guest_chat_system_prompt, site_guest_context_prepare,
+    site_guest_live_system_prompt, site_guest_live_system_prompt_build,
+    site_guest_live_tool_catalog, site_guest_tool_catalog,
+    GuestContextError, GuestSiteContext, GuestSiteDataMode, ToolDeclaration,
+    GUEST_KNOWLEDGE_MAX_CHARS, GUEST_KNOWLEDGE_MAX_ITEMS, SITE_GUEST_LIVE_VOICE_INSTRUCTIONS,
+};
 pub use site_guest_turn::{
-    guest_chat_enabled, guest_site_data_mode_from_boot_mode, knowledge_prompt_block,
-    site_guest_tool_catalog, site_guest_turn, site_guest_turn_with_hooks, GuestSiteDataMode,
-    SiteGuestTurnResult,
+    site_guest_turn, site_guest_turn_with_hooks, SiteGuestTurnResult,
 };
 pub use inbox::{chat_msg_list, inbox_list};
 pub use log_list::log_list;
@@ -224,7 +232,9 @@ pub use prompt_turn::{
     PromptTurnHooks,
 };
 pub use user_error::{chat_user_error_message, prompt_end_trace_json};
-pub use site_resolve::{site_at_tokens, site_context_block, site_context_resolve, SiteContext};
+pub use site_resolve::{
+    site_at_tokens, site_context_block, site_context_resolve, utterance_site_phrase, SiteContext,
+};
 pub use site_validate::{
     block_props_allowed, validate_block, validate_object_keys, validate_sitedoc, BLOCK_TYPES, META_KEYS,
     THEME_KEYS,

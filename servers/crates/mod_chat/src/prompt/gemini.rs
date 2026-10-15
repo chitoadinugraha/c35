@@ -7,7 +7,9 @@ use reqwest::Client;
 use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
-use super::thought::{gemini_thinking_config, parse_candidate, part_is_thought, part_thought_text};
+use super::thought::{
+    gemini_thinking_config_for_request, parse_candidate, part_is_thought, part_thought_text,
+};
 use c35_mod_llm::{
     alien_default_model, gemini_request_reject_provider_grounding, google_gemini_api_model_id,
     model_is_alien, provider_model_resolve,
@@ -22,11 +24,14 @@ pub fn gemini_generation_config(
     let alien = model_is_alien(requested_slug);
     let temperature = if alien { 0.65 } else { 0.2 };
     let max_output_tokens = 2048;
-    json!({
+    let mut gen = json!({
         "maxOutputTokens": max_output_tokens,
         "temperature": temperature,
-        "thinkingConfig": gemini_thinking_config(provider_model, thinking),
-    })
+    });
+    if let Some(thinking_cfg) = gemini_thinking_config_for_request(provider_model, thinking) {
+        gen["thinkingConfig"] = thinking_cfg;
+    }
+    gen
 }
 
 fn gemini_http() -> &'static Client {

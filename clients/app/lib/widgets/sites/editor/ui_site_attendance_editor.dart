@@ -9,6 +9,7 @@ import 'package:alienai_c35/widgets/sites/editor/site_attendance_detail_ids.dart
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_attendance_area_detail.dart';
+import 'package:alienai_c35/widgets/sites/editor/ui_site_attendance_my_clock.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_attendance_section.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_work_hours_detail.dart';
@@ -71,25 +72,17 @@ class _UiSiteAttendanceEditorState extends State<UiSiteAttendanceEditor> {
   bool _detailExists(String id) {
     final raw = siteAttendanceDetailRawId(id);
     if (raw == null) return false;
+    if (siteAttendanceDetailIsMyClock(id)) return true;
     if (siteAttendanceDetailIsArea(id)) return _area(raw) != null;
     if (siteAttendanceDetailIsShift(id)) return _shift(raw) != null;
     return false;
   }
 
-  String? _defaultDetailId() {
-    if (_locations.isNotEmpty) return siteAttendanceAreaDetailId(_locations.first.id);
-    if (_shifts.isNotEmpty) return siteAttendanceShiftDetailId(_shifts.first.id);
-    return null;
-  }
+  String? _defaultDetailId() => siteAttendanceMyClockDetailId();
 
   String? get _activeId => widget.masterDetail ? (_selectedId ?? widget.detailId ?? _defaultDetailId()) : widget.detailId;
 
   void _pickDefault() {
-    if (_locations.isEmpty && _shifts.isEmpty) {
-      _selectedId = null;
-      if (!widget.masterDetail) widget.onDetailIdChanged?.call(null);
-      return;
-    }
     if (widget.masterDetail) {
       if (_selectedId == null || !_detailExists(_selectedId!)) {
         _selectedId = _defaultDetailId();
@@ -97,7 +90,7 @@ class _UiSiteAttendanceEditorState extends State<UiSiteAttendanceEditor> {
       return;
     }
     if (widget.detailId != null && !_detailExists(widget.detailId!)) {
-      widget.onDetailIdChanged?.call(null);
+      widget.onDetailIdChanged?.call(_defaultDetailId());
     }
   }
 
@@ -250,6 +243,9 @@ class _UiSiteAttendanceEditorState extends State<UiSiteAttendanceEditor> {
       );
 
   Widget _detailPane(String detailId) {
+    if (siteAttendanceDetailIsMyClock(detailId)) {
+      return UiSiteAttendanceMyClock(key: const ValueKey('my-clock'), api: widget.api, siteIid: widget.siteIid);
+    }
     final raw = siteAttendanceDetailRawId(detailId);
     if (raw == null) return const SizedBox.shrink();
     if (siteAttendanceDetailIsArea(detailId)) {
@@ -287,7 +283,7 @@ class _UiSiteAttendanceEditorState extends State<UiSiteAttendanceEditor> {
       return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
 
-    final hasAny = _locations.isNotEmpty || _shifts.isNotEmpty;
+    final hasAny = true;
     final detailId = _activeId;
 
     final Widget body;

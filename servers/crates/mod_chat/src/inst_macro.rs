@@ -247,6 +247,21 @@ fn inst_applies(row: &InstRow, ctx: &InstMatchCtx<'_>) -> bool {
             if row.id == "inst.consumption_coach" && inst_text_site_product_setup(ctx.text) {
                 return false;
             }
+            if row.id == "inst.mention.sheets" {
+                let lower = ctx.text.to_ascii_lowercase();
+                if ctx.active_topics.iter().any(|t| t == "device")
+                    || ctx.mention_ids.iter().any(|m| {
+                        let m = m.trim().to_ascii_lowercase();
+                        m.starts_with("iid:") || m.starts_with("device:")
+                    })
+                    || lower.contains("[@iid:")
+                    || crate::prompt::google_sheets::user_text_looks_like_google_sheets_desktop(
+                        ctx.text,
+                    )
+                {
+                    return false;
+                }
+            }
             let lower = ctx.text.trim().to_lowercase();
             if row.id == "inst.consumption_coach"
                 && (lower.contains("storage") || lower.contains("penyimpanan") || lower.contains("blob"))

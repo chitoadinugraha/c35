@@ -358,6 +358,17 @@ message WsReq {
     ReqSessionFocus session_focus = 224;
     ReqSiteAssistantGet site_assistant_get = 225;
     ReqSiteAssistantEnsure site_assistant_ensure = 226;
+    ReqSiteQueueBoard site_queue_board = 228;
+    ReqSiteQueueCallNext site_queue_call_next = 229;
+    ReqSiteQueueTicketSetStatus site_queue_ticket_set_status = 230;
+    ReqSiteQueueReset site_queue_reset = 231;
+    ReqSiteQueueTicketList site_queue_ticket_list = 232;
+    ReqSitePresenceContext site_presence_context = 233;
+    ReqSitePresenceClockIn site_presence_clock_in = 234;
+    ReqSitePresenceClockOut site_presence_clock_out = 235;
+    ReqSitePresenceRecordList site_presence_record_list = 236;
+    ReqSitePayrollCompensationList site_payroll_compensation_list = 237;
+    ReqSitePayrollCompensationPut site_payroll_compensation_put = 238;
   }
 }
 
@@ -563,6 +574,17 @@ message WsRes {
     ResSiteAssistantEnsure site_assistant_ensure = 226;
     // Server push: Windows desktop app OTA wake (NATS c35.release.windows).
     AppReleaseNudge app_release_nudge = 227;
+    ResSiteQueueBoard site_queue_board = 228;
+    ResSiteQueueCallNext site_queue_call_next = 229;
+    ResSiteQueueTicketSetStatus site_queue_ticket_set_status = 230;
+    ResSiteQueueReset site_queue_reset = 231;
+    ResSiteQueueTicketList site_queue_ticket_list = 232;
+    ResSitePresenceContext site_presence_context = 233;
+    ResSitePresenceClockIn site_presence_clock_in = 234;
+    ResSitePresenceClockOut site_presence_clock_out = 235;
+    ResSitePresenceRecordList site_presence_record_list = 236;
+    ResSitePayrollCompensationList site_payroll_compensation_list = 237;
+    ResSitePayrollCompensationPut site_payroll_compensation_put = 238;
   }
 }
 

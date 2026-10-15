@@ -1680,6 +1680,108 @@ async fn dispatch(
                 Err(e) => err_res(req_id, WireErr::client("site_queue_advance_failed", e.to_string())),
             }
         }
+        Some(ws_req::Body::SiteQueueBoard(r)) => {
+            match c35_mod_site::site_queue_board(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueueBoard(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_queue_board_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteQueueCallNext(r)) => {
+            match c35_mod_site::site_queue_call_next(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueueCallNext(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_queue_call_next_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteQueueTicketSetStatus(r)) => {
+            match c35_mod_site::site_queue_ticket_set_status(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueueTicketSetStatus(body)),
+                },
+                Err(e) => err_res(
+                    req_id,
+                    WireErr::client("site_queue_ticket_set_status_failed", e.to_string()),
+                ),
+            }
+        }
+        Some(ws_req::Body::SiteQueueReset(r)) => {
+            match c35_mod_site::site_queue_reset(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueueReset(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_queue_reset_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SiteQueueTicketList(r)) => {
+            match c35_mod_site::site_queue_ticket_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SiteQueueTicketList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_queue_ticket_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePresenceContext(r)) => {
+            match c35_mod_site::site_presence_context(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePresenceContext(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_presence_context_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePresenceClockIn(r)) => {
+            match c35_mod_site::site_presence_clock_in(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePresenceClockIn(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_presence_clock_in_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePresenceClockOut(r)) => {
+            match c35_mod_site::site_presence_clock_out(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePresenceClockOut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_presence_clock_out_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePresenceRecordList(r)) => {
+            match c35_mod_site::site_presence_record_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePresenceRecordList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_presence_record_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePayrollCompensationList(r)) => {
+            match c35_mod_site::site_payroll_compensation_list(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePayrollCompensationList(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_payroll_compensation_list_failed", e.to_string())),
+            }
+        }
+        Some(ws_req::Body::SitePayrollCompensationPut(r)) => {
+            match c35_mod_site::site_payroll_compensation_put(&state.pool, ctx.caller_iid, r).await {
+                Ok(body) => WsRes {
+                    req_id,
+                    body: Some(ws_res::Body::SitePayrollCompensationPut(body)),
+                },
+                Err(e) => err_res(req_id, WireErr::client("site_payroll_compensation_put_failed", e.to_string())),
+            }
+        }
         Some(ws_req::Body::TxGet(r)) => match c35_mod_tx::tx_get(&state.pool, ctx.caller_iid, r).await {
             Ok(body) => WsRes {
                 req_id,

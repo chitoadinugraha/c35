@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
 use sqlx::{PgPool, Row};
 
+use crate::staff::caller_root_or_director;
+
 /// Role rank for site ACL: owner > manage > staff > guest.
 pub fn site_role_rank(role: &str) -> i32 {
     match role {
@@ -43,6 +45,9 @@ pub async fn site_grant_check(
     .await?
     .ok_or_else(|| anyhow!("site not found"))?;
     let owner_iid: i64 = row.get("owner_iid");
+    if caller_root_or_director(pool, caller_iid).await? {
+        return Ok(owner_iid);
+    }
     if owner_iid == caller_iid {
         return Ok(owner_iid);
     }

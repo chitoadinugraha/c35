@@ -110,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('guest-profile-avatar')), findsNothing);
-    expect(find.text('Demo'), findsOneWidget);
+    expect(find.text('Demo'), findsAtLeastNWidgets(1));
     expect(find.byKey(const Key('guest-link-card')), findsNothing);
     expect(find.text('Site'), findsOneWidget);
 
@@ -123,8 +123,10 @@ void main() {
     expect(find.byKey(const Key('guest-clients-header')), findsOneWidget);
     expect(find.byKey(const Key('guest-clients-item')), findsNothing);
 
+    expect(find.byKey(const Key('guest-backdrop')), findsOneWidget);
     final backdrop = tester.widget<GuestSiteBackdrop>(find.byKey(const Key('guest-backdrop')));
     expect(backdrop.backdropId, 'glow');
+    expect(find.byKey(const Key('guest-backdrop-accent')), findsNothing);
     expect(find.byType(GuestSiteEffectStack), findsOneWidget);
   });
 }

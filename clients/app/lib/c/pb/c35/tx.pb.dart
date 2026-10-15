@@ -3671,6 +3671,526 @@ class ResSiteGuestOrderGet extends $pb.GeneratedMessage {
   Tx ensureTx() => $_ensure(0);
 }
 
+class SiteGuestOrderSummary extends $pb.GeneratedMessage {
+  factory SiteGuestOrderSummary({
+    $fixnum.Int64? txId,
+    $core.String? state,
+    $fixnum.Int64? total,
+    $fixnum.Int64? timeTsMs,
+    $core.String? progressLabel,
+  }) {
+    final result = SiteGuestOrderSummary._();
+    if (txId != null) result.txId = txId;
+    if (state != null) result.state = state;
+    if (total != null) result.total = total;
+    if (timeTsMs != null) result.timeTsMs = timeTsMs;
+    if (progressLabel != null) result.progressLabel = progressLabel;
+    return result;
+  }
+
+  SiteGuestOrderSummary._();
+
+  factory SiteGuestOrderSummary.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteGuestOrderSummary()..mergeFromBuffer(data, registry);
+  factory SiteGuestOrderSummary.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      SiteGuestOrderSummary()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'SiteGuestOrderSummary',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: SiteGuestOrderSummary.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'txId')
+    ..aOS(2, _omitFieldNames ? '' : 'state')
+    ..aInt64(3, _omitFieldNames ? '' : 'total')
+    ..aInt64(4, _omitFieldNames ? '' : 'timeTsMs')
+    ..aOS(5, _omitFieldNames ? '' : 'progressLabel')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteGuestOrderSummary clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SiteGuestOrderSummary copyWith(
+          void Function(SiteGuestOrderSummary) updates) =>
+      super.copyWith((message) => updates(message as SiteGuestOrderSummary))
+          as SiteGuestOrderSummary;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use SiteGuestOrderSummary() / SiteGuestOrderSummary.new instead')
+  static SiteGuestOrderSummary create() => SiteGuestOrderSummary._();
+  static $pb.GeneratedMessage $_createMessage() => SiteGuestOrderSummary._();
+  @$core.override
+  SiteGuestOrderSummary createEmptyInstance() => SiteGuestOrderSummary._();
+  @$core.pragma('dart2js:noInline')
+  static SiteGuestOrderSummary getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<SiteGuestOrderSummary>(
+          SiteGuestOrderSummary.$_createMessage);
+  static SiteGuestOrderSummary? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get txId => $_getI64(0);
+  @$pb.TagNumber(1)
+  set txId($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTxId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTxId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get state => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set state($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasState() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearState() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $fixnum.Int64 get total => $_getI64(2);
+  @$pb.TagNumber(3)
+  set total($fixnum.Int64 value) => $_setInt64(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTotal() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTotal() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get timeTsMs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set timeTsMs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasTimeTsMs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearTimeTsMs() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get progressLabel => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set progressLabel($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasProgressLabel() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearProgressLabel() => $_clearField(5);
+}
+
+class ReqSiteGuestOrderList extends $pb.GeneratedMessage {
+  factory ReqSiteGuestOrderList({
+    $fixnum.Int64? siteIid,
+  }) {
+    final result = ReqSiteGuestOrderList._();
+    if (siteIid != null) result.siteIid = siteIid;
+    return result;
+  }
+
+  ReqSiteGuestOrderList._();
+
+  factory ReqSiteGuestOrderList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestOrderList()..mergeFromBuffer(data, registry);
+  factory ReqSiteGuestOrderList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestOrderList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteGuestOrderList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteGuestOrderList.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestOrderList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestOrderList copyWith(
+          void Function(ReqSiteGuestOrderList) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteGuestOrderList))
+          as ReqSiteGuestOrderList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteGuestOrderList() / ReqSiteGuestOrderList.new instead')
+  static ReqSiteGuestOrderList create() => ReqSiteGuestOrderList._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteGuestOrderList._();
+  @$core.override
+  ReqSiteGuestOrderList createEmptyInstance() => ReqSiteGuestOrderList._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteGuestOrderList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteGuestOrderList>(
+          ReqSiteGuestOrderList.$_createMessage);
+  static ReqSiteGuestOrderList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+}
+
+class ResSiteGuestOrderList extends $pb.GeneratedMessage {
+  factory ResSiteGuestOrderList({
+    $core.Iterable<SiteGuestOrderSummary>? orders,
+  }) {
+    final result = ResSiteGuestOrderList._();
+    if (orders != null) result.orders.addAll(orders);
+    return result;
+  }
+
+  ResSiteGuestOrderList._();
+
+  factory ResSiteGuestOrderList.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestOrderList()..mergeFromBuffer(data, registry);
+  factory ResSiteGuestOrderList.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestOrderList()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteGuestOrderList',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteGuestOrderList.$_createMessage)
+    ..pPM<SiteGuestOrderSummary>(1, _omitFieldNames ? '' : 'orders',
+        subBuilder: SiteGuestOrderSummary.$_createMessage)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestOrderList clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestOrderList copyWith(
+          void Function(ResSiteGuestOrderList) updates) =>
+      super.copyWith((message) => updates(message as ResSiteGuestOrderList))
+          as ResSiteGuestOrderList;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteGuestOrderList() / ResSiteGuestOrderList.new instead')
+  static ResSiteGuestOrderList create() => ResSiteGuestOrderList._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteGuestOrderList._();
+  @$core.override
+  ResSiteGuestOrderList createEmptyInstance() => ResSiteGuestOrderList._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteGuestOrderList getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteGuestOrderList>(
+          ResSiteGuestOrderList.$_createMessage);
+  static ResSiteGuestOrderList? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SiteGuestOrderSummary> get orders => $_getList(0);
+}
+
+class ReqSiteGuestMemberMe extends $pb.GeneratedMessage {
+  factory ReqSiteGuestMemberMe({
+    $fixnum.Int64? siteIid,
+  }) {
+    final result = ReqSiteGuestMemberMe._();
+    if (siteIid != null) result.siteIid = siteIid;
+    return result;
+  }
+
+  ReqSiteGuestMemberMe._();
+
+  factory ReqSiteGuestMemberMe.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestMemberMe()..mergeFromBuffer(data, registry);
+  factory ReqSiteGuestMemberMe.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestMemberMe()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteGuestMemberMe',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteGuestMemberMe.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestMemberMe clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestMemberMe copyWith(void Function(ReqSiteGuestMemberMe) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteGuestMemberMe))
+          as ReqSiteGuestMemberMe;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteGuestMemberMe() / ReqSiteGuestMemberMe.new instead')
+  static ReqSiteGuestMemberMe create() => ReqSiteGuestMemberMe._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteGuestMemberMe._();
+  @$core.override
+  ReqSiteGuestMemberMe createEmptyInstance() => ReqSiteGuestMemberMe._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteGuestMemberMe getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteGuestMemberMe>(
+          ReqSiteGuestMemberMe.$_createMessage);
+  static ReqSiteGuestMemberMe? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+}
+
+class ResSiteGuestMemberMe extends $pb.GeneratedMessage {
+  factory ResSiteGuestMemberMe({
+    $fixnum.Int64? userIid,
+    $core.String? displayName,
+    $core.String? pic,
+    $core.String? email,
+    $fixnum.Int64? contactId,
+  }) {
+    final result = ResSiteGuestMemberMe._();
+    if (userIid != null) result.userIid = userIid;
+    if (displayName != null) result.displayName = displayName;
+    if (pic != null) result.pic = pic;
+    if (email != null) result.email = email;
+    if (contactId != null) result.contactId = contactId;
+    return result;
+  }
+
+  ResSiteGuestMemberMe._();
+
+  factory ResSiteGuestMemberMe.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestMemberMe()..mergeFromBuffer(data, registry);
+  factory ResSiteGuestMemberMe.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestMemberMe()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteGuestMemberMe',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteGuestMemberMe.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'userIid')
+    ..aOS(2, _omitFieldNames ? '' : 'displayName')
+    ..aOS(3, _omitFieldNames ? '' : 'pic')
+    ..aOS(4, _omitFieldNames ? '' : 'email')
+    ..aInt64(5, _omitFieldNames ? '' : 'contactId')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestMemberMe clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestMemberMe copyWith(void Function(ResSiteGuestMemberMe) updates) =>
+      super.copyWith((message) => updates(message as ResSiteGuestMemberMe))
+          as ResSiteGuestMemberMe;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteGuestMemberMe() / ResSiteGuestMemberMe.new instead')
+  static ResSiteGuestMemberMe create() => ResSiteGuestMemberMe._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteGuestMemberMe._();
+  @$core.override
+  ResSiteGuestMemberMe createEmptyInstance() => ResSiteGuestMemberMe._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteGuestMemberMe getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteGuestMemberMe>(
+          ResSiteGuestMemberMe.$_createMessage);
+  static ResSiteGuestMemberMe? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get userIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set userIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasUserIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearUserIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get displayName => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set displayName($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasDisplayName() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearDisplayName() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get pic => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set pic($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasPic() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearPic() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get email => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set email($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasEmail() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearEmail() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get contactId => $_getI64(4);
+  @$pb.TagNumber(5)
+  set contactId($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasContactId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearContactId() => $_clearField(5);
+}
+
+class ReqSiteGuestMemberMerge extends $pb.GeneratedMessage {
+  factory ReqSiteGuestMemberMerge({
+    $fixnum.Int64? siteIid,
+    $core.String? visitorId,
+    $core.Iterable<$fixnum.Int64>? orderIds,
+  }) {
+    final result = ReqSiteGuestMemberMerge._();
+    if (siteIid != null) result.siteIid = siteIid;
+    if (visitorId != null) result.visitorId = visitorId;
+    if (orderIds != null) result.orderIds.addAll(orderIds);
+    return result;
+  }
+
+  ReqSiteGuestMemberMerge._();
+
+  factory ReqSiteGuestMemberMerge.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestMemberMerge()..mergeFromBuffer(data, registry);
+  factory ReqSiteGuestMemberMerge.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ReqSiteGuestMemberMerge()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ReqSiteGuestMemberMerge',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ReqSiteGuestMemberMerge.$_createMessage)
+    ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOS(2, _omitFieldNames ? '' : 'visitorId')
+    ..p<$fixnum.Int64>(3, _omitFieldNames ? '' : 'orderIds', $pb.PbFieldType.K6)
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestMemberMerge clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ReqSiteGuestMemberMerge copyWith(
+          void Function(ReqSiteGuestMemberMerge) updates) =>
+      super.copyWith((message) => updates(message as ReqSiteGuestMemberMerge))
+          as ReqSiteGuestMemberMerge;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ReqSiteGuestMemberMerge() / ReqSiteGuestMemberMerge.new instead')
+  static ReqSiteGuestMemberMerge create() => ReqSiteGuestMemberMerge._();
+  static $pb.GeneratedMessage $_createMessage() => ReqSiteGuestMemberMerge._();
+  @$core.override
+  ReqSiteGuestMemberMerge createEmptyInstance() => ReqSiteGuestMemberMerge._();
+  @$core.pragma('dart2js:noInline')
+  static ReqSiteGuestMemberMerge getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ReqSiteGuestMemberMerge>(
+          ReqSiteGuestMemberMerge.$_createMessage);
+  static ReqSiteGuestMemberMerge? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get siteIid => $_getI64(0);
+  @$pb.TagNumber(1)
+  set siteIid($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSiteIid() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSiteIid() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get visitorId => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set visitorId($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasVisitorId() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearVisitorId() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $pb.PbList<$fixnum.Int64> get orderIds => $_getList(2);
+}
+
+class ResSiteGuestMemberMerge extends $pb.GeneratedMessage {
+  factory ResSiteGuestMemberMerge({
+    $core.int? mergedCount,
+  }) {
+    final result = ResSiteGuestMemberMerge._();
+    if (mergedCount != null) result.mergedCount = mergedCount;
+    return result;
+  }
+
+  ResSiteGuestMemberMerge._();
+
+  factory ResSiteGuestMemberMerge.fromBuffer($core.List<$core.int> data,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestMemberMerge()..mergeFromBuffer(data, registry);
+  factory ResSiteGuestMemberMerge.fromJson($core.String json,
+          [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) =>
+      ResSiteGuestMemberMerge()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(
+      _omitMessageNames ? '' : 'ResSiteGuestMemberMerge',
+      package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
+      createEmptyInstance: ResSiteGuestMemberMerge.$_createMessage)
+    ..aI(1, _omitFieldNames ? '' : 'mergedCount')
+    ..hasRequiredFields = false;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestMemberMerge clone() => deepCopy();
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ResSiteGuestMemberMerge copyWith(
+          void Function(ResSiteGuestMemberMerge) updates) =>
+      super.copyWith((message) => updates(message as ResSiteGuestMemberMerge))
+          as ResSiteGuestMemberMerge;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  @$core.Deprecated(
+      'Use ResSiteGuestMemberMerge() / ResSiteGuestMemberMerge.new instead')
+  static ResSiteGuestMemberMerge create() => ResSiteGuestMemberMerge._();
+  static $pb.GeneratedMessage $_createMessage() => ResSiteGuestMemberMerge._();
+  @$core.override
+  ResSiteGuestMemberMerge createEmptyInstance() => ResSiteGuestMemberMerge._();
+  @$core.pragma('dart2js:noInline')
+  static ResSiteGuestMemberMerge getDefault() => _defaultInstance ??=
+      $pb.GeneratedMessage.$_defaultFor<ResSiteGuestMemberMerge>(
+          ResSiteGuestMemberMerge.$_createMessage);
+  static ResSiteGuestMemberMerge? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.int get mergedCount => $_getIZ(0);
+  @$pb.TagNumber(1)
+  set mergedCount($core.int value) => $_setSignedInt32(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasMergedCount() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearMergedCount() => $_clearField(1);
+}
+
 class ExpenseItemInput extends $pb.GeneratedMessage {
   factory ExpenseItemInput({
     $core.String? name,

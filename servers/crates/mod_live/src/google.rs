@@ -151,14 +151,18 @@ pub async fn live_google_proxy_run(
     let chat_id_opt = ticket.chat_id;
     let history_rows = live_recent_msgs(&pool, chat_id_opt).await;
     let has_mention = !active_mention_ids.is_empty();
-    let full_system = live_voice_system(
-        &inst_text,
-        &time_block,
-        &user_ctx.location_city,
-        &device_inst_block,
-        &site_inst_block,
-        &mention_label,
-    );
+    let full_system = if let Some(guest_meta) = &ticket.guest {
+        guest_meta.guest_system_prompt.clone()
+    } else {
+        live_voice_system(
+            &inst_text,
+            &time_block,
+            &user_ctx.location_city,
+            &device_inst_block,
+            &site_inst_block,
+            &mention_label,
+        )
+    };
 
     let tools_started = Instant::now();
     let (staff_view, caps) = tokio::join!(
@@ -167,7 +171,13 @@ pub async fn live_google_proxy_run(
     );
     let tools_ms = tools_started.elapsed().as_millis() as i64;
     let all_tools = c35_mod_chat::tools::cluster_tools();
-    let mut eligible_tools = crate::live_tool_select(&all_tools, &offer.tool_topics, &mention_ctx, &staff_view, &caps, has_mention);
+    let mut eligible_tools = if let Some(guest_meta) = &ticket.guest {
+        let guest_caps = c35_mod_chat::SiteCapabilityView::load(&pool, &[guest_meta.site_iid]).await;
+        let commerce = guest_caps.has(guest_meta.site_iid, "commerce");
+        c35_mod_chat::site_guest_tool_catalog(commerce)
+    } else {
+        crate::live_tool_select(&all_tools, &offer.tool_topics, &mention_ctx, &staff_view, &caps, has_mention)
+    };
     tracing::info!(decls = eligible_tools.len(), offer = %offer.id, "live: tool decls");
 
     let tools_val = if !eligible_tools.is_empty() {
@@ -261,6 +271,16 @@ pub async fn live_google_proxy_run(
     let mut quota_interval = tokio::time::interval(std::time::Duration::from_secs(30));
     quota_interval.tick().await;
 
+    let guest_max_duration = if ticket.guest.is_some() {
+        let sec = std::env::var("C35_GUEST_LIVE_MAX_SEC")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(900);
+        Some(tokio::time::Instant::now() + std::time::Duration::from_secs(sec))
+    } else {
+        None
+    };
+
     let mut ready = false;
     let mut turn_user_text = String::new();
     let mut turn_assistant_text = String::new();
@@ -329,6 +349,22 @@ pub async fn live_google_proxy_run(
             }));
         }
         tokio::select! {
+            _ = async {
+                match guest_max_duration {
+                    Some(deadline) => tokio::time::sleep_until(deadline).await,
+                    None => std::future::pending().await,
+                }
+            } => {
+                tracing::info!(req_id = %sid, "live: guest max duration exceeded — ending session");
+                let _ = client
+                    .send(Message::Text(json!({
+                        "live": "hangup",
+                        "reason": "Max guest call duration exceeded"
+                    }).to_string().into()))
+                    .await;
+                let _ = client.send(Message::Close(None)).await;
+                break;
+            }
             _ = quota_interval.tick() => {
                 let elapsed_secs = started.elapsed().as_secs_f64();
                 let video_secs = video_tracker.current_video_secs(Instant::now()).clamp(0.0, elapsed_secs);
@@ -576,6 +612,7 @@ pub async fn live_google_proxy_run(
                                 &mut off_topic_turns,
                                 chat_id_opt.unwrap_or(0),
                                 turn_user_text.trim(),
+                                ticket.guest.as_ref(),
                             )
                             .await
                             .is_err()
@@ -667,6 +704,7 @@ pub async fn live_google_proxy_run(
                                 &mut off_topic_turns,
                                 chat_id_opt.unwrap_or(0),
                                 turn_user_text.trim(),
+                                ticket.guest.as_ref(),
                             )
                             .await
                             .is_err()
@@ -737,6 +775,7 @@ pub async fn live_google_proxy_run(
         &offer,
         duration,
         video_secs,
+        ticket.guest.as_ref(),
     )
     .await
     {
@@ -971,6 +1010,7 @@ async fn live_handle_tool_call(
     off_topic_turns: &mut u32,
     chat_id: i64,
     user_text: &str,
+    guest: Option<&crate::session::GuestLiveMeta>,
 ) -> Result<(), ()> {
     let Some(tool_call) = v.get("toolCall").or_else(|| v.pointer("/serverContent/toolCall")) else {
         return Ok(());
@@ -1063,13 +1103,41 @@ async fn live_handle_tool_call(
             ))
             .await;
 
+        let (site_iid_val, guest_visitor_id_val, run_kind_val) = match guest {
+            Some(g) => (Some(g.site_iid), Some(g.visitor_id.clone()), "site_guest_live"),
+            None => (mention_ctx.default_site_iid, None, "main"),
+        };
+
+        let mut _turn_ctx = c35_mod_chat::tools::TurnCtx {
+            pool,
+            nats: nats.as_ref(),
+            owner_iid,
+            chat_id,
+            site_iid: site_iid_val,
+            guest_visitor_id: guest_visitor_id_val.as_deref(),
+            mention: mention_ctx.clone(),
+            mention_ids: &[],
+            user_text,
+            locale: &user_ctx.locale,
+            location_city: &user_ctx.location_city,
+            location_region: &user_ctx.location_region,
+            location_country: &user_ctx.location_country,
+            attachments_json: "",
+            req_id,
+            run_kind: run_kind_val,
+            checkpoint: None,
+            title_slot: std::sync::Arc::new(std::sync::Mutex::new(None)),
+            doc_ocr: std::sync::Arc::new(std::sync::Mutex::new(c35_mod_chat::ContextBillingExtra::default())),
+            billing: None,
+        };
+
         let tool_ctx = c35_mod_chat::tools::ToolContext::new(
             pool.clone(),
             nats.clone(),
             owner_iid,
             chat_id,
-            mention_ctx.default_site_iid,
-            None,
+            site_iid_val,
+            guest_visitor_id_val,
             mention_ctx.clone(),
             vec![],
             user_text,
@@ -1082,7 +1150,8 @@ async fn live_handle_tool_call(
             http_client.clone(),
         )
         .with_mcp_agent(true)
-        .with_tool_call_id(&call_id);
+        .with_tool_call_id(&call_id)
+        .with_run_kind(run_kind_val);
 
         let (mut result, cost_usd) = dispatcher.execute(&call_name, call_args.clone(), &tool_ctx).await;
         tracing::info!(tool = %call_name, cost_usd, "live: tool executed");

@@ -86,7 +86,7 @@ fn slide_patch_digits_after(hay: &str, needle: &str) -> Option<usize> {
     let h = hay.to_ascii_lowercase();
     let n = needle.to_ascii_lowercase();
     let at = h.find(&n)?;
-    let rest = hay[at + needle.len()..].trim();
+    let rest = h[at + needle.len()..].trim();
     let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
     digits.parse().ok().filter(|n| *n >= 1)
 }

@@ -6,7 +6,7 @@ use c35_proto::{
 use sqlx::{PgPool, Row};
 
 use crate::guest_order::guest_site_owner;
-use crate::guest_tx_meta::{guest_tx_meta_merge, guest_tx_visitor_id};
+use crate::guest_tx_meta::{guest_tx_buyer_user_iid, guest_tx_meta_merge, guest_tx_visitor_id};
 
 pub async fn guest_order_list(
     pool: &PgPool,
@@ -81,11 +81,7 @@ pub async fn guest_member_merge(
             continue;
         }
         let data: serde_json::Value = row.get("tx_data_json");
-        let existing_buyer = data
-            .get("guest")
-            .and_then(|g| g.get("buyer_user_iid"))
-            .and_then(|v| v.as_i64())
-            .unwrap_or(0);
+        let existing_buyer = guest_tx_buyer_user_iid(&data);
         if existing_buyer > 0 && existing_buyer != buyer_user_iid {
             continue;
         }
@@ -143,11 +139,7 @@ pub async fn guest_order_get_allowed(
         return Ok(false);
     }
     let data: serde_json::Value = row.get("tx_data_json");
-    let buyer = data
-        .get("guest")
-        .and_then(|g| g.get("buyer_user_iid"))
-        .and_then(|v| v.as_i64())
-        .unwrap_or(0);
+    let buyer = guest_tx_buyer_user_iid(&data);
     if buyer > 0 {
         return Ok(buyer_user_iid == Some(buyer));
     }

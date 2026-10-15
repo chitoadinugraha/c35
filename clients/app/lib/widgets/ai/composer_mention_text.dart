@@ -31,6 +31,15 @@ final RegExp composerMentionBracketRe = RegExp(r'\[@(iid|catalog|drive):([^\]]+)
 
 String composerMentionBracketForId(String canonicalId) {
   var t = canonicalId.trim();
+  if (t.startsWith('[@') && t.contains(']')) {
+    final end = t.indexOf(']');
+    final inner = t.substring(2, end);
+    final colon = inner.indexOf(':');
+    if (colon > 0) {
+      final id = composerMentionIdFromBracket(inner.substring(0, colon), inner.substring(colon + 1));
+      if (id != null) return composerMentionBracketForId(id);
+    }
+  }
   final bracketed = composerMentionBracketRe.firstMatch(t);
   if (bracketed != null) {
     final id = composerMentionIdFromBracket(bracketed.group(1)!, bracketed.group(2)!);
@@ -57,6 +66,35 @@ String composerMentionBracketTokenize(String text) => text.replaceAllMapped(comp
       final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
       return id == null ? m.group(0)! : composerMentionToken(id);
     });
+
+/// Union mention ids for a prompt turn: composer payload, sticky selection, chat meta, and inline text.
+List<String> composerMentionIdsForWire({
+  Iterable<String>? fromComposer,
+  Iterable<String> selectedSticky = const [],
+  Iterable<String> chatSticky = const [],
+  required String text,
+}) {
+  final seen = <String>{};
+  final out = <String>[];
+  void add(String raw) {
+    final id = raw.trim();
+    if (id.isEmpty || id == 'image' || !seen.add(id)) return;
+    out.add(id);
+  }
+  for (final id in fromComposer ?? const []) {
+    add(id);
+  }
+  for (final id in selectedSticky) {
+    add(id);
+  }
+  for (final id in chatSticky) {
+    add(id);
+  }
+  for (final id in composerMentionIdsCollect(text)) {
+    add(id);
+  }
+  return out;
+}
 
 List<String> composerMentionIdsCollect(String text) {
   final out = <String>[];
@@ -107,17 +145,42 @@ final RegExp _composerMentionBracketAroundTokenRe = RegExp(r'\[@\s*(\uFFFC[^\uFF
 final RegExp _composerMentionBracketOpenBeforeTokenRe = RegExp(r'\[@\s*(\uFFFC[^\uFFFD]+\uFFFD)');
 final RegExp _composerMentionBracketCloseAfterTokenRe = RegExp(r'(\uFFFC[^\uFFFD]+\uFFFD)\s+\]');
 
+/// Strip incomplete `[@` the user typed before picking a chip (avoids `[@[@iid:…]` on wire).
+String composerMentionStripTrailingOpenBracketShell(String before) {
+  var b = before;
+  for (var i = 0; i < 4; i++) {
+    final next = b.replaceFirst(RegExp(r'\[\s*@\s*$'), '');
+    if (next == b) break;
+    b = next;
+  }
+  return b;
+}
+
 /// Collapse nested `[@` shells before wire / title (mirrors server `mention_bracket_fixup_nesting`).
 String composerMentionBracketFixupNesting(String text) {
   var s = text;
   for (var i = 0; i < 8; i++) {
     final prev = s;
-    s = s.replaceAll('[@@[@[@iid:', '[@iid:');
-    s = s.replaceAll('[@@[@iid:', '[@iid:');
-    s = s.replaceAll('[@[@iid:', '[@iid:');
-    if (s.startsWith('[@') && s.contains('[@iid:') && !s.startsWith('[@iid:')) {
-      final idx = s.indexOf('[@iid:');
-      if (idx > 0) s = s.substring(idx);
+    while (s.contains('[@[@')) {
+      s = s.replaceFirst('[@[@', '[@');
+    }
+    final nestedOpen = '[@' + '@[';
+    while (s.contains(nestedOpen)) {
+      s = s.replaceFirst(nestedOpen, '[@');
+    }
+    if (s.startsWith('[@') &&
+        !s.startsWith('[@iid:') &&
+        !s.startsWith('[@catalog:') &&
+        !s.startsWith('[@drive:')) {
+      final positions = <int>[
+        if (s.contains('[@iid:')) s.indexOf('[@iid:'),
+        if (s.contains('[@catalog:')) s.indexOf('[@catalog:'),
+        if (s.contains('[@drive:')) s.indexOf('[@drive:'),
+      ];
+      if (positions.isNotEmpty) {
+        final idx = positions.reduce((a, b) => a < b ? a : b);
+        if (idx > 0) s = s.substring(idx);
+      }
     }
     final pos = s.indexOf('[@iid:');
     if (pos >= 0) {
@@ -189,7 +252,8 @@ String composerMentionStripDuplicateLabelsAfterTokens(String text, List<CatalogM
 
 /// Re-wrap device mention labels as composer tokens after retry / server plain text.
 String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions, {List<String>? mentionIds}) {
-  var out = composerMentionBracketTokenize(plain);
+  var out = composerMentionBracketFixupNesting(plain);
+  out = composerMentionBracketTokenize(out);
   if (!_composerMentionTokenRe.hasMatch(out)) {
     out = composerMentionInlineIidTokenize(out);
   }
@@ -259,6 +323,7 @@ String composerMentionTextForPrompt(String text, List<CatalogMention> mentions, 
 /// Plain text + bracket mentions for wire / server `chat_msg.content`.
 String composerMentionTextForWire(String text, List<CatalogMention> mentions, {List<String>? mentionIds}) {
   var out = composerMentionBracketFixupNesting(text);
+  out = composerMentionStripBracketShellAroundTokens(out);
   out = out.replaceAllMapped(_composerMentionTokenRe, (m) => composerMentionBracketForId(m.group(1)!));
   out = out.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionBracketForId(m.group(0)!));
   out = out.replaceAllMapped(composerMentionBracketRe, (m) {
@@ -275,6 +340,7 @@ String composerMentionTextForWire(String text, List<CatalogMention> mentions, {L
     out = composerMentionBracketForId(id) + rest.substring(label.length);
     break;
   }
+  out = composerMentionBracketFixupNesting(out);
   return out.replaceAll(RegExp(r'[ \t]+\n'), '\n').replaceAll(RegExp(r' {2,}'), ' ').trim();
 }
 
@@ -283,7 +349,7 @@ bool composerMentionTextNonempty(String text) =>
     composerMentionIdsParse(text).isNotEmpty ||
     composerMentionIdsCollect(text).isNotEmpty;
 
-bool _composerMentionStickyId(String id) {
+bool composerMentionStickyId(String id) {
   final t = id.trim();
   if (t.isEmpty || t == 'image') return false;
   return t.startsWith('iid:') || t.startsWith('catalog:') || t.startsWith('drive:');
@@ -295,7 +361,7 @@ String composerMentionDraftFromStickyIds(Iterable<String> mentionIds, List<Catal
   final seen = <String>{};
   for (final raw in mentionIds) {
     final id = raw.trim();
-    if (!_composerMentionStickyId(id) || !seen.add(id)) continue;
+    if (!composerMentionStickyId(id) || !seen.add(id)) continue;
     if (composerMentionLookup(mentions, id) != null || id.startsWith('iid:') || id.startsWith('catalog:') || id.startsWith('drive:')) {
       parts.add(composerMentionToken(id));
     }

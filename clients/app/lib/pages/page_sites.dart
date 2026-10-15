@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/site/site_guest_order_bus.dart';
 import 'package:alienai_c35/c/site/site_store.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
@@ -67,7 +68,10 @@ class _PageSitesState extends State<PageSites> {
   Future<void> _boot() async {
     await _store.refresh();
     final siteIid = widget.siteIid.trim();
-    if (siteIid.isNotEmpty) _store.select(siteIid);
+    if (siteIid.isNotEmpty) {
+      await _store.ensureStaffRow(siteIid);
+      _store.select(siteIid);
+    }
   }
 
   String? _siteName(String? id) {

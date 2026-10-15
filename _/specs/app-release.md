@@ -28,7 +28,7 @@ Run from `_/scripts/deploy` after `dart pub get`. Set env vars (see below) or us
 
 **NATS (Windows OTA wake):** After `ai.config` publish, orchestrators call `deploy_app/nats_broadcast_windows_app_release.ps1` (kubectl + `c35-server-env` NATS creds, same pattern as remote agent). Skip with `C35_SKIP_NATS_BROADCAST=1` or Dart `--skip-nats` on Windows publish entrypoints. Standalone: `.\deploy_app\nats_broadcast_windows_app_release.ps1 -Version N -VersionName M.N.0 -Hash <blake3> -Size <bytes>`.
 
-**PowerShell:** `.\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote` (same as promote script row). **`publish_server_apk_web.ps1`** / Cursor **`/publish-server-apk-web`**: cluster server + `apk_upload_prod.dart` + `windows_upload_prod.dart` + web — **no Play upload or promote** (use when production promote would reset the review queue).
+**PowerShell:** `.\_\scripts\deploy\publish_app_release.ps1 -AndroidPromote` (same as promote script row). **`publish_web_app.ps1`** — Flutter web only (same as `-WebOnly`). **`publish_server_apk_web.ps1`** / Cursor **`/publish-server-apk-web`**: cluster server + `apk_upload_prod.dart` + `windows_upload_prod.dart` + web — **no Play upload or promote** (use when production promote would reset the review queue).
 
 **Full stack (server + app):** `.\_\scripts\deploy\publish_all.ps1` runs `publish_server.ps1` and default `publish_app_release.ps1` **in parallel** (Buildkit server build vs Flutter/Play/CAS). App platforms inside the Dart orchestrator remain sequential. Optional `-RemoteAgent` runs after both finish; `-SkipServer` / `-SkipApp` skip one side.
 
@@ -176,11 +176,14 @@ $env:S3_ACCESS_KEY = '<key>'
 $env:S3_SECRET_KEY = '<secret>'
 $env:YB_PASSWORD = '<password>'
 
-# Web only (no Play / Windows)
-dart run deploy_app/push_web.dart
+# Web only (no Play / Windows) — bumps pubspec once
+.\_\scripts\deploy\publish_web_app.ps1
 
-# Or via orchestrator flag
+# Dart (no PowerShell wrapper)
 dart run deploy_app/deploy_app_release.dart --web-only
+
+# Web build + S3 + /version only (no pubspec bump)
+dart run deploy_app/push_web.dart
 
 # Default prod includes web after Windows upload
 dart run deploy_app/deploy_app_release.dart

@@ -61,6 +61,16 @@ fn parse_out_promote_thought(mut out: ParseOut) -> ParseOut {
     out
 }
 
+fn gemini_http_err_retryable(err: &str) -> bool {
+    let lower = err.to_ascii_lowercase();
+    lower.contains("429")
+        || lower.contains("503")
+        || lower.contains("timed out")
+        || lower.contains("stream failed")
+        || (lower.contains("400") && lower.contains("invalid_argument"))
+        || (lower.contains("gemini http 400") && lower.contains("invalid argument"))
+}
+
 pub fn bill_model_slug(requested: &str) -> String {
     model_log_label(requested)
 }
@@ -174,11 +184,7 @@ pub async fn llm_stream_chain(
             let res = if let Err(e) = &res {
                 if !cancel.is_cancelled() {
                     let err_str = e.to_string();
-                    if err_str.contains("429")
-                        || err_str.contains("503")
-                        || err_str.contains("timed out")
-                        || err_str.contains("stream failed")
-                    {
+                    if gemini_http_err_retryable(&err_str) {
                         tokio::time::sleep(Duration::from_millis(1000)).await;
                         gemini_generate_stream(
                             contents,
@@ -267,5 +273,12 @@ mod tests {
             json!({ "role": "user", "parts": [{ "text": "second" }] }),
         ];
         assert_eq!(stream_contents_user(&contents), "second");
+    }
+
+    #[test]
+    fn gemini_http_err_retryable_includes_invalid_argument_400() {
+        let raw = "gemini HTTP 400 Bad Request: {\"error\":{\"status\":\"INVALID_ARGUMENT\"}}";
+        assert!(gemini_http_err_retryable(raw));
+        assert!(!gemini_http_err_retryable("gemini HTTP 401 Unauthorized"));
     }
 }

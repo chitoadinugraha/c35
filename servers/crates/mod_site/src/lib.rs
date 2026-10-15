@@ -43,10 +43,14 @@ mod site_handle;
 mod platform_site;
 mod site_ids;
 mod site_list;
+mod staff;
 mod site_object;
 mod site_preview;
 mod site_product;
+mod queue_csa;
 mod site_queue;
+mod site_payroll;
+mod site_presence;
 mod site_publish;
 pub mod query;
 mod sync;
@@ -80,7 +84,8 @@ pub use site_domain_buy::{
 };
 pub use dns_verify::{cname_destination_matches, domain_cname_target};
 pub use commerce_boot::{
-    commerce_boot_build, order_progress_steps_json, site_draft_meta_json, site_published_meta_json,
+    commerce_boot_build, order_progress_steps_json, queue_boot_build, site_draft_meta_json,
+    site_published_meta_json,
 };
 pub use site_analytics::{
     normalize_analytics_path, site_analytics_day_bucket, site_analytics_enabled,
@@ -115,6 +120,10 @@ pub use site_hr::{
     site_member_shift_ids_normalize, site_member_shift_sync, site_presence_location_list,
     site_presence_location_put, site_work_shift_list, site_work_shift_put,
 };
+pub use site_payroll::{site_payroll_compensation_list, site_payroll_compensation_put};
+pub use site_presence::{
+    site_presence_clock_in, site_presence_clock_out, site_presence_context, site_presence_record_list,
+};
 pub use site_list::site_list;
 pub use site_object::{site_object_list, site_object_put, site_object_upsert};
 pub use site_preview::{site_draft_html_render, site_preview_token, site_preview_token_issue, site_preview_token_verify};
@@ -134,8 +143,10 @@ pub use product_icon::{
 };
 pub use product_icon_svg::product_icon_svg;
 pub use site_queue::{
-    guest_queue_get, guest_queue_get_json, guest_queue_take, guest_queue_take_json,
-    site_queue_advance_serving, site_queue_list, site_queue_put,
+    display_label_for_ticket, guest_queue_get, guest_queue_get_json, guest_queue_take,
+    guest_queue_take_json, guest_queue_track, guest_queue_track_json, site_queue_advance_serving,
+    site_queue_board, site_queue_call_next, site_queue_list, site_queue_put, site_queue_reset,
+    site_queue_ticket_list, site_queue_ticket_set_status, validate_queue_answers,
 };
 pub use guest_renderer::{
     guest_renderer_sync_config, guest_renderer_version_effective, site_guest_render_ensure_current,

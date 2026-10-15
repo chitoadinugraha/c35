@@ -1,0 +1,10 @@
+{
+  "accent": "#2563EB",
+  "base": "monochrome",
+  "dark": false,
+  "background": { "type": "color", "color": "#F8F9FA" },
+  "backdrop": { "id": "none" },
+  "card": { "id": "solid", "params": {} },
+  "profile": { "showAvatar": true, "showTitle": true },
+  "product": { "titleFontSize": 16 }
+}

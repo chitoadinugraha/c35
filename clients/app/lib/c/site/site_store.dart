@@ -68,6 +68,24 @@ class SiteStore extends ChangeNotifier {
     return null;
   }
 
+  /// Staff picker may open sites outside the caller's normal grant list.
+  Future<void> ensureStaffRow(String siteIid) async {
+    final id = siteIid.trim();
+    if (id.isEmpty || rowById(id) != null) return;
+    if (!Session.instance.isDirectorStaff) return;
+    try {
+      final rows = await siteListFetch(_conn, query: id, limit: 10);
+      for (final row in rows) {
+        if (row.siteIid.toString() != id) continue;
+        _rows.add(row);
+        notifyListeners();
+        return;
+      }
+    } catch (e) {
+      lError('site ensureStaffRow: $e');
+    }
+  }
+
   void searchPut(String value) {
     if (_search == value) return;
     _search = value;

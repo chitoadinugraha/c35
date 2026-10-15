@@ -23,7 +23,7 @@ fn legacy_tx_browse_parse_daftar() {
 #[test]
 fn legacy_site_report_parse_mention() {
     let i = site_report::site_report_parse(
-        "Berapa untung [@[@iid:101836119014211584]] hari ini ?",
+        "Berapa untung [@iid:101836119014211584] hari ini ?",
     )
     .unwrap();
     assert_eq!(i.query_id, "tx.profit_summary");

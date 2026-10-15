@@ -28,7 +28,11 @@ pub use grok::live_grok_run;
 pub use media::{extract_attachment_text, parse_media_attach, MediaAttachment};
 pub use openai::live_openai_run;
 pub use resume::{live_focus_pin, live_swap_should_run, live_text_seed, LiveResume};
-pub use rpc::live_start_rpc;
-pub use session::{live_session_drop, live_session_take};
+pub use rpc::{live_enabled, live_start_rpc};
+pub use session::{
+    guest_live_session_register, live_guest_session_take, live_session_drop, live_session_register,
+    live_session_take, live_ticket_secret, live_ticket_sign, live_ticket_verify, GuestLiveMeta,
+    LiveSessionTicket, LiveTicketClaims,
+};
 pub use ws_audio::{decode_audio_frame, encode_audio_frame, live_client_send_gemini_value};
 pub use tool_select::{call_end_tool, live_tool_select, topic_reset_tool, LIVE_TOOL_DECL_CAP};

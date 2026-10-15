@@ -6,6 +6,43 @@ use crate::guest_product::{guest_product_list, pic_url, product_row_json};
 use crate::rows::col_text;
 use crate::site_config::{site_capability_enabled, site_capabilities_get};
 
+pub async fn queue_boot_build(pool: &PgPool, site_iid: i64) -> Result<Value> {
+    let caps = site_capabilities_get(pool, site_iid).await;
+    if !site_capability_enabled(&caps, "queue") {
+        return Ok(json!({ "enabled": false, "queues": [] }));
+    }
+    let rows = sqlx::query(
+        r#"
+        SELECT queue_id, name, description, prefix, fields, take_online, sort_order, meta_json
+        FROM site.queue
+        WHERE site_iid = $1 AND deleted_ts IS NULL AND is_active = TRUE
+        ORDER BY sort_order, queue_id
+        "#,
+    )
+    .bind(site_iid)
+    .fetch_all(pool)
+    .await?;
+    let queues: Vec<Value> = rows
+        .iter()
+        .map(|r| {
+            let meta = r.get::<Value, _>("meta_json");
+            json!({
+                "id": r.get::<i64, _>("queue_id"),
+                "queue_id": r.get::<i64, _>("queue_id"),
+                "name": r.get::<String, _>("name"),
+                "description": r.get::<String, _>("description"),
+                "prefix": r.get::<String, _>("prefix"),
+                "fields": r.get::<Value, _>("fields"),
+                "take_online": r.get::<bool, _>("take_online"),
+                "sort_order": r.get::<i32, _>("sort_order"),
+                "color": meta.get("color").cloned().unwrap_or(Value::Null),
+                "icon": meta.get("icon").cloned().unwrap_or(Value::Null),
+            })
+        })
+        .collect();
+    Ok(json!({ "enabled": true, "queues": queues }))
+}
+
 pub fn order_progress_steps_json(fulfillment: bool) -> Value {
     let mut steps = vec![
         json!({ "state": "waiting_payment", "label": "Menunggu pembayaran" }),

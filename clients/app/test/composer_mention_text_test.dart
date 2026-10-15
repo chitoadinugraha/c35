@@ -19,6 +19,17 @@ void main() {
     expect(composerMentionContentSameTurn(local, 'besok hari apa'), isFalse);
   });
 
+  test('composerMentionIdsForWire keeps sticky device when text has no chip', () {
+    const deviceId = 'iid:98063412749627392';
+    final ids = composerMentionIdsForWire(
+      fromComposer: const [],
+      selectedSticky: [deviceId],
+      chatSticky: [deviceId],
+      text: 'can you minimize the Alien AI Agent',
+    );
+    expect(ids, [deviceId]);
+  });
+
   test('composerMentionDraftMergeSticky keeps chips after send', () {
     const deviceId = 'iid:42';
     final sticky = composerMentionDraftFromStickyIds([deviceId], const []);
@@ -38,12 +49,40 @@ void main() {
     expect(fixed, isNot(contains('[@[')));
   });
 
+  test('composerMentionBracketFixupNesting fixes stored double prefix', () {
+    const raw = '[@[@iid:98063412749627392]]tambahkan 5 baris';
+    final fixed = composerMentionBracketFixupNesting(raw);
+    expect(fixed, startsWith('[@iid:98063412749627392]'));
+    expect(fixed, isNot(contains('[@[')));
+  });
+
+  test('composerMentionStripTrailingOpenBracketShell before chip insert', () {
+    const deviceId = 'iid:98063412749627392';
+    final token = composerMentionToken(deviceId);
+    final before = composerMentionStripTrailingOpenBracketShell('[@ ');
+    final wire = composerMentionTextForWire('$before$token tambah', const [], mentionIds: [deviceId]);
+    expect(wire, startsWith('[@iid:98063412749627392]'));
+    expect(wire, isNot(contains('[@[')));
+  });
+
   test('composerMentionTextForWire emits bracket mention', () {
     const deviceId = 'iid:97279816209936384';
     final draft = 'berapa ping ${composerMentionToken(deviceId)} ke google ?';
     final wire = composerMentionTextForWire(draft, const [], mentionIds: [deviceId]);
     expect(wire, contains('[@iid:97279816209936384]'));
     expect(wire, isNot(contains(composerMentionStart)));
+  });
+
+  test('composerMentionTextForWire collapses bracket shell before chip token', () {
+    const deviceId = 'iid:98063412749627392';
+    final token = composerMentionToken(deviceId);
+    final wire = composerMentionTextForWire(
+      '[@ $token ]tambahkan 5 baris contoh',
+      const [],
+      mentionIds: [deviceId],
+    );
+    expect(wire, startsWith('[@iid:98063412749627392]'));
+    expect(wire, isNot(contains('[@[')));
   });
 
   test('composerMentionDisplayRestore wraps bracket iid', () {

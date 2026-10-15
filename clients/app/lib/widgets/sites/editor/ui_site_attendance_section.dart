@@ -59,6 +59,9 @@ class UiSiteAttendanceSection extends StatelessWidget {
     final shiftList = _filteredShifts;
     final empty = areas.isEmpty && shiftList.isEmpty;
     final searching = search.trim().isNotEmpty;
+    final myClockId = siteAttendanceMyClockDetailId();
+    final myClockActive = selectedId == myClockId;
+    final showMyClock = !searching || 'my clock'.contains(search.trim().toLowerCase());
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -77,7 +80,7 @@ class UiSiteAttendanceSection extends StatelessWidget {
           },
         ),
         Expanded(
-          child: empty
+          child: empty && !showMyClock
               ? UiEmptyState(
                   icon: Icons.fingerprint_outlined,
                   title: searching ? 'No matches' : 'No attendance setup',
@@ -86,7 +89,11 @@ class UiSiteAttendanceSection extends StatelessWidget {
               : ListView(
                   padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
                   children: [
-                    _sectionHeader('Area'),
+                    if (showMyClock) ...[
+                      _sectionHeader('Staff'),
+                      _myClockTile(myClockId, myClockActive),
+                    ],
+                    if (!empty) _sectionHeader('Area'),
                     if (areas.isEmpty)
                       _emptyHint(searching ? 'No matching areas' : 'No areas yet')
                     else
@@ -108,6 +115,50 @@ class UiSiteAttendanceSection extends StatelessWidget {
       ],
     );
   }
+
+  Widget _myClockTile(String detailId, bool active) => Material(
+        color: active ? const Color(0xFF1A2E28) : const Color(0xFF18181B),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: active ? _accent.withValues(alpha: 0.45) : _border.withValues(alpha: 0.85)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => onSelect(detailId),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(Icons.fingerprint_outlined, size: 18, color: active ? _accent : _muted),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'My clock',
+                        style: TextStyle(
+                          color: _text,
+                          fontSize: 13,
+                          fontWeight: active ? FontWeight.w700 : FontWeight.w600,
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.only(top: 2),
+                        child: Text(
+                          'Optional clock-in and out',
+                          style: TextStyle(fontSize: 11, color: _muted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!masterDetail) const Icon(Icons.chevron_right, size: 18, color: _muted),
+              ],
+            ),
+          ),
+        ),
+      );
 
   Widget _sectionHeader(String label) => Padding(
         padding: const EdgeInsets.fromLTRB(4, 10, 4, 6),

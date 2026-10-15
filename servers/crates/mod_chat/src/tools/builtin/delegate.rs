@@ -24,6 +24,9 @@ use crate::prompt::computer_use::{
 use crate::prompt::google_forms::{
     google_forms_playbook_block, user_text_looks_like_google_forms,
 };
+use crate::prompt::google_sheets::{
+    google_sheets_playbook_block, user_text_looks_like_google_sheets_desktop,
+};
 
 fn delegate_json_goal_met(v: &Value) -> bool {
     v.get("goal_met")
@@ -35,14 +38,43 @@ use crate::tools::ToolContext;
 
 const DELEGATE_WAIT_SECS: u64 = 300;
 
-fn delegate_goal_augment_for_computer_use(kind: &str, goal: &str) -> String {
-    if kind != "computer_use" || !user_text_looks_like_google_forms(goal) {
+fn computer_use_delegate_retry_goal(goal: &str) -> String {
+    let g = goal.to_ascii_lowercase();
+    if g.contains("google sheet")
+        || g.contains("spreadsheet")
+        || g.contains("sheets.new")
+        || g.contains("lembar kerja")
+    {
+        return format!(
+            "{goal}\n\n[RETRY] The previous computer-use run did not finish. \
+Reuse the existing Chrome Google Sheets tab shown in screenshot (do not open a new blank sheet). \
+device.screenshot with som=true before each action; use ctrl+g and the name box for cells — finish on device, no human handoff."
+        );
+    }
+    format!(
+        "{goal}\n\n[RETRY] The previous computer-use run did not finish. \
+Reuse the existing Chrome Google Forms tab shown in screenshot (do not open forms.new again). \
+Close duplicate Forms tabs only if they block Blank. device.screenshot som=true, then finish every step (no human handoff)."
+    )
+}
+
+pub(crate) fn delegate_goal_augment_for_computer_use(kind: &str, goal: &str) -> String {
+    if kind != "computer_use" {
         return goal.to_string();
     }
-    if goal.contains("[GOOGLE FORMS TAB RESUME]") {
-        return goal.to_string();
+    if user_text_looks_like_google_forms(goal) {
+        if goal.contains("[GOOGLE FORMS TAB RESUME]") {
+            return goal.to_string();
+        }
+        return format!("{goal}\n\n{}", google_forms_playbook_block());
     }
-    format!("{goal}\n\n{}", google_forms_playbook_block())
+    if user_text_looks_like_google_sheets_desktop(goal) {
+        if goal.contains("[GOOGLE SHEETS ON DEVICE]") {
+            return goal.to_string();
+        }
+        return format!("{goal}\n\n{}", google_sheets_playbook_block());
+    }
+    goal.to_string()
 }
 
 pub fn delegate_child_row(
@@ -237,11 +269,7 @@ pub async fn computer_use_delegate_exec(ctx: &ToolContext, args: &Value) -> anyh
     wrapped["device_iid"] = json!(device_iid);
     let out = delegate_run_exec(ctx, &wrapped).await?;
     let out = if !delegate_json_goal_met(&out) {
-        let retry_goal = format!(
-            "{goal}\n\n[RETRY] The previous computer-use run did not finish. \
-Reuse the existing Chrome Google Forms tab shown in screenshot (do not open forms.new again). \
-Close duplicate Forms tabs only if they block Blank. device.screenshot som=true, then finish every step (no human handoff)."
-        );
+        let retry_goal = computer_use_delegate_retry_goal(goal);
         wrapped["goal"] = json!(retry_goal);
         wrapped["label"] = json!("computer_use_retry");
         delegate_run_exec(ctx, &wrapped).await?

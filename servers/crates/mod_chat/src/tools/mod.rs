@@ -384,6 +384,7 @@ fn tool_context_from_turn(client: Client, turn: &TurnCtx<'_>) -> ToolContext {
     .with_title_slot(turn.title_slot.clone())
     .with_doc_ocr(turn.doc_ocr.clone())
     .with_billing(turn.billing.clone())
+    .with_run_kind(turn.run_kind)
 }
 
 pub async fn cluster_tool_exec(

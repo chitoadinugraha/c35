@@ -18,6 +18,14 @@ class GuestSiteI18n {
 
   String get catalogDefaultTitle => indonesian ? 'Katalog & Layanan' : 'Catalog & services';
 
+  String get catalogSectionEyebrow => indonesian ? 'Katalog' : 'Catalog';
+
+  String get catalogSearchPlaceholder => indonesian ? 'Cari produk…' : 'Search products…';
+
+  String get hubTabShop => indonesian ? 'Toko' : 'Shop';
+
+  String get hubTabPosts => indonesian ? 'Posting' : 'Posts';
+
   String get filterAll => indonesian ? 'Semua' : 'All';
 
   String get loadMore => indonesian ? 'Muat lebih banyak' : 'Load more';

@@ -6,7 +6,7 @@ void main() {
     expect(composerActionKind(streaming: true, recording: false, hasText: false), ComposerActionKind.abort);
   });
 
-  test('busy with text shows send (queue)', () {
-    expect(composerActionKind(streaming: true, recording: false, hasText: true), ComposerActionKind.send);
+  test('busy with text still shows abort (Enter queues follow-up)', () {
+    expect(composerActionKind(streaming: true, recording: false, hasText: true), ComposerActionKind.abort);
   });
 }
