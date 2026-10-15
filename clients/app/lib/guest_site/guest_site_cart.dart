@@ -2,14 +2,21 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui';
 
+import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/session.dart';
 import 'package:alienai_c35/c/site/guest_assistant_api.dart';
+import 'package:alienai_c35/c/site/guest_member_api.dart';
 import 'package:alienai_c35/c/site/guest_order_api.dart';
 import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/guest_site/guest_site_commerce_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_member.dart';
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
 
 enum GuestSiteCartSheet { none, order, checkout }
 
@@ -793,12 +800,16 @@ class GuestSiteCartChrome extends StatelessWidget {
     required this.accent,
     required this.child,
     this.memberPortalEnabled = true,
+    this.siteAlienId = '',
+    this.catalogMeta = const {},
   });
 
   final GuestSiteCartController controller;
   final Color accent;
   final Widget child;
   final bool memberPortalEnabled;
+  final String siteAlienId;
+  final Map<String, dynamic> catalogMeta;
 
   @override
   Widget build(BuildContext context) {
@@ -816,6 +827,8 @@ class GuestSiteCartChrome extends StatelessWidget {
               accent: accent,
               controller: controller,
               memberPortalEnabled: memberPortalEnabled,
+              siteAlienId: siteAlienId,
+              catalogMeta: catalogMeta,
             ),
             if (controller.count > 0 && !controller.sheetOpen)
               Positioned(
@@ -1529,12 +1542,16 @@ class GuestSiteOrdersChip extends StatefulWidget {
     required this.accent,
     this.controller,
     this.memberPortalEnabled = true,
+    this.siteAlienId = '',
+    this.catalogMeta = const {},
   });
 
   final int siteIid;
   final Color accent;
   final GuestSiteCartController? controller;
   final bool memberPortalEnabled;
+  final String siteAlienId;
+  final Map<String, dynamic> catalogMeta;
 
   @override
   State<GuestSiteOrdersChip> createState() => _GuestSiteOrdersChipState();
@@ -1542,12 +1559,14 @@ class GuestSiteOrdersChip extends StatefulWidget {
 
 class _GuestSiteOrdersChipState extends State<GuestSiteOrdersChip> {
   var _count = 0;
+  GuestMemberProfile? _profile;
 
   @override
   void initState() {
     super.initState();
     widget.controller?.addListener(_onCart);
     unawaited(_reload());
+    unawaited(_loadProfile());
   }
 
   @override
@@ -1564,45 +1583,141 @@ class _GuestSiteOrdersChipState extends State<GuestSiteOrdersChip> {
     setState(() => _count = list.length);
   }
 
+  Future<void> _loadProfile() async {
+    if (sessionAuthToken().isEmpty) return;
+    try {
+      final profile = await GuestMemberApi.me(siteIid: widget.siteIid);
+      if (!mounted) return;
+      setState(() => _profile = profile);
+    } catch (_) {}
+  }
+
+  Future<void> _shareStore() async {
+    await Clipboard.setData(ClipboardData(text: Uri.base.toString()));
+  }
+
+  Future<void> _signIn() async {
+    final returnTo = Uri.base.toString();
+    final base = C35Config.authApiBase.replaceAll(RegExp(r'/+$'), '');
+    final uri = Uri.parse('$base/v1/auth/google').replace(
+      queryParameters: {'return_to': returnTo, 'r': returnTo},
+    );
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _openPortal() async {
+    await guestSiteShowMemberPortal(context: context, siteIid: widget.siteIid, accent: widget.accent);
+    if (!mounted) return;
+    unawaited(_loadProfile());
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_count <= 0 && !widget.memberPortalEnabled) return const SizedBox.shrink();
+    final i18n = GuestSiteI18n.fromMeta(widget.catalogMeta);
+    final fg = Theme.of(context).colorScheme.onSurface;
+    final signedIn = sessionAuthToken().isNotEmpty;
+    final pic = _profile?.pic.trim() ?? '';
+
+    Widget signInChild;
+    if (signedIn && pic.isNotEmpty) {
+      signInChild = ClipOval(
+        child: Image.network(pic, width: 28, height: 28, fit: BoxFit.cover),
+      );
+    } else {
+      signInChild = Text(
+        signedIn ? (_profile?.displayName.trim().isNotEmpty == true ? _profile!.displayName : i18n.signIn) : i18n.signIn,
+        style: TextStyle(color: fg, fontSize: 12, fontWeight: FontWeight.w600),
+      );
+    }
+
     return Positioned(
       top: 12,
       right: 12,
-      child: Material(
-        color: const Color(0xCC18181B),
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => guestSiteShowMemberPortal(context: context, siteIid: widget.siteIid, accent: widget.accent),
-          customBorder: const CircleBorder(),
-          child: SizedBox(
-            width: 40,
-            height: 40,
-            child: _count > 0
-                ? Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(Icons.person_outline, color: Colors.white, size: 22),
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: widget.accent,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '$_count',
-                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, height: 1),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : const Icon(Icons.person_outline, color: Colors.white, size: 22),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _GuestHubChromeBtn(
+            fg: fg,
+            onTap: _shareStore,
+            tooltip: i18n.shareStoreAria,
+            child: Icon(Icons.share_outlined, size: 16, color: fg),
+          ),
+          const SizedBox(width: 8),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _GuestHubChromeBtn(
+                fg: fg,
+                onTap: () {
+                  if (signedIn) {
+                    unawaited(_openPortal());
+                  } else {
+                    unawaited(_signIn());
+                  }
+                },
+                tooltip: signedIn ? 'Akun' : i18n.signIn,
+                minWidth: signedIn && pic.isNotEmpty ? 36 : null,
+                padding: signedIn && pic.isNotEmpty ? const EdgeInsets.all(4) : const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                child: signInChild,
+              ),
+              if (_count > 0)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: widget.accent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '$_count',
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, height: 1),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuestHubChromeBtn extends StatelessWidget {
+  const _GuestHubChromeBtn({
+    required this.fg,
+    required this.onTap,
+    required this.tooltip,
+    required this.child,
+    this.minWidth,
+    this.padding,
+  });
+
+  final Color fg;
+  final VoidCallback onTap;
+  final String tooltip;
+  final Widget child;
+  final double? minWidth;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: fg.withValues(alpha: 0.05),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: BorderSide(color: fg.withValues(alpha: 0.1)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: padding ?? const EdgeInsets.all(10),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: minWidth ?? 36, minHeight: 36),
+            child: Center(child: child),
           ),
         ),
       ),

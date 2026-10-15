@@ -13,21 +13,29 @@ import 'package:alienai_c35/widgets/ui/ui_loading.dart';
 import 'package:alienai_c35/widgets/ui/ui_tooltip.dart';
 import 'package:flutter/material.dart';
 
-Future<void> showMsgTraceSheet(BuildContext context, {required String reqId, required ChatConn conn, int msgId = 0}) => showModalBottomSheet<void>(
+Future<void> showMsgTraceSheet(
+  BuildContext context, {
+  required String reqId,
+  required ChatConn conn,
+  int msgId = 0,
+  String thought = '',
+}) =>
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: const Color(0xFF18181B),
       barrierColor: const Color(0xE6000000),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (ctx) => _MsgTraceSheet(reqId: reqId, conn: conn, msgId: msgId),
+      builder: (ctx) => _MsgTraceSheet(reqId: reqId, conn: conn, msgId: msgId, thought: thought),
     );
 
 class _MsgTraceSheet extends StatefulWidget {
-  const _MsgTraceSheet({required this.reqId, required this.conn, this.msgId = 0});
+  const _MsgTraceSheet({required this.reqId, required this.conn, this.msgId = 0, this.thought = ''});
   final String reqId;
   final ChatConn conn;
   final int msgId;
+  final String thought;
 
   @override
   State<_MsgTraceSheet> createState() => _MsgTraceSheetState();
@@ -141,6 +149,8 @@ class _MsgTraceSheetState extends State<_MsgTraceSheet> {
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Text(traceTotalsLine(_view.totals), style: const TextStyle(color: Color(0xFF71717A), fontSize: 12)),
               ),
+            if (widget.thought.trim().isNotEmpty && Session.instance.isRoot)
+              _MsgTraceThoughtSection(thought: widget.thought.trim()),
             const Divider(height: 1, color: Color(0xFF27272A)),
             Expanded(
               child: _loading
@@ -488,6 +498,95 @@ class _ToolFilterCandidateRow extends StatelessWidget {
                   ),
           ),
           Text(sim, style: TextStyle(color: simColor, fontSize: 11, fontFeatures: const [FontFeature.tabularFigures()])),
+        ],
+      ),
+    );
+  }
+}
+
+class _MsgTraceThoughtSection extends StatefulWidget {
+  const _MsgTraceThoughtSection({required this.thought});
+  final String thought;
+
+  @override
+  State<_MsgTraceThoughtSection> createState() => _MsgTraceThoughtSectionState();
+}
+
+class _MsgTraceThoughtSectionState extends State<_MsgTraceThoughtSection> {
+  var _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF2E2E33)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    _expanded ? Icons.expand_more_rounded : Icons.chevron_right_rounded,
+                    size: 16,
+                    color: const Color(0xFFA1A1AA),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.psychology_rounded, size: 16, color: Color(0xFF818CF8)),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Model Reasoning (Internal Thought)',
+                      style: TextStyle(
+                        color: Color(0xFFE4E4E7),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF27272A),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'ROOT ONLY',
+                      style: TextStyle(
+                        color: Color(0xFFA1A1AA),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded) ...[
+            const Divider(height: 1, color: Color(0xFF2E2E33)),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SelectableText(
+                widget.thought,
+                style: const TextStyle(
+                  color: Color(0xFFD4D4D8),
+                  fontSize: 12,
+                  fontFamily: 'Consolas',
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

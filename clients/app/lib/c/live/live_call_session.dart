@@ -9,6 +9,7 @@ import 'package:alienai_c35/c/live/live_pcm_jitter_buffer.dart';
 import 'package:alienai_c35/c/live/live_pcm_playout.dart';
 import 'package:alienai_c35/c/pb/c35/live.pb.dart';
 import 'package:alienai_c35/c/session.dart';
+import 'package:alienai_c35/c/session/session_busy_registry.dart';
 import 'package:alienai_c35/c/stt/stt_mic_permission.dart';
 import 'package:alienai_c35/c/stt/stt_service.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -275,6 +276,7 @@ class LiveCallSession {
     } else if (_activeOutboundLiveCalls > 0) {
       _activeOutboundLiveCalls--;
     }
+    SessionBusyRegistry.liveCallActive = _activeOutboundLiveCalls > 0;
   }
 
   Future<void> connectGuest(String wsPath) async {

@@ -320,12 +320,13 @@ fn block_product_grid_renders_products() {
     assert!(!html.contains("guest-product-info-btn"));
     assert!(!html.contains("guest-product-share-btn"));
     assert!(html.contains("guest-product-tile"));
-    assert!(html.contains("product-grid-title"));
-    assert!(html.contains("Katalog &amp; Layanan"));
+    assert!(!html.contains("product-grid-title"));
+    assert!(!html.contains("guest-section-eyebrow"));
     assert!(html.contains("data-site-iid=\"42\""));
     assert!(html.contains("data-block-id=\"g1\""));
     assert!(html.contains("data-next-cursor=\"0:102\""));
-    assert!(html.contains("guest-load-more-btn"));
+    assert!(html.contains("data-guest-catalog-sentinel"));
+    assert!(!html.contains("guest-load-more-btn"));
 }
 
 fn sample_product(can_reserve: bool) -> ProductRow {

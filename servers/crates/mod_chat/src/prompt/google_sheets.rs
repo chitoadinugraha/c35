@@ -2,7 +2,7 @@
 
 pub const GOOGLE_SHEETS_DESKTOP_PLAYBOOK: &str = "[GOOGLE SHEETS ON DEVICE] \
 Turn 0 already provides a Set-of-Mark desktop observation with Canvas OCR. For subsequent steps or verification, call device.screenshot with som=true. \
-Prefer computer_use.delegate with the full user goal, or stepwise device.input — never tell the user to type in cells or rename the title themselves. \
+Use direct stepwise device.input (with ctrl+g goto name box and type_text) — never tell the user to type in cells or rename the title themselves. \
 Desktop @device uses OS device.input only — never browser.sheets.* (extension API) and never shell.run PowerShell/SendKeys/WScript for spreadsheet typing or sample rows. \
 Always use device.input (with batch actions: [...] or click_and_type). \
 Launch: shell.run may open Chrome or https://sheets.new only when no Sheets tab is visible; reuse an existing spreadsheet tab when present. \
@@ -15,13 +15,13 @@ Spreadsheet title: click the Rename control (Untitled spreadsheet) and click_and
 If text lands in the wrong column (e.g. GenderNama, or D1/E1 filled for a 3-column task), clear and redo. \
 Finish only when the screenshot proves the requested title, headers, and row count — not when a shell script was attempted.";
 
-/// Parent Home turn must delegate; child `computer_use` run does the stepwise UI work.
-pub const GOOGLE_SHEETS_PARENT_TURN_RULE: &str = "[GOOGLE SHEETS PARENT TURN] \
-Your first tool call on this turn must be computer_use.delegate with kind=computer_use, topic_id=device, device_iid from the @mention, and the full user goal. \
-Do not answer with prose or claim success on the parent turn. Do not use stepwise device.input on the parent unless delegate already returned goal_met=true.";
+/// On @device Windows/desktop, execute directly via device.input using name box or shortcuts.
+pub const GOOGLE_SHEETS_PARENT_TURN_RULE: &str = "[GOOGLE SHEETS DIRECT INPUT] \
+Execute cell edits, clicks, and text typing directly using device.input with batch actions [shortcut ctrl+g, type_text C3, shortcut enter]. \
+Do not delegate to background subagents for single-turn cell edits, clicks, or simple typing.";
 
 pub const GOOGLE_SHEETS_PARENT_CONTINUE_HINT: &str = "Google Sheets on @device is not done yet. \
-Call computer_use.delegate (kind=computer_use) with the full goal, or continue device.screenshot (som=true) and device.input using the name box (A1, B1, A2…) — not pixel guesses. \
+Continue using device.input with the name box (A1, B1, A2…) and verify with device.screenshot (som=true) — not pixel guesses. \
 Do not tell the user the sheet is finished until a screenshot shows the requested rows/title.";
 /// Exact device.input pattern for selecting a cell without grid pixel clicks (Google Sheets web).
 pub const GOOGLE_SHEETS_GOTO_RECIPE: &str = "[GOOGLE SHEETS GOTO CELL] \
@@ -370,6 +370,9 @@ pub fn google_sheets_parent_turn_may_finish(
     if delegate_goal_met {
         return true;
     }
+    if counts.device_input >= 1 {
+        return true;
+    }
     google_sheets_tool_activity_sufficient(goal, counts) && counts.device_screenshot >= 2
 }
 
@@ -382,7 +385,7 @@ pub const GOOGLE_SHEETS_PIXEL_GRID_STEER_HINT: &str = "That device.input batch u
 Use ctrl+g, type the cell (e.g. A2), enter, then type_text + tab for each value. Screenshot must show the name box on column A before you claim success.";
 
 pub const GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT: &str = "shell.run is not allowed for Google Sheets grid edits on @device (no SendKeys, echo scripts, or COM automation). \
-Use computer_use.delegate or device.input with ctrl+g goto (A2, A3, …) and type_text + tab; verify with device.screenshot.";
+Use device.input with ctrl+g goto (A2, A3, …) and type_text + tab; verify with device.screenshot.";
 
 pub fn google_sheets_shell_command_forbidden(command: &str) -> bool {
     let t = command.to_ascii_lowercase();

@@ -1722,10 +1722,6 @@ fn compose_device_sheets_header_rename_feds_input_from_iid_in_text() {
         out.tools.iter().any(|t| t.name == "device.input"),
         "device.input must be fed when Sheets header edit is detected on @device"
     );
-    assert!(
-        out.tools.iter().any(|t| t.name == "computer_use.delegate"),
-        "computer_use.delegate must be fed"
-    );
 }
 
 #[test]
@@ -1757,8 +1753,8 @@ fn compose_device_sheets_add_rows_without_google_keyword_excludes_shell() {
         "add rows on @device should inject inst.device.google_sheets"
     );
     assert!(
-        out.tools.iter().any(|t| t.name == "computer_use.delegate"),
-        "computer_use.delegate must be fed"
+        out.tools.iter().any(|t| t.name == "device.input"),
+        "device.input must be fed"
     );
     assert!(
         !out.tools.iter().any(|t| t.name == "shell.run"),

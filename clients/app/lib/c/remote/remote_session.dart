@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
+import 'package:alienai_c35/c/session/session_busy_registry.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/pb/c35/remote.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
@@ -205,6 +206,10 @@ class RemoteSession {
     return false;
   }
 
+  static void _syncRemoteControlBusyFlag() {
+    SessionBusyRegistry.remoteControlActive = anyControllingDevice();
+  }
+
   static Future<void> dispose(int deviceIid) async {
     final s = _sessions.remove(deviceIid);
     if (s != null) {
@@ -214,6 +219,7 @@ class RemoteSession {
         s._rendererInitialized = false;
       }
     }
+    _syncRemoteControlBusyFlag();
   }
 
   Future<void> _ensureVideoRenderer() async {
@@ -380,6 +386,7 @@ class RemoteSession {
         if (connected.value != up) {
           connected.value = up;
           l('remote pc state=$s connected=$up');
+          _syncRemoteControlBusyFlag();
         }
         if (up) {
           _disconnectedGraceTimer?.cancel();
@@ -389,6 +396,7 @@ class RemoteSession {
           _retryCount = 0;
           status.value = RemoteSessionStatus.connected;
           isControlEnabled.value = true;
+          _syncRemoteControlBusyFlag();
         } else if (s == RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
           _disconnectedGraceTimer?.cancel();
           _disconnectedGraceTimer = null;
@@ -511,6 +519,7 @@ class RemoteSession {
     _clearVideoRendererStream();
     isControlEnabled.value = false;
     connected.value = false;
+    _syncRemoteControlBusyFlag();
     updateReady.value = false;
     updateVersion.value = null;
     fs?.dispose();
@@ -583,6 +592,7 @@ class RemoteSession {
       l('remote-input channel state=$s');
       if (s == RTCDataChannelState.RTCDataChannelOpen) {
         isControlEnabled.value = true;
+        _syncRemoteControlBusyFlag();
       }
     };
     ch.onMessage = (msg) {

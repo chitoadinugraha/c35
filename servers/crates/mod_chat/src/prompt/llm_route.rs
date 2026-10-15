@@ -72,14 +72,6 @@ fn parse_out_ready(out: &ParseOut) -> bool {
     !out.text.trim().is_empty() || out.function_call.is_some() || !out.function_calls.is_empty()
 }
 
-fn parse_out_promote_thought(mut out: ParseOut) -> ParseOut {
-    if out.text.trim().is_empty() && !out.thought.trim().is_empty() {
-        out.text = out.thought.trim().to_string();
-        out.thought.clear();
-    }
-    out
-}
-
 fn gemini_http_err_retryable(err: &str) -> bool {
     let lower = err.to_ascii_lowercase();
     lower.contains("429")
@@ -146,11 +138,7 @@ pub async fn llm_generate_chain(
             Ok((out, provider_model)) if parse_out_ready(&out) => {
                 return Ok((out, provider_model, bill_model_slug(requested_model)));
             }
-            Ok((out, provider_model)) if model_is_alien(requested_model) => {
-                let promoted = parse_out_promote_thought(out);
-                if parse_out_ready(&promoted) {
-                    return Ok((promoted, provider_model, bill_model_slug(requested_model)));
-                }
+            Ok((_out, provider_model)) if model_is_alien(requested_model) => {
                 last_err = format!("empty response from {provider_model}");
                 continue;
             }
@@ -253,11 +241,7 @@ pub async fn llm_stream_chain(
             Ok((out, provider_model)) if parse_out_ready(&out) => {
                 return Ok((out, provider_model, bill_model_slug(requested_model)));
             }
-            Ok((out, provider_model)) if model_is_alien(requested_model) => {
-                let promoted = parse_out_promote_thought(out);
-                if parse_out_ready(&promoted) {
-                    return Ok((promoted, provider_model, bill_model_slug(requested_model)));
-                }
+            Ok((_out, provider_model)) if model_is_alien(requested_model) => {
                 last_err = format!("empty response from {provider_model}");
                 continue;
             }

@@ -211,6 +211,7 @@ class GuestSiteHeroBlock extends StatelessWidget {
   final Key? avatarKey;
   final List<SiteScheduleSlot> openHours;
   final bool hoursPrimaryCta;
+  final bool showShareButton;
 
   @override
   Widget build(BuildContext context) {
@@ -896,7 +897,9 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
     setState(() => _loadingMore = true);
     try {
       final filter = widget.props['filter']?.toString() ?? 'all';
-      final category = widget.props['category']?.toString() ?? '';
+      final category = _categoryFilter?.trim().isNotEmpty == true
+          ? _categoryFilter!.trim()
+          : (widget.props['category']?.toString() ?? '');
       final uri = Uri.parse('$authApiProductionUrl/v1/site/guest-product/list');
       final resp = await http.post(
         uri,
@@ -931,7 +934,7 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       final c = p['category']?.toString().trim() ?? '';
       if (c.isNotEmpty) cats.add(c);
     }
-    if (cats.length < 2) return const [];
+    if (cats.isEmpty) return const [];
     return cats.toList()..sort();
   }
 
@@ -968,7 +971,17 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
 
     final sectionFg = widget.foreground ?? _guestTextPrimary;
     final sectionMuted = widget.muted ?? _guestTextSecondary;
-    return Container(
+    return NotificationListener<ScrollNotification>(
+      onNotification: (n) {
+        if (n is! ScrollUpdateNotification && n is! ScrollEndNotification) return false;
+        final m = n.metrics;
+        if (m.maxScrollExtent <= 0) return false;
+        if (m.pixels >= m.maxScrollExtent - 360) {
+          unawaited(_loadMore());
+        }
+        return false;
+      },
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: sectionFg.withValues(alpha: 0.09))),
@@ -1066,17 +1079,13 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
               );
             },
           ),
-          if (_nextCursor != null && widget.siteIid > 0) ...[
+          if (_loadingMore) ...[
             const SizedBox(height: 12),
-            Align(
-              child: TextButton(
-                onPressed: _loadingMore ? null : _loadMore,
-                child: Text(_loadingMore ? i18n.loading : i18n.loadMore),
-              ),
-            ),
+            Center(child: Text(i18n.loading, style: TextStyle(color: sectionMuted, fontSize: 12))),
           ],
         ],
       ),
+    ),
     );
   }
 

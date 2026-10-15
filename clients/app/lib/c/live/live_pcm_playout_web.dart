@@ -49,6 +49,8 @@ class LivePcmPlayoutWeb implements LivePcmPlayout {
     _started = true;
   }
 
+  @override
+  Future<void> refreshQueuedMs() async {}
 
   @override
   Future<void> write(Uint8List pcm) async {

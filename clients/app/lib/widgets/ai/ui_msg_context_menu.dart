@@ -9,14 +9,20 @@ import 'package:alienai_c35/widgets/ai/ui_msg_trace_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-Future<void> showMsgTraceBottomSheet(BuildContext context, {required String reqId, required ChatConn conn, int msgId = 0}) async {
-  if (reqId.trim().isEmpty) {
+Future<void> showMsgTraceBottomSheet(
+  BuildContext context, {
+  required String reqId,
+  required ChatConn conn,
+  int msgId = 0,
+  String thought = '',
+}) async {
+  if (reqId.trim().isEmpty && thought.trim().isEmpty) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No trace available'), behavior: SnackBarBehavior.floating, duration: Duration(seconds: 2)));
     }
     return;
   }
-  await showMsgTraceSheet(context, reqId: reqId.trim(), conn: conn, msgId: msgId);
+  await showMsgTraceSheet(context, reqId: reqId.trim(), conn: conn, msgId: msgId, thought: thought);
 }
 
 List<ChatMessageMenuItem> msgBubbleMenuItems(
@@ -27,6 +33,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   required bool isAssistant,
   required String reqId,
   int msgId = 0,
+  String thought = '',
   VoidCallback? onSpeak,
   bool showRetry = false,
   VoidCallback? onRetryLastTurn,
@@ -40,7 +47,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   final selected = selectedText?.trim() ?? '';
   final copyOut = selected.isNotEmpty ? selectedText! : text;
   final traceConn = conn;
-  final canTrace = msgCanTrace(viewerIsRoot: viewerIsRoot, isAssistant: isAssistant, reqId: reqId);
+  final canTrace = msgCanTrace(viewerIsRoot: viewerIsRoot, isAssistant: isAssistant, reqId: reqId) || (viewerIsRoot && thought.trim().isNotEmpty);
   final traceAction = canTrace
       ? ChatMessageMenuAction(
           label: 'Trace',
@@ -49,7 +56,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
             ContextMenuController.removeAny();
             final opened = traceConn;
             if (opened == null || !context.mounted) return;
-            unawaited(showMsgTraceBottomSheet(context, reqId: reqId, conn: opened, msgId: msgId));
+            unawaited(showMsgTraceBottomSheet(context, reqId: reqId, conn: opened, msgId: msgId, thought: thought));
           },
         )
       : null;
@@ -240,6 +247,7 @@ Widget msgBubbleContextMenu(
   required bool isAssistant,
   required String reqId,
   int msgId = 0,
+  String thought = '',
   VoidCallback? onSpeak,
   bool showRetry = false,
   VoidCallback? onRetryLastTurn,
@@ -256,6 +264,7 @@ Widget msgBubbleContextMenu(
     isAssistant: isAssistant,
     reqId: reqId,
     msgId: msgId,
+    thought: thought,
     onSpeak: onSpeak,
     showRetry: showRetry,
     onRetryLastTurn: onRetryLastTurn,

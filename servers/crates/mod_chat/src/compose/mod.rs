@@ -268,13 +268,13 @@ pub fn compose_force_browser_ensure_tool_call(matched_ids: &[String], tools: &[T
         && tools.iter().any(|t| t.name == "browser.ensure")
 }
 
-/// @device UI operate / Google Forms — hop 1 must call computer_use.delegate (not prose handoff).
+/// @device UI operate / Google Forms — hop 1 must call a device action tool (not prose handoff).
 pub fn compose_force_device_operate_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {
     matched_ids.iter().any(|id| {
         id == "inst.device.operate"
             || id == "inst.device.google_forms"
             || id == "inst.device.google_sheets"
-    }) && tools_has(tools, "computer_use.delegate")
+    }) && (tools_has(tools, "device.input") || tools_has(tools, "computer_use.delegate"))
 }
 
 pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> bool {

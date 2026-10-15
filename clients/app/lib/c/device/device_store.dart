@@ -5,7 +5,8 @@ import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/device/device_api.dart';
 import 'package:alienai_c35/c/device/device_presence_cache.dart';
 import 'package:alienai_c35/c/log.dart';
-import 'package:alienai_c35/c/remote/remote_session.dart';
+import 'package:alienai_c35/c/remote/remote_session_bridge.dart';
+import 'package:alienai_c35/c/remote/webrtc_module_loader.dart';
 import 'package:alienai_c35/c/pb/c35/device.pb.dart';
 import 'package:alienai_c35/c/pb/c35/identity.pb.dart';
 import 'package:alienai_c35/c/session.dart';
@@ -379,7 +380,8 @@ class DeviceStore extends ChangeNotifier {
       await ensureConnected();
       await identityDelete(_conn, iid);
       if (row.identity.kind.toLowerCase() == 'remote') {
-        await RemoteSession.dispose(iid);
+        await ensureWebRtcModule();
+        await remoteSessionDisposeForDevice(iid);
       }
       _rows.removeWhere((r) => r.identity.iid.toString() == id);
       if (_selectedId == id) {

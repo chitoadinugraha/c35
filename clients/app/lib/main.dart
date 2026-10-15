@@ -27,6 +27,7 @@ import 'package:alienai_c35/widgets/ui/ui_update_banner.dart';
 import 'package:alienai_c35/widgets/ui/ui_windows_title_sync.dart';
 import 'package:alienai_c35/widgets/ui/ui_window_bar.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:alienai_c35/c/remote/remote_session_bootstrap.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
@@ -42,6 +43,7 @@ const _bg = Color(0xFF08080A);
 Future<void> main() async {
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
+    bootstrapRemoteSession();
     uiErrorHook();
     EasyLocalization.logger.enableBuildModes = [];
     await EasyLocalization.ensureInitialized();

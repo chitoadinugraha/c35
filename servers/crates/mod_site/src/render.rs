@@ -1094,12 +1094,22 @@ pub fn guest_favicon_head_markup(favicon_url: &str) -> String {
     )
 }
 
+const GUEST_HERO_SHARE_ICON: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>"#;
+
+fn guest_hub_member_btn_html(sign_in_label: &str) -> String {
+    format!(
+        r#"<button type="button" id="c35-guest-hub-member" class="guest-hero-signin-btn" style="display:none;" onclick="c35GuestOrders.open()" aria-label="{label}" title="{label}"><span class="guest-signin-label">{label}</span><span class="guest-signin-avatar" hidden></span><span class="guest-member-badge" hidden></span></button>"#,
+        label = esc(sign_in_label),
+    )
+}
+
 fn guest_hub_hero_inner_html(
     props: &Value,
     profile: &ProfileDesign,
     design: &GuestDesign,
     site_meta: &Value,
     hours_primary_cta: bool,
+    i18n: &GuestI18n,
 ) -> String {
     let title = props.get("title").and_then(|x| x.as_str()).unwrap_or("");
     let subtitle = props.get("subtitle").and_then(|x| x.as_str()).unwrap_or("");
@@ -1169,10 +1179,15 @@ fn guest_hub_hero_inner_html(
     } else {
         String::new()
     };
-    let share_btn = r#"<button type="button" class="guest-hero-share-btn" onclick="c35GuestShare()" aria-label="Share Store" title="Share">&#128279;</button>"#;
-    let member_btn = r#"<button type="button" id="c35-guest-hub-member" class="guest-hero-member-btn" style="display:none;" onclick="c35GuestOrders.open()" title="Akun">Akun</button>"#;
+    let share_aria = esc_attr(i18n.share_store_aria());
+    let share_btn = format!(
+        r#"<button type="button" class="guest-hero-share-btn" onclick="c35GuestShare()" aria-label="{aria}" title="{aria}">{icon}</button>"#,
+        aria = share_aria,
+        icon = GUEST_HERO_SHARE_ICON,
+    );
+    let member_btn = guest_hub_member_btn_html(i18n.sign_in());
     let top_actions = format!(
-        r#"<div class="guest-hub-actions">{member_btn}{share_btn}</div>"#,
+        r#"<div class="guest-hub-actions">{share_btn}{member_btn}</div>"#,
         member_btn = member_btn,
         share_btn = share_btn,
     );
@@ -1200,6 +1215,7 @@ pub fn block_html_render(
     featured: &[FeaturedContact],
     site_meta: &Value,
 ) -> String {
+    let hub_i18n = GuestI18n::from_meta(site_meta);
     match block_type {
         "hero" => {
             // Match Flutter `GuestSiteHubProfileBlock` / `hub_profile` hours-primary CTA.
@@ -1208,7 +1224,7 @@ pub fn block_html_render(
             let hours_primary = profile.show_hours
                 && show_hours
                 && !crate::guest_schedule::slots_from_meta(site_meta).is_empty();
-            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta, hours_primary);
+            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta, hours_primary, &hub_i18n);
             format!(
                 r#"<section class="block hub-profile" data-guest="hero"><div class="guest-hub-hero">{inner}</div></section>"#,
                 inner = inner,
@@ -1276,29 +1292,18 @@ pub fn block_html_render(
             let (site_iid, block_id, next_cursor) = grid_ctx
                 .map(|g| (g.site_iid, g.block_id.as_str(), g.next_cursor.as_str()))
                 .unwrap_or((0, "", ""));
-            let load_more = if next_cursor.is_empty() {
+            let scroll_sentinel = if next_cursor.is_empty() {
                 String::new()
             } else {
-                format!(
-                    r#"<button type="button" class="guest-load-more-btn" onclick="c35GuestCatalog.loadMore(this)">{label}</button>"#,
-                    label = esc(i18n.load_more()),
-                )
+                r#"<div class="guest-catalog-scroll-sentinel" data-guest-catalog-sentinel aria-hidden="true"></div>"#
+                    .to_string()
             };
             let (card_open, card_close) = design.card_wrap("site_product");
-            let grid_title = props
-                .get("title")
-                .and_then(|x| x.as_str())
-                .filter(|s| !s.trim().is_empty())
-                .unwrap_or(i18n.catalog_default_title());
-            let heading = format!(
-                r#"<p class="guest-section-eyebrow">{}</p><h2 class="product-grid-title">{}</h2>"#,
-                esc(i18n.catalog_section_eyebrow()),
-                esc(grid_title),
-            );
+            let heading = product_grid_heading_html(props, &i18n);
             let search = product_grid_search_html(products.len(), site_meta, &i18n);
             let filters = product_grid_category_filters_html(products, category, &i18n);
             format!(
-                r#"<section class="block product-grid" data-guest="site_product" data-display="{display}" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{heading}{search}{filters}{card_open}<div class="{layout_class}">{items}</div>{load_more}{card_close}</section>"#,
+                r#"<section class="block product-grid" data-guest="site_product" data-display="{display}" data-block-id="{bid}" data-site-iid="{sid}" data-filter="{filter}" data-category="{category}" data-next-cursor="{cursor}">{heading}{search}{filters}{card_open}<div class="{layout_class}">{items}</div>{scroll_sentinel}{card_close}</section>"#,
                 display = esc(display),
                 bid = esc(block_id),
                 sid = site_iid,
@@ -1308,7 +1313,7 @@ pub fn block_html_render(
                 layout_class = layout_class,
                 card_open = card_open,
                 items = items,
-                load_more = load_more,
+                scroll_sentinel = scroll_sentinel,
                 card_close = card_close,
             )
         }
@@ -1473,7 +1478,7 @@ pub fn block_html_render(
             let hours_primary = profile.show_hours
                 && show_hours
                 && !crate::guest_schedule::slots_from_meta(site_meta).is_empty();
-            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta, hours_primary);
+            let inner = guest_hub_hero_inner_html(props, profile, design, site_meta, hours_primary, &hub_i18n);
             let location_html = if profile.show_location && !location_label.trim().is_empty() {
                 format!(
                     r#"<div class="hub-location"><span class="hub-location-icon" aria-hidden="true">&#128205;</span><span class="hub-location-label">{}</span></div>"#,
@@ -1826,13 +1831,28 @@ fn theme_effects(theme_json: &str) -> Value {
     theme.get("effects").cloned().unwrap_or_else(|| json!([]))
 }
 
+fn product_grid_heading_html(props: &Value, i18n: &GuestI18n) -> String {
+    let raw = props
+        .get("title")
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .trim();
+    if raw.is_empty() || raw == i18n.catalog_default_title() {
+        return String::new();
+    }
+    format!(
+        r#"<h2 class="product-grid-title">{}</h2>"#,
+        esc(raw),
+    )
+}
+
 /// Sticky cart row + assistant host (parity with Flutter `GuestSiteShell` chrome).
 pub fn guest_storefront_chrome_html() -> &'static str {
     r#"<header id="c35-guest-sticky" class="guest-sticky-bar" hidden aria-hidden="true">
   <div class="guest-sticky-inner">
     <img class="guest-sticky-avatar" alt="" width="32" height="32" hidden/>
     <span class="guest-sticky-title"></span>
-    <button type="button" id="c35-guest-sticky-member" class="guest-sticky-member" style="display:none;" onclick="c35GuestOrders.open()">Akun</button>
+    <button type="button" id="c35-guest-sticky-member" class="guest-sticky-signin-btn guest-hero-signin-btn" style="display:none;" onclick="c35GuestOrders.open()" aria-label="Masuk" title="Masuk"><span class="guest-signin-label">Masuk</span><span class="guest-signin-avatar" hidden></span><span class="guest-member-badge" hidden></span></button>
     <a class="guest-sticky-cta" hidden></a>
   </div>
 </header>

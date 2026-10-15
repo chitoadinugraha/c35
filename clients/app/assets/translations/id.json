@@ -147,6 +147,7 @@
     "mail.inbox": "Inbox",
     "mail.outbox": "Outbox",
     "mail.compose": "Tulis",
+    "mail.loadingModule": "Memuat email...",
     "mail.refresh": "Refresh",
     "mail.send": "Send",
     "mail.from": "From",
@@ -540,5 +541,7 @@
         "inboundNothingUsable": "Tidak ada yang bisa dipakai dari share itu.",
         "inboundPartialSkipped": "Beberapa item dilewati (ukuran, tipe, atau batas). Dilewati: {count}.",
         "inboundComposerNotReady": "Composer belum siap. Coba lagi."
-    }
+    },
+    "live.loadingModule": "Memuat panggilan...",
+    "devices.loadingModule": "Memuat perangkat..."
 }

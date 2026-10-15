@@ -39,7 +39,7 @@ import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:alienai_c35/pages/finance/page_finance_payments.dart';
 import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
 import 'package:alienai_c35/pages/page_allow_control.dart' show ThisPcRegister;
-import 'package:alienai_c35/pages/mail/page_mail.dart';
+import 'package:alienai_c35/pages/mail/mail_module_loader.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/pages/page_sites.dart';
 import 'package:alienai_c35/pages/page_site_pos.dart';
@@ -629,7 +629,7 @@ class _PageSettingsState extends State<PageSettings> {
                               icon: Icons.mail_outlined,
                               title: 'mail.title'.tr(),
                               subtitle: 'mail.inbox'.tr(),
-                              onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageMail(chatConn: widget.chatConn!))),
+                              onTap: () => unawaited(openPageMail(context, chatConn: widget.chatConn!)),
                             ),
                           ),
                         ],

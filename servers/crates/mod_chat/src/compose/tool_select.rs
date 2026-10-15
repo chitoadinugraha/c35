@@ -47,7 +47,6 @@ pub fn compose_force_bot_web(eligible: &[ToolDef], force_include: &mut Vec<Strin
 
 /// Desktop UI automation on @device — always feed the full operate stack (not only RAG top-5).
 pub const DEVICE_OPERATE_FORCE_TOOLS: &[&str] = &[
-    "computer_use.delegate",
     "device.screenshot",
     "device.input",
     "shell.run",

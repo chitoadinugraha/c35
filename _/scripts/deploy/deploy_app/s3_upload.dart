@@ -180,6 +180,7 @@ Future<int> s3SyncDir({
     if (entity is! File) continue;
     final abs = p.normalize(entity.absolute.path);
     final rel = p.relative(abs, from: base).replaceAll('\\', '/');
+    if (rel.endsWith('.symbols')) continue;
     final key = '$prefixNorm/$rel';
     await s3PutFile(cfg: cfg, key: key, file: entity, cacheControl: _cacheControlFor(rel));
     count++;

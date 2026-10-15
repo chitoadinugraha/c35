@@ -63,6 +63,8 @@ pub struct GoogleStartQ {
     #[serde(rename = "return")]
     pub return_path: Option<String>,
     pub return_to: Option<String>,
+    /// Alias for `return_to` (guest storefront sign-in uses `r=` with full page URL).
+    pub r: Option<String>,
     pub public_origin: Option<String>,
     pub client_id: Option<String>,
     pub launch: Option<String>,
@@ -78,7 +80,12 @@ pub async fn google_start(
     }
     let return_path = oauth_return_store(
         q.launch.as_deref(),
-        &sanitize_return(q.return_to.as_deref().or(q.return_path.as_deref())),
+        &sanitize_return(
+            q.return_to
+                .as_deref()
+                .or(q.r.as_deref())
+                .or(q.return_path.as_deref()),
+        ),
     );
     let origin = q
         .public_origin

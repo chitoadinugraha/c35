@@ -204,10 +204,18 @@
       priceContact: i.price_contact || 'Contact us',
       tileContactCta: i.tile_contact_cta || 'Contact',
       filterAll: i.filter_all || 'All',
+      signIn: i.sign_in || 'Sign in',
+      shareStoreAria: i.share_store_aria || 'Share store',
       loadMore: i.load_more || 'Load more',
       loading: i.loading || 'Loading…',
       detailAria: i.detail_aria || 'Product details',
       shareAria: i.share_aria || 'Share product',
+      assistantChatSubtitle: i.assistant_chat_subtitle || 'We typically reply in a few minutes',
+      assistantChatEmpty: i.assistant_chat_empty || 'Ask {name} about products, hours, or your order.',
+      assistantSendAria: i.assistant_send_aria || 'Send message',
+      assistantCloseAria: i.assistant_close_aria || 'Close',
+      assistantPoweredPrefix: i.assistant_powered_prefix || 'Powered by',
+      assistantPlaceholderDefault: i.assistant_placeholder_default || 'Type a message…',
     };
   }
 
@@ -286,6 +294,10 @@
     return (location.hostname === 'alienai.id' || location.hostname.endsWith('.alienai.id'))
       ? 'https://api.alienai.id'
       : '';
+  }
+
+  function guestMemberPicKey(siteIid) {
+    return 'c35.guest.member.pic.v1.' + siteIid;
   }
 
   function guestAuthTokenKey(siteIid) {
@@ -515,18 +527,32 @@
         + '<div class="product-list-body"><h3>' + name + '</h3><p>' + desc + '</p></div>'
         + '<div class="product-list-trail">' + priceHtml + action + '</div></article>';
     },
-    async loadMore(btn) {
-      const section = btn && btn.closest ? btn.closest('section.product-grid') : null;
+    activeCategory(section) {
+      if (!section) return '';
+      const chip = section.querySelector('.guest-catalog-chip.is-active');
+      const fromChip = chip ? (chip.getAttribute('data-guest-filter') || '') : '';
+      if (fromChip) return fromChip;
+      return section.getAttribute('data-category') || '';
+    },
+    async loadMore(target) {
+      const section = target && target.section
+        ? target.section
+        : (target && target.closest ? target.closest('section.product-grid') : null);
+      const silent = !!(target && target.silent);
       if (!section) return;
       const siteIid = parseInt(section.getAttribute('data-site-iid') || '0', 10);
       const cursor = section.getAttribute('data-next-cursor') || '';
       if (!siteIid || !cursor) return;
-      btn.disabled = true;
-      btn.textContent = guestI18nStrings().loading;
+      const btn = !silent && target && target.closest ? target : null;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = guestI18nStrings().loading;
+      }
+      section.classList.add('guest-catalog-loading');
       const payload = {
         site_iid: siteIid,
         filter: section.getAttribute('data-filter') || 'all',
-        category: section.getAttribute('data-category') || '',
+        category: window.c35GuestCatalog.activeCategory(section),
         cursor,
         limit: 24,
       };
@@ -550,15 +576,23 @@
         }
         const next = (data && data.next_cursor) ? data.next_cursor : '';
         section.setAttribute('data-next-cursor', next);
-        if (!next) btn.style.display = 'none';
-        else {
-          btn.disabled = false;
-          btn.textContent = 'Muat lebih banyak';
+        const sentinel = section.querySelector('[data-guest-catalog-sentinel]');
+        if (sentinel) sentinel.hidden = !next;
+        if (btn) {
+          if (!next) btn.style.display = 'none';
+          else {
+            btn.disabled = false;
+            btn.textContent = guestI18nStrings().loadMore;
+          }
         }
       } catch (err) {
-        alert('Gagal memuat produk: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Muat lebih banyak';
+        if (!silent) alert('Gagal memuat produk: ' + err.message);
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = guestI18nStrings().loadMore;
+        }
+      } finally {
+        section.classList.remove('guest-catalog-loading');
       }
     },
   };
@@ -1647,6 +1681,28 @@
     });
   }
 
+  function initGuestCatalogInfiniteScroll() {
+    if (window.__c35CatalogInfiniteBound) return;
+    window.__c35CatalogInfiniteBound = true;
+    const loading = new WeakSet();
+    const observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        const section = entry.target.closest ? entry.target.closest('section.product-grid') : null;
+        if (!section || loading.has(section)) return;
+        const cursor = section.getAttribute('data-next-cursor') || '';
+        if (!cursor) return;
+        loading.add(section);
+        window.c35GuestCatalog.loadMore({ section: section, silent: true }).finally(function () {
+          loading.delete(section);
+        });
+      });
+    }, { rootMargin: '320px 0px' });
+    document.querySelectorAll('[data-guest-catalog-sentinel]').forEach(function (el) {
+      observer.observe(el);
+    });
+  }
+
   function initGuestStickyBar() {
     const bar = document.getElementById('c35-guest-sticky');
     if (!bar || bar.getAttribute('data-bound') === '1') return;
@@ -1661,7 +1717,12 @@
       avatarEl.src = hubAvatar.getAttribute('src');
       avatarEl.hidden = false;
     }
-    const link = document.querySelector('a.guest-link-list[href]');
+    const boot = window.__SITE_GUEST__ || {};
+    const layout = String(boot.guest_layout || '');
+    const productCount = (boot.commerce_boot && boot.commerce_boot.products || []).length;
+    const storeCatalog =
+      layout === 'store' || productCount > 0 || !!document.querySelector('section.product-grid');
+    const link = storeCatalog ? null : document.querySelector('a.guest-link-list[href]');
     if (ctaEl && link) {
       ctaEl.href = link.getAttribute('href') || '#';
       ctaEl.textContent = (link.querySelector('.guest-link-label') || {}).textContent || guestI18nStrings().tileContactCta;
@@ -1685,6 +1746,7 @@
       initGuestCatalogSearch();
       initGuestHubCatalogTabs();
       initGuestStickyBar();
+      initGuestCatalogInfiniteScroll();
       if (!document.getElementById('c35-guest-pic-lightbox-style')) {
         const st = document.createElement('style');
         st.id = 'c35-guest-pic-lightbox-style';
@@ -2215,6 +2277,18 @@
       return window.__SITE_GUEST__ || {};
     }
 
+    function siteDisplayName() {
+      const g = guestBoot();
+      const name = String(g.name || g.site_name || '').trim();
+      return name || 'Chat';
+    }
+
+    function resolveChatTitle(cfg) {
+      const custom = String(cfg.chatTitle || '').trim();
+      if (custom) return custom;
+      return siteDisplayName();
+    }
+
     function readAssistantConfig() {
       const g = guestBoot();
       const raw = g.ai_assistant || (g.meta && g.meta.ai_assistant) || null;
@@ -2223,8 +2297,10 @@
           configured: false,
           chatEnabled: true,
           callEnabled: false,
+          chatTitle: '',
           chatIntro: '',
-          chatPlaceholder: 'Ask Alien AI...',
+          chatPlaceholder: '',
+          showPoweredBy: true,
           callIntro: '',
         };
       }
@@ -2236,14 +2312,44 @@
       else if (map.floating_bubble === false) chatEnabled = false;
       const callEnabled = map.call_enabled === true;
       const placeholder = String(map.chat_placeholder || '').trim();
+      const i18n = guestI18nStrings();
       return {
         configured: configured,
         chatEnabled: configured ? chatEnabled : true,
         callEnabled: configured ? callEnabled : false,
+        chatTitle: String(map.chat_title || ''),
         chatIntro: String(map.chat_intro || ''),
-        chatPlaceholder: placeholder || 'Ask Alien AI...',
+        chatPlaceholder: placeholder || i18n.assistantPlaceholderDefault,
+        showPoweredBy: map.show_powered_by !== false,
         callIntro: String(map.call_intro || ''),
       };
+    }
+
+    const ALIEN_RECEIPT_ICON_SVG = '<svg class="guest-assistant-powered-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M12 3c4.97 0 9 3.58 9 8s-6 10-9 10s-9-5.58-9-10s4.03-8 9-8m-1.69 7.93C9.29 9.29 7.47 8.58 6.25 9.34s-1.38 2.71-.36 4.35c1.03 1.64 2.85 2.35 4.07 1.59c1.22-.78 1.37-2.71.35-4.35m3.38 0c-1.02 1.64-.87 3.57.35 4.35c1.22.76 3.04.05 4.07-1.59c1.02-1.64.86-3.59-.36-4.35s-3.04-.05-4.06 1.59M12 17.75c-2 0-2.5-.75-2.5-.75c0 .03.5 2 2.5 2s2.5-2 2.5-2s-.5.75-2.5.75"/></svg>';
+
+    function assistantFabIconSvg(kind) {
+      if (kind === 'call') {
+        return '<svg class="guest-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24c1.12.37 2.33.57 3.58.57a1 1 0 011 1V20a1 1 0 01-1 1C10.07 21 3 13.93 3 5a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.46.57 3.58a1 1 0 01-.25 1.01l-2.2 2.2z"/></svg>';
+      }
+      return '<svg class="guest-assistant-fab-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M4 4h16a2 2 0 012 2v9a2 2 0 01-2 2H8l-4 4V6a2 2 0 012-2z"/></svg>';
+    }
+
+    function formatAssistantEmpty(name) {
+      const tpl = guestI18nStrings().assistantChatEmpty;
+      return tpl.split('{name}').join(name);
+    }
+
+    function poweredByChatHtml(cfg) {
+      if (!cfg.showPoweredBy) return '';
+      const prefix = escHtml(guestI18nStrings().assistantPoweredPrefix);
+      return '<p class="guest-assistant-powered"><span class="guest-assistant-powered-muted">' + prefix + '</span>'
+        + ALIEN_RECEIPT_ICON_SVG
+        + '<a class="guest-assistant-powered-brand" href="https://alienai.id" rel="noopener noreferrer" target="_blank">alienai.id</a></p>';
+    }
+
+    function siteAvatarUrl() {
+      const g = guestBoot();
+      return String(g.avatar_url || '').trim();
     }
 
     function assistantApiBase() {
@@ -2475,7 +2581,7 @@
     }
 
     function fabHtml(kind, label) {
-      return '<button type="button" class="guest-assistant-fab guest-assistant-fab--' + kind + '" data-assistant-fab="' + kind + '" aria-label="' + escHtml(label) + '">' + (kind === 'call' ? '\uD83D\uDCDE' : '\uD83D\uDCAC') + '</button>';
+      return '<button type="button" class="guest-assistant-fab guest-assistant-fab--' + kind + '" data-assistant-fab="' + kind + '" aria-label="' + escHtml(label) + '">' + assistantFabIconSvg(kind) + '</button>';
     }
 
     function renderChrome() {
@@ -2491,12 +2597,12 @@
       }
       host.removeAttribute('hidden');
       if (cfg.chatEnabled) {
-        host.insertAdjacentHTML('beforeend', fabHtml('chat', 'Alien AI chat'));
+        host.insertAdjacentHTML('beforeend', fabHtml('chat', resolveChatTitle(cfg) + ' chat'));
         chatFab = host.querySelector('[data-assistant-fab="chat"]');
         chatFab.addEventListener('click', function () { api.openChat(); });
       }
       if (cfg.callEnabled) {
-        host.insertAdjacentHTML('beforeend', fabHtml('call', 'Alien AI call'));
+        host.insertAdjacentHTML('beforeend', fabHtml('call', resolveChatTitle(cfg) + ' call'));
         callFab = host.querySelector('[data-assistant-fab="call"]');
         callFab.addEventListener('click', function () {
           ensureAudioContext();
@@ -2536,8 +2642,8 @@
         const dockBtn = document.createElement('button');
         dockBtn.type = 'button';
         dockBtn.className = 'guest-assistant-fab guest-assistant-fab--chat guest-assistant-fab--dock';
-        dockBtn.setAttribute('aria-label', 'Alien AI chat');
-        dockBtn.textContent = '\uD83D\uDCAC';
+        dockBtn.setAttribute('aria-label', resolveChatTitle(cfg) + ' chat');
+        dockBtn.innerHTML = assistantFabIconSvg('chat');
         dockBtn.addEventListener('click', function () { api.openChat(); });
         trailing.appendChild(dockBtn);
         chatDockFab = dockBtn;
@@ -2571,20 +2677,43 @@
       }).join('');
     }
 
+    function chatHeaderHtml(cfg) {
+      const title = escHtml(resolveChatTitle(cfg));
+      const avatar = siteAvatarUrl();
+      const avatarHtml = avatar
+        ? '<img class="guest-assistant-chat-avatar" src="' + escHtml(avatar) + '" alt="" width="40" height="40" loading="lazy" decoding="async"/>'
+        : '<div class="guest-assistant-chat-avatar guest-assistant-chat-avatar--fallback" aria-hidden="true">' + assistantFabIconSvg('chat') + '</div>';
+      const subtitle = escHtml(guestI18nStrings().assistantChatSubtitle);
+      return '<div class="guest-assistant-chat-brand">' + avatarHtml
+        + '<div class="guest-assistant-chat-brand-text"><div class="guest-assistant-chat-title">' + title + '</div>'
+        + '<div class="guest-assistant-chat-subtitle">' + subtitle + '</div></div></div>';
+    }
+
+    function chatEmptyStateHtml(cfg) {
+      if (messages.length > 0 || cfg.chatIntro) return '';
+      return '<p class="guest-assistant-empty">' + escHtml(formatAssistantEmpty(resolveChatTitle(cfg))) + '</p>';
+    }
+
     function renderChatPanel() {
       removeChatPanel();
       const cfg = readAssistantConfig();
+      const chatLabel = resolveChatTitle(cfg) + ' chat';
       chatOpen = true;
       document.body.classList.add('guest-assistant-chat-open');
       chatPanel = document.createElement('div');
       chatPanel.className = 'guest-assistant-chat-root';
       chatPanel.setAttribute('data-guest-assistant', 'chat');
       const intro = cfg.chatIntro ? '<p class="guest-assistant-intro">' + escHtml(cfg.chatIntro) + '</p>' : '';
-      chatPanel.innerHTML = '<div class="guest-assistant-chat-scrim"></div><div class="guest-assistant-chat-sheet" role="dialog" aria-label="Alien AI chat">'
-        + '<div class="guest-assistant-chat-header"><span>Alien AI</span><button type="button" class="guest-icon-btn guest-assistant-chat-close" aria-label="Close">\u00D7</button></div>'
-        + '<div class="guest-assistant-chat-body" id="c35-assistant-messages">' + intro + renderMessagesHtml() + '</div>'
-        + '<div class="guest-assistant-chat-compose"><input type="text" id="c35-assistant-input" placeholder="' + escHtml(cfg.chatPlaceholder) + '" autocomplete="off"/>'
-        + '<button type="button" class="guest-assistant-send" id="c35-assistant-send">Send</button></div></div>';
+      const closeAria = escHtml(guestI18nStrings().assistantCloseAria);
+      const sendAria = escHtml(guestI18nStrings().assistantSendAria);
+      const powered = poweredByChatHtml(cfg);
+      chatPanel.innerHTML = '<div class="guest-assistant-chat-scrim"></div><div class="guest-assistant-chat-sheet" role="dialog" aria-label="' + escHtml(chatLabel) + '">'
+        + '<div class="guest-assistant-chat-header">' + chatHeaderHtml(cfg)
+        + '<button type="button" class="guest-icon-btn guest-assistant-chat-close" aria-label="' + closeAria + '">\u00D7</button></div>'
+        + '<div class="guest-assistant-chat-body" id="c35-assistant-messages">' + intro + chatEmptyStateHtml(cfg) + renderMessagesHtml() + '</div>'
+        + '<div class="guest-assistant-chat-compose">' + powered
+        + '<div class="guest-assistant-chat-compose-row"><input type="text" id="c35-assistant-input" placeholder="' + escHtml(cfg.chatPlaceholder) + '" autocomplete="off"/>'
+        + '<button type="button" class="guest-assistant-send" id="c35-assistant-send" aria-label="' + sendAria + '"><span aria-hidden="true">\u27A4</span></button></div></div></div>';
       document.body.appendChild(chatPanel);
       chatPanel.querySelector('.guest-assistant-chat-scrim').addEventListener('click', function () { api.closeChat(); });
       chatPanel.querySelector('.guest-assistant-chat-close').addEventListener('click', function () { api.closeChat(); });
@@ -2607,6 +2736,8 @@
       messages.push({ role: role, text: text });
       const el = document.getElementById('c35-assistant-messages');
       if (!el) return;
+      const empty = el.querySelector('.guest-assistant-empty');
+      if (empty) empty.parentNode.removeChild(empty);
       const intro = el.querySelector('.guest-assistant-intro');
       const node = document.createElement('div');
       node.className = 'guest-assistant-msg guest-assistant-msg--' + role;
@@ -2825,7 +2956,7 @@
         + '<div class="guest-assistant-call-pulse-ring"></div>'
         + '<div class="guest-assistant-call-avatar" aria-hidden="true">\uD83D\uDCDE</div>'
         + '</div>'
-        + '<div class="guest-assistant-call-title">Alien AI Call</div>'
+        + '<div class="guest-assistant-call-title">' + escHtml(resolveChatTitle(cfg) + ' Call') + '</div>'
         + intro
         + '<div class="guest-assistant-call-status" id="c35-assistant-call-status">Connecting…</div>'
         + '<div class="guest-assistant-call-timer" id="c35-assistant-call-timer">00:00</div>'
@@ -3273,17 +3404,54 @@
         const tok = q.get('token');
         if (tok && q.get('google_auth') === 'ok') {
           localStorage.setItem(guestAuthTokenKey(siteIid), tok);
+          const pic = q.get('pic');
+          if (pic) localStorage.setItem(guestMemberPicKey(siteIid), pic);
+          const clean = new URL(location.href);
+          ['google_auth', 'token', 'uid', 'name', 'pic'].forEach(function (k) {
+            clean.searchParams.delete(k);
+          });
+          history.replaceState(null, '', clean.pathname + clean.search + clean.hash);
+          if (window.c35GuestMember && window.c35GuestMember.refreshChrome) {
+            window.c35GuestMember.refreshChrome();
+          }
         }
       } catch (e) { /* ignore */ }
     }
 
     function signIn() {
-      const g = window.__SITE_GUEST__ || {};
-      const alienId = (g.alien_id || '').trim();
-      const returnTo = location.origin + '/' + alienId + location.pathname.replace(/^\//, alienId ? '' : '');
+      const returnTo = location.href;
       const base = apiBase() || 'https://api.alienai.id';
-      const url = base + '/v1/auth/google?return_to=' + encodeURIComponent(location.href.split('?')[0]);
+      const url = base + '/v1/auth/google?return_to=' + encodeURIComponent(returnTo)
+        + '&r=' + encodeURIComponent(returnTo);
       location.href = url;
+    }
+
+    async function fetchMemberProfile(siteIid) {
+      const tok = localStorage.getItem(guestAuthTokenKey(siteIid));
+      if (!tok) return null;
+      try {
+        const resp = await fetch(apiBase() + '/v1/site/guest-member/me', {
+          method: 'POST',
+          headers: guestAuthHeaders(),
+          body: JSON.stringify({ site_iid: siteIid }),
+        });
+        const data = await resp.json().catch(function () { return {}; });
+        if (!resp.ok) return null;
+        if (data.pic) localStorage.setItem(guestMemberPicKey(siteIid), data.pic);
+        return data;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function refreshChrome() {
+      const g = window.__SITE_GUEST__ || {};
+      const siteIid = g.site_iid || 0;
+      if (!siteIid) return;
+      const profile = await fetchMemberProfile(siteIid);
+      if (window.c35GuestOrders && window.c35GuestOrders.refreshChip) {
+        window.c35GuestOrders.refreshChip(profile);
+      }
     }
 
     async function mergeLocalOrders(siteIid) {
@@ -3409,17 +3577,63 @@
       })();
     }
 
-    return { init: captureTokenFromUrl, open: openPortal, signIn: signIn };
+    return { init: captureTokenFromUrl, open: openPortal, signIn: signIn, refreshChrome: refreshChrome };
   })();
 
+  function guestMemberChromeSync(btn, visible, signedIn, profile, label, orderCount) {
+    if (!btn) return;
+    btn.style.display = visible ? '' : 'none';
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+    const labelEl = btn.querySelector('.guest-signin-label');
+    let avatarEl = btn.querySelector('.guest-signin-avatar');
+    const pic = (profile && profile.pic) || '';
+    if (signedIn && pic) {
+      btn.classList.add('guest-signin--avatar');
+      if (labelEl) labelEl.hidden = true;
+      if (avatarEl && avatarEl.tagName !== 'IMG') {
+        const img = document.createElement('img');
+        img.className = 'guest-signin-avatar';
+        img.alt = '';
+        img.width = btn.classList.contains('guest-sticky-signin-btn') ? 24 : 28;
+        img.height = img.width;
+        avatarEl.replaceWith(img);
+        avatarEl = img;
+      }
+      if (avatarEl) {
+        avatarEl.src = pic;
+        avatarEl.hidden = false;
+      }
+    } else {
+      btn.classList.remove('guest-signin--avatar');
+      if (avatarEl) avatarEl.hidden = true;
+      if (labelEl) {
+        labelEl.hidden = false;
+        labelEl.textContent = signedIn
+          ? (profile && profile.display_name ? profile.display_name : label)
+          : guestI18nStrings().signIn;
+      }
+    }
+    const badge = btn.querySelector('.guest-member-badge');
+    if (!badge) return;
+    if (orderCount > 0) {
+      badge.hidden = false;
+      badge.textContent = orderCount > 99 ? '99+' : String(orderCount);
+    } else {
+      badge.hidden = true;
+      badge.textContent = '';
+    }
+  }
+
   window.c35GuestOrders = window.c35GuestOrders || {
-    refreshChip() {
+    refreshChip(profile) {
       const g = window.__SITE_GUEST__ || {};
       const siteIid = g.site_iid || 0;
       if (!siteIid) return;
       const n = loadOrders(siteIid).length;
       const visible = n > 0 || !!g.member_portal_enabled;
-      const label = n > 0 ? 'Pesanan saya (' + n + ')' : 'Akun';
+      const signedIn = !!localStorage.getItem(guestAuthTokenKey(siteIid));
+      const label = n > 0 ? 'Pesanan saya (' + n + ')' : (signedIn ? 'Akun' : guestI18nStrings().signIn);
       const hasHub = !!document.querySelector('.guest-hub-hero');
       const chip = document.getElementById('c35-guest-orders-chip');
       const hubBtn = document.getElementById('c35-guest-hub-member');
@@ -3428,17 +3642,23 @@
         chip.style.display = visible && !hasHub ? 'block' : 'none';
         chip.textContent = label;
       }
-      if (hubBtn) {
-        hubBtn.style.display = visible ? '' : 'none';
-        hubBtn.textContent = label;
+      if (!profile && signedIn) {
+        const cachedPic = localStorage.getItem(guestMemberPicKey(siteIid));
+        if (cachedPic) profile = { pic: cachedPic };
       }
-      if (stickyBtn) {
-        stickyBtn.style.display = visible ? '' : 'none';
-        stickyBtn.textContent = label;
-      }
+      guestMemberChromeSync(hubBtn, visible, signedIn, profile, label, n);
+      guestMemberChromeSync(stickyBtn, visible, signedIn, profile, label, n);
     },
     open() {
-      if (window.c35GuestMember) window.c35GuestMember.open();
+      if (!window.c35GuestMember) return;
+      const g = window.__SITE_GUEST__ || {};
+      const siteIid = g.site_iid || 0;
+      const signedIn = siteIid && localStorage.getItem(guestAuthTokenKey(siteIid));
+      if (!signedIn && window.c35GuestMember.signIn) {
+        window.c35GuestMember.signIn();
+        return;
+      }
+      window.c35GuestMember.open();
     },
   };
 
@@ -3447,8 +3667,12 @@
     window.c35GuestReserve.init();
     if (window.c35GuestQueue && window.c35GuestQueue.init) window.c35GuestQueue.init();
     window.c35GuestPost.init();
-    if (window.c35GuestMember) window.c35GuestMember.init();
-    window.c35GuestOrders.refreshChip();
+    if (window.c35GuestMember) {
+      window.c35GuestMember.init();
+      if (window.c35GuestMember.refreshChrome) window.c35GuestMember.refreshChrome();
+    } else {
+      window.c35GuestOrders.refreshChip();
+    }
     if (window.c35GuestAssistant) window.c35GuestAssistant.init();
     if (window.c35GuestAnalytics) window.c35GuestAnalytics.start();
   }

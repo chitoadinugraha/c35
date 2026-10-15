@@ -6,9 +6,10 @@
     "page_size": 12
   },
   "assert_contains": [
-    "data-guest=\"site_product\"",
-    "product-grid-title",
-    "Katalog &amp; Layanan"
+    "data-guest=\"site_product\""
   ],
-  "assert_not_contains": []
+  "assert_not_contains": [
+    "guest-section-eyebrow",
+    "product-grid-title"
+  ]
 }

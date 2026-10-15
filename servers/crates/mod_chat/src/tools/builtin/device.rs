@@ -210,8 +210,16 @@ pub(crate) fn parse_single_input_event(
         return Err("event_type is required");
     }
 
-    let x = val.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    let y = val.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let mut x = val.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let mut y = val.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    if x > 1.0 && x <= 1000.0 {
+        x /= 1000.0;
+    }
+    if y > 1.0 && y <= 1000.0 {
+        y /= 1000.0;
+    }
+    let x = x.clamp(0.0, 1.0);
+    let y = y.clamp(0.0, 1.0);
     let mut text = val
         .get("text")
         .and_then(|v| v.as_str())
@@ -360,7 +368,7 @@ tool! {
             })
         };
 
-        let screenshot_after = args["screenshot_after"].as_bool().unwrap_or(false);
+        let screenshot_after = args["screenshot_after"].as_bool().unwrap_or(true);
         if screenshot_after {
             let explicit_settle_ms = args.get("settle_ms").and_then(|v| {
                 if let Some(n) = v.as_i64() {
@@ -375,7 +383,7 @@ tool! {
                 explicit_settle_ms,
                 is_batch,
                 &parsed_events[0].event_type,
-            );
+            ).max(350);
             tokio::time::sleep(std::time::Duration::from_millis(settle_ms)).await;
             let marker = parsed_events
                 .iter()
@@ -394,9 +402,9 @@ tool! {
                 ctx.owner_iid,
                 device_iid,
                 1024,
-                60,
+                70,
                 marker,
-                false,
+                true,
             ).await {
                 if res.ok {
                     use base64::Engine;
@@ -409,8 +417,12 @@ tool! {
                     out["height"] = json!(res.height);
                     out["image_base64"] = json!(b64);
                     out["mime_type"] = json!("image/jpeg");
+                    if !res.axtree_text.is_empty() {
+                        out["axtree_text"] = json!(res.axtree_text);
+                    }
+                    out["som"] = json!(true);
                     out["hint"] = json!(format!(
-                        "Follow-up screenshot captured ({}x{}). Observation is attached with red action marker.",
+                        "Follow-up verification screenshot captured ({}x{}) with Set-of-Mark OCR. Inspect this observation to verify whether the action succeeded.",
                         res.width, res.height
                     ));
                     let marker_used = marker.is_some();
@@ -421,7 +433,7 @@ tool! {
                         &res.jpeg_bytes,
                         res.width,
                         res.height,
-                        false,
+                        true,
                         marker_used,
                         0,
                         &mut out,

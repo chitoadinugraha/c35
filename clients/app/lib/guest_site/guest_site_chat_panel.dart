@@ -1,5 +1,9 @@
+import 'dart:math' show min;
+
 import 'package:alienai_c35/c/site/guest_assistant_api.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
+import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
+import 'package:alienai_c35/widgets/sites/ui_powered_by_alien.dart';
 import 'package:flutter/material.dart';
 
 Map<String, dynamic>? guestCartPayloadForChat(GuestSiteCartController? cart) {
@@ -13,8 +17,12 @@ class GuestSiteChatPanel extends StatefulWidget {
   const GuestSiteChatPanel({
     super.key,
     required this.siteIid,
+    required this.title,
     required this.intro,
     required this.placeholder,
+    required this.i18n,
+    required this.accent,
+    this.showPoweredBy = true,
     required this.onClose,
     this.cartPayload,
     this.bootMode = 'published',
@@ -22,8 +30,12 @@ class GuestSiteChatPanel extends StatefulWidget {
 
   final int siteIid;
   final String bootMode;
+  final String title;
   final String intro;
   final String placeholder;
+  final GuestSiteI18n i18n;
+  final Color accent;
+  final bool showPoweredBy;
   final VoidCallback onClose;
   final Map<String, dynamic>? cartPayload;
 
@@ -92,32 +104,72 @@ class _GuestSiteChatPanelState extends State<GuestSiteChatPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final headerTitle = widget.title.trim().isEmpty ? 'Chat' : widget.title.trim();
+
     return Container(
-      width: 360,
-      height: 480,
+      width: min(360, MediaQuery.sizeOf(context).width - 32),
+      height: min(480, MediaQuery.sizeOf(context).height * 0.72),
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF3F3F46)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.35)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+            padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
             child: Row(
               children: [
-                const Text('Alien AI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                const Spacer(),
-                IconButton(onPressed: widget.onClose, icon: const Icon(Icons.close, color: Colors.white70)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        headerTitle,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        widget.i18n.assistantChatSubtitle,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(onPressed: widget.onClose, icon: const Icon(Icons.close)),
               ],
             ),
           ),
+          Divider(height: 1, color: Theme.of(context).dividerColor.withValues(alpha: 0.35)),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              itemCount: _messages.length,
+              itemCount: _messages.isEmpty && widget.intro.trim().isEmpty ? 1 : _messages.length,
               itemBuilder: (context, i) {
+                if (_messages.isEmpty && widget.intro.trim().isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+                    child: Text(
+                      widget.i18n.assistantChatEmpty(widget.title.trim().isEmpty ? 'Chat' : widget.title.trim()),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
+                        fontSize: 14,
+                        height: 1.45,
+                      ),
+                    ),
+                  );
+                }
                 final m = _messages[i];
                 final isUser = m.role == _ChatRole.user;
                 return Align(
@@ -126,17 +178,26 @@ class _GuestSiteChatPanelState extends State<GuestSiteChatPanel> {
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isUser ? const Color(0xFF3F3D39) : const Color(0xFF27272A),
-                      borderRadius: BorderRadius.circular(12),
+                      color: isUser ? widget.accent : Theme.of(context).colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Text(m.text, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    child: Text(
+                      m.text,
+                      style: TextStyle(
+                        color: isUser ? Colors.white : Theme.of(context).colorScheme.onSurface,
+                        fontSize: 14,
+                        height: 1.4,
+                      ),
+                    ),
                   ),
                 );
               },
             ),
           ),
+          if (widget.showPoweredBy)
+            const Center(child: UiPoweredByAlien(fontSize: 11)),
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
             child: Row(
               children: [
                 Expanded(
@@ -146,10 +207,15 @@ class _GuestSiteChatPanelState extends State<GuestSiteChatPanel> {
                     decoration: InputDecoration(
                       hintText: widget.placeholder,
                       filled: true,
-                      fillColor: const Color(0xFF27272A),
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.4)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Theme.of(context).dividerColor.withValues(alpha: 0.35)),
                       ),
                     ),
                     onSubmitted: (_) => _send(),
@@ -164,7 +230,7 @@ class _GuestSiteChatPanelState extends State<GuestSiteChatPanel> {
                           height: 20,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.send, color: Colors.white),
+                      : Icon(Icons.send_rounded, color: widget.accent),
                 ),
               ],
             ),

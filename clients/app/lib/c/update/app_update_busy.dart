@@ -1,6 +1,5 @@
 import 'package:alienai_c35/c/chat/chat_conn.dart';
-import 'package:alienai_c35/c/live/live_call_session.dart';
-import 'package:alienai_c35/c/remote/remote_session.dart';
+import 'package:alienai_c35/c/session/session_busy_registry.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:flutter/foundation.dart';
 
@@ -29,7 +28,7 @@ bool appUpdateUserBusy() {
   return appUpdateUserBusyFromSignals(
     promptBusy: store?.promptBusy ?? false,
     promptInFlight: conn?.promptInFlight ?? false,
-    liveCallActive: LiveCallSession.hasActiveLiveCall,
-    remoteControlActive: RemoteSession.anyControllingDevice(),
+    liveCallActive: SessionBusyRegistry.liveCallActive,
+    remoteControlActive: SessionBusyRegistry.remoteControlActive,
   );
 }

@@ -63,6 +63,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
   late final _searchCtrl = TextEditingController();
   late final _titleCtrl = TextEditingController();
   late final _contentCtrl = TextEditingController();
+  late final _chatTitleCtrl = TextEditingController();
   late final _chatIntroCtrl = TextEditingController();
   late final _chatPlaceholderCtrl = TextEditingController();
   late final _callIntroCtrl = TextEditingController();
@@ -82,6 +83,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     super.initState();
     _titleCtrl.addListener(_onField);
     _contentCtrl.addListener(_onField);
+    _chatTitleCtrl.addListener(_onAiField);
     _chatIntroCtrl.addListener(_onAiField);
     _chatPlaceholderCtrl.addListener(_onAiField);
     _callIntroCtrl.addListener(_onAiField);
@@ -93,6 +95,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     _searchCtrl.dispose();
     _titleCtrl.dispose();
     _contentCtrl.dispose();
+    _chatTitleCtrl.dispose();
     _chatIntroCtrl.dispose();
     _chatPlaceholderCtrl.dispose();
     _callIntroCtrl.dispose();
@@ -160,6 +163,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
 
   void _bindAiFields() {
     _suppressAi = true;
+    _chatTitleCtrl.text = _aiAssistant.chatTitle;
     _chatIntroCtrl.text = _aiAssistant.chatIntro;
     _chatPlaceholderCtrl.text = _aiAssistant.chatPlaceholder;
     _callIntroCtrl.text = _aiAssistant.callIntro;
@@ -217,9 +221,11 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     if (_loading || _suppressAi) return;
     _aiAssistant = _aiAssistant.copyWith(
       configured: true,
+      chatTitle: _chatTitleCtrl.text.trim(),
       chatIntro: _chatIntroCtrl.text,
-      chatPlaceholder: _chatPlaceholderCtrl.text.trim().isEmpty ? 'Ask Alien AI...' : _chatPlaceholderCtrl.text,
+      chatPlaceholder: _chatPlaceholderCtrl.text.trim(),
       callIntro: _callIntroCtrl.text,
+      showPoweredBy: _aiAssistant.showPoweredBy,
     );
     _scheduleSave();
   }
@@ -446,6 +452,16 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
           ),
           const SizedBox(height: 8),
           UiSiteEditorLabeledField(
+            label: 'Chat title',
+            child: TextField(
+              controller: _chatTitleCtrl,
+              style: const TextStyle(color: _text, fontSize: 14),
+              decoration: siteEditorInputDecoration(
+                hintText: widget.siteName.trim().isEmpty ? 'Your business name' : widget.siteName.trim(),
+              ),
+            ),
+          ),
+          UiSiteEditorLabeledField(
             label: 'Welcome message',
             child: TextField(
               controller: _chatIntroCtrl,
@@ -460,8 +476,13 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
             child: TextField(
               controller: _chatPlaceholderCtrl,
               style: const TextStyle(color: _text, fontSize: 14),
-              decoration: siteEditorInputDecoration(hintText: 'Ask Alien AI...'),
+              decoration: siteEditorInputDecoration(hintText: 'Type a message…'),
             ),
+          ),
+          UiSiteEditorSwitchRow(
+            label: 'Show Powered by alienai.id in chat',
+            value: _aiAssistant.showPoweredBy,
+            onChanged: (v) => _patchAi(_aiAssistant.copyWith(showPoweredBy: v)),
           ),
         ],
       );
@@ -485,7 +506,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
               minLines: 2,
               maxLines: 5,
               style: const TextStyle(color: _text, fontSize: 14),
-              decoration: siteEditorInputDecoration(hintText: 'Tap to talk with Alien AI about this site.'),
+              decoration: siteEditorInputDecoration(hintText: 'Tap to start a voice call about this business.'),
             ),
           ),
         ],

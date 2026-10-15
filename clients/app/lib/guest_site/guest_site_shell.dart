@@ -151,6 +151,8 @@ class _GuestSiteShellState extends State<GuestSiteShell> with WidgetsBindingObse
         controller: _cart,
         accent: widget.boot.commerceAccent,
         memberPortalEnabled: guestSiteMemberPortalEnabled(widget.boot.capabilities),
+        siteAlienId: widget.boot.alienId,
+        catalogMeta: widget.boot.meta,
         child: layered,
       ),
     );

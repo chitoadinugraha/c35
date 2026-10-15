@@ -59,13 +59,13 @@ import 'package:alienai_c35/c/tts/tts_service.dart';
 import 'package:alienai_c35/c/voice/voice_api.dart';
 import 'package:alienai_c35/pages/finance/page_finance_payments.dart';
 import 'package:alienai_c35/pages/finance/page_finance_receive_accounts.dart';
-import 'package:alienai_c35/pages/page_live_call.dart';
 import 'package:alienai_c35/pages/page_bots.dart';
-import 'package:alienai_c35/pages/page_devices.dart';
+import 'package:alienai_c35/pages/devices_module_loader.dart';
+import 'package:alienai_c35/pages/live_call_module_loader.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/pages/page_site_pos.dart';
 import 'package:alienai_c35/pages/page_sites.dart';
-import 'package:alienai_c35/pages/mail/page_mail.dart';
+import 'package:alienai_c35/pages/mail/mail_module_loader.dart';
 import 'package:alienai_c35/pages/notify/page_notify_history.dart';
 import 'package:alienai_c35/pages/page_settings.dart';
 import 'package:alienai_c35/pages/referral/page_referral_tree.dart';
@@ -1192,7 +1192,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   void _openBots() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageBots(chatConn: _conn, shellStore: _store)));
 
-  void _openDevices() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageDevices(chatConn: _conn, shellStore: _store)));
+  void _openDevices() => unawaited(openPageDevices(context, chatConn: _conn, shellStore: _store));
 
   void _openSites() => uiSitesPickerOpen(
         context: context,
@@ -1226,7 +1226,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         },
       );
 
-  void _openMail() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageMail(chatConn: _conn)));
+  void _openMail() => unawaited(openPageMail(context, chatConn: _conn));
 
   void _openRootConsole() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: _conn)));
 
@@ -1792,6 +1792,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       isAssistant: !isUser,
       reqId: m.reqId,
       msgId: m.id > 0 ? m.id : 0,
+      thought: m.thought,
       onSpeak: !isUser && plain.isNotEmpty
           ? () {
               ContextMenuController.removeAny();
@@ -2360,7 +2361,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       }
       final hasError = err.isNotEmpty;
       final inThoughtPhase = promptingThis && content.trim().isEmpty && !hasError && !stoppingThis;
-      final thoughtView = msgThoughtView(thought: m.thought, content: content, thinking: inThoughtPhase);
       final showTraceChips = m.reqId.isNotEmpty;
       final blocks = ChatBlock.decodeList(m.blocksJson);
       final hasAnswerBody = content.trim().isNotEmpty || blocks.isNotEmpty;
@@ -2371,9 +2371,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           UiMsgCopyPrefix(text: copyHeader, leadingNewlines: copyGap),
-          if (thoughtView.thought != null || stoppingThis || inThoughtPhase)
+          if (stoppingThis || inThoughtPhase)
             UiMsgThought(
-              text: thoughtView.thought ?? (stoppingThis ? 'Stopping…' : ''),
+              text: stoppingThis ? 'Stopping…' : '',
               thinking: inThoughtPhase,
               stopping: stoppingThis,
               startedAtMs: promptingThis ? _store.promptStartedAtMs : null,
@@ -2402,7 +2402,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           else if (content.trim().isNotEmpty)
             UiMarkdownBody(
               data: content,
-              selectable: true,
+              selectable: false,
               styleSheet: uiMarkdownChatStyleSheet(
                 p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
@@ -2524,27 +2524,25 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     } else if (SttService.instance.isRecording.value) {
       unawaited(SttService.instance.cancel());
     }
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (_) => PageLiveCall(
-          conn: _conn,
-          offer: offer,
-          chatId: _store.activeChatId,
-          chatStore: _store,
-          mentionIds: _mentionIds.toList(),
-          mentionLabel: _primaryMentionLabel(),
-          onMentions: (ids) {
-            if (!mounted) return;
-            setState(() {
-              _mentionIds
-                ..clear()
-                ..addAll(ids);
-            });
-            final chatId = _store.activeChatId;
-            if (chatId != null) _store.chatStickyMentionsPut(chatId, ids);
-          },
-        ),
+    unawaited(
+      openPageLiveCall(
+        context: context,
+        conn: _conn,
+        offer: offer,
+        chatId: _store.activeChatId,
+        chatStore: _store,
+        mentionIds: _mentionIds.toList(),
+        mentionLabel: _primaryMentionLabel(),
+        onMentions: (ids) {
+          if (!mounted) return;
+          setState(() {
+            _mentionIds
+              ..clear()
+              ..addAll(ids);
+          });
+          final chatId = _store.activeChatId;
+          if (chatId != null) _store.chatStickyMentionsPut(chatId, ids);
+        },
       ),
     );
   }

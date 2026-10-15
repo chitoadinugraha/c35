@@ -25,7 +25,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:alienai_c35/pages/mail/mail_external_link.dart';
+import 'package:alienai_c35/pages/mail/mail_html_body.dart';
 import 'package:url_launcher/url_launcher.dart';
 const _mailRailBreakpoint = 640;
 const _mailMailingListMasterDetailBreakpoint = 640.0;
@@ -41,13 +42,6 @@ String _formatMailWhenFull(int ms) {
 bool _looksLikeEmail(String raw) {
   final s = raw.trim();
   return s.contains('@') && s.contains('.');
-}
-
-String _mailCssColor(Color c) {
-  final r = (c.r * 255).round();
-  final g = (c.g * 255).round();
-  final b = (c.b * 255).round();
-  return 'rgb($r,$g,$b)';
 }
 
 List<String> _parseMailToAddresses(String raw) {
@@ -3324,73 +3318,8 @@ class _MailMessageBody extends StatelessWidget {
       MailBodyRenderKind.empty => Text('mail.emptyBody'.tr(), style: textStyle),
       MailBodyRenderKind.plainText => SelectableText(message.bodyText.trim(), style: textStyle),
       MailBodyRenderKind.markdown => _MailMarkdownBody(markdown: message.bodyText.trim()),
-      MailBodyRenderKind.html => _MailHtmlBody(html: message.displayHtml),
+      MailBodyRenderKind.html => MailHtmlBody(html: message.displayHtml),
     };
-  }
-}
-
-Future<void> _confirmAndLaunchExternalUrl(BuildContext context, Uri uri) async {
-  final cs = Theme.of(context).colorScheme;
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.open_in_new_rounded, size: 20, color: cs.primary),
-          const SizedBox(width: 8),
-          const Text('Buka Tautan Luar'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Anda akan meninggalkan Alien AI dan membuka tautan berikut di browser:',
-            style: TextStyle(fontSize: 14),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.5)),
-            ),
-            child: SelectableText(
-              uri.toString(),
-              style: TextStyle(
-                fontSize: 13,
-                fontFamily: 'monospace',
-                color: cs.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Pastikan domain tujuan aman sebelum memasukkan data atau kredensial.',
-            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text('common.cancel'.tr()),
-        ),
-        FilledButton.icon(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          icon: const Icon(Icons.launch_rounded, size: 16),
-          label: const Text('Buka Tautan'),
-        ),
-      ],
-    ),
-  );
-
-  if (confirmed == true) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 
@@ -3415,7 +3344,7 @@ class _MailMarkdownBody extends StatelessWidget {
         if (href != null && href.trim().isNotEmpty) {
           final uri = Uri.tryParse(href.trim());
           if (uri != null) {
-            unawaited(_confirmAndLaunchExternalUrl(context, uri));
+            unawaited(confirmAndLaunchMailExternalUrl(context, uri));
           }
         }
       },
@@ -3443,85 +3372,6 @@ class _MailMarkdownBody extends StatelessWidget {
           border: Border(left: BorderSide(color: cs.outlineVariant, width: 3)),
         ),
       ),
-    );
-  }
-}
-
-class _MailHtmlBody extends StatefulWidget {
-  const _MailHtmlBody({required this.html});
-
-  final String html;
-
-  @override
-  State<_MailHtmlBody> createState() => _MailHtmlBodyState();
-}
-
-class _MailHtmlBodyState extends State<_MailHtmlBody> {
-  static const _maxBodyHeight = 480.0;
-  WebViewController? _controller;
-  String? _loadedHtml;
-
-  String _wrappedHtml(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final fg = _mailCssColor(cs.onSurface);
-    final bg = _mailCssColor(cs.surface);
-    final link = _mailCssColor(cs.primary);
-    return '''
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: http: data: cid:; style-src 'unsafe-inline'; font-src https: data:;">
-<style>
-  body { margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.5; color: $fg; background: $bg; }
-  img { max-width: 100%; height: auto; }
-  a { color: $link; }
-  blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid rgba(127,127,127,0.35); }
-</style>
-</head>
-<body>${widget.html}</body>
-</html>
-''';
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final html = _wrappedHtml(context);
-    if (_loadedHtml == html && _controller != null) return;
-    _loadedHtml = html;
-    final ctrl = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.disabled)
-      ..setBackgroundColor(Colors.transparent)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (request) {
-            final uri = Uri.tryParse(request.url);
-            if (uri != null &&
-                (uri.scheme == 'http' || uri.scheme == 'https' || uri.scheme == 'mailto')) {
-              unawaited(_confirmAndLaunchExternalUrl(context, uri));
-            }
-            return NavigationDecision.prevent;
-          },
-        ),
-      )
-      ..loadHtmlString(html);
-    setState(() => _controller = ctrl);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final ctrl = _controller;
-    if (ctrl == null) {
-      return const SizedBox(
-        height: 48,
-        child: Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))),
-      );
-    }
-    return SizedBox(
-      height: _maxBodyHeight,
-      child: WebViewWidget(controller: ctrl),
     );
   }
 }

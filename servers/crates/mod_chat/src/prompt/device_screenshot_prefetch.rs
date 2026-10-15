@@ -49,10 +49,11 @@ pub async fn device_screenshot_prefetch_capture(
 ) -> Option<DeviceScreenshotPrefetch> {
     const MAX_WIDTH: u32 = 1280;
     const QUALITY: u32 = 72;
-    const PREFETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(600);
+    const ONLINE_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1500);
+    const PREFETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_millis(4000);
 
     // Presence guard: verify device is online in the cluster cache before issuing NATS screenshot request
-    match tokio::time::timeout(PREFETCH_TIMEOUT, agent_cluster_online(pool, nats, device_iid)).await {
+    match tokio::time::timeout(ONLINE_TIMEOUT, agent_cluster_online(pool, nats, device_iid)).await {
         Ok(Ok(true)) => {}
         Ok(Ok(false)) => {
             tracing::info!(
@@ -69,7 +70,7 @@ pub async fn device_screenshot_prefetch_capture(
         Err(_) => {
             tracing::warn!(
                 "[c35:device_prefetch] presence check timed out after {}ms for device_iid={device_iid}",
-                PREFETCH_TIMEOUT.as_millis()
+                ONLINE_TIMEOUT.as_millis()
             );
             return None;
         }
@@ -147,7 +148,7 @@ pub fn device_screenshot_prefetch_attach_user_turn(
     }));
     if !prefetch.axtree_text.trim().is_empty() {
         parts.push(json!({
-            "text": prefetch.axtree_text.trim()
+            "text": format!("[CURRENT SCREEN OBSERVATION]\n{}", prefetch.axtree_text.trim())
         }));
     }
 }
@@ -218,7 +219,7 @@ mod tests {
         assert_eq!(parts[1]["inlineData"]["data"], "xyz");
         assert_eq!(
             parts[2]["text"],
-            "Interactive UI elements:\n@1 Button 'OK'"
+            "[CURRENT SCREEN OBSERVATION]\nInteractive UI elements:\n@1 Button 'OK'"
         );
     }
 }

@@ -98,6 +98,22 @@ impl GuestI18n {
         }
     }
 
+    pub fn sign_in(&self) -> &'static str {
+        if self.indonesian {
+            "Masuk"
+        } else {
+            "Sign in"
+        }
+    }
+
+    pub fn share_store_aria(&self) -> &'static str {
+        if self.indonesian {
+            "Bagikan toko"
+        } else {
+            "Share store"
+        }
+    }
+
     pub fn load_more(&self) -> &'static str {
         if self.indonesian {
             "Muat lebih banyak"
@@ -130,16 +146,69 @@ impl GuestI18n {
         }
     }
 
+    pub fn assistant_chat_subtitle(&self) -> &'static str {
+        if self.indonesian {
+            "Biasanya membalas dalam beberapa menit"
+        } else {
+            "We typically reply in a few minutes"
+        }
+    }
+
+    /// `{name}` is replaced with the site or chat title in guest JS.
+    pub fn assistant_chat_empty(&self) -> &'static str {
+        if self.indonesian {
+            "Tanyakan ke {name} tentang produk, jam buka, atau pesanan Anda."
+        } else {
+            "Ask {name} about products, hours, or your order."
+        }
+    }
+
+    pub fn assistant_send_aria(&self) -> &'static str {
+        if self.indonesian {
+            "Kirim pesan"
+        } else {
+            "Send message"
+        }
+    }
+
+    pub fn assistant_close_aria(&self) -> &'static str {
+        if self.indonesian {
+            "Tutup"
+        } else {
+            "Close"
+        }
+    }
+
+    pub fn assistant_powered_prefix(&self) -> &'static str {
+        "Powered by"
+    }
+
+    pub fn assistant_placeholder_default(&self) -> &'static str {
+        if self.indonesian {
+            "Ketik pesan…"
+        } else {
+            "Type a message…"
+        }
+    }
+
     pub fn to_json(&self) -> Value {
         json!({
             "lang": self.html_lang(),
             "price_contact": self.price_contact(),
             "tile_contact_cta": self.tile_contact_cta(),
             "filter_all": self.filter_all(),
+            "sign_in": self.sign_in(),
+            "share_store_aria": self.share_store_aria(),
             "load_more": self.load_more(),
             "loading": self.loading(),
             "detail_aria": self.detail_aria(),
             "share_aria": self.share_aria(),
+            "assistant_chat_subtitle": self.assistant_chat_subtitle(),
+            "assistant_chat_empty": self.assistant_chat_empty(),
+            "assistant_send_aria": self.assistant_send_aria(),
+            "assistant_close_aria": self.assistant_close_aria(),
+            "assistant_powered_prefix": self.assistant_powered_prefix(),
+            "assistant_placeholder_default": self.assistant_placeholder_default(),
         })
     }
 }

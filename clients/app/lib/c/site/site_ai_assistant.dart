@@ -3,9 +3,11 @@ class SiteAiAssistantDraft {
   const SiteAiAssistantDraft({
     this.chatEnabled = true,
     this.callEnabled = false,
+    this.chatTitle = '',
     this.chatIntro = '',
-    this.chatPlaceholder = 'Ask Alien AI...',
+    this.chatPlaceholder = '',
     this.callIntro = '',
+    this.showPoweredBy = true,
     this.configured = false,
   });
 
@@ -13,9 +15,11 @@ class SiteAiAssistantDraft {
 
   final bool chatEnabled;
   final bool callEnabled;
+  final String chatTitle;
   final String chatIntro;
   final String chatPlaceholder;
   final String callIntro;
+  final bool showPoweredBy;
   final bool configured;
 
   bool get featureChatEnabled => configured ? chatEnabled : true;
@@ -25,17 +29,21 @@ class SiteAiAssistantDraft {
   SiteAiAssistantDraft copyWith({
     bool? chatEnabled,
     bool? callEnabled,
+    String? chatTitle,
     String? chatIntro,
     String? chatPlaceholder,
     String? callIntro,
+    bool? showPoweredBy,
     bool? configured,
   }) =>
       SiteAiAssistantDraft(
         chatEnabled: chatEnabled ?? this.chatEnabled,
         callEnabled: callEnabled ?? this.callEnabled,
+        chatTitle: chatTitle ?? this.chatTitle,
         chatIntro: chatIntro ?? this.chatIntro,
         chatPlaceholder: chatPlaceholder ?? this.chatPlaceholder,
         callIntro: callIntro ?? this.callIntro,
+        showPoweredBy: showPoweredBy ?? this.showPoweredBy,
         configured: configured ?? this.configured,
       );
 }
@@ -53,13 +61,16 @@ SiteAiAssistantDraft siteAiAssistantRead(Object? raw) {
   }
 
   final callEnabled = map['call_enabled'] == true;
+  final titleRaw = map['chat_title']?.toString().trim() ?? '';
   final placeholderRaw = map['chat_placeholder']?.toString().trim() ?? '';
   return SiteAiAssistantDraft(
     chatEnabled: chatEnabled,
     callEnabled: callEnabled,
+    chatTitle: titleRaw,
     chatIntro: map['chat_intro']?.toString() ?? '',
-    chatPlaceholder: placeholderRaw.isNotEmpty ? placeholderRaw : 'Ask Alien AI...',
+    chatPlaceholder: placeholderRaw,
     callIntro: map['call_intro']?.toString() ?? '',
+    showPoweredBy: map['show_powered_by'] != false,
     configured: true,
   );
 }
@@ -68,7 +79,9 @@ Map<String, dynamic> siteAiAssistantToJson(SiteAiAssistantDraft draft) => {
       'chat_enabled': draft.chatEnabled,
       'call_enabled': draft.callEnabled,
       'floating_bubble': draft.chatEnabled,
+      'chat_title': draft.chatTitle,
       'chat_intro': draft.chatIntro,
       'chat_placeholder': draft.chatPlaceholder,
       'call_intro': draft.callIntro,
+      'show_powered_by': draft.showPoweredBy,
     };

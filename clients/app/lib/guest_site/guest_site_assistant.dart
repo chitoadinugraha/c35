@@ -1,5 +1,6 @@
 import 'package:alienai_c35/c/site/site_ai_assistant.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
 import 'package:alienai_c35/guest_site/guest_site_chat_panel.dart';
 import 'package:alienai_c35/guest_site/guest_site_live_call.dart';
@@ -31,6 +32,22 @@ class _GuestSiteAssistantLayerState extends State<GuestSiteAssistantLayer> {
   late final bool _ownsCallController;
 
   SiteAiAssistantDraft get _ai => siteAiAssistantRead(widget.boot.meta['ai_assistant']);
+
+  GuestSiteI18n get _i18n => GuestSiteI18n.fromMeta(widget.boot.meta);
+
+  String _resolveChatTitle() {
+    final custom = _ai.chatTitle.trim();
+    if (custom.isNotEmpty) return custom;
+    final name = widget.boot.name.trim();
+    if (name.isNotEmpty) return name;
+    return 'Chat';
+  }
+
+  String _chatPlaceholder() {
+    final raw = _ai.chatPlaceholder.trim();
+    if (raw.isNotEmpty) return raw;
+    return _i18n.assistantPlaceholderDefault;
+  }
 
   @override
   void initState() {
@@ -90,8 +107,12 @@ class _GuestSiteAssistantLayerState extends State<GuestSiteAssistantLayer> {
                         child: GuestSiteChatPanel(
                           siteIid: widget.boot.siteIid,
                           bootMode: widget.boot.mode,
+                          title: _resolveChatTitle(),
                           intro: _ai.chatIntro,
-                          placeholder: _ai.chatPlaceholder,
+                          placeholder: _chatPlaceholder(),
+                          i18n: _i18n,
+                          accent: widget.boot.commerceAccent,
+                          showPoweredBy: _ai.showPoweredBy,
                           onClose: _toggleChat,
                           cartPayload: guestCartPayloadForChat(cart),
                         ),
@@ -122,6 +143,7 @@ class _GuestSiteAssistantLayerState extends State<GuestSiteAssistantLayer> {
                             child: _AssistantFab(
                               key: const Key('guest-assistant-chat'),
                               icon: Icons.chat_bubble_outline,
+                              color: widget.boot.commerceAccent,
                               onTap: _toggleChat,
                             ),
                           ),
@@ -129,6 +151,7 @@ class _GuestSiteAssistantLayerState extends State<GuestSiteAssistantLayer> {
                           _AssistantFab(
                             key: const Key('guest-assistant-call'),
                             icon: Icons.phone_in_talk_outlined,
+                            color: widget.boot.commerceAccent,
                             busy: isConnecting,
                             onTap: isConnecting ? null : _startCall,
                           ),
@@ -148,19 +171,22 @@ class _AssistantFab extends StatelessWidget {
   const _AssistantFab({
     super.key,
     required this.icon,
+    required this.color,
     this.busy = false,
     this.onTap,
   });
 
   final IconData icon;
+  final Color color;
   final bool busy;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Material(
         elevation: 6,
+        shadowColor: color.withValues(alpha: 0.45),
         shape: const CircleBorder(),
-        color: Colors.black,
+        color: color,
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,

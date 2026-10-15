@@ -766,7 +766,7 @@ pub async fn prompt_cluster_turn(
                 contents.push(json!({
                     "role": "user",
                     "parts": [
-                        { "text": "Visual desktop observation from device:" },
+                        { "text": "[POST-ACTION VERIFICATION OBSERVATION]\nFresh observation captured after your input. You MUST inspect this screenshot and OCR tags to verify whether your action actually succeeded:\n- Check if the requested change (bold font, typed text, title, or cell value) actually took effect on screen.\n- If the change did NOT take effect (e.g. wrong cell focused, text is not bold), do NOT claim success. Call device.input to correct it.\n- Only conclude when the visual observation confirms the change." },
                         {
                             "inlineData": {
                                 "mimeType": "image/jpeg",
@@ -1121,7 +1121,11 @@ async fn wrap_up(
         .await;
     }
     if text.is_empty() {
-        let fallback = "I could not finish that lookup. Try again with a shorter question.";
+        let fallback = if is_device {
+            "I have sent the input actions to the device."
+        } else {
+            "I could not finish that lookup. Try again with a shorter question."
+        };
         emit_text(on_delta, &mut text, fallback);
     }
     Ok(ChatRes {

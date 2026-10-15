@@ -269,8 +269,8 @@ fn parity_product_grid_default_title_and_tile() {
         &[],
         &json!({}),
     );
-    assert!(html.contains("product-grid-title"));
-    assert!(html.contains("Katalog &amp; Layanan"));
+    assert!(!html.contains("product-grid-title"));
+    assert!(!html.contains("guest-section-eyebrow"));
 }
 
 #[test]
@@ -434,7 +434,7 @@ fn parity_hub_profile_hero_includes_member_and_share_actions() {
         &json!({}),
     );
     assert!(html.contains("guest-hub-actions"));
-    assert!(html.contains("guest-hero-member-btn"));
+    assert!(html.contains("guest-hero-signin-btn"));
     assert!(html.contains("guest-hero-share-btn"));
 }
 

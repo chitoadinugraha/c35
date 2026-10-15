@@ -13,7 +13,6 @@
     "guest-catalog-search",
     "guest-catalog-search-input",
     "Cari produk",
-    "guest-section-eyebrow",
     "product-grid-title"
   ],
   "assert_not_contains": []

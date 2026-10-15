@@ -30,6 +30,10 @@ class GuestSiteI18n {
 
   String get filterAll => indonesian ? 'Semua' : 'All';
 
+  String get signIn => indonesian ? 'Masuk' : 'Sign in';
+
+  String get shareStoreAria => indonesian ? 'Bagikan toko' : 'Share store';
+
   String get loadMore => indonesian ? 'Muat lebih banyak' : 'Load more';
 
   String get loading => indonesian ? 'Memuat…' : 'Loading…';
@@ -37,4 +41,15 @@ class GuestSiteI18n {
   String get detailAria => indonesian ? 'Detail produk' : 'Product details';
 
   String get shareAria => indonesian ? 'Bagikan produk' : 'Share product';
+
+  String get assistantChatSubtitle =>
+      indonesian ? 'Biasanya membalas dalam beberapa menit' : 'We typically reply in a few minutes';
+
+  String assistantChatEmpty(String siteName) => indonesian
+      ? 'Tanyakan ke $siteName tentang produk, jam buka, atau pesanan Anda.'
+      : 'Ask $siteName about products, hours, or your order.';
+
+  String get assistantPlaceholderDefault => indonesian ? 'Ketik pesan…' : 'Type a message…';
+
+  String get assistantPoweredPrefix => 'Powered by';
 }

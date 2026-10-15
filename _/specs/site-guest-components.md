@@ -101,7 +101,7 @@ Fields:
 | `commerce_boot.payment_methods` | From `doc_json.payment_accounts` |
 | `effects[]` | Boot rows `{ presetId, params, active }`. `params` is an object. Web loads the effects script only when one row has `active !== false` and a known preset id |
 | `mode` | `draft` \| `published` |
-| `ai_assistant` | Guest Alien AI chrome: `chat_enabled`, `call_enabled`, `chat_intro`, `chat_placeholder`, `call_intro`, legacy `floating_bubble` → chat |
+| `ai_assistant` | Guest site assistant chrome: `chat_enabled`, `call_enabled`, `chat_title`, `chat_intro`, `chat_placeholder`, `call_intro`, `show_powered_by`, legacy `floating_bubble` → chat |
 | `knowledge` | Published knowledge rows `{title, content}` (capped in `mod_site::site_assistant`) |
 
 Published page inline script `__SITE_GUEST__` (not always duplicated on `site.boot_get` preview JSON):

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/settings/prompt_usage_prefs.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
+import 'package:alienai_c35/widgets/ui/ui_preview_page.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:flutter/material.dart';
 
@@ -240,17 +241,24 @@ class UiTraceScreenshotPreview extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: UiImg(
-              src: src,
-              fit: BoxFit.contain,
-              width: maxWidth,
-              fallback: const SizedBox(
-                height: 80,
-                child: Center(child: Icon(Icons.broken_image_outlined, size: 20, color: _muted)),
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => showMediaPreview(context, [src]),
+            borderRadius: BorderRadius.circular(6),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: UiImg(
+                  src: src,
+                  fit: BoxFit.contain,
+                  width: maxWidth,
+                  fallback: const SizedBox(
+                    height: 80,
+                    child: Center(child: Icon(Icons.broken_image_outlined, size: 20, color: _muted)),
+                  ),
+                ),
               ),
             ),
           ),

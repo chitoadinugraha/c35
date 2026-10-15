@@ -37,18 +37,21 @@ String buildWebRelease({String? serverUrl}) {
   return deployRunSync('flutter_web', () {
     _flutterPrepareForBuild(clientApp);
     stdout.writeln('Building Flutter web (version $version, server $apiServer)...');
+    final useCdn = deployEnv('C35_WEB_RESOURCES_CDN', '1') != '0';
+    final webArgs = [
+      'build',
+      'web',
+      '--release',
+      '--base-href',
+      '/app/',
+      '--dart-define=C35_SERVER=$apiServer',
+      // Wasm dry-run adds a second empty `builds: [{}]` entry to flutter_bootstrap.js and breaks web load (~30%).
+      '--no-wasm-dry-run',
+    ];
+    if (useCdn) webArgs.add('--web-resources-cdn');
     final proc = Process.runSync(
       'flutter',
-      [
-        'build',
-        'web',
-        '--release',
-        '--base-href',
-        '/app/',
-        '--dart-define=C35_SERVER=$apiServer',
-        // Wasm dry-run adds a second empty `builds: [{}]` entry to flutter_bootstrap.js and breaks web load (~30%).
-        '--no-wasm-dry-run',
-      ],
+      webArgs,
       workingDirectory: clientApp,
       runInShell: Platform.isWindows,
     );
@@ -56,6 +59,10 @@ String buildWebRelease({String? serverUrl}) {
     stderr.write(proc.stderr);
     if (proc.exitCode != 0) throw StateError('flutter build web failed (exit ${proc.exitCode})');
     if (!Directory(out).existsSync()) throw StateError('Flutter web build missing: $out');
+    if (useCdn) {
+      final canvaskitDir = Directory(p.join(out, 'canvaskit'));
+      if (canvaskitDir.existsSync()) canvaskitDir.deleteSync(recursive: true);
+    }
     _patchWebBootstrapQuery(out, version);
     deployArtifact('web', dirBytes(out));
     stdout.writeln('✓ Flutter web build successful');

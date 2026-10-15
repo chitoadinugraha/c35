@@ -203,9 +203,9 @@ INSERT INTO ai.inst (
     '[DEVICE FACTS] Remote device questions about the mentioned PC must use tools — never guess from training or desktop icon lore. \
 Use device_iid from [MENTION TARGETS] (match the device the user named). If several devices are listed, ask which one before calling tools. \
 Normal directory paths (e.g. C:\\Users, Desktop) → device.fs.list. Recycle Bin listing (what files are in the bin) → device.fs.list with path recycle bin or Shell:RecycleBinFolder — never shell.run for listing. Empty/clean bin only when the user explicitly asks → shell.run (Clear-RecycleBin -Force). Other Shell: virtual folders → device.fs.list when path matches; else shell.run with quoted -Path. \
-Screen layout, visible UI, or "what is on screen" → device.screenshot. \
+Turn 0 already contains an eager desktop observation with Set-of-Mark and Canvas OCR. You can answer "what is on screen", describe visible UI, or inspect controls directly from the initial observation without calling device.screenshot. Only call device.screenshot if you need to refresh the screen after an action or if observation was missing. \
 If a tool returns ok=false or empty output, say so plainly — do not invent contents. \
-Multi-step UI automation (click/type flows) → follow inst.device.operate (execute on the device); this row is for read-only facts, paths, and single shell launches unless the user only asked to open a URL.',
+Direct UI actions (clicks, typing, cell selection) → use device.input directly on this turn; never use shell.run SendKeys.',
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
     ARRAY['device.screenshot', 'shell.run', 'device.fs.list', 'device.fs.read'],
@@ -233,12 +233,11 @@ INSERT INTO ai.inst (
     ARRAY['device']::TEXT[],
     '[DEVICE OPERATE] The user @mentioned a remote desktop and wants you to act on that machine — not read instructions back to them. \
 Use device_iid from [MENTION TARGETS]. If several devices are listed, ask which one before tools. \
-Eager observation: Turn 0 already contains a Set-of-Mark desktop observation with Canvas OCR. You do NOT need to call device.screenshot on Hop 1; proceed directly to device.input (or computer_use.delegate with the full user goal for multi-step UI such as forms, installers, settings wizards). \
-Act & batch: Always use device.input (with batch actions: [...] or click_and_type). Never use shell.run or PowerShell SendKeys for GUI/mouse/keyboard interactions. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. Prefer click_and_type for inputs to clear-and-type cleanly; use screenshot_after=true on clicks. \
+Hop 1 — act directly: Always execute actions directly using device.input (with batch actions: [...] or click_and_type). For cell navigation or selecting ranges, use keyboard shortcuts or click element coordinates directly. Never use computer_use.delegate for simple actions like clicking, selecting cells, typing text, or formatting — execute directly with device.input. \
+Act — device.input (prefer click_and_type for inputs to clear-and-type cleanly; shortcuts, clicks). shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. \
 If modals, banners, or side panels block the target UI, dismiss them first (Got it, X, Escape) — do not hand off to the user while overlays are visible. \
-Never tell the user to click through the UI themselves unless a tool failed, consent is required, or inst.browser.2fa-style human step applies. \
-When computer_use.delegate returns goal_met false or incomplete true, do not echo child click steps — say briefly that automation could not finish on the device. If goal_met true, report what was accomplished. \
-Say plainly what you did on the device when finished.',
+VERIFICATION MANDATORY: Every device.input automatically returns a fresh post-action observation screenshot with Set-of-Mark OCR. You MUST inspect this follow-up screenshot and OCR before concluding. Never claim success if the screenshot shows the action did not take effect on screen. Retry if necessary. \
+Say plainly what you did on the device when verified.',
     ARRAY[
         'click',
         'double-click',
@@ -317,7 +316,7 @@ INSERT INTO ai.inst (
     'device',
     ARRAY['device']::TEXT[],
     '[GOOGLE FORMS ON DEVICE] Multi-step create/edit on the @mentioned PC. device_iid from [MENTION TARGETS]. \
-Prefer computer_use.delegate with the full user goal, or screenshot (som=true) + device.input. \
+Execute directly with stepwise device.input and device.screenshot (som=true). \
 Tab resume: always screenshot first; if Chrome already has forms.google.com or an open editor, reuse that tab/window — do NOT shell.run forms.new or open another Forms URL. \
 Launch Chrome to https://forms.google.com only when screenshot shows no Forms tab. \
 Template gallery: select Blank (not opening the URL). If Blank does not respond, focus the existing Forms tab, retry Tab/Enter on Blank, or close duplicate Forms tabs (not the only working tab). \
@@ -336,11 +335,10 @@ Never tell the user to click through the UI themselves.',
     ARRAY[
         'tool_include:device.screenshot',
         'tool_include:device.input',
-        'tool_include:computer_use.delegate',
         'tool_include:shell.run'
     ],
-    ARRAY['device.screenshot', 'device.input', 'computer_use.delegate', 'shell.run'],
-    ARRAY['web.search', 'web.visit', 'web.research'],
+    ARRAY['device.screenshot', 'device.input', 'shell.run'],
+    ARRAY['computer_use.delegate', 'web.search', 'web.visit', 'web.research'],
     158,
     'seed',
     NOW()
@@ -366,12 +364,15 @@ INSERT INTO ai.inst (
     'device',
     ARRAY['device']::TEXT[],
     '[GOOGLE SHEETS ON DEVICE] Multi-step create/edit in Chrome on the @mentioned PC. device_iid from [MENTION TARGETS]. \
-Prefer computer_use.delegate with the full user goal, or screenshot (som=true) + device.input. \
+Turn 0 already includes eager desktop observation and OCR — do NOT call device.screenshot before your first action. \
+Execute directly with stepwise device.input (with batch actions: [...] or click_and_type). \
+Never delegate single-turn cell edits, clicks, or formatting to computer_use.delegate — execute directly using device.input on this turn. \
 Open https://sheets.new or reuse an existing spreadsheet tab — do not stack duplicate tabs. \
-Before typing headers: dismiss onboarding (Got it), Tables side panel (X), promo banners (X), and any modal blocking the grid — screenshot until A1 is reachable. \
-Row 1 headers: jump with the name box (type A1/B1/C1 + Enter), then device.input click_and_type per cell — never guess pixel coords; never PowerShell SendKeys. \
-After each cell screenshot and verify formula bar + name box; row 1 must be only A1–C1 for three headers (D1+ empty). \
-Never tell the user to type in A1/B1/C1 themselves unless every tool attempt failed.',
+Before typing headers: dismiss onboarding (Got it), Tables side panel (X), promo banners (X), and any modal blocking the grid. \
+To navigate/select cells: use shortcut ctrl+home to jump to A1. To select header row 1, use shortcut shift+space or shift+right across columns, or click row header 1. To bold, send shortcut ctrl+b or click the Bold B toolbar button. \
+For cell editing: click cell or name box, then type_text. \
+VERIFICATION MANDATORY: Every device.input automatically returns a fresh post-action observation screenshot with Set-of-Mark OCR. You MUST inspect this follow-up screenshot and OCR before concluding. \
+NEVER claim the header is bolded or that an edit is done unless the follow-up screenshot proves the font is bold and text matches. If the change did not apply (e.g. wrong cell focused or bold did not toggle), retry with device.input. Only conclude when the visual observation confirms the change.',
     ARRAY[
         'google sheet',
         'google sheets',
@@ -393,10 +394,10 @@ Never tell the user to type in A1/B1/C1 themselves unless every tool attempt fai
     ARRAY[
         'tool_include:device.screenshot',
         'tool_include:device.input',
-        'tool_include:computer_use.delegate'
+        'tool_include:shell.run'
     ],
-    ARRAY['device.screenshot', 'device.input', 'computer_use.delegate'],
-    ARRAY['web.search', 'web.visit', 'web.research', 'browser.sheets.append_row', 'browser.sheets.cell_set', 'shell.run'],
+    ARRAY['device.screenshot', 'device.input', 'shell.run'],
+    ARRAY['computer_use.delegate', 'web.search', 'web.visit', 'web.research', 'browser.sheets.append_row', 'browser.sheets.cell_set'],
     159,
     'seed',
     NOW()

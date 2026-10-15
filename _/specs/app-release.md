@@ -148,6 +148,8 @@ Do not copy csa deploy env or DB credentials into c35 release scripts.
 
 ## Flutter web publish
 
+Bundle size, CanvasKit CDN, and lazy-loaded mail/live/devices on web: [`web-app-bundle.md`](web-app-bundle.md). Implementation plan: [`plans/2026-10-15-web-bundle-defer-multitask.md`](plans/2026-10-15-web-bundle-defer-multitask.md).
+
 Public URL: **`https://alienai.id/app/`** (not `app.alienai.id`).
 
 Static assets live in **OCI S3** — they are **not** baked into the `c35-server` Docker image. The server reads from S3 at runtime via `GET /app/*`.

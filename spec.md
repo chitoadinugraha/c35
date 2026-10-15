@@ -111,6 +111,7 @@ Full UI spec: [`_/specs/ui.md`](_/specs/ui.md)
 | [`_/specs/server.md`](_/specs/server.md) | Crate workspace layout |
 | [`_/specs/schema-migrate.md`](_/specs/schema-migrate.md) | YSQL schema bundle hash, boot skip, `c35_migrate` |
 | [`_/specs/ui.md`](_/specs/ui.md) | Pages, navigation, components |
+| [`_/specs/web-app-bundle.md`](_/specs/web-app-bundle.md) | Flutter web bundle size, CanvasKit deploy trim, deferred mail/live/devices |
 | [`_/specs/presentation.md`](_/specs/presentation.md) | Presentations — native Flutter slide decks, 16:9 preview, Option C patching, PPTX export |
 | [`_/specs/remote.md`](_/specs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media), NATS task scheduler & computer use |
 | [`_/specs/browser-remote.md`](_/specs/browser-remote.md) | Remote browser (`type=browser`): Rust agent + Playwright sidecar, same WebRTC UX |
