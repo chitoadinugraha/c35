@@ -28,12 +28,14 @@ Plain `iid:972798…` embedded in sentences was fragile (false positives, ugly r
 
 ```
 [@<kind>:<payload>]
+[@<kind>:<payload>|<display_label>]   // optional snapshot for UI / titles
 ```
 
 | Part | Constraint |
 |------|------------|
 | `<kind>` | Lowercase ASCII identifier: `iid`, `catalog`, … future `file`, `topic`, … |
 | `<payload>` | No `]` characters; opaque to the parser except kind-specific normalization |
+| `\|<display_label>` | Optional. Human label at write time (device name, site title). No `]`. **Display only** — canonical id stays in payload; catalog wins for icon/rename when loaded. |
 | Whole token | Case-insensitive match for `<kind>` only where noted in code |
 
 ### Registered kinds (now)
@@ -47,7 +49,7 @@ Plain `iid:972798…` embedded in sentences was fragile (false positives, ugly r
 Examples:
 
 ```text
-Open Chrome on [@iid:97279816209936384]
+Open Chrome on [@iid:97279816209936384|VM1]
 Compare [@iid:111] and [@iid:222] sales
 Use [@catalog:research] for this question
 Summarize [@drive:reports/q1.csv]

@@ -1,0 +1,24 @@
+{
+  "block_type": "links",
+  "expected_data_guest": "link",
+  "props": {
+    "title": "Social",
+    "links": [
+      {
+        "label": "Instagram",
+        "url": "https://instagram.com/demo",
+        "icon": "instagram",
+        "display": "icon"
+      }
+    ]
+  },
+  "assert_contains": [
+    "guest-links-icons",
+    "guest-link-icon",
+    "guest-link-row--icon",
+    "data-link-display=\"icon\""
+  ],
+  "assert_not_contains": [
+    "guest-links-list"
+  ]
+}

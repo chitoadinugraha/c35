@@ -203,7 +203,7 @@ class _UiBotConversationState extends State<UiBotConversation> {
                   if (m.content.trim().isNotEmpty)
                     UiMarkdownBody(
                       data: m.content,
-                      selectable: false,
+                      selectable: true,
                       styleSheet: uiMarkdownChatStyleSheet(
                         p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
                         code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),

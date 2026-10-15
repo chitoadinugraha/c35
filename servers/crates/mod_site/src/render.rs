@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 
 use crate::commerce_boot::{
-    commerce_boot_build, order_progress_steps_json, queue_boot_build, site_published_meta_json,
+    commerce_boot_build, order_progress_steps_json, queue_boot_build,
 };
 use crate::site_config::{site_capabilities_get, site_order_fulfillment_enabled};
 use crate::site_assistant::site_assistant_boot_extras;
@@ -35,6 +35,22 @@ use crate::site_post::{site_post_boot_summaries, site_post_get_storefront};
 use crate::site_draft::site_draft_prepare_commerce_grid_doc;
 
 pub use crate::guest_product::{product_row_json, ProductRow};
+
+/// Whether HTML is compiled from `site.draft` or the published snapshot.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GuestRenderMode {
+    Draft,
+    Published,
+}
+
+impl GuestRenderMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::Published => "published",
+        }
+    }
+}
 
 pub struct ProductGridCtx {
     pub site_iid: i64,
@@ -553,16 +569,29 @@ fn social_feed_items_html(props: &Value, hub_posts: &[SitePost]) -> String {
         .join("")
 }
 
-fn guest_hub_default_tab(design: &GuestDesign) -> &'static str {
-    let t = design.profile.hub_default_tab.trim().to_ascii_lowercase();
-    if t == "posts" {
-        "posts"
-    } else {
-        "shop"
+/// Initial hub catalog tab — matches Flutter `siteHubInitialTab`.
+pub fn guest_hub_initial_tab(design: &GuestDesign, has_products: bool, has_posts: bool) -> &'static str {
+    if has_products && has_posts {
+        let want = design.profile.hub_default_tab.trim().to_ascii_lowercase();
+        if want == "posts" && has_posts {
+            return "posts";
+        }
+        if want == "shop" && has_products {
+            return "shop";
+        }
+        return if has_products { "shop" } else { "posts" };
     }
+    if has_products {
+        return "shop";
+    }
+    if has_posts {
+        return "posts";
+    }
+    "shop"
 }
 
-fn guest_hub_catalog_tabs_html(
+/// Shop + posts hub tabs (Flutter `GuestSiteHubCatalogTabs`).
+pub fn guest_hub_catalog_tabs_html(
     shop_section: &str,
     posts_items: &str,
     default_tab: &str,
@@ -1357,7 +1386,11 @@ pub fn block_html_render(
             } else {
                 String::new()
             };
-            let list_html = format!(r#"<ul class="guest-links-list">{}</ul>"#, list_lis.join(""));
+            let list_html = if list_lis.is_empty() {
+                String::new()
+            } else {
+                format!(r#"<ul class="guest-links-list">{}</ul>"#, list_lis.join(""))
+            };
             format!(
                 r#"<section class="block links-block" data-guest="link">{heading}{icons_html}{list_html}</section>"#,
                 heading = heading,
@@ -1579,6 +1612,7 @@ pub async fn page_html_render(
     doc: &SiteDoc,
     page_path: &str,
     site_name: &str,
+    mode: GuestRenderMode,
 ) -> Result<String> {
     let page = doc
         .pages
@@ -1692,7 +1726,7 @@ pub async fn page_html_render(
                 body.push_str(&guest_hub_catalog_tabs_html(
                     &html,
                     &posts_items,
-                    guest_hub_default_tab(&design),
+                    guest_hub_initial_tab(&design, true, true),
                     &i18n,
                 ));
                 emitted_hub_tabs = true;
@@ -1758,7 +1792,15 @@ pub async fn page_html_render(
         atmosphere = atmosphere,
         body = body,
         chrome = guest_storefront_chrome_html(),
-        client_js = guest_client_script_tags(pool, site_iid, &theme_effects(&doc.theme_json)).await
+        client_js = guest_client_script_tags(
+            pool,
+            site_iid,
+            &site_meta,
+            &theme_json,
+            mode,
+            &theme_effects(&doc.theme_json),
+        )
+        .await
     ))
 }
 
@@ -1810,9 +1852,17 @@ pub fn guest_storefront_chrome_html() -> &'static str {
 <button type="button" id="c35-guest-orders-chip" class="guest-orders-chip" style="display:none;" onclick="c35GuestOrders.open()">Pesanan saya</button>"#
 }
 
-async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value) -> String {
-    let meta = site_published_meta_json(pool, site_iid).await;
-    let commerce = commerce_boot_build(pool, site_iid, &meta)
+async fn guest_client_script_tags(
+    pool: &PgPool,
+    site_iid: i64,
+    doc_meta: &Value,
+    theme_json: &str,
+    mode: GuestRenderMode,
+    effects: &Value,
+) -> String {
+    let meta = doc_meta;
+    let design = GuestDesign::from_theme_json(theme_json).to_value();
+    let commerce = commerce_boot_build(pool, site_iid, meta)
         .await
         .unwrap_or_else(|_| serde_json::json!({}));
     let queue_boot = queue_boot_build(pool, site_iid)
@@ -1841,13 +1891,16 @@ async fn guest_client_script_tags(pool: &PgPool, site_iid: i64, effects: &Value)
         "site_id": site_iid,
         "alien_id": alien_id.trim(),
         "api_base": "",
+        "mode": mode.as_str(),
+        "meta": meta,
+        "design": design,
         "commerce_boot": commerce,
         "queue_boot": queue_boot,
         "order_progress_steps": order_progress_steps_json(order_fulfillment),
         "ai_assistant": assistant.get("ai_assistant").cloned().unwrap_or(Value::Null),
         "knowledge": assistant.get("knowledge").cloned().unwrap_or_else(|| json!([])),
         "i18n": i18n.to_json(),
-        "guest_layout": guest_layout_mode(&meta, commerce_product_count),
+        "guest_layout": guest_layout_mode(meta, commerce_product_count),
         "member_portal_enabled": crate::site_config::site_member_portal_enabled(&caps),
     });
     let raw = serde_json::to_string(&guest).unwrap_or_else(|_| "{}".into());
@@ -2025,35 +2078,6 @@ pub fn post_detail_article_html(post: &SitePost) -> String {
     )
 }
 
-async fn published_site_doc(pool: &PgPool, site_iid: i64) -> SiteDoc {
-    if let Ok(Some(row)) = sqlx::query(
-        r#"
-        SELECT doc_json FROM site.publish
-        WHERE site_iid = $1 AND is_active = TRUE AND deleted_ts IS NULL
-        ORDER BY published_ts DESC
-        LIMIT 1
-        "#,
-    )
-    .bind(site_iid)
-    .fetch_optional(pool)
-    .await
-    {
-        let v: Value = row.get("doc_json");
-        return site_doc_from_json(&v);
-    }
-    if let Ok(Some(row)) = sqlx::query(
-        r#"SELECT doc_json FROM site.draft WHERE site_iid = $1 AND deleted_ts IS NULL"#,
-    )
-    .bind(site_iid)
-    .fetch_optional(pool)
-    .await
-    {
-        let v: Value = row.get("doc_json");
-        return site_doc_from_json(&v);
-    }
-    site_doc_from_json(&json!({ "pages": [], "theme": {}, "meta": {} }))
-}
-
 async fn guest_storefront_page_html(
     pool: &PgPool,
     site_iid: i64,
@@ -2061,6 +2085,7 @@ async fn guest_storefront_page_html(
     doc: &SiteDoc,
     document_title: &str,
     body: &str,
+    mode: GuestRenderMode,
 ) -> Result<String> {
     let theme_modern = crate::guest_theme_modernize::modernize_theme_for_render(
         &serde_json::from_str(&doc.theme_json).unwrap_or(serde_json::Value::Null),
@@ -2084,7 +2109,7 @@ async fn guest_storefront_page_html(
     );
     let atmosphere = guest_atmosphere_html(&design);
     let effects = theme_effects(&doc.theme_json);
-    let client_js = guest_client_script_tags(pool, site_iid, &effects).await;
+    let client_js = guest_client_script_tags(pool, site_iid, &site_meta, &theme_json, mode, &effects).await;
     let identity_pic = site_identity_pic(pool, site_iid).await;
     let favicon_tags = guest_favicon_head_markup(&guest_site_favicon_url(&site_meta, doc, &identity_pic));
     let tone_class = if design.dark {
@@ -2122,6 +2147,8 @@ pub async fn product_detail_html_render(
     site_iid: i64,
     product_id: i64,
     site_name: &str,
+    storefront_doc: &SiteDoc,
+    mode: GuestRenderMode,
 ) -> Result<Option<String>> {
     let detail = match guest_product_get(pool, site_iid, product_id).await? {
         Some(d) => d,
@@ -2130,9 +2157,10 @@ pub async fn product_detail_html_render(
     let mut row = detail.row;
     row.can_reserve = detail.can_reserve;
     let body = product_detail_article_html(&row);
-    let doc = published_site_doc(pool, site_iid).await;
     let title = format!("{} — {}", row.name.trim(), site_name.trim());
-    let html = guest_storefront_page_html(pool, site_iid, site_name, &doc, &title, &body).await?;
+    let html =
+        guest_storefront_page_html(pool, site_iid, site_name, storefront_doc, &title, &body, mode)
+            .await?;
     Ok(Some(html))
 }
 
@@ -2141,6 +2169,8 @@ pub async fn post_detail_html_render(
     site_iid: i64,
     post_id: i64,
     site_name: &str,
+    storefront_doc: &SiteDoc,
+    mode: GuestRenderMode,
 ) -> Result<Option<String>> {
     let post = site_post_get_storefront(pool, site_iid, post_id).await?;
     let post = match post {
@@ -2148,9 +2178,10 @@ pub async fn post_detail_html_render(
         None => return Ok(None),
     };
     let article = post_detail_article_html(&post);
-    let doc = published_site_doc(pool, site_iid).await;
     let title = format!("{} — {}", post.title.trim(), site_name.trim());
-    let html = guest_storefront_page_html(pool, site_iid, site_name, &doc, &title, &article).await?;
+    let html =
+        guest_storefront_page_html(pool, site_iid, site_name, storefront_doc, &title, &article, mode)
+            .await?;
     Ok(Some(html))
 }
 
@@ -2165,22 +2196,56 @@ pub async fn publish_doc_render(
     let mut out = Vec::new();
     for page in &doc.pages {
         let key = crate::doc::render_key_for_page(&page.path);
-        let html = page_html_render(pool, site_iid, &doc, &page.path, site_name).await?;
+        let html = page_html_render(
+            pool,
+            site_iid,
+            &doc,
+            &page.path,
+            site_name,
+            GuestRenderMode::Published,
+        )
+        .await?;
         out.push((key, html));
     }
     if out.is_empty() {
-        let html = page_html_render(pool, site_iid, &doc, "/", site_name).await?;
+        let html = page_html_render(
+            pool,
+            site_iid,
+            &doc,
+            "/",
+            site_name,
+            GuestRenderMode::Published,
+        )
+        .await?;
         out.push(("html:/".into(), html));
     }
     let product_ids = guest_product_sell_ids(pool, site_iid, 200).await?;
     for product_id in product_ids {
-        if let Some(html) = product_detail_html_render(pool, site_iid, product_id, site_name).await? {
+        if let Some(html) = product_detail_html_render(
+            pool,
+            site_iid,
+            product_id,
+            site_name,
+            &doc,
+            GuestRenderMode::Published,
+        )
+        .await?
+        {
             out.push((format!("html:/products/{}", product_id), html));
         }
     }
     let post_ids = crate::site_post::site_post_storefront_ids(pool, site_iid).await?;
     for post_id in post_ids {
-        if let Some(html) = post_detail_html_render(pool, site_iid, post_id, site_name).await? {
+        if let Some(html) = post_detail_html_render(
+            pool,
+            site_iid,
+            post_id,
+            site_name,
+            &doc,
+            GuestRenderMode::Published,
+        )
+        .await?
+        {
             out.push((format!("html:/posts/{}", post_id), html));
         }
     }

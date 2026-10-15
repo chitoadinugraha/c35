@@ -35,13 +35,20 @@ class _UiConnWifiState extends State<UiConnWifi> with SingleTickerProviderStateM
   }
 
   void _syncBlink() {
-    final offline = widget.conn.status.value != ChatConnStatus.connected;
+    final offline = !widget.conn.connected;
     if (offline) {
       if (!_blink.isAnimating) _blink.repeat(reverse: true);
     } else {
       _blink.stop();
       _blink.value = 1;
     }
+    if (mounted) setState(() {});
+  }
+
+  ChatConnStatus _displayStatus(ChatConnStatus s) {
+    if (widget.conn.connected) return s;
+    if (s == ChatConnStatus.connected) return ChatConnStatus.reconnecting;
+    return s;
   }
 
   @override
@@ -67,7 +74,7 @@ class _UiConnWifiState extends State<UiConnWifi> with SingleTickerProviderStateM
   Widget build(BuildContext context) => ValueListenableBuilder<ChatConnStatus>(
         valueListenable: widget.conn.status,
         builder: (_, s, __) {
-          if (s == ChatConnStatus.connected) {
+          if (widget.conn.connected) {
             if (!widget.alwaysVisible) return const SizedBox.shrink();
             return uiTooltip(
               message: 'Online',
@@ -84,22 +91,21 @@ class _UiConnWifiState extends State<UiConnWifi> with SingleTickerProviderStateM
               ),
             );
           }
-          final color = s == ChatConnStatus.disconnected ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
-          final label = switch (s) {
+          final display = _displayStatus(s);
+          final color = display == ChatConnStatus.disconnected ? const Color(0xFFEF4444) : const Color(0xFFF59E0B);
+          final label = switch (display) {
             ChatConnStatus.disconnected => 'Offline Mode',
             ChatConnStatus.connecting => 'Connecting…',
             ChatConnStatus.reconnecting => 'Reconnecting…',
             ChatConnStatus.connected => 'Online',
           };
-          final tooltip = switch (s) {
+          final tooltip = switch (display) {
             ChatConnStatus.disconnected => 'Offline Mode — tap to reconnect',
             ChatConnStatus.connecting => 'Connecting… — tap to retry',
             ChatConnStatus.reconnecting => 'Reconnecting… — tap to retry',
             ChatConnStatus.connected => '',
           };
-          final icon = (s == ChatConnStatus.disconnected && widget.showLabel)
-              ? Icons.wifi_off_rounded
-              : Icons.wifi_rounded;
+          final icon = display == ChatConnStatus.disconnected ? Icons.wifi_off_rounded : Icons.wifi_rounded;
 
           return uiTooltip(
             message: tooltip,

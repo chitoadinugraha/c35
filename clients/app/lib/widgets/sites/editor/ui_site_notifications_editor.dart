@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_draft_flush.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
@@ -47,8 +48,13 @@ class _UiSiteNotificationsEditorState extends State<UiSiteNotificationsEditor> {
       _error = null;
     });
     try {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      _orderRing = siteDraftExtrasParse(draft.doc.metaJson).orderRing;
+      final adapter = SiteEditorSaveScope.draftAdapter(context);
+      if (adapter != null) {
+        _orderRing = adapter.extras.orderRing;
+      } else {
+        final draft = await widget.api.draftGet(widget.siteIid);
+        _orderRing = siteDraftExtrasParse(draft.doc.metaJson).orderRing;
+      }
     } catch (e) {
       _error = uiFriendlyError(e);
     } finally {
@@ -70,15 +76,21 @@ class _UiSiteNotificationsEditorState extends State<UiSiteNotificationsEditor> {
   }
 
   Future<void> _saveOrderRing(String value) async {
-    await SiteEditorSaveScope.run(context, () async {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      final next = draft.clone();
-      final doc = next.doc.clone();
-      doc.metaJson = siteDraftExtrasMerge(doc.metaJson, orderRing: value);
-      next.doc = doc;
-      await widget.api.draftPut(next);
-      widget.onDraftSaved?.call();
-    });
+    final adapter = SiteEditorSaveScope.draftAdapter(context);
+    if (adapter != null) {
+      adapter.setOrderRing(value);
+      await siteEditorFlushDraft(context);
+    } else {
+      await SiteEditorSaveScope.run(context, () async {
+        final draft = await widget.api.draftGet(widget.siteIid);
+        final next = draft.clone();
+        final doc = next.doc.clone();
+        doc.metaJson = siteDraftExtrasMerge(doc.metaJson, orderRing: value);
+        next.doc = doc;
+        await widget.api.draftPut(next);
+      });
+    }
+    widget.onDraftSaved?.call();
   }
 
   void _set(String value) {
@@ -111,24 +123,30 @@ class _UiSiteNotificationsEditorState extends State<UiSiteNotificationsEditor> {
           },
           child: Column(
             children: [
-        RadioListTile<String>(
-          value: kSiteOrderRingOnce,
-          secondary: const Icon(Icons.notifications_outlined, color: _muted),
-          title: const Text('Ring once', style: TextStyle(color: _text, fontSize: 14)),
-          subtitle: const Text('Play one time when an order arrives.', style: TextStyle(color: _muted, fontSize: 12)),
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          activeColor: const Color(0xFF34D399),
-        ),
-        RadioListTile<String>(
-          value: kSiteOrderRingUntilHandled,
-          secondary: const Icon(Icons.notifications_active_outlined, color: _muted),
-          title: const Text('Until handled', style: TextStyle(color: _text, fontSize: 14)),
-          subtitle: const Text('Keep ringing until the order is handled.', style: TextStyle(color: _muted, fontSize: 12)),
-          contentPadding: EdgeInsets.zero,
-          dense: true,
-          activeColor: const Color(0xFF34D399),
-        ),
+              Material(
+                color: Colors.transparent,
+                child: RadioListTile<String>(
+                  value: kSiteOrderRingOnce,
+                  secondary: const Icon(Icons.notifications_outlined, color: _muted),
+                  title: const Text('Ring once', style: TextStyle(color: _text, fontSize: 14)),
+                  subtitle: const Text('Play one time when an order arrives.', style: TextStyle(color: _muted, fontSize: 12)),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  activeColor: const Color(0xFF34D399),
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: RadioListTile<String>(
+                  value: kSiteOrderRingUntilHandled,
+                  secondary: const Icon(Icons.notifications_active_outlined, color: _muted),
+                  title: const Text('Until handled', style: TextStyle(color: _text, fontSize: 14)),
+                  subtitle: const Text('Keep ringing until the order is handled.', style: TextStyle(color: _muted, fontSize: 12)),
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  activeColor: const Color(0xFF34D399),
+                ),
+              ),
             ],
           ),
         ),

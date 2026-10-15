@@ -771,6 +771,7 @@ name = "c_remote_windows"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "blake3",
  "bytes",
  "c_remote_browser_core",
@@ -778,6 +779,7 @@ dependencies = [
  "c_remote_drive",
  "futures-util",
  "hostname",
+ "image",
  "jpeg-encoder",
  "serde",
  "serde_json",

@@ -278,11 +278,8 @@ pub async fn admin_user_registrations_list(
         .take(take)
         .map(|r| {
             let alien_id: String = r.get("alien_id");
-            let handle = if alien_id.is_empty() {
-                "@user".into()
-            } else {
-                format!("@{alien_id}")
-            };
+            let email: String = r.get("email");
+            let handle = crate::admin_user_public_handle(&alien_id, &email);
             let ref_id: i64 = r.get("referred_by_iid");
             let created: DateTime<Utc> = r.get("created_ts");
             AdminUserRegistrationRow {

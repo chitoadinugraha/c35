@@ -39,11 +39,13 @@ class UiSiteLinksEditor extends StatefulWidget {
 class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
-  var _loading = true;
+  var _loading = false;
   var _busy = false;
   String? _error;
   String? _selectedId;
   final _byId = <String, SiteLink>{};
+  final _dirtyIds = <String>{};
+  Timer? _previewDebounce;
   var _loadScheduled = false;
 
   @override
@@ -61,6 +63,7 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
 
   @override
   void dispose() {
+    _previewDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -112,9 +115,18 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
 
   @override
   void onEditorCatalogUpdated(SiteEditorCatalogCache catalog) {
+    final merged = <String, SiteLink>{};
+    for (final link in catalog.links) {
+      final id = '${link.linkId}';
+      if (_dirtyIds.contains(id) && _byId.containsKey(id)) {
+        merged[id] = _byId[id]!;
+      } else {
+        merged[id] = link;
+      }
+    }
     _byId
       ..clear()
-      ..addEntries(catalog.links.map((l) => MapEntry('${l.linkId}', l)));
+      ..addEntries(merged.entries);
     _pickDefault();
     if (mounted) {
       setState(() {
@@ -127,10 +139,12 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (siteEditorCatalogWaitsForWarm(editorCatalog)) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       if (await ensureEditorCatalog()) return;
       final items = await widget.api.linkList(widget.siteIid);
@@ -167,22 +181,40 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
     }
   }
 
-  void _debouncedPut(String id, SiteLink draft) {
+  void _debouncedPut(String id) {
     siteEditorScheduleSave(
       context,
       key: 'link:$id',
-      debounce: const Duration(milliseconds: 450),
-      save: () => _put(id, draft),
+      save: () => _put(id),
     );
   }
 
-  Future<void> _put(String id, SiteLink draft) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      final saved = await widget.api.linkPut(widget.siteIid, draft);
+  void _schedulePreview(String id) {
+    _previewDebounce?.cancel();
+    _previewDebounce = Timer(siteEditorAutosaveDebounce, () {
       if (!mounted) return;
+      final link = _byId[id];
+      if (link == null) return;
+      siteEditorPreviewPatch(context, (boot) => siteEditorPreviewUpsertLink(boot, link));
+    });
+  }
+
+  Future<void> _put(String id) async {
+    final draft = _byId[id];
+    if (draft == null) return;
+    final sent = draft.clone();
+    try {
+      final saved = await widget.api.linkPut(widget.siteIid, sent);
+      if (!mounted) return;
+      final current = _byId[id];
+      if (current == null) return;
+      if (current != sent) {
+        _debouncedPut(id);
+        return;
+      }
       final savedId = '${saved.linkId}';
+      _dirtyIds.remove(id);
+      if (savedId != id) _dirtyIds.remove(savedId);
       setState(() {
         _byId.remove(id);
         _byId[savedId] = saved;
@@ -196,8 +228,6 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
       }
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -206,9 +236,10 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
     if (base == null) return;
     final next = base.clone();
     fn(next);
+    _dirtyIds.add(id);
     setState(() => _byId[id] = next);
-    siteEditorPreviewPatch(context, (boot) => siteEditorPreviewUpsertLink(boot, next));
-    _debouncedPut(id, next);
+    _schedulePreview(id);
+    _debouncedPut(id);
   }
 
   Future<void> _delete(String id) async {
@@ -218,9 +249,12 @@ class _UiSiteLinksEditorState extends State<UiSiteLinksEditor> with SiteEditorCa
     setState(() => _busy = true);
     try {
       await widget.api.linkDelete(widget.siteIid, linkId);
+      _dirtyIds.remove(id);
       _byId.remove(id);
       editorCatalog?.removeLink(linkId);
-      siteEditorPreviewPatch(context, (boot) => siteEditorPreviewRemoveLink(boot, linkId));
+      if (mounted) {
+        siteEditorPreviewPatch(context, (boot) => siteEditorPreviewRemoveLink(boot, linkId));
+      }
       widget.onPublishStateMayHaveChanged?.call();
       _pickDefault();
       if (widget.masterDetail) {

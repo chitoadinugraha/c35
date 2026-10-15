@@ -37,7 +37,7 @@ pub use embed_cache::{
 pub use embed_gemini::{embed_text, embed_token_est, EmbedTextResult, EMBED_MODEL};
 pub use gemini_no_provider_grounding::gemini_request_reject_provider_grounding;
 pub use model_catalog::{
-    model_chain_for_slug, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
+    model_chain_for_slug, model_chain_for_slug_device, model_is_alien, model_log_label, model_resolve_target, ModelTarget,
 };
 pub use catalog_types::context_tokens_infer;
 pub use model_catalog::{
@@ -57,7 +57,8 @@ pub use llm_catalog::{
 pub use catalog_price::{ALIEN_POOL_USD_IN_PER_1M, ALIEN_POOL_USD_OUT_PER_1M};
 pub use model_cost::model_cost_usd;
 pub use runtime_config::{
-    alien_chain_default, alien_chain_models, alien_default_model, cf_gateway_config, cf_gateway_from_env,
+    alien_chain_default, alien_chain_models, alien_chain_models_device, alien_chain_models_for_device,
+    alien_default_model, cf_gateway_config, cf_gateway_from_env,
     cf_gateway_ready, model_is_flash_lite, runtime_config_init, runtime_config_reload,
     runtime_config_watch, CfGatewayRuntime,
 };

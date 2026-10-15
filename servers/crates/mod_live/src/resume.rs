@@ -52,7 +52,35 @@ pub fn live_swap_should_run(now: Instant, last: Option<Instant>, tool_inflight: 
     }
 }
 
+/// Read-only prior thread text for the Live system instruction (no TTS).
+pub fn live_history_context_block(rows: &[(String, String)]) -> String {
+    if rows.is_empty() {
+        return String::new();
+    }
+    let mut block =
+        String::from("\n\n[PRIOR CHAT THREAD — text context only; never read aloud]\n");
+    for (role, content) in rows {
+        let text = content.trim();
+        if text.is_empty() {
+            continue;
+        }
+        let text: String = text.chars().take(500).collect();
+        let label = if role == "assistant" {
+            "Assistant"
+        } else {
+            "User"
+        };
+        block.push_str(&format!("{label}: {text}\n"));
+    }
+    block.push_str(
+        "Stay silent when this voice call connects until the user speaks first. \
+Do not greet, summarize, or repeat prior assistant replies aloud.\n",
+    );
+    block
+}
+
 /// Compact text turns for a fresh Live session. `assistant` maps to Gemini `model`.
+/// Prefer [`live_history_context_block`] on connect — `clientContent` seeding can trigger unwanted speech.
 pub fn live_text_seed(rows: &[(String, String)]) -> Vec<Value> {
     let mut out = Vec::new();
     let start = rows.len().saturating_sub(6);
@@ -103,6 +131,18 @@ mod tests {
     fn live_go_away_detected() {
         assert!(LiveResume::is_go_away(&json!({"goAway": {"timeLeft": "50s"}})));
         assert!(!LiveResume::is_go_away(&json!({"serverContent": {}})));
+    }
+
+    #[test]
+    fn live_history_context_block_includes_roles_and_silence_rule() {
+        let rows = vec![
+            ("user".into(), "How many signed up?".into()),
+            ("assistant".into(), "Two people.".into()),
+        ];
+        let block = live_history_context_block(&rows);
+        assert!(block.contains("User: How many signed up?"));
+        assert!(block.contains("Assistant: Two people."));
+        assert!(block.contains("Stay silent"));
     }
 
     #[test]

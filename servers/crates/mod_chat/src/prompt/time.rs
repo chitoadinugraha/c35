@@ -135,7 +135,10 @@ fn web_lookup_blocks_time_strip(t: &str) -> bool {
 
 pub fn user_asks_time(text: &str) -> bool {
     let t = text.to_ascii_lowercase();
-    if food_recap_blocks_time_strip(&t) || web_lookup_blocks_time_strip(&t) {
+    if food_recap_blocks_time_strip(&t)
+        || web_lookup_blocks_time_strip(&t)
+        || staff_registrations_blocks_time_strip(&t)
+    {
         return false;
     }
     [
@@ -152,6 +155,22 @@ pub fn user_asks_time(text: &str) -> bool {
         "pukul berapa",
         "waktu sekarang",
         "jam sekarang",
+    ]
+    .iter()
+    .any(|k| t.contains(k))
+}
+
+fn staff_registrations_blocks_time_strip(t: &str) -> bool {
+    [
+        "mendaftar",
+        "pendaftaran",
+        "registrasi",
+        "registration",
+        "registrations",
+        "sign up",
+        "signup",
+        "user baru",
+        "new user",
     ]
     .iter()
     .any(|k| t.contains(k))
@@ -235,6 +254,7 @@ mod tests {
         assert!(!user_asks_time(
             "film apa saja di bioskop malang hari ini ?"
         ));
+        assert!(!user_asks_time("berapa yang mendaftar hari ini ?"));
     }
 
     #[test]

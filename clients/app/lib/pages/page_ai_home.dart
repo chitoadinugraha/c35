@@ -102,6 +102,7 @@ import 'package:alienai_c35/widgets/billing/ui_billing_plan_sheet.dart';
 import 'package:alienai_c35/widgets/chat/ui_chat_timeline.dart';
 import 'package:alienai_c35/widgets/sites/ui_pos_link_host.dart';
 import 'package:alienai_c35/widgets/sites/ui_sites_picker_dialog.dart';
+import 'package:alienai_c35/widgets/sites/ui_staff_site_manage_card.dart';
 import 'package:alienai_c35/widgets/sites/ui_staff_site_picker_dialog.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
@@ -175,7 +176,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   var _retrying = false;
   var _hintRunning = false;
   String? _selectedPlain;
-  OverlayEntry? _desktopMsgMenuEntry;
+  var _presentationDecksRev = -1;
+  int? _presentationDecksChatId;
+  List<SlideDeckData?>? _presentationDecksCache;
   Timer? _composerDraftDebounce;
   String? _uiLang;
   Timer? _promptWatchdog;
@@ -209,7 +212,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     });
     _followupPushSub = _conn.onPromptFollowupPush.listen((p) {
       PromptFollowupStore.instance.mergePush(p);
-      if (mounted) setState(() {});
     });
     _promptRunPushSub = _conn.onPromptRunPush.listen((push) {
       if (push.parentReqId.isNotEmpty) return;
@@ -244,7 +246,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       unawaited(NotifyRouter.show(push.title, push.body, push.routeJson, resumed: NotifyRouter.appResumed, id: push.id.toInt()));
     });
     _presenceHeartbeat(true);
-    PromptFollowupStore.instance.addListener(_onFollowupStoreChanged);
     VoicePrefs.instance.addListener(_onTalkPrefs);
     SttService.instance.isTranscribing.addListener(_onTalkSttUi);
     serverHostTick.addListener(_onServerHostChanged);
@@ -439,10 +440,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     } catch (e) {
       lError('locale sync: $e');
     }
-    if (mounted) setState(() {});
-  }
-
-  void _onFollowupStoreChanged() {
     if (mounted) setState(() {});
   }
 
@@ -744,7 +741,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _dismissDesktopMsgMenu();
     WidgetsBinding.instance.removeObserver(this);
     _promptWatchdogCancel();
     _promptConnGuardUnbind();
@@ -761,7 +757,6 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _promptRunPushSub?.cancel();
     _notifyPushSub?.cancel();
     _presenceTimer?.cancel();
-    PromptFollowupStore.instance.removeListener(_onFollowupStoreChanged);
     VoicePrefs.instance.removeListener(_onTalkPrefs);
     SttService.instance.onAutoStop = null;
     SttService.instance.liveTranscript.removeListener(_onTalkLiveTranscript);
@@ -1214,10 +1209,21 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
         ),
       );
 
-  void _openDirectorEditSite() => uiStaffSitePickerOpen(
+  void _openDirectorManageSite() => uiStaffSitePickerOpen(
         context: context,
         chatConn: _conn,
-        onEdit: (siteIid) => _openSiteAdmin(siteIid, initialTabRoute: null),
+        onPicked: (row) {
+          final siteIid = row.siteIid.toString();
+          uiStaffSiteManageCardShow(
+            context: context,
+            chatConn: _conn,
+            row: row,
+            action: UiStaffSiteManageAction(
+              onEdit: () => _openSiteAdmin(siteIid, initialTabRoute: null),
+              onPos: () => sitePosOpen(context: context, chatConn: _conn, siteIid: siteIid),
+            ),
+          );
+        },
       );
 
   void _openMail() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageMail(chatConn: _conn)));
@@ -1284,7 +1290,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           onDevices: _openDevices,
           onSites: _openSites,
           onRootConsole: Session.instance.isRoot ? _openRootConsole : null,
-          onDirectorEditSite: Session.instance.isDirectorStaff ? _openDirectorEditSite : null,
+          onDirectorManageSite: Session.instance.isDirectorStaff ? _openDirectorManageSite : null,
           onMail: Session.instance.canUseMail || mailInboxBus.menuVisible ? _openMail : null,
           onNotifications: _openNotifyHistory,
           composerModel: _model,
@@ -1394,13 +1400,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     final wireText = composerMentionTextForWire(uiContent, catalogMentions, mentionIds: wireMentionIds);
     if (wireText.isEmpty && attachments.isEmpty && wireMentionIds.isEmpty) return;
     ComposerDraftStore.instance.remove(draftKeyBeforeSend);
-    final previewLine = composerMentionTextHasTokens(uiContent)
-        ? composerMentionTextForPrompt(
-            uiContent,
-            catalogMentions,
-            mentionIds: wireMentionIds,
-          )
-        : wireText;
+    final previewLine = wireText;
     if (_store.promptBusy && !retry) {
       final cid = _store.activeChatId;
       if (cid == null) return;
@@ -1754,43 +1754,15 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     return null;
   }
 
-  String _activeChatTitle() {
+  Widget _activeChatTitleWidget() {
     final chat = _activeChat;
-    if (chat == null) return '';
-    return chatTitleDisplay(
-      chat.title,
+    if (chat == null) return const SizedBox.shrink();
+    return ChatTitleText(
+      title: chat.title,
       mentions: _store.mentionCatalog.mentions,
       stickyMentionIds: chat.stickyMentionIds,
-    );
-  }
-
-  void _dismissDesktopMsgMenu() {
-    _desktopMsgMenuEntry?.remove();
-    _desktopMsgMenuEntry = null;
-  }
-
-  void _openDesktopMessageMenu(
-    BuildContext ctx,
-    MsgRow m,
-    int index, {
-    required Offset globalPosition,
-    required int lastUserIdx,
-    required int lastAssistantIdx,
-  }) {
-    _dismissDesktopMsgMenu();
-    final items = _messageBubbleMenuItems(
-      ctx,
-      m: m,
-      index: index,
-      lastUserIdx: lastUserIdx,
-      lastAssistantIdx: lastAssistantIdx,
-    );
-    if (items.isEmpty) return;
-    _desktopMsgMenuEntry = showMsgBubbleContextMenuOverlay(
-      context: ctx,
-      anchor: globalPosition,
-      items: msgBubbleMenuItemsWithDismiss(items, _dismissDesktopMsgMenu),
-      onDismiss: () => _desktopMsgMenuEntry = null,
+      style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600),
+      maxLines: 1,
     );
   }
 
@@ -1881,7 +1853,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   Widget _chatHeader({required bool wide}) {
-    final title = _activeChatTitle();
+    final titleWidget = _activeChatTitleWidget();
     final bar = SizedBox(
       height: 48,
       child: Padding(
@@ -1895,11 +1867,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 icon: const Icon(Icons.menu_rounded),
                 onPressed: () => _scaffoldKey.currentState?.openDrawer(),
               ),
-            Expanded(
-              child: title.isEmpty
-                  ? const SizedBox.shrink()
-                  : Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
-            ),
+            Expanded(child: titleWidget),
             if (_canvasStore.hasArtifact) ...[
               uiIconButton(
                 tooltip: _canvasStore.isOpen ? 'Hide canvas' : 'Open canvas',
@@ -2317,6 +2285,18 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     return parts.join('\n\n');
   }
 
+  List<SlideDeckData?> _presentationDecksForThread(List<MsgRow> msgs, int chatId) {
+    final rev = _store.msgsRevision;
+    if (_presentationDecksCache != null && _presentationDecksRev == rev && _presentationDecksChatId == chatId) {
+      return _presentationDecksCache!;
+    }
+    final out = _presentationDecksBefore(msgs, chatId);
+    _presentationDecksRev = rev;
+    _presentationDecksChatId = chatId;
+    _presentationDecksCache = out;
+    return out;
+  }
+
   List<SlideDeckData?> _presentationDecksBefore(List<MsgRow> msgs, int chatId) {
     final out = List<SlideDeckData?>.filled(msgs.length, null, growable: false);
     SlideDeckData? deck;
@@ -2422,7 +2402,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           else if (content.trim().isNotEmpty)
             UiMarkdownBody(
               data: content,
-              selectable: false,
+              selectable: true,
               styleSheet: uiMarkdownChatStyleSheet(
                 p: const TextStyle(color: _text, fontSize: 15, height: 1.45),
                 code: const TextStyle(color: _text, fontSize: 13, fontFamily: 'Consolas', backgroundColor: Color(0xFF1A1A1D)),
@@ -2629,9 +2609,8 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               !_store.threadPromptLiveVisible(cid) &&
               (_store.promptBusyFor(cid) || (_store.promptStopping && _store.promptChatId == cid));
           final itemCount = msgs.length + (showThinkingTail ? 1 : 0);
-          final lastUserIdx = msgs.lastIndexWhere((x) => x.role == 'user');
           final lastAssistantIdx = msgs.lastIndexWhere((x) => x.role == 'assistant');
-          final decksBefore = cid == null ? const <SlideDeckData?>[] : _presentationDecksBefore(msgs, cid);
+          final decksBefore = cid == null ? const <SlideDeckData?>[] : _presentationDecksForThread(msgs, cid);
           final timeline = UiChatTimeline(
             key: ValueKey(_store.activeChatId ?? 'hero'),
             controller: _timeline,
@@ -2643,39 +2622,24 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
               final m = msgs[i];
               return Listener(
                 onPointerDown: (_) => _menuMsgIndex = i,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.deferToChild,
-                  onSecondaryTapDown: uiDesktopEmbedder
-                      ? (d) => _openDesktopMessageMenu(
-                            context,
-                            m,
-                            i,
-                            globalPosition: d.globalPosition,
-                            lastUserIdx: lastUserIdx,
-                            lastAssistantIdx: lastAssistantIdx,
-                          )
-                      : null,
-                  child: KeyedSubtree(
-                    key: ValueKey(msgTileKey(m)),
-                    child: _msgTile(
-                      m,
-                      i: i,
-                      count: msgs.length,
-                      lastAssistantIdx: lastAssistantIdx,
-                      presentationDeckPrior: i < decksBefore.length ? decksBefore[i] : null,
-                    ),
+                child: KeyedSubtree(
+                  key: ValueKey(msgTileKey(m)),
+                  child: _msgTile(
+                    m,
+                    i: i,
+                    count: msgs.length,
+                    lastAssistantIdx: lastAssistantIdx,
+                    presentationDeckPrior: i < decksBefore.length ? decksBefore[i] : null,
                   ),
                 ),
               );
             },
           );
-          final threadList = uiDesktopEmbedder
-              ? timeline
-              : SelectionArea(
-                  onSelectionChanged: (c) => _selectedPlain = c?.plainText,
-                  contextMenuBuilder: _threadContextMenu,
-                  child: timeline,
-                );
+          final threadList = SelectionArea(
+            onSelectionChanged: (c) => _selectedPlain = c?.plainText,
+            contextMenuBuilder: _threadContextMenu,
+            child: timeline,
+          );
           return Stack(
             children: [
               Positioned.fill(child: threadList),

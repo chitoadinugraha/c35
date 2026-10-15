@@ -1,4 +1,5 @@
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,6 +32,32 @@ void main() {
     cart.orderNumpad('C');
     cart.confirmOrder();
     expect(cart.count, 0);
+  });
+
+  testWidgets('order sheet groups Rp and tap scrim dismisses', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final cart = GuestSiteCartController(siteIid: 4);
+    cart.openOrder(productId: 1, name: 'Aerosil', price: 76590, pic: '');
+    cart.orderNumpad('5');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuestSiteOrderSheet(
+          controller: cart,
+          accent: const Color(0xFFF97316),
+          fg: const Color(0xFFF4F4F5),
+          cardBg: const Color(0xFF18181B),
+          muted: const Color(0xFFA1A1AA),
+        ),
+      ),
+    );
+
+    expect(find.textContaining('76.590'), findsWidgets);
+    expect(find.textContaining('382.950'), findsOneWidget);
+
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pump();
+    expect(cart.sheet, GuestSiteCartSheet.none);
   });
 
   test('pesan opens checkout at confirm step', () async {

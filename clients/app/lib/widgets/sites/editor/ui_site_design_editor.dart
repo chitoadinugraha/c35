@@ -6,6 +6,7 @@ import 'package:alienai_c35/c/site/design/site_design_store.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/sites/editor/design/ui_site_design_section.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_draft_flush.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:flutter/material.dart';
@@ -36,28 +37,45 @@ class UiSiteDesignEditor extends StatefulWidget {
 }
 
 class _UiSiteDesignEditorState extends State<UiSiteDesignEditor> {
-  final _store = SiteDesignStore();
+  SiteDesignStore? _ownedStore;
+  SiteDesignStore? _boundStore;
+  var _sharedDesign = false;
   var _loading = true;
   var _ready = false;
+  var _loadScheduled = false;
+
+  SiteDesignStore get _store =>
+      SiteEditorSaveScope.draftAdapter(context)?.design ?? _ownedStore!;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_load());
   }
 
   @override
   void dispose() {
-    _store.removeListener(_scheduleSave);
-    _store.dispose();
+    _boundStore?.removeListener(_scheduleSave);
+    if (!_sharedDesign) {
+      _ownedStore?.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      final meta = siteDraftMetaParse(draft.doc.metaJson);
-      _store.loadTheme(draft.doc.themeJson, productFallback: meta.productDesign);
+      final adapter = SiteEditorSaveScope.maybeOf(context)?.draft;
+      if (adapter != null) {
+        _sharedDesign = true;
+      } else {
+        _ownedStore = SiteDesignStore();
+        final draft = await widget.api.draftGet(widget.siteIid);
+        final meta = siteDraftMetaParse(draft.doc.metaJson);
+        _ownedStore!.loadTheme(draft.doc.themeJson, productFallback: meta.productDesign);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
@@ -68,7 +86,9 @@ class _UiSiteDesignEditorState extends State<UiSiteDesignEditor> {
           _loading = false;
           _ready = true;
         });
-        _store.addListener(_scheduleSave);
+        final store = SiteEditorSaveScope.draftAdapter(context)?.design ?? _ownedStore!;
+        _boundStore = store;
+        store.addListener(_scheduleSave);
       }
     }
   }
@@ -79,7 +99,6 @@ class _UiSiteDesignEditorState extends State<UiSiteDesignEditor> {
     siteEditorScheduleSave(
       context,
       key: 'design',
-      debounce: const Duration(milliseconds: 400),
       save: _save,
     );
   }
@@ -87,16 +106,20 @@ class _UiSiteDesignEditorState extends State<UiSiteDesignEditor> {
   Future<void> _save() async {
     if (!mounted) return;
     try {
-      await SiteEditorSaveScope.run(context, () async {
-        final draft = await widget.api.draftGet(widget.siteIid);
-        final next = draft.clone();
-        next.doc = siteDocWithThemeJson(next.doc, _store.toThemeJson());
-        next.doc = siteDocWithMetaJson(
-          next.doc,
-          siteDraftMetaMerge(next.doc.metaJson, productDesign: _store.productDesign),
-        );
-        await widget.api.draftPut(next);
-      });
+      if (SiteEditorSaveScope.draftAdapter(context) != null) {
+        await siteEditorFlushDraft(context);
+      } else {
+        await SiteEditorSaveScope.run(context, () async {
+          final draft = await widget.api.draftGet(widget.siteIid);
+          final next = draft.clone();
+          next.doc = siteDocWithThemeJson(next.doc, _store.toThemeJson());
+          next.doc = siteDocWithMetaJson(
+            next.doc,
+            siteDraftMetaMerge(next.doc.metaJson, productDesign: _store.productDesign),
+          );
+          await widget.api.draftPut(next);
+        });
+      }
       widget.onDraftSaved?.call();
     } catch (e) {
       if (mounted) {

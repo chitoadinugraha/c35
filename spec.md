@@ -119,6 +119,7 @@ Full UI spec: [`_/specs/ui.md`](_/specs/ui.md)
 | [`_/specs/plans/2026-10-12-windows-app-ota-parity.md`](_/specs/plans/2026-10-12-windows-app-ota-parity.md) | Windows ZIP app OTA: NATS wake, WS nudge, title-bar Restart, background stage, busy gating |
 | [`_/specs/plans/2026-10-13-play-dex-obfuscation-bitmap.md`](_/specs/plans/2026-10-13-play-dex-obfuscation-bitmap.md) | Play DEX obfuscation (R8) + shortcut bitmap downsampling |
 | [`_/specs/plans/2026-10-14-sota-computer-use-device-control.md`](_/specs/plans/2026-10-14-sota-computer-use-device-control.md) | SOTA Computer Use & Device Control: Win32 dwell, UIA SoM expansion, budget limits, single-screenshot trim & multi-tier caching |
+| [`_/specs/plans/2026-10-15-som-ocr-eager-device-perception.md`](_/specs/plans/2026-10-15-som-ocr-eager-device-perception.md) | Canvas OCR Set-of-Mark & Eager Device Perception: WinRT OcrEngine, Turn-0 eager capture, direct batch input steering |
 | [`_/specs/browser-extension.md`](_/specs/browser-extension.md) | Chrome extension remote (locked spec) — created in CE-W1 Track A |
 | [`_/specs/remote-agent.md`](_/specs/remote-agent.md) | Remote agent architecture, multi-platform porting, OTA & watchdog spec |
 | [`_/specs/remote-android.md`](_/specs/remote-android.md) | Android Remote Agent (`id.alienai.remote`): dual-app model, WebRTC, MediaProjection, Accessibility & SoM |

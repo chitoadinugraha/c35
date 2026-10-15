@@ -2,12 +2,15 @@ pub mod audio;
 pub mod gemini;
 pub mod hooks;
 pub mod llm_route;
+pub mod prose_tool;
+pub mod staff_registrations;
 pub mod thought;
 pub mod date_range;
 pub mod time;
 
 pub use date_range::{date_range_prompt_block, DATE_RANGE_INST};
 pub mod computer_use;
+pub mod device_screenshot_prefetch;
 pub mod google_forms;
 pub mod google_sheets;
 pub mod tool_loop;
@@ -32,11 +35,15 @@ pub struct ChatReq {
     pub thinking: String,
     pub tools: Vec<ToolDef>,
     pub history: Vec<ChatHistoryMsg>,
+    /// Inst ids matched at compose time (prefetch / force helpers).
+    pub matched_inst_ids: Vec<String>,
     /// When true, first tool hop uses Gemini function-calling mode ANY (web-search inst).
     pub force_tool_call: bool,
     pub force_web_tool_call: bool,
     pub catalog_web: CatalogWebPhase,
     pub skip_web_prefetch: bool,
+    /// Desktop JPEG captured before hop 1 when a single device is in scope.
+    pub device_prefetch: Option<device_screenshot_prefetch::DeviceScreenshotPrefetch>,
 }
 
 #[derive(Debug, Clone, Default)]

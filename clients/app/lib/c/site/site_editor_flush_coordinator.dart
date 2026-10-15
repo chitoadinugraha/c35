@@ -4,6 +4,7 @@ import 'dart:async';
 class SiteEditorFlushCoordinator {
   final Map<String, Timer> _timers = {};
   final Map<String, Future<void> Function()> _pending = {};
+  final Map<String, Future<void>> _inflight = {};
 
   void schedule(String key, Duration debounce, Future<void> Function() save) {
     _pending[key] = save;
@@ -18,9 +19,23 @@ class SiteEditorFlushCoordinator {
 
   Future<void> _runKey(String key) async {
     _timers.remove(key)?.cancel();
+    if (_inflight.containsKey(key)) return;
+
     final fn = _pending.remove(key);
     if (fn == null) return;
-    await fn();
+
+    final run = fn();
+    _inflight[key] = run;
+    try {
+      await run;
+    } catch (_) {
+      // [siteEditorSaveRun] reports errors on the save bus; coordinator only serializes.
+    } finally {
+      _inflight.remove(key);
+      if (_pending.containsKey(key)) {
+        await _runKey(key);
+      }
+    }
   }
 
   /// Cancel debounce timers and run every pending save (navigation / dispose).
@@ -29,12 +44,17 @@ class SiteEditorFlushCoordinator {
       t.cancel();
     }
     _timers.clear();
-    final ops = _pending.values.toList(growable: false);
-    _pending.clear();
-    for (final op in ops) {
-      await op();
+
+    if (_inflight.isNotEmpty) {
+      await Future.wait(_inflight.values.toList(growable: false));
+    }
+    while (_pending.isNotEmpty) {
+      final keys = _pending.keys.toList(growable: false);
+      for (final key in keys) {
+        await _runKey(key);
+      }
     }
   }
 
-  bool get hasPending => _pending.isNotEmpty || _timers.isNotEmpty;
+  bool get hasPending => _pending.isNotEmpty || _timers.isNotEmpty || _inflight.isNotEmpty;
 }

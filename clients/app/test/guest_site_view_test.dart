@@ -5,6 +5,8 @@ import 'package:alienai_c35/guest_site/guest_site_assistant.dart';
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_queue_sheet.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_cart.dart';
+import 'package:alienai_c35/guest_site/guest_site_commerce_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_layout.dart';
 import 'package:alienai_c35/guest_site/guest_site_member.dart';
 import 'package:alienai_c35/guest_site/guest_site_shell.dart';
@@ -121,6 +123,99 @@ void main() {
 
     expect(find.text('Profile Title'), findsOneWidget);
     expect(find.text('Duplicate Hero'), findsNothing);
+  });
+
+  testWidgets('GuestSiteView hub tabs default to posts from profile design', (tester) async {
+    final posts = List.generate(
+      5,
+      (i) => {'post_id': i + 1, 'title': 'Post ${i + 1}'},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteView.bootJson(
+            bootJson: {
+              'site_id': 1,
+              'name': 'Hub',
+              'alien_id': 'hub',
+              'avatar_url': '',
+              'mode': 'draft',
+              'theme': {},
+              'meta': {'lang': 'en'},
+              'design': {
+                'profile': {'hubDefaultTab': 'posts', 'hubPostsPreviewLimit': 2},
+              },
+              'pages': [
+                {
+                  'blocks': [
+                    {'id': 'g1', 'type': 'product_grid', 'props': {'title': 'Menu'}},
+                    {'id': 'f1', 'type': 'social_feed', 'props': {'title': 'News'}},
+                  ],
+                },
+              ],
+              'capabilities': {},
+              'product_preload': {
+                'g1': [
+                  {'product_id': 1, 'name': 'Kopi', 'price': 1000},
+                ],
+              },
+              'posts_preload': posts,
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Kopi'), findsNothing);
+    expect(find.text('Post 1'), findsOneWidget);
+    expect(find.text('Post 2'), findsOneWidget);
+    expect(find.text('Post 3'), findsNothing);
+    expect(find.byKey(const Key('guest-hub-posts-see-all')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('guest-hub-posts-see-all')));
+    await tester.pump();
+    expect(find.text('Post 3'), findsOneWidget);
+  });
+
+  testWidgets('GuestSiteView scroll reserves extra bottom inset when cart bar shows', (tester) async {
+    final cart = GuestSiteCartController(siteIid: 1);
+    cart.applyCommerceBoot(const GuestCommerceBoot(enabled: true));
+    addTearDown(cart.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GuestSiteCartScope(
+            controller: cart,
+            child: GuestSiteView.bootJson(
+              bootJson: {
+                'site_iid': 1,
+                'name': 'Shop',
+                'alien_id': 'shop',
+                'avatar_url': '',
+                'mode': 'draft',
+                'theme': {},
+                'meta': {},
+                'pages': [
+                  {
+                    'blocks': [
+                      {'id': 'h1', 'type': 'hero', 'props': {'title': 'Hi'}},
+                    ],
+                  },
+                ],
+                'capabilities': {'commerce': true},
+                'product_preload': {},
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+    var list = tester.widget<ListView>(find.byKey(const Key('guest-site-scroll')));
+    expect(list.padding, const EdgeInsets.only(bottom: guestShellBottomPadding));
+
+    cart.addProduct(productId: 9, name: 'Tea', price: 1000);
+    await tester.pump();
+    list = tester.widget<ListView>(find.byKey(const Key('guest-site-scroll')));
+    expect(list.padding, const EdgeInsets.only(bottom: guestShellBottomPaddingWithCart));
   });
 
   testWidgets('GuestSiteView shows shop and posts hub tabs when grid and feed coexist', (tester) async {

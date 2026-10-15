@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/catalog/catalog_api.dart';
 import 'package:alienai_c35/widgets/ai/composer_mention_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -71,6 +72,101 @@ void main() {
     final wire = composerMentionTextForWire(draft, const [], mentionIds: [deviceId]);
     expect(wire, contains('[@iid:97279816209936384]'));
     expect(wire, isNot(contains(composerMentionStart)));
+  });
+
+  test('composerMentionTextForWire embeds catalog label snapshot', () {
+    const deviceId = 'iid:42';
+    const mentions = [
+      CatalogMention(
+        id: deviceId,
+        topicId: 'device',
+        icon: '',
+        color: '',
+        labelKey: '',
+        captionKey: '',
+        label: 'VM1',
+        kind: 'identity',
+      ),
+    ];
+    final wire = composerMentionTextForWire(
+      'hello ${composerMentionToken(deviceId)} there',
+      mentions,
+      mentionIds: [deviceId],
+    );
+    expect(wire, contains('[@iid:42|VM1]'));
+  });
+
+  test('composerMentionContentSameTurn ignores label snapshot', () {
+    final local = 'hi ${composerMentionToken('iid:42')}';
+    expect(composerMentionContentSameTurn(local, '[@iid:42|VM1] hi'), isTrue);
+  });
+
+  test('composerMentionBracketForId does not double label in canonical id', () {
+    expect(composerMentionBracketForId('iid:42|VM1', label: 'VM1'), '[@iid:42|VM1]');
+    expect(
+      composerMentionBracketForId('[@iid:42|VM1]', label: 'VM1'),
+      '[@iid:42|VM1]',
+    );
+  });
+
+  test('composerMentionTextForWire does not duplicate when text already has bracket', () {
+    const deviceId = 'iid:42';
+    const mentions = [
+      CatalogMention(
+        id: deviceId,
+        topicId: 'device',
+        icon: '',
+        color: '',
+        labelKey: '',
+        captionKey: '',
+        label: 'VM1',
+        kind: 'identity',
+      ),
+    ];
+    final wire = composerMentionTextForWire(
+      '[@iid:42|VM1] change A3',
+      mentions,
+      mentionIds: [deviceId],
+    );
+    expect(wire, '[@iid:42|VM1] change A3');
+    expect(wire, isNot(contains('|VM1]|VM1')));
+  });
+
+  test('composerMentionBracketRepair closes mention before message text', () {
+    const deviceId = 'iid:98063412749627392';
+    const raw = '[@iid:98063412749627392what is on my screen?';
+    final out = composerMentionDisplayRestore(raw, const []);
+    expect(out, contains(composerMentionToken(deviceId)));
+    expect(out, contains('what is on my screen?'));
+    expect(out, isNot(contains('[@iid:')));
+  });
+
+  test('composerMentionStripDanglingOpenBrackets removes truncated title tail', () {
+    expect(
+      composerMentionStripDanglingOpenBrackets('[@iid:9806341274962'),
+      '',
+    );
+  });
+
+  test('composerMentionSanitizeLabelLeaks repairs corrupt suffix', () {
+    const deviceId = 'iid:42';
+    const mentions = [
+      CatalogMention(
+        id: deviceId,
+        topicId: 'device',
+        icon: '',
+        color: '',
+        labelKey: '',
+        captionKey: '',
+        label: 'VM1',
+        kind: 'identity',
+      ),
+    ];
+    final corrupt = '${composerMentionToken(deviceId)}|VM1]|VM1]change A3';
+    final out = composerMentionDisplayFinalize(corrupt, mentions);
+    expect(out, contains(composerMentionToken(deviceId)));
+    expect(out, isNot(contains('|VM1]')));
+    expect(out, contains('change A3'));
   });
 
   test('composerMentionTextForWire collapses bracket shell before chip token', () {

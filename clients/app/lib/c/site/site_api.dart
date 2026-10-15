@@ -168,15 +168,25 @@ class SiteApi {
   SiteApi(this.conn);
 
   final ChatConn conn;
-  final _draftGetInflight = <int, Future<ResSiteDraftGet>>{};
+  final _draftGetInflight = <(int, bool), Future<ResSiteDraftGet>>{};
+  final _draftGetCache = <int, ResSiteDraftGet>{};
 
-  Future<ResSiteDraftGet> _siteDraftGetCoalesced(int siteIid) {
-    final existing = _draftGetInflight[siteIid];
+  Future<ResSiteDraftGet> _siteDraftGetCoalesced(int siteIid, {bool skipPublishStatus = false}) {
+    final key = (siteIid, skipPublishStatus);
+    final existing = _draftGetInflight[key];
     if (existing != null) return existing;
-    final fut = conn.siteDraftGet(siteIid);
-    _draftGetInflight[siteIid] = fut;
-    return fut.whenComplete(() => _draftGetInflight.remove(siteIid));
+    final fut = conn.siteDraftGet(siteIid, skipPublishStatus: skipPublishStatus).then((res) {
+      if (skipPublishStatus) {
+        _draftGetCache[siteIid] = res;
+      }
+      return res;
+    });
+    _draftGetInflight[key] = fut;
+    return fut.whenComplete(() => _draftGetInflight.remove(key));
   }
+
+  /// Last fast-path draft response for [siteIid] (no publish-status render).
+  ResSiteDraftGet? draftGetCached(int siteIid) => _draftGetCache[siteIid];
 
   Future<List<SiteRow>> list({bool archived = false}) => siteListFetch(conn, archived: archived);
 
@@ -209,7 +219,7 @@ class SiteApi {
   Future<SiteConfig> configGet(int siteIid) async {
     final uid = Session.instance.uid;
     try {
-      final res = await conn.siteDraftGet(siteIid);
+      final res = await _siteDraftGetCoalesced(siteIid, skipPublishStatus: true);
       if (!res.hasConfig()) throw 'site config not found';
       final config = res.config;
       await siteCapabilitiesCacheSave(uid, siteIid, config.capabilitiesJson);
@@ -228,6 +238,17 @@ class SiteApi {
     if (!res.hasConfig()) throw 'site config put failed';
     return res.config;
   }
+
+  Future<ResSiteQueryRun> queryRun({
+    required String queryId,
+    required List<int> siteIids,
+    Map<String, Object?> params = const {},
+  }) =>
+      conn.siteQueryRun(
+        queryId: queryId,
+        siteIids: siteIids,
+        paramsJson: jsonEncode(params),
+      );
 
   static const siteEditorProductPageSize = 30;
 
@@ -267,21 +288,23 @@ class SiteApi {
   }
 
   Future<SiteDraft> draftGet(int siteIid) async {
-    final res = await _siteDraftGetCoalesced(siteIid);
+    final res = await _siteDraftGetCoalesced(siteIid, skipPublishStatus: true);
     if (!res.hasDraft()) throw 'site draft not found';
     return res.draft;
   }
 
   /// Draft row plus publish status (render_hash parity with server publish).
-  Future<ResSiteDraftGet> draftGetWithPublishStatus(int siteIid) => _siteDraftGetCoalesced(siteIid);
+  Future<ResSiteDraftGet> draftGetWithPublishStatus(int siteIid) =>
+      _siteDraftGetCoalesced(siteIid, skipPublishStatus: false);
 
   Future<bool> draftPublishPending(int siteIid) async {
-    final res = await _siteDraftGetCoalesced(siteIid);
+    final res = await _siteDraftGetCoalesced(siteIid, skipPublishStatus: false);
     return res.publishPending;
   }
 
   Future<SiteDraft> draftPut(SiteDraft draft, {bool skipPublish = false}) async {
     await conn.siteDraftPut(draft, skipPublish: skipPublish);
+    _draftGetCache.remove(draft.siteIid.toInt());
     return draft;
   }
 
@@ -325,7 +348,7 @@ class SiteApi {
   }
 
   Future<SiteDraftMeta> draftGetMeta(int siteIid) async {
-    final res = await conn.siteDraftGet(siteIid);
+    final res = await _siteDraftGetCoalesced(siteIid, skipPublishStatus: true);
     if (!res.hasDraft()) throw 'site draft not found';
     return siteDraftMetaParse(res.draft.doc.metaJson);
   }
@@ -336,7 +359,7 @@ class SiteApi {
     SiteProductDesignDraft? productDesign,
     String? catalogDisplay,
   }) async {
-    final res = await conn.siteDraftGet(siteIid);
+    final res = await _siteDraftGetCoalesced(siteIid, skipPublishStatus: true);
     if (!res.hasDraft()) throw 'site draft not found';
     final draft = res.draft.clone();
     draft.doc = siteDocWithMetaJson(

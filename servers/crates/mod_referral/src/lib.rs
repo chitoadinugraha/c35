@@ -76,13 +76,7 @@ async fn issuer_root_or_director(pool: &PgPool, issuer_iid: i64) -> bool {
 }
 
 fn alien_id_handle(alien_id: Option<String>) -> String {
-    let a = alien_id.unwrap_or_default();
-    let a = a.trim().trim_start_matches('@');
-    if a.is_empty() {
-        "@user".into()
-    } else {
-        format!("@{a}")
-    }
+    c35_mod_admin::admin_user_public_handle(&alien_id.unwrap_or_default(), "")
 }
 
 async fn referral_wide_access(pool: &PgPool, viewer_iid: i64) -> bool {

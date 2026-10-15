@@ -48,7 +48,7 @@ class UiAccountMenuAction {
     this.onDevices,
     this.onSites,
     this.onRootConsole,
-    this.onDirectorEditSite,
+    this.onDirectorManageSite,
     this.onMail,
     this.onNotifications,
     this.composerModel,
@@ -77,7 +77,7 @@ class UiAccountMenuAction {
   final VoidCallback? onDevices;
   final VoidCallback? onSites;
   final VoidCallback? onRootConsole;
-  final VoidCallback? onDirectorEditSite;
+  final VoidCallback? onDirectorManageSite;
   final VoidCallback? onMail;
   final VoidCallback? onNotifications;
   final AgentModel? composerModel;
@@ -199,7 +199,7 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
 
   UiAccountRoleBadgesAction _badgeAction(UiAccountMenuAction acts) => UiAccountRoleBadgesAction(
         onRootConsole: acts.onRootConsole == null ? null : () => _popThen(acts.onRootConsole),
-        onDirectorEditSite: acts.onDirectorEditSite == null ? null : () => _popThen(acts.onDirectorEditSite),
+        onDirectorManageSite: acts.onDirectorManageSite == null ? null : () => _popThen(acts.onDirectorManageSite),
         onFinancePayments: acts.onFinancePayments == null ? null : () => _popThen(acts.onFinancePayments),
         onFinanceReceiveAccounts: acts.onFinanceReceiveAccounts == null ? null : () => _popThen(acts.onFinanceReceiveAccounts),
         onMarketingGenerateVoucher:

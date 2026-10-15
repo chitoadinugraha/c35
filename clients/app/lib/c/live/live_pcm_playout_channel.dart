@@ -6,15 +6,33 @@ class LivePcmPlayoutChannel implements LivePcmPlayout {
   static final MethodChannel _channel = MethodChannel(LivePcmPlayout.channelName);
 
   var _started = false;
+  int _nativeQueuedMs = 0;
 
   @override
-  int get scheduledAheadMs => 0;
+  int get scheduledAheadMs => _nativeQueuedMs;
+
+  @override
+  Future<void> refreshQueuedMs() async {
+    if (!_started) {
+      _nativeQueuedMs = 0;
+      return;
+    }
+    try {
+      _nativeQueuedMs = await _channel.invokeMethod<int>('queuedMs') ?? 0;
+    } catch (_) {
+      _nativeQueuedMs = 0;
+    }
+  }
 
   @override
   Future<void> start(int sampleRateHz) async {
     if (_started) await stop();
-    await _channel.invokeMethod<void>('start', {'sampleRate': sampleRateHz});
+    final ok = await _channel.invokeMethod<bool>('start', {'sampleRate': sampleRateHz});
+    if (ok != true) {
+      throw StateError('Live PCM playout start failed');
+    }
     _started = true;
+    _nativeQueuedMs = 0;
   }
 
   @override
@@ -30,5 +48,6 @@ class LivePcmPlayoutChannel implements LivePcmPlayout {
       await _channel.invokeMethod<void>('stop');
     } catch (_) {}
     _started = false;
+    _nativeQueuedMs = 0;
   }
 }

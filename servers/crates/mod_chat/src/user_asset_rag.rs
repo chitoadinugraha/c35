@@ -463,7 +463,7 @@ mod tests {
     fn utterance_site_phrase_extracts_di_tail() {
         assert_eq!(
             crate::site_resolve::utterance_site_phrase("Berapa harga es teh di Gucicha"),
-            "Gucicha"
+            "gucicha"
         );
     }
 

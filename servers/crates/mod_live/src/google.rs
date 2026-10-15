@@ -16,6 +16,38 @@ use crate::session::LiveSessionTicket;
 const GEMINI_LIVE_WS: &str =
     "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent";
 
+async fn live_client_error(
+    client: &mut WebSocket,
+    pool: &PgPool,
+    nats: Option<&Client>,
+    ticket: &LiveSessionTicket,
+    stage: &str,
+    client_message: &str,
+    detail: Option<&str>,
+) {
+    let meta = json!({
+        "offer_id": ticket.offer.id,
+        "provider": ticket.offer.provider,
+    });
+    crate::trace::live_error_record(
+        pool,
+        nats,
+        ticket.owner_iid,
+        Some(&ticket.req_id),
+        ticket.chat_id,
+        stage,
+        client_message,
+        detail,
+        meta,
+    )
+    .await;
+    let _ = client
+        .send(Message::Text(
+            json!({"liveError": client_message}).to_string().into(),
+        ))
+        .await;
+}
+
 pub async fn live_proxy_run(
     pool: PgPool,
     nats: Option<Client>,
@@ -28,11 +60,16 @@ pub async fn live_proxy_run(
         "xai" => crate::grok::live_grok_run(pool, nats, ticket, client).await,
         other => {
             tracing::warn!(provider = other, "unsupported live provider");
-            let _ = client
-                .send(Message::Text(
-                    json!({"liveError":"Live provider not supported yet"}).to_string().into(),
-                ))
-                .await;
+            live_client_error(
+                &mut client,
+                &pool,
+                nats.as_ref(),
+                &ticket,
+                "live_proxy",
+                "Live provider not supported yet",
+                Some(other),
+            )
+            .await;
             let _ = live_billing_abort(&pool, &ticket.req_id).await;
         }
     }
@@ -56,22 +93,32 @@ pub async fn live_google_proxy_run(
     let session_cache_hit = hydrate.as_ref().map(|h| h.session_cache_hit).unwrap_or(false);
 
     if offer.provider != "google" {
-        let _ = client
-            .send(Message::Text(
-                json!({"liveError":"Live provider not supported yet"}).to_string().into(),
-            ))
-            .await;
+        live_client_error(
+            &mut client,
+            &pool,
+            nats.as_ref(),
+            &ticket,
+            "live_proxy",
+            "Live provider not supported yet",
+            Some(&offer.provider),
+        )
+        .await;
         let _ = live_billing_abort(&pool, &req_id).await;
         return;
     }
 
     let key = gemini_api_key();
     if key.is_empty() {
-        let _ = client
-            .send(Message::Text(
-                json!({"liveError":"Gemini API key not configured"}).to_string().into(),
-            ))
-            .await;
+        live_client_error(
+            &mut client,
+            &pool,
+            nats.as_ref(),
+            &ticket,
+            "live_proxy",
+            "Gemini API key not configured",
+            Some("gemini_api_key missing"),
+        )
+        .await;
         let _ = live_billing_abort(&pool, &req_id).await;
         return;
     }
@@ -151,17 +198,22 @@ pub async fn live_google_proxy_run(
     let chat_id_opt = ticket.chat_id;
     let history_rows = live_recent_msgs(&pool, chat_id_opt).await;
     let has_mention = !active_mention_ids.is_empty();
+    let mut resume = crate::LiveResume::default();
     let full_system = if let Some(guest_meta) = &ticket.guest {
         guest_meta.guest_system_prompt.clone()
     } else {
-        live_voice_system(
+        let mut sys = live_voice_system(
             &inst_text,
             &time_block,
             &user_ctx.location_city,
             &device_inst_block,
             &site_inst_block,
             &mention_label,
-        )
+        );
+        if resume.handle.is_none() {
+            sys.push_str(&crate::live_history_context_block(&history_rows));
+        }
+        sys
     };
 
     let tools_started = Instant::now();
@@ -186,23 +238,36 @@ pub async fn live_google_proxy_run(
         None
     };
 
-    let mut resume = crate::LiveResume::default();
-
     let connect_started = Instant::now();
     let google = match gemini_connect.await {
         Ok(Ok((s, _))) => s,
         Ok(Err(e)) => {
-            warn!(?e, "live: google ws connect failed");
-            let _ = client
-                .send(Message::Text(
-                    json!({"liveError":"Could not connect to Gemini Live"}).to_string().into(),
-                ))
-                .await;
+            let detail = e.to_string();
+            live_client_error(
+                &mut client,
+                &pool,
+                nats.as_ref(),
+                &ticket,
+                "live_gemini_connect",
+                "Could not connect to Gemini Live",
+                Some(&detail),
+            )
+            .await;
             let _ = live_billing_abort(&pool, &req_id).await;
             return;
         }
         Err(e) => {
-            warn!(?e, "live: google connect task failed");
+            let detail = e.to_string();
+            live_client_error(
+                &mut client,
+                &pool,
+                nats.as_ref(),
+                &ticket,
+                "live_gemini_connect",
+                "Could not connect to Gemini Live",
+                Some(&detail),
+            )
+            .await;
             let _ = live_billing_abort(&pool, &req_id).await;
             return;
         }
@@ -379,11 +444,16 @@ pub async fn live_google_proxy_run(
                 .await
                 .unwrap_or(false)
                 {
-                    let _ = client
-                        .send(Message::Text(
-                            json!({"liveError": "Billing quota exhausted"}).to_string().into(),
-                        ))
-                        .await;
+                    live_client_error(
+                        &mut client,
+                        &pool,
+                        nats.as_ref(),
+                        &ticket,
+                        "live_billing",
+                        "Billing quota exhausted",
+                        None,
+                    )
+                    .await;
                     break;
                 }
             }
@@ -412,7 +482,6 @@ pub async fn live_google_proxy_run(
                             &mut client,
                             &resume,
                             new_opened_with_handle,
-                            &history_rows,
                             &new_label,
                             &new_ids,
                             &mut new_seeded,
@@ -544,7 +613,6 @@ pub async fn live_google_proxy_run(
                                 &mut client,
                                 &resume,
                                 opened_with_handle,
-                                &history_rows,
                                 &mention_label,
                                 &active_mention_ids,
                                 &mut seeded,
@@ -554,12 +622,16 @@ pub async fn live_google_proxy_run(
                         }
                         if let Ok(v) = serde_json::from_str::<Value>(&t) {
                             if let Some(err) = v.pointer("/error/message").and_then(|x| x.as_str()) {
-                                warn!(%err, "live: gemini returned error message");
-                                let _ = client
-                                    .send(Message::Text(
-                                        json!({"liveError": err}).to_string().into(),
-                                    ))
-                                    .await;
+                                live_client_error(
+                                    &mut client,
+                                    &pool,
+                                    nats.as_ref(),
+                                    &ticket,
+                                    "live_gemini",
+                                    err,
+                                    Some(err),
+                                )
+                                .await;
                                 break;
                             }
                             resume.note_server_msg(&v);
@@ -651,7 +723,6 @@ pub async fn live_google_proxy_run(
                                         &mut client,
                                         &resume,
                                         opened_with_handle,
-                                        &history_rows,
                                         &mention_label,
                                         &active_mention_ids,
                                         &mut seeded,
@@ -733,24 +804,36 @@ pub async fn live_google_proxy_run(
                         }
                     }
                     Some(Ok(GMsg::Close(cf))) => {
-                        warn!(?cf, "live: google ws closed");
                         let reason = cf.as_ref().map(|c| c.reason.to_string()).unwrap_or_default();
                         if !reason.is_empty() {
-                            let _ = client
-                                .send(Message::Text(
-                                    json!({"liveError": reason}).to_string().into(),
-                                ))
-                                .await;
+                            live_client_error(
+                                &mut client,
+                                &pool,
+                                nats.as_ref(),
+                                &ticket,
+                                "live_gemini",
+                                &reason,
+                                Some(&reason),
+                            )
+                            .await;
+                        } else {
+                            warn!(?cf, "live: google ws closed");
                         }
                         break;
                     }
                     Some(Err(e)) => {
-                        warn!(?e, "live: google ws err");
-                        let _ = client
-                            .send(Message::Text(
-                                json!({"liveError": format!("Voice service error: {e}")}).to_string().into(),
-                            ))
-                            .await;
+                        let detail = e.to_string();
+                        let client_msg = format!("Voice service error: {e}");
+                        live_client_error(
+                            &mut client,
+                            &pool,
+                            nats.as_ref(),
+                            &ticket,
+                            "live_gemini",
+                            &client_msg,
+                            Some(&detail),
+                        )
+                        .await;
                         break;
                     }
                     None => break,
@@ -1256,7 +1339,7 @@ pub(crate) fn live_voice_system(
             "\n\n[TOPIC FOCUS]\nYou are currently focused on {trimmed_label}. If the conversation naturally transitions away and the user is no longer discussing {trimmed_label} for multiple turns, autonomously call topic_reset."
         ));
     }
-    full.push_str("\n\n[VOICE INTERACTION & TOOLS]\nYou are in a live voice call with the user. You have tools available to search the web, inspect and control paired remote devices, manage notes, etc. When the user asks you a question that requires real-time information, actions on their computer, or checking anything, call the appropriate tool. Once you receive the tool response, summarize and answer the user clearly and concisely in natural conversational speech. Do not read raw JSON aloud.\nIf the user wants to end the call, hang up, or says goodbye to disconnect, call call.end after a brief farewell (one short sentence). Do not keep chatting after call.end.");
+    full.push_str("\n\n[VOICE INTERACTION & TOOLS]\nYou are in a live voice call with the user. When the session first connects, stay silent until the user speaks; do not greet or read prior chat messages aloud.\nYou have tools available to search the web, inspect and control paired remote devices, manage notes, etc. When the user asks you a question that requires real-time information, actions on their computer, or checking anything, call the appropriate tool. Once you receive the tool response, summarize and answer the user clearly and concisely in natural conversational speech. Do not read raw JSON aloud.\nIf the user wants to end the call, hang up, or says goodbye to disconnect, call call.end after a brief farewell (one short sentence). Do not keep chatting after call.end.");
     full
 }
 
@@ -1367,9 +1450,8 @@ async fn live_seed_after_setup(
         GMsg,
     >,
     client: &mut WebSocket,
-    resume: &crate::LiveResume,
+    _resume: &crate::LiveResume,
     opened_with_handle: bool,
-    history_rows: &[(String, String)],
     label: &str,
     mention_ids: &[String],
     seeded: &mut bool,
@@ -1381,12 +1463,6 @@ async fn live_seed_after_setup(
     *seeded = true;
     if opened_with_handle && !label.is_empty() {
         let _ = g_tx.send(GMsg::Text(crate::live_focus_pin(label).to_string().into())).await;
-    } else if resume.handle.is_none() {
-        for msg in crate::live_text_seed(history_rows) {
-            if g_tx.send(GMsg::Text(msg.to_string().into())).await.is_err() {
-                break;
-            }
-        }
     }
     if announce {
         let _ = client

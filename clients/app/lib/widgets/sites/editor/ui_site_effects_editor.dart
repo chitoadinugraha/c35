@@ -10,6 +10,7 @@ import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/overlay_effect/ui_overlay_effect_config.dart';
 import 'package:alienai_c35/widgets/overlay_effect/ui_overlay_effect_icon.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_draft_flush.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
@@ -44,28 +45,44 @@ class UiSiteEffectsEditor extends StatefulWidget {
 }
 
 class _UiSiteEffectsEditorState extends State<UiSiteEffectsEditor> {
-  final _store = SiteDesignStore();
+  SiteDesignStore? _ownedStore;
+  SiteDesignStore? _boundStore;
+  var _sharedDesign = false;
   var _loading = true;
   var _ready = false;
+  var _loadScheduled = false;
+
+  SiteDesignStore get _store =>
+      SiteEditorSaveScope.draftAdapter(context)?.design ?? _ownedStore!;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_load());
   }
 
   @override
   void dispose() {
-    _store.removeListener(_scheduleSave);
-    _store.dispose();
+    _boundStore?.removeListener(_scheduleSave);
+    if (!_sharedDesign) {
+      _ownedStore?.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      _store.loadTheme(draft.doc.themeJson);
+      final adapter = SiteEditorSaveScope.maybeOf(context)?.draft;
+      if (adapter != null) {
+        _sharedDesign = true;
+      } else {
+        _ownedStore = SiteDesignStore();
+        final draft = await widget.api.draftGet(widget.siteIid);
+        _ownedStore!.loadTheme(draft.doc.themeJson);
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating));
@@ -76,7 +93,9 @@ class _UiSiteEffectsEditorState extends State<UiSiteEffectsEditor> {
           _loading = false;
           _ready = true;
         });
-        _store.addListener(_scheduleSave);
+        final store = SiteEditorSaveScope.draftAdapter(context)?.design ?? _ownedStore!;
+        _boundStore = store;
+        store.addListener(_scheduleSave);
       }
     }
   }
@@ -87,7 +106,6 @@ class _UiSiteEffectsEditorState extends State<UiSiteEffectsEditor> {
     siteEditorScheduleSave(
       context,
       key: 'effects',
-      debounce: const Duration(milliseconds: 400),
       save: _save,
     );
   }
@@ -95,12 +113,16 @@ class _UiSiteEffectsEditorState extends State<UiSiteEffectsEditor> {
   Future<void> _save() async {
     if (!mounted) return;
     try {
-      await SiteEditorSaveScope.run(context, () async {
-        final draft = await widget.api.draftGet(widget.siteIid);
-        final next = draft.clone();
-        next.doc = siteDocWithThemeJson(next.doc, _store.toThemeJson());
-        await widget.api.draftPut(next);
-      });
+      if (SiteEditorSaveScope.draftAdapter(context) != null) {
+        await siteEditorFlushDraft(context);
+      } else {
+        await SiteEditorSaveScope.run(context, () async {
+          final draft = await widget.api.draftGet(widget.siteIid);
+          final next = draft.clone();
+          next.doc = siteDocWithThemeJson(next.doc, _store.toThemeJson());
+          await widget.api.draftPut(next);
+        });
+      }
       widget.onDraftSaved?.call();
     } catch (e) {
       if (mounted) {

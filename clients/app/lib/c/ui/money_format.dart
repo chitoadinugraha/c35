@@ -21,6 +21,9 @@ int? moneyParseIdrInt(String raw) {
 
 double? moneyParseIdr(String raw) => moneyParseIdrInt(raw)?.toDouble();
 
+/// Guest storefront prices (`formatIdr` / `Rp` prefix on web).
+String guestSiteRp(num n) => 'Rp ${moneyFmtIdrGrouped(n.round())}';
+
 String moneyFmtIdrGrouped(int n) {
   if (n == 0) return '0';
   final neg = n < 0;

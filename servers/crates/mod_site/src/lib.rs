@@ -180,7 +180,8 @@ pub use guest_theme_modernize::{
     default_modern_hub_theme, modernize_theme_for_render, GUEST_THEME_RENDER_STYLE_VERSION,
 };
 pub use render::{
-    block_html_render, guest_client_script_markup, guest_shell_html, product_card_html,
+    block_html_render, guest_client_script_markup, guest_hub_catalog_tabs_html,
+    guest_hub_initial_tab, guest_shell_html, product_card_html,
     ProductGridCtx,
 };
 pub use sync::sync_pull;

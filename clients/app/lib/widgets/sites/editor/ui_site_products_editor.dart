@@ -8,6 +8,7 @@ import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
 import 'package:alienai_c35/c/site/site_editor_catalog_listener.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_draft_flush.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/c/site/site_product_json.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
@@ -61,7 +62,7 @@ class UiSiteProductsEditor extends StatefulWidget {
 class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
-  var _loading = true;
+  var _loading = false;
   var _busy = false;
   String? _error;
   String? _selectedId;
@@ -171,9 +172,10 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
     _hasMore = catalog.productHasMore;
     _loadingMore = catalog.productLoadingMore;
     _pickDefault();
+    _applyProductExtrasFromCache(catalog);
     if (mounted) {
       setState(() {
-        if (_extrasLoaded) _loading = false;
+        _loading = false;
         if (catalog.warmError != null && _productsById.isEmpty) {
           _error = uiFriendlyError(catalog.warmError!);
         }
@@ -181,9 +183,39 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
     }
   }
 
+  void _applyProductExtrasFromCache(SiteEditorCatalogCache catalog) {
+    if (catalog.productTableDef != null) {
+      _def = catalog.productTableDef;
+    }
+    if (catalog.productsExtrasDone) {
+      _embeds = List<SiteProductEmbed>.from(catalog.productEmbeds);
+      _extrasLoaded = true;
+    }
+    final meta = catalog.productCatalogMeta;
+    if (meta != null) {
+      _taxes = meta.taxes;
+      _design = meta.productDesign;
+      _catalogDisplay = meta.catalogDisplay;
+    } else if (mounted) {
+      final adapter = SiteEditorSaveScope.draftAdapter(context);
+      if (adapter != null) {
+        _taxes = adapter.catalogMeta.taxes;
+        _design = adapter.catalogMeta.productDesign;
+        _catalogDisplay = adapter.catalogMeta.catalogDisplay;
+      }
+    }
+  }
+
   Future<void> _loadExtras() async {
     if (_extrasLoaded) return;
     _def ??= collectionDefForFallback('site.product');
+    final cat = editorCatalog;
+    if (cat != null) {
+      await cat.ensureProductsExtras(widget.api);
+      if (!mounted) return;
+      _applyProductExtrasFromCache(cat);
+      if (_extrasLoaded) return;
+    }
     try {
       final defs = await widget.api.collectionDefs(siteIid: widget.siteIid);
       _def = widget.api.tableDefFor(defs, 'site.product') ?? _def;
@@ -194,19 +226,29 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
       _embeds = await widget.api.productEmbedList(widget.siteIid);
     } catch (_) {}
     try {
-      final meta = await widget.api.draftGetMeta(widget.siteIid);
-      _taxes = meta.taxes;
-      _design = meta.productDesign;
-      _catalogDisplay = meta.catalogDisplay;
+      if (!mounted) return;
+      final adapter = SiteEditorSaveScope.draftAdapter(context);
+      if (adapter != null) {
+        _taxes = adapter.catalogMeta.taxes;
+        _design = adapter.catalogMeta.productDesign;
+        _catalogDisplay = adapter.catalogMeta.catalogDisplay;
+      } else {
+        final meta = await widget.api.draftGetMeta(widget.siteIid);
+        _taxes = meta.taxes;
+        _design = meta.productDesign;
+        _catalogDisplay = meta.catalogDisplay;
+      }
     } catch (_) {}
     _extrasLoaded = true;
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (siteEditorCatalogWaitsForWarm(editorCatalog)) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       final fromCatalog = await ensureEditorCatalog();
       if (!fromCatalog) {
@@ -220,7 +262,7 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
         _nextCursor = page.nextCursor;
         _hasMore = page.hasMore;
       }
-      await _loadExtras();
+      unawaited(_loadExtras());
       _pickDefault();
     } catch (e) {
       _error = uiFriendlyError(e);
@@ -439,12 +481,24 @@ class _UiSiteProductsEditorState extends State<UiSiteProductsEditor> with SiteEd
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await widget.api.draftPutMeta(
-        widget.siteIid,
-        taxes: _taxes,
-        productDesign: _design,
-        catalogDisplay: _catalogDisplay,
-      );
+      final adapter = SiteEditorSaveScope.draftAdapter(context);
+      if (adapter != null) {
+        adapter.setCatalogMeta(
+          SiteDraftMeta(
+            taxes: _taxes,
+            productDesign: _design,
+            catalogDisplay: _catalogDisplay,
+          ),
+        );
+        await siteEditorFlushDraft(context);
+      } else {
+        await widget.api.draftPutMeta(
+          widget.siteIid,
+          taxes: _taxes,
+          productDesign: _design,
+          catalogDisplay: _catalogDisplay,
+        );
+      }
       if (mounted) setState(() => _error = null);
     } catch (e) {
       if (mounted) setState(() => _error = uiFriendlyError(e));

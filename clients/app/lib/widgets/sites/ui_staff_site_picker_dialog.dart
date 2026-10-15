@@ -7,18 +7,18 @@ import 'package:alienai_c35/widgets/ui/io_ask_items.dart';
 import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/material.dart';
 
-typedef UiStaffSitePickerAction = void Function(String siteIid);
+typedef UiStaffSitePickerAction = void Function(SiteRow row);
 
 Future<void> uiStaffSitePickerOpen({
   required BuildContext context,
   required ChatConn chatConn,
-  required UiStaffSitePickerAction onEdit,
+  required UiStaffSitePickerAction onPicked,
 }) async {
-  final picked = await uiDialogShow<IoAskItem>(
+  final picked = await uiDialogShow<SiteRow>(
     context: context,
     builder: (_) => UiStaffSitePickerDialog(chatConn: chatConn),
   );
-  if (picked != null) onEdit(picked.id);
+  if (picked != null) onPicked(picked);
 }
 
 class UiStaffSitePickerDialog extends StatefulWidget {
@@ -33,6 +33,7 @@ class UiStaffSitePickerDialog extends StatefulWidget {
 class _UiStaffSitePickerDialogState extends State<UiStaffSitePickerDialog> {
   late final TextEditingController _searchCtrl = TextEditingController();
   final _items = <IoAskItem>[];
+  final _rowsById = <String, SiteRow>{};
   var _loading = false;
   Timer? _debounce;
   var _searchGen = 0;
@@ -50,6 +51,7 @@ class _UiStaffSitePickerDialogState extends State<UiStaffSitePickerDialog> {
     if (q.isEmpty) {
       setState(() {
         _items.clear();
+        _rowsById.clear();
         _loading = false;
       });
       return;
@@ -64,6 +66,9 @@ class _UiStaffSitePickerDialogState extends State<UiStaffSitePickerDialog> {
       final rows = await siteListFetch(widget.chatConn, query: q, limit: 40);
       if (!mounted || gen != _searchGen) return;
       setState(() {
+        _rowsById
+          ..clear()
+          ..addEntries(rows.map((r) => MapEntry(r.siteIid.toString(), r)));
         _items
           ..clear()
           ..addAll(rows.map(_rowToItem));
@@ -71,6 +76,12 @@ class _UiStaffSitePickerDialogState extends State<UiStaffSitePickerDialog> {
     } finally {
       if (mounted && gen == _searchGen) setState(() => _loading = false);
     }
+  }
+
+  void _pick(IoAskItem item) {
+    final row = _rowsById[item.id];
+    if (row == null) return;
+    Navigator.pop(context, row);
   }
 
   IoAskItem _rowToItem(SiteRow row) {
@@ -88,12 +99,13 @@ class _UiStaffSitePickerDialogState extends State<UiStaffSitePickerDialog> {
 
   @override
   Widget build(BuildContext context) => IoAskItemsDialog(
-        semanticsLabel: 'Edit site',
+        semanticsLabel: 'Manage site',
         searchHint: 'Search all sites…',
         searchController: _searchCtrl,
         onSearchChanged: _onSearchChanged,
         clientSearch: false,
-        popOnSelect: true,
+        popOnSelect: false,
+        onItemSelected: _pick,
         items: _items,
         loading: _loading,
         emptyText: 'Type a site name, slug, or id',

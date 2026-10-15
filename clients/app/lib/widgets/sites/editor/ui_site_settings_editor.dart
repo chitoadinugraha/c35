@@ -95,14 +95,16 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
     if (_loading) {
       return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: _muted)));
     }
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        const Text('Capabilities', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        const Text('Enable backend features for this site.', style: TextStyle(color: _muted, fontSize: 12)),
-        _capToggle('commerce', 'Commerce (Orders & Products)'),
-        SwitchListTile(
+    return Material(
+      color: Colors.transparent,
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const Text('Capabilities', style: TextStyle(color: _text, fontSize: 15, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          const Text('Enable backend features for this site.', style: TextStyle(color: _muted, fontSize: 12)),
+          _capToggle('commerce', 'Commerce (Orders & Products)'),
+          SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Member portal', style: TextStyle(color: _text, fontSize: 14)),
           subtitle: const Text(
@@ -166,6 +168,7 @@ class _UiSiteSettingsEditorState extends State<UiSiteSettingsEditor> {
           ),
         ],
       ],
+      ),
     );
   }
 }

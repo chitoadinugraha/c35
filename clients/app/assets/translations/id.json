@@ -312,7 +312,7 @@
     "live": {
         "call": {
             "noneAvailable": "Tidak ada waktu tersedia",
-            "availableDuration": "{duration} tersedia"
+            "availableDuration": "{duration}"
         }
     },
     "media": {

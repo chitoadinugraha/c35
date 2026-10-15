@@ -70,16 +70,19 @@ class UiSiteObjectsEditor extends StatefulWidget {
 class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
-  var _loading = true;
+  var _loading = false;
   var _busy = false;
   String? _error;
   String? _selectedId;
   final _byId = <String, SiteObject>{};
   List<SiteProduct> _products = const [];
+  var _loadScheduled = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_load());
   }
 
@@ -165,7 +168,9 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> with SiteEdit
     if (mounted) {
       setState(() {
         _loading = false;
-        if (catalog.warmError != null && _byId.isEmpty) {
+        if (catalog.warmError == null) {
+          _error = null;
+        } else if (_byId.isEmpty) {
           _error = uiFriendlyError(catalog.warmError!);
         }
       });
@@ -173,12 +178,15 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> with SiteEdit
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    final retryWarm = _error != null;
+    if (siteEditorCatalogWaitsForWarm(editorCatalog)) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
-      if (await ensureEditorCatalog()) {
+      if (await ensureEditorCatalog(retryWarm: retryWarm)) {
         unawaited(editorCatalog?.ensureAllProducts());
         return;
       }
@@ -198,6 +206,7 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> with SiteEdit
         ..addEntries(items.map((o) => MapEntry('${o.id}', o)));
       _products = products;
       _pickDefault();
+      _error = null;
     } catch (e) {
       _error = uiFriendlyError(e);
     } finally {
@@ -253,7 +262,6 @@ class _UiSiteObjectsEditorState extends State<UiSiteObjectsEditor> with SiteEdit
     siteEditorScheduleSave(
       context,
       key: 'object:$id',
-      debounce: const Duration(milliseconds: 450),
       save: () => _put(id, draft),
     );
   }

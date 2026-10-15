@@ -46,7 +46,7 @@ pub fn reg_set_native_host_manifest(subkey: &str, manifest_path: &str) -> anyhow
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     use windows_sys::Win32::System::Registry::{
-        RegCloseKey, RegCreateKeyW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_WRITE, REG_SZ,
+        RegCloseKey, RegCreateKeyW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, REG_SZ,
     };
 
     fn wide(s: &str) -> Vec<u16> {

@@ -320,10 +320,16 @@ pub fn gemini_chat_eligible(id: &str, methods: &[String]) -> bool {
 }
 
 const ALIEN_CHAIN_PRIMARY: &[&str] = &["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"];
+const ALIEN_CHAIN_PRIMARY_DEVICE: &[&str] = &["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 
-pub fn alien_chain_sort_key(id: &str) -> (i32, i32) {
+pub fn alien_chain_sort_key_device(id: &str, is_device: bool) -> (i32, i32) {
     let m = id.to_ascii_lowercase();
-    for (i, p) in ALIEN_CHAIN_PRIMARY.iter().enumerate() {
+    let primary = if is_device {
+        ALIEN_CHAIN_PRIMARY_DEVICE
+    } else {
+        ALIEN_CHAIN_PRIMARY
+    };
+    for (i, p) in primary.iter().enumerate() {
         if m == *p {
             return (0, i as i32);
         }
@@ -335,6 +341,14 @@ pub fn alien_chain_sort_key(id: &str) -> (i32, i32) {
         return (2, -version_rank_of(&m));
     }
     (1, -version_rank_of(&m))
+}
+
+pub fn alien_chain_sort_cmp_device(a: &str, b: &str, is_device: bool) -> std::cmp::Ordering {
+    alien_chain_sort_key_device(a, is_device).cmp(&alien_chain_sort_key_device(b, is_device))
+}
+
+pub fn alien_chain_sort_key(id: &str) -> (i32, i32) {
+    alien_chain_sort_key_device(id, false)
 }
 
 pub fn alien_chain_sort_cmp(a: &str, b: &str) -> std::cmp::Ordering {
@@ -401,6 +415,7 @@ mod tests {
             family: "flash-lite".into(),
             version_rank: version_rank_of("gemini-3.1-flash-lite"),
             source: "api".into(),
+            context_tokens: 0,
         };
         let preview = LlmModelRow {
             id: "gemini-3.1-flash-lite-preview".into(),
@@ -431,6 +446,26 @@ mod tests {
     }
 
     #[test]
+    fn alien_chain_device_prefers_35_then_31() {
+        let mut chain = vec![
+            "gemini-3.1-flash-lite".to_string(),
+            "gemini-2.5-flash-lite".to_string(),
+            "gemini-3.5-flash-lite".to_string(),
+            "gemini-flash-lite-latest".to_string(),
+        ];
+        chain.sort_by(|a, b| alien_chain_sort_cmp_device(a, b, true));
+        assert_eq!(
+            chain,
+            vec![
+                "gemini-3.5-flash-lite".to_string(),
+                "gemini-3.1-flash-lite".to_string(),
+                "gemini-2.5-flash-lite".to_string(),
+                "gemini-flash-lite-latest".to_string(),
+            ]
+        );
+    }
+
+    #[test]
     fn model_picker_puts_alien_first() {
         let alien = LlmModelRow {
             id: "alienai".into(),
@@ -447,6 +482,7 @@ mod tests {
             family: "flash-lite".into(),
             version_rank: 0,
             source: "pinned".into(),
+            context_tokens: 0,
         };
         let gemini = LlmModelRow {
             id: "gemini-3.1-flash-lite".into(),
@@ -463,6 +499,7 @@ mod tests {
             family: "flash-lite".into(),
             version_rank: version_rank_of("gemini-3.1-flash-lite"),
             source: "api".into(),
+            context_tokens: 0,
         };
         assert_eq!(model_picker_sort_cmp(&alien, &gemini), std::cmp::Ordering::Less);
     }
@@ -483,6 +520,7 @@ mod tests {
             family: String::new(),
             version_rank: 0,
             source: "api".into(),
+            context_tokens: 0,
         }
     }
 
@@ -564,6 +602,7 @@ mod tests {
             family: "other".into(),
             version_rank: 0,
             source: "cf_api".into(),
+            context_tokens: 0,
         };
         let gemini = LlmModelRow {
             id: "gemini-2.5-flash".into(),
@@ -580,6 +619,7 @@ mod tests {
             family: "flash".into(),
             version_rank: version_rank_of("gemini-2.5-flash"),
             source: "api".into(),
+            context_tokens: 0,
         };
         assert_eq!(model_list_sort_cmp(&openai, &gemini), std::cmp::Ordering::Less);
     }

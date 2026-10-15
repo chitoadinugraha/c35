@@ -42,6 +42,8 @@ import 'package:alienai_c35/pages/page_allow_control.dart' show ThisPcRegister;
 import 'package:alienai_c35/pages/mail/page_mail.dart';
 import 'package:alienai_c35/pages/page_root_console.dart';
 import 'package:alienai_c35/pages/page_sites.dart';
+import 'package:alienai_c35/pages/page_site_pos.dart';
+import 'package:alienai_c35/widgets/sites/ui_staff_site_manage_card.dart';
 import 'package:alienai_c35/widgets/sites/ui_staff_site_picker_dialog.dart';
 import 'package:alienai_c35/c/auth/auth_service.dart';
 import 'package:alienai_c35/widgets/ai/ui_bot_memories_sheet.dart';
@@ -509,16 +511,27 @@ class _PageSettingsState extends State<PageSettings> {
     Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageRootConsole(chatConn: conn)));
   }
 
-  void _openDirectorEditSite() {
+  void _openDirectorManageSite() {
     final conn = widget.chatConn;
     if (conn == null) return;
     uiStaffSitePickerOpen(
       context: context,
       chatConn: conn,
-      onEdit: (siteIid) => Navigator.push(
-        context,
-        MaterialPageRoute<void>(builder: (_) => PageSites(chatConn: conn, siteIid: siteIid)),
-      ),
+      onPicked: (row) {
+        final siteIid = row.siteIid.toString();
+        uiStaffSiteManageCardShow(
+          context: context,
+          chatConn: conn,
+          row: row,
+          action: UiStaffSiteManageAction(
+            onEdit: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(builder: (_) => PageSites(chatConn: conn, siteIid: siteIid)),
+            ),
+            onPos: () => sitePosOpen(context: context, chatConn: conn, siteIid: siteIid),
+          ),
+        );
+      },
     );
   }
 
@@ -536,7 +549,7 @@ class _PageSettingsState extends State<PageSettings> {
 
   UiAccountRoleBadgesAction get _badgeAction => UiAccountRoleBadgesAction(
         onRootConsole: Session.instance.isRoot && widget.chatConn != null ? _openRootConsole : null,
-        onDirectorEditSite: Session.instance.isDirectorStaff && widget.chatConn != null ? _openDirectorEditSite : null,
+        onDirectorManageSite: Session.instance.isDirectorStaff && widget.chatConn != null ? _openDirectorManageSite : null,
         onFinancePayments: _financeStaff ? _openFinancePayments : null,
         onFinanceReceiveAccounts: _financeStaff ? _openFinanceReceiveAccounts : null,
         onMarketingGenerateVoucher: null,

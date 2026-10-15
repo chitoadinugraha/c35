@@ -15,34 +15,11 @@ class SitePreviewViewportHandoff extends InheritedWidget {
   bool updateShouldNotify(SitePreviewViewportHandoff oldWidget) => onPan != oldWidget.onPan;
 }
 
-/// Forwards scroll the guest view could not absorb (clamping overscroll) to the stage pan.
+/// Forwards orthogonal drag on the guest scroll view to the stage pan (not scroll-edge overscroll).
 class SitePreviewScrollHandoffListener extends StatelessWidget {
   const SitePreviewScrollHandoffListener({super.key, required this.child});
 
   final Widget child;
-
-  static Offset _viewportPanForScrollSurplus(ScrollMetrics metrics, double scrollSurplus) {
-    if (metrics.axis == Axis.vertical) {
-      return Offset(0, scrollSurplus);
-    }
-    return Offset(scrollSurplus, 0);
-  }
-
-  static void _handoffOverscroll(SitePreviewViewportHandoff handoff, OverscrollNotification notification) {
-    final metrics = notification.metrics;
-    var pan = _viewportPanForScrollSurplus(metrics, notification.overscroll);
-    final drag = notification.dragDetails;
-    if (drag != null) {
-      if (metrics.axis == Axis.vertical) {
-        pan += Offset(drag.delta.dx, 0);
-      } else {
-        pan += Offset(0, drag.delta.dy);
-      }
-    }
-    if (pan != Offset.zero) {
-      handoff.onPan(pan);
-    }
-  }
 
   /// Orthogonal drag while the primary axis is scrolling (e.g. horizontal stage pan on a vertical list).
   static void _handoffOrthogonalDrag(SitePreviewViewportHandoff handoff, ScrollUpdateNotification notification) {
@@ -63,9 +40,7 @@ class SitePreviewScrollHandoffListener extends StatelessWidget {
 
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
-        if (notification is OverscrollNotification) {
-          _handoffOverscroll(handoff, notification);
-        } else if (notification is ScrollUpdateNotification) {
+        if (notification is ScrollUpdateNotification) {
           _handoffOrthogonalDrag(handoff, notification);
         }
         return false;

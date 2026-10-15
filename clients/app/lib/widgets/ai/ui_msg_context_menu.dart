@@ -158,7 +158,7 @@ List<ChatMessageMenuItem> msgBubbleMenuItems(
   return items;
 }
 
-/// Desktop / pointer-anchored menu (no [SelectionArea]).
+/// Pointer-anchored message menu ([SelectionArea] context menu and overlays).
 Widget msgBubbleContextMenuAt(
   BuildContext context,
   Offset primaryAnchor, {

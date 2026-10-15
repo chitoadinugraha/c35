@@ -312,7 +312,7 @@
     "live": {
         "call": {
             "noneAvailable": "No time available",
-            "availableDuration": "{duration} available"
+            "availableDuration": "{duration}"
         }
     },
     "media": {

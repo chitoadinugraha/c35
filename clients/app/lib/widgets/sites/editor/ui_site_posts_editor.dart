@@ -37,7 +37,7 @@ class UiSitePostsEditor extends StatefulWidget {
 class _UiSitePostsEditorState extends State<UiSitePostsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
-  var _loading = true;
+  var _loading = false;
   var _busy = false;
   String? _error;
   String? _selectedId;
@@ -134,10 +134,12 @@ class _UiSitePostsEditorState extends State<UiSitePostsEditor> with SiteEditorCa
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (siteEditorCatalogWaitsForWarm(editorCatalog)) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       if (await ensureEditorCatalog()) return;
       final items = await widget.api.sitePostList(widget.siteIid);

@@ -51,7 +51,11 @@ use crate::prompt::time::{
     location_prompt_block, prompt_context_append, time_prompt_block, time_timezone_resolve,
     user_asks_time,
 };
+use crate::prompt::device_screenshot_prefetch::{
+    device_screenshot_prefetch_capture, device_screenshot_prefetch_wanted, prefetch_device_iid,
+};
 use crate::prompt::tool_loop::{prompt_cluster_turn, user_wants_search};
+use crate::tools::device_screenshot_artifact::device_screenshot_artifact_put;
 use crate::prompt::user_context::user_prompt_context_get;
 use crate::prompt::ChatReq;
 use crate::prompt_run::prompt_run_get;
@@ -122,20 +126,14 @@ pub use crate::prompt::hooks::PromptHopCheckpoint;
 #[derive(Clone, Default)]
 pub struct PromptTurnHooks {
     pub skip_billing_gate: bool,
+    /// Child `prompt_run` rows (e.g. computer_use.delegate): do not insert user/assistant chat_msg rows.
+    pub skip_chat_transcript_persist: bool,
     pub on_hop: Option<Arc<dyn Fn(PromptHopCheckpoint) + Send + Sync>>,
     pub owner_session: Option<Arc<crate::owner_session::OwnerPromptSession>>,
 }
 
 pub fn chat_title_from_text(text: &str) -> String {
-    let raw: String = text.trim().chars().take(48).collect();
-    if raw.is_empty() {
-        return "Chat".into();
-    }
-    let mut chars = raw.chars();
-    let Some(first) = chars.next() else {
-        return "Chat".into();
-    };
-    format!("{}{}", first.to_uppercase(), chars.as_str())
+    crate::mention_content::chat_title_from_bracket_text(text)
 }
 
 pub async fn chat_title_from_prompt(
@@ -145,49 +143,43 @@ pub async fn chat_title_from_prompt(
     mention_ids: &[String],
 ) -> String {
     use crate::mention_content::{
-        mention_bracket_fixup_nesting, mention_bracket_for_id, mention_content_normalize,
-        mention_plain_for_title,
+        chat_title_from_bracket_text, mention_bracket_fixup_nesting,
+        mention_bracket_for_id_with_label, mention_brackets_attach_labels, mention_content_normalize,
     };
     use crate::mention_registry::mention_resolve_one;
 
     let fixed = mention_bracket_fixup_nesting(text);
     let normalized = mention_content_normalize(&fixed, mention_ids);
-    let mut plain = normalized;
     let mut ids: Vec<String> = mention_ids.to_vec();
     for token in mention_ids_in_brackets(&fixed) {
         if !ids.iter().any(|x| x == &token) {
             ids.push(token);
         }
     }
-    let mut resolved_labels: Vec<String> = Vec::new();
+    let mut label_pairs: Vec<(String, String)> = Vec::new();
     for id in &ids {
         let label = mention_resolve_one(pool, owner_iid, id)
             .await
             .map(|r| r.item.label.trim().to_string())
             .filter(|s| !s.is_empty());
         if let Some(label) = label {
-            let bracket = mention_bracket_for_id(id);
-            if plain.contains(&bracket) {
-                plain = plain.replace(&bracket, &label);
-            }
-            if !resolved_labels.iter().any(|l| l == &label) {
-                resolved_labels.push(label);
-            }
+            label_pairs.push((id.clone(), label));
         }
     }
-    let mut title_body = mention_plain_for_title(&plain);
-    for label in &resolved_labels {
-        if title_body.to_lowercase().contains(&label.to_lowercase()) {
-            break;
+    let mut title_body = mention_brackets_attach_labels(&normalized, &label_pairs);
+    if let Some((id, label)) = label_pairs.first() {
+        let bracket = mention_bracket_for_id_with_label(id, Some(label));
+        let plain_label = label.to_lowercase();
+        let body_lower = title_body.to_lowercase();
+        if !body_lower.contains(&plain_label) && !title_body.contains(&bracket) {
+            title_body = if title_body.trim().is_empty() {
+                bracket
+            } else {
+                format!("{bracket} {title_body}")
+            };
         }
-        if title_body.is_empty() {
-            title_body = label.clone();
-        } else {
-            title_body = format!("{label} {title_body}");
-        }
-        break;
     }
-    chat_title_from_text(&title_body)
+    chat_title_from_bracket_text(&title_body)
 }
 
 fn mention_ids_in_brackets(text: &str) -> Vec<String> {
@@ -205,7 +197,8 @@ fn mention_ids_in_brackets(text: &str) -> Vec<String> {
             }
             if j > start {
                 let n = &s[start..j];
-                let id = format!("iid:{n}");
+                let (payload, _) = crate::mention_content::mention_bracket_body_parts(n);
+                let id = format!("iid:{payload}");
                 if !out.contains(&id) {
                     out.push(id);
                 }
@@ -558,45 +551,50 @@ where
     let nats_persist = nats.cloned();
     let req_id_persist = req_id.to_string();
     let persist_st = Instant::now();
-    let mut persist_handle = tokio::spawn(async move {
-        sqlx::query(
-            r#"
+    let skip_chat_persist = hooks.skip_chat_transcript_persist;
+    let mut persist_handle = if skip_chat_persist {
+        tokio::spawn(async { Ok::<(), sqlx::Error>(()) })
+    } else {
+        tokio::spawn(async move {
+            sqlx::query(
+                r#"
             INSERT INTO ai.chat_msg (id, chat_id, owner_iid, req_id, sender_iid, role, source, content, attachments, created_ts, updated_ts)
             VALUES ($1, $2, $3, $4, $3, 'user', 'prompt', $5, $6, NOW(), NOW())
             "#,
-        )
-        .bind(user_msg_id)
-        .bind(chat_id)
-        .bind(owner_iid)
-        .bind(&req_id_persist)
-        .bind(&user_content_persist)
-        .bind(chat_attachments_json(&attachments_json_persist))
-        .execute(&pool_persist)
-        .await?;
-        if let Err(e) = blob_ref_chat_msg(
-            &pool_persist,
-            chat_id,
-            user_msg_id,
-            owner_iid,
-            &attachments_json_persist,
-            &user_content_persist,
-            "[]",
-        )
-        .await
-        {
-            tracing::warn!("blob_ref chat user msg_id={user_msg_id}: {e}");
-        }
-        let _ = crate::chat_sync::chat_touch(
-            &pool_persist,
-            nats_persist.as_ref(),
-            chat_id,
-            owner_iid,
-            &user_content_persist,
-            "streaming",
-        )
-        .await;
-        Ok::<(), sqlx::Error>(())
-    });
+            )
+            .bind(user_msg_id)
+            .bind(chat_id)
+            .bind(owner_iid)
+            .bind(&req_id_persist)
+            .bind(&user_content_persist)
+            .bind(chat_attachments_json(&attachments_json_persist))
+            .execute(&pool_persist)
+            .await?;
+            if let Err(e) = blob_ref_chat_msg(
+                &pool_persist,
+                chat_id,
+                user_msg_id,
+                owner_iid,
+                &attachments_json_persist,
+                &user_content_persist,
+                "[]",
+            )
+            .await
+            {
+                tracing::warn!("blob_ref chat user msg_id={user_msg_id}: {e}");
+            }
+            let _ = crate::chat_sync::chat_touch(
+                &pool_persist,
+                nats_persist.as_ref(),
+                chat_id,
+                owner_iid,
+                &user_content_persist,
+                "streaming",
+            )
+            .await;
+            Ok::<(), sqlx::Error>(())
+        })
+    };
 
     let session_hist = hooks.owner_session.clone();
 
@@ -1009,6 +1007,26 @@ where
             .filter(|t| !freemium || c35_mod_billing::freemium_tool_allowed(&t.name))
             .collect()
     };
+    let prefetch_device_iid = prefetch_device_iid(&mention_ctx, &mention_ids, bound_device_iid);
+    let prefetch_wanted = !is_simple_time
+        && prefetch_device_iid.is_some()
+        && device_screenshot_prefetch_wanted(run_kind, &tools, &device_tool_exclude);
+    let prefetch_task = if prefetch_wanted {
+        let device_iid = prefetch_device_iid.unwrap();
+        let pool_pf = pool.clone();
+        let nats_pf = nats.cloned();
+        Some(tokio::spawn(async move {
+            device_screenshot_prefetch_capture(
+                &pool_pf,
+                nats_pf.as_ref(),
+                owner_iid,
+                device_iid,
+            )
+            .await
+        }))
+    } else {
+        None
+    };
     let force_tool_call =
         compose_force_tool_call_with_text(&composed.matched_ids, &tools, &req.text);
     let force_web_tool_call = compose_force_web_tool_call(
@@ -1210,11 +1228,35 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
     let skip_web_prefetch = is_simple_time
         || catalog_skip_web_prefetch(&composed.matched_ids, catalog_web)
         || site_commerce_skip_web_prefetch(&req.text, &composed.matched_ids)
+        || crate::compose::compose_suppress_general_web_when_staff_registrations(
+            &composed.matched_ids,
+        )
         || crate::compose::compose_skip_web_prefetch_for_context(
             &composed.matched_ids,
             &composed.trace.inst_enrich_keys,
             &req.text,
         );
+    let device_prefetch = if let Some(task) = prefetch_task {
+        let pf_started = Instant::now();
+        match task.await {
+            Ok(Some(p)) => {
+                clock.seq_ms(
+                    "device_prefetch",
+                    "Device screenshot prefetch",
+                    pf_started,
+                    pf_started.elapsed().as_millis() as i64,
+                );
+                Some(p)
+            }
+            Ok(None) => None,
+            Err(e) => {
+                tracing::warn!("[c35:device_prefetch] task join failed: {e:#}");
+                None
+            }
+        }
+    } else {
+        None
+    };
     let chat_req = ChatReq {
         model: model.clone(),
         system,
@@ -1222,10 +1264,12 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
         thinking: thinking_level(&req.thinking),
         tools,
         history,
+        matched_inst_ids: composed.matched_ids.clone(),
         force_tool_call,
         force_web_tool_call,
         catalog_web,
         skip_web_prefetch,
+        device_prefetch,
     };
     let attachments_json = req.attachments_json.as_str();
     let mut turn_ctx = TurnCtx {
@@ -1257,6 +1301,50 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
     };
     clock.par("persist_user_msg", "Save user message", persist_st, persist_ms);
 
+    if let Some(ref pf) = chat_req.device_prefetch {
+        if let Ok((hash, url)) = device_screenshot_artifact_put(
+            pool,
+            owner_iid,
+            req_id,
+            "turn-start-prefetch",
+            "device.screenshot",
+            pf.device_iid,
+            &pf.jpeg_bytes,
+            pf.width,
+            pf.height,
+            false,
+            false,
+            pf.axtree_text.len(),
+        )
+        .await
+        {
+            let preview = serde_json::json!({
+                "ok": true,
+                "prefetch": true,
+                "device_iid": pf.device_iid,
+                "width": pf.width,
+                "height": pf.height,
+                "image_hash": hash,
+                "image_url": url,
+                "hint": "Turn-start desktop prefetch (not a model tool call).",
+            });
+            tracer
+                .tool_result(
+                    "device.screenshot",
+                    "turn-start-prefetch",
+                    &serde_json::json!({
+                        "device_iid": pf.device_iid,
+                        "prefetch": true,
+                        "max_width": 1280,
+                    }),
+                    &preview,
+                    true,
+                    0,
+                )
+                .await;
+        }
+    }
+
     let res = match prompt_cluster_turn(
         &chat_req,
         &mut on_delta,
@@ -1271,12 +1359,13 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
         Ok(r) => r,
         Err(e) => {
             let duration_ms = turn_started.elapsed().as_millis() as i32;
-            let assistant_msg_id = snowflake_id();
             let is_abort = cancel.is_cancelled() || e.to_string().contains("aborted");
             let status = if is_abort { "interrupted" } else { "error" };
             let err_text = e.to_string();
-            let _ = sqlx::query(
-                r#"
+            if !hooks.skip_chat_transcript_persist {
+                let assistant_msg_id = snowflake_id();
+                let _ = sqlx::query(
+                    r#"
                 INSERT INTO ai.chat_msg (
                     id, chat_id, owner_iid, req_id, sender_iid, role, source,
                     content, thought, blocks_json, tokens_in, tokens_out, duration_ms, cost_usd, status, error_text,
@@ -1284,20 +1373,20 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
                 )
                 VALUES ($1, $2, $3, $4, $3, 'assistant', 'prompt', '', '', '[]'::jsonb, 0, 0, $5, 0, $6, $7, NOW(), NOW())
                 "#,
-            )
-            .bind(assistant_msg_id)
-            .bind(chat_id)
-            .bind(owner_iid)
-            .bind(req_id)
-            .bind(duration_ms)
-            .bind(status)
-            .bind(&err_text)
-            .execute(pool)
-            .await;
-            let _ = c35_mod_billing::billing_reservation_refund(pool, req_id).await;
-            let _ =
-                crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &err_text, "error")
+                )
+                .bind(assistant_msg_id)
+                .bind(chat_id)
+                .bind(owner_iid)
+                .bind(req_id)
+                .bind(duration_ms)
+                .bind(status)
+                .bind(&err_text)
+                .execute(pool)
+                .await;
+                let _ = crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &err_text, "error")
                     .await;
+            }
+            let _ = c35_mod_billing::billing_reservation_refund(pool, req_id).await;
             tracer.flush().await;
             return Err(e);
         }
@@ -1416,8 +1505,9 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
     });
 
     let st = Instant::now();
-    let save_fut = sqlx::query(
-        r#"
+    if !hooks.skip_chat_transcript_persist {
+        let save_fut = sqlx::query(
+            r#"
         INSERT INTO ai.chat_msg (
             id, chat_id, owner_iid, req_id, sender_iid, role, source,
             content, thought, blocks_json, tokens_in, tokens_out, duration_ms, cost_usd, status, error_text,
@@ -1425,65 +1515,68 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
         )
         VALUES ($1, $2, $3, $4, $3, 'assistant', 'prompt', $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, NOW(), NOW())
         "#,
-    )
-    .bind(assistant_msg_id)
-    .bind(chat_id)
-    .bind(owner_iid)
-    .bind(req_id)
-    .bind(&assistant_content)
-    .bind(&res.thought)
-    .bind(&blocks_json)
-    .bind(res.tokens_in)
-    .bind(res.tokens_out)
-    .bind(duration_ms)
-    .bind(cost_usd)
-    .bind(status)
-    .bind(&error_text)
-    .execute(pool);
+        )
+        .bind(assistant_msg_id)
+        .bind(chat_id)
+        .bind(owner_iid)
+        .bind(req_id)
+        .bind(&assistant_content)
+        .bind(&res.thought)
+        .bind(&blocks_json)
+        .bind(res.tokens_in)
+        .bind(res.tokens_out)
+        .bind(duration_ms)
+        .bind(cost_usd)
+        .bind(status)
+        .bind(&error_text)
+        .execute(pool);
 
-    let sync_fut =
-        crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &assistant_content, "done");
+        let sync_fut =
+            crate::chat_sync::chat_touch(pool, nats, chat_id, owner_iid, &assistant_content, "done");
 
-    let (save_res, sync_res) = tokio::join!(save_fut, sync_fut);
-    save_res?;
-    if let Err(e) = blob_ref_chat_msg(
-        pool,
-        chat_id,
-        assistant_msg_id,
-        owner_iid,
-        "[]",
-        &assistant_content,
-        &blocks_json,
-    )
-    .await
-    {
-        tracing::warn!("blob_ref chat assistant msg_id={assistant_msg_id}: {e}");
+        let (save_res, sync_res) = tokio::join!(save_fut, sync_fut);
+        save_res?;
+        if let Err(e) = blob_ref_chat_msg(
+            pool,
+            chat_id,
+            assistant_msg_id,
+            owner_iid,
+            "[]",
+            &assistant_content,
+            &blocks_json,
+        )
+        .await
+        {
+            tracing::warn!("blob_ref chat assistant msg_id={assistant_msg_id}: {e}");
+        }
+        let _ = sync_res;
+        settle.seq("save_and_sync", "Save reply & chat sync", st);
     }
-    let _ = sync_res;
-    settle.seq("save_and_sync", "Save reply & chat sync", st);
 
     let settle_ms = settle_started.elapsed().as_millis() as i64;
     tracer.trace_settle(&settle, settle_ms).await;
     tracer.flush().await;
 
     if let Some(ref session) = hooks.owner_session {
-        use crate::context_pack::HistoryRow;
-        chat_cache_append_turn(
-            session,
-            chat_id,
-            HistoryRow {
-                id: user_msg_id,
-                role: "user".into(),
-                content: user_content.clone(),
-                blocks_json: "[]".into(),
-            },
-            HistoryRow {
-                id: assistant_msg_id,
-                role: "assistant".into(),
-                content: assistant_content.clone(),
-                blocks_json: blocks_json.clone(),
-            },
-        );
+        if !hooks.skip_chat_transcript_persist {
+            use crate::context_pack::HistoryRow;
+            chat_cache_append_turn(
+                session,
+                chat_id,
+                HistoryRow {
+                    id: user_msg_id,
+                    role: "user".into(),
+                    content: user_content.clone(),
+                    blocks_json: "[]".into(),
+                },
+                HistoryRow {
+                    id: assistant_msg_id,
+                    role: "assistant".into(),
+                    content: assistant_content.clone(),
+                    blocks_json: blocks_json.clone(),
+                },
+            );
+        }
         let mut hint_tools = catalog_followup
             .as_ref()
             .map(|b| b.force_tools.clone())
@@ -1495,6 +1588,23 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
         if let Some(c) = &commerce_followup {
             hint_tools.extend(c.force_tools.clone());
             hint_suffix.push_str(&c.inst_suffix);
+        }
+        if composed
+            .matched_ids
+            .iter()
+            .any(|id| id == "inst.staff.registrations")
+        {
+            if !hint_tools
+                .iter()
+                .any(|t| t == "admin.user.registrations.list")
+            {
+                hint_tools.push("admin.user.registrations.list".into());
+            }
+            if hint_suffix.is_empty() {
+                hint_suffix.push_str(
+                    "[STAFF REGISTRATIONS FOLLOW-UP] Prefer admin.user.registrations.list for signup lists and counts; do not use web.search for platform users.",
+                );
+            }
         }
         if !hint_tools.is_empty() || !hint_suffix.is_empty() {
             session

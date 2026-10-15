@@ -85,6 +85,7 @@ Widget guestSiteBlock({
   Color? muted,
   List<Map<String, dynamic>> orderProgressSteps = const [],
   List<Map<String, dynamic>> bootQueues = const [],
+  bool hubPostsUseProfileLimit = false,
 }) {
   final type = block['type']?.toString() ?? 'markdown';
   final props = block['props'] is Map<String, dynamic>
@@ -127,6 +128,7 @@ Widget guestSiteBlock({
         postsPreload: postsPreload,
         foreground: fg,
         muted: sub,
+        hubProfileDesign: hubPostsUseProfileLimit ? design?.profileDesign : null,
       ),
     'hub_profile' => GuestSiteHubProfileBlock(
         props: props,
@@ -196,6 +198,7 @@ class GuestSiteHeroBlock extends StatelessWidget {
     this.avatarKey,
     this.openHours = const [],
     this.hoursPrimaryCta = false,
+    this.showShareButton = true,
   });
 
   final Map<String, dynamic> props;
@@ -222,7 +225,7 @@ class GuestSiteHeroBlock extends StatelessWidget {
     final showAvatar = profile?.showAvatar ?? true;
     final showTitle = profile?.showTitle ?? true;
     final showBio = profile?.showBio ?? true;
-    final titleAlign = _guestTextAlign(profile?.titleAlign ?? 'center');
+    final titleAlign = TextAlign.center;
     final bioAlign = _guestTextAlign(profile?.bioAlign ?? 'center');
     final avatarSize = profile?.avatarSize ?? 72;
     final titleSize = profile?.titleFontSize ?? 18;
@@ -238,7 +241,9 @@ class GuestSiteHeroBlock extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Column(
+          SizedBox(
+            width: double.infinity,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (showAvatar)
@@ -263,6 +268,7 @@ class GuestSiteHeroBlock extends StatelessWidget {
                     fontFamily: titleFamily.isEmpty ? null : titleFamily,
                     fontWeight: FontWeight.bold,
                     letterSpacing: -0.3,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               if (showBio && subtitle.isNotEmpty) ...[
@@ -296,29 +302,31 @@ class GuestSiteHeroBlock extends StatelessWidget {
                 ),
               ],
             ],
+            ),
           ),
-          Positioned(
-            top: -16,
-            right: -4,
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(999),
-                onTap: () {},
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: fg.withValues(alpha: 0.05),
-                    border: Border.all(color: fg.withValues(alpha: 0.1)),
+          if (showShareButton)
+            Positioned(
+              top: -16,
+              right: -4,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: () {},
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: fg.withValues(alpha: 0.05),
+                      border: Border.all(color: fg.withValues(alpha: 0.1)),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(Icons.share_outlined, size: 16, color: fg),
                   ),
-                  alignment: Alignment.center,
-                  child: Icon(Icons.share_outlined, size: 16, color: fg),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -709,21 +717,25 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
+typedef GuestSiteHubPostsBuilder = Widget Function({required bool postsExpanded});
+
 class GuestSiteHubCatalogTabs extends StatefulWidget {
   const GuestSiteHubCatalogTabs({
     super.key,
     required this.shop,
-    required this.posts,
+    required this.postsBuilder,
     required this.accent,
-    required this.defaultTab,
+    required this.profile,
+    required this.postCount,
     required this.i18n,
     this.foreground,
   });
 
   final Widget shop;
-  final Widget posts;
+  final GuestSiteHubPostsBuilder postsBuilder;
   final Color accent;
-  final String defaultTab;
+  final SiteProfileDesignDraft profile;
+  final int postCount;
   final GuestSiteI18n i18n;
   final Color? foreground;
 
@@ -732,12 +744,38 @@ class GuestSiteHubCatalogTabs extends StatefulWidget {
 }
 
 class _GuestSiteHubCatalogTabsState extends State<GuestSiteHubCatalogTabs> {
-  late var _tab = siteHubDefaultTabNormalize(widget.defaultTab);
+  late String _tab;
+  var _postsExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTab();
+  }
+
+  @override
+  void didUpdateWidget(covariant GuestSiteHubCatalogTabs oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.profile.hubDefaultTab != widget.profile.hubDefaultTab ||
+        oldWidget.postCount != widget.postCount) {
+      _syncTab();
+    }
+  }
+
+  void _syncTab() {
+    _tab = siteHubInitialTab(
+      design: widget.profile,
+      hasProducts: true,
+      hasPosts: widget.postCount > 0,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final fg = widget.foreground ?? _guestTextPrimary;
     final muted = fg.withValues(alpha: 0.55);
+    final postLimit = siteHubPostsPreviewLimit(widget.profile);
+    final postsMore = !_postsExpanded && widget.postCount > postLimit;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -756,7 +794,20 @@ class _GuestSiteHubCatalogTabsState extends State<GuestSiteHubCatalogTabs> {
             ),
           ),
         ),
-        if (_tab == 'shop') widget.shop else widget.posts,
+        if (_tab == 'shop') widget.shop else ...[
+          widget.postsBuilder(postsExpanded: _postsExpanded),
+          if (postsMore)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Center(
+                child: TextButton(
+                  key: const Key('guest-hub-posts-see-all'),
+                  onPressed: () => setState(() => _postsExpanded = true),
+                  child: Text(widget.i18n.hubSeeAllPosts(widget.postCount)),
+                ),
+              ),
+            ),
+        ],
       ],
     );
   }
@@ -893,7 +944,9 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
   @override
   Widget build(BuildContext context) {
     final i18n = GuestSiteI18n.fromMeta(widget.catalogMeta);
-    final title = widget.props['title']?.toString() ?? i18n.catalogDefaultTitle;
+    final rawCatalogTitle = widget.props['title']?.toString().trim() ?? '';
+    final showCatalogTitle =
+        rawCatalogTitle.isNotEmpty && rawCatalogTitle != i18n.catalogDefaultTitle;
     final rows = _rows.isNotEmpty
         ? _rows
         : List.generate(3, (i) => {'name': 'Item ${i + 1}', 'pic': '', 'price': 0});
@@ -923,26 +976,19 @@ class _GuestSiteProductGridBlockState extends State<GuestSiteProductGridBlock> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            i18n.catalogSectionEyebrow,
-            style: TextStyle(
-              color: sectionMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.1,
+          if (showCatalogTitle) ...[
+            Text(
+              rawCatalogTitle,
+              style: TextStyle(
+                color: sectionFg,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.none,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              color: sectionFg,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          if (showSearch) ...[
             const SizedBox(height: 12),
+          ],
+          if (showSearch) ...[
             TextField(
               key: const Key('guest-catalog-search'),
               onChanged: (v) => setState(() => _searchQuery = v),
@@ -1753,6 +1799,7 @@ class GuestSiteSocialFeedBlock extends StatelessWidget {
     required this.postsPreload,
     this.foreground,
     this.muted,
+    this.hubProfileDesign,
   });
 
   final Map<String, dynamic> props;
@@ -1760,12 +1807,16 @@ class GuestSiteSocialFeedBlock extends StatelessWidget {
   final List<Map<String, dynamic>> postsPreload;
   final Color? foreground;
   final Color? muted;
+  final SiteProfileDesignDraft? hubProfileDesign;
 
   @override
   Widget build(BuildContext context) {
     final title = props['title']?.toString() ?? 'Update';
     final limitRaw = props['limit'];
-    final limit = (limitRaw is num ? limitRaw.toInt() : 20).clamp(1, 20);
+    var limit = (limitRaw is num ? limitRaw.toInt() : 20).clamp(1, 20);
+    if (hubProfileDesign != null) {
+      limit = siteHubPostsPreviewLimit(hubProfileDesign!);
+    }
     final posts = postsPreload.take(limit).toList(growable: false);
     if (posts.isEmpty) return const SizedBox.shrink();
 
@@ -1823,10 +1874,7 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
     final showLocation = location.isNotEmpty && (profile?.showLocation ?? true);
     final showHours = (profile?.showHours ?? true) && props['show_hours'] == true && openHours.isNotEmpty;
     final sub = muted ?? _guestTextSecondary;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         GuestSiteHeroBlock(
@@ -1840,6 +1888,7 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
           avatarKey: const Key('guest-profile-avatar'),
           openHours: openHours,
           hoursPrimaryCta: showHours,
+          showShareButton: false,
         ),
         if (showLocation)
           Padding(
@@ -1868,31 +1917,6 @@ class GuestSiteHubProfileBlock extends StatelessWidget {
               ),
             ),
           ),
-      ],
-    ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: 44,
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: 0.9,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      pageBackground,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }

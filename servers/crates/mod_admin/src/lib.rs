@@ -14,7 +14,10 @@ mod platform_pnl;
 mod platform_user_metrics;
 mod llm_catalog_admin;
 mod registrations_list;
+mod user_display;
 mod disk_clean;
+
+pub use user_display::admin_user_public_handle;
 
 pub use disk_clean::admin_disk_clean;
 pub use admin_event::{admin_event_profile_updated, admin_event_referrer_updated, admin_event_roles_updated};
@@ -241,15 +244,12 @@ pub async fn admin_user_search(
         .into_iter()
         .map(|r| {
             let alien_id: String = r.get("alien_id");
-            let handle = if alien_id.is_empty() {
-                "@user".into()
-            } else {
-                format!("@{alien_id}")
-            };
+            let email: String = r.get("email");
+            let handle = admin_user_public_handle(&alien_id, &email);
             AdminUserHit {
                 identity_id: r.get("id"),
                 name: r.get("name"),
-                email: r.get("email"),
+                email,
                 avatar_url: r.get("pic"),
                 handle,
             }

@@ -31,7 +31,7 @@ void main() {
     store.put(null, text: 'x', mentionIds: const []);
     await store.restoreForUid(99000);
     store.put(7, text: 'saved', mentionIds: const ['vm']);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 900));
     await store.restoreForUid(99000);
     expect(store.get(7)?.text, 'saved');
     expect(store.get(7)?.mentionIds, ['vm']);

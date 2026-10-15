@@ -8,6 +8,16 @@ String guestLayoutMode(Map<String, dynamic> meta, {required int productCount}) {
 
 double guestLayoutMaxWidth(String layout) => layout == 'store' ? 1040 : 720;
 
+/// Matches web `.guest-page-main` horizontal inset (`site-guest.v1.css`).
+const double guestShellHorizontalPadding = 16;
+
+/// Bottom scroll reserve for cart chrome (88px web default; 96px when cart bar visible).
+const double guestShellBottomPadding = 88;
+const double guestShellBottomPaddingWithCart = 96;
+
+double guestShellListBottomInset({required bool cartBarVisible}) =>
+    cartBarVisible ? guestShellBottomPaddingWithCart : guestShellBottomPadding;
+
 int guestProductGridCrossAxisCount(double maxWidth, String layout) {
   if (layout == 'store') {
     if (maxWidth >= 900) return 4;

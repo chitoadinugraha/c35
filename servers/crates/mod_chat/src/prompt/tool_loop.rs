@@ -9,6 +9,11 @@ use serde_json::{json, Value};
 use tokio_util::sync::CancellationToken;
 
 use super::llm_route::{bill_model_slug, llm_stream_chain};
+use super::prose_tool::apply_prose_tool_calls;
+use super::staff_registrations::{
+    staff_registrations_append_user_context, staff_registrations_should_prefetch,
+    staff_registrations_tool_args, user_text_looks_like_staff_registrations_intent,
+};
 use super::thought::{thinking_level, thought_push};
 use super::web_grounding::{
     pick_visit_url_for_query, reply_looks_like_web_deferral, reply_looks_like_web_placeholder,
@@ -23,7 +28,7 @@ use super::computer_use::{
 use crate::prompt::google_forms::ComputerUseToolCounts;
 use crate::prompt::google_sheets::{
     google_sheets_device_input_uses_pixel_grid_without_goto,
-    google_sheets_parent_turn_may_finish, google_sheets_shell_command_forbidden,
+    google_sheets_parent_turn_may_finish, google_sheets_shell_blocked_on_ui_turn,
     user_text_looks_like_device_spreadsheet_ui, GOOGLE_SHEETS_PARENT_CONTINUE_HINT,
     GOOGLE_SHEETS_PIXEL_GRID_STEER_HINT, GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT,
 };
@@ -124,6 +129,30 @@ pub fn truncate_large_tool_payload(val: &mut Value, max_chars: usize) {
     }
 }
 
+pub fn is_device_turn(req: &ChatReq, run_kind: &str, turn_ctx: Option<&TurnCtx<'_>>) -> bool {
+    if run_kind == "computer_use" {
+        return true;
+    }
+    if req.device_prefetch.is_some() {
+        return true;
+    }
+    if req.tools.iter().any(|t| t.name.starts_with("device.") || t.name.starts_with("computer_use.")) {
+        return true;
+    }
+    if req.matched_inst_ids.iter().any(|id| id.starts_with("inst.device.") || id == "inst.computer_use") {
+        return true;
+    }
+    if let Some(ctx) = turn_ctx {
+        if !ctx.mention.devices.is_empty() {
+            return true;
+        }
+    }
+    if req.user.to_ascii_lowercase().contains("@device") {
+        return true;
+    }
+    false
+}
+
 pub async fn prompt_cluster_turn(
     req: &ChatReq,
     on_delta: &mut (dyn FnMut(bool, String) + Send),
@@ -134,6 +163,7 @@ pub async fn prompt_cluster_turn(
     on_hop: Option<Arc<dyn Fn(PromptHopCheckpoint) + Send + Sync>>,
 ) -> Result<ChatRes> {
     let run_kind = turn_ctx.as_ref().map(|t| t.run_kind).unwrap_or("main");
+    let is_device = is_device_turn(req, run_kind, turn_ctx.as_deref());
     let rounds_max = chat_tool_rounds_max(run_kind);
     let requested_model = req.model.clone();
     let bill_slug = bill_model_slug(&requested_model);
@@ -156,6 +186,12 @@ pub async fn prompt_cluster_turn(
         contents.push(json!({ "role": role, "parts": [{ "text": trimmed }] }));
     }
     contents.push(json!({ "role": "user", "parts": [{ "text": req.user }] }));
+    if let Some(prefetch) = &req.device_prefetch {
+        crate::prompt::device_screenshot_prefetch::device_screenshot_prefetch_attach_user_turn(
+            &mut contents,
+            prefetch,
+        );
+    }
     if let Some(ctx) = turn_ctx.as_ref() {
         let image_parts =
             crate::tools::img::user_image_inline_parts(ctx.pool, ctx.attachments_json).await;
@@ -190,6 +226,7 @@ pub async fn prompt_cluster_turn(
             "AUTO",
             on_delta,
             cancel,
+            is_device,
         )
         .await?;
         let hop_ms = hop_started.elapsed().as_millis() as i64;
@@ -239,6 +276,7 @@ pub async fn prompt_cluster_turn(
     let mut stock_returned = false;
     if req.force_web_tool_call
         && !req.skip_web_prefetch
+        && !staff_registrations_should_prefetch(&req.matched_inst_ids, &tools)
         && tools.iter().any(|t| t.name == "web.search")
     {
         let q = search_query_from_user(&req.user);
@@ -261,6 +299,43 @@ pub async fn prompt_cluster_turn(
             web_grounded = true;
             prev_calls = vec![("web.search".into(), json!({ "query": q, "limit": 6 }), None)];
         }
+    }
+    if staff_registrations_should_prefetch(&req.matched_inst_ids, &tools) {
+        let args = staff_registrations_tool_args(&req.user);
+        emit_thought(on_delta, &mut thought, "Using admin.user.registrations.list…\n");
+        let tool_started = Instant::now();
+        let (result, tool_cost) = cluster_tool_exec(
+            &client,
+            "admin.user.registrations.list",
+            &args,
+            turn_ctx.as_deref(),
+            None,
+        )
+        .await;
+        tools_cost_usd += tool_cost;
+        let tool_ms = tool_started.elapsed().as_millis() as i64;
+        let ok = result.get("ok").and_then(|v| v.as_bool()).unwrap_or(true);
+        if let Some(tr) = tracer {
+            tr.tool_result(
+                "admin.user.registrations.list",
+                &snowflake_id().to_string(),
+                &args,
+                &result,
+                ok,
+                tool_ms,
+            )
+            .await;
+        }
+        staff_registrations_append_user_context(&mut contents, &result);
+        tools.retain(|t| t.name != "web.search" && t.name != "web.visit");
+        tool_json = tool_decls(&tools);
+        used_tool = true;
+        web_grounded = true;
+        prev_calls = vec![(
+            "admin.user.registrations.list".into(),
+            args,
+            None,
+        )];
     }
     for round in 0..rounds_max {
         if cancel.is_cancelled() {
@@ -327,6 +402,7 @@ pub async fn prompt_cluster_turn(
                 "AUTO",
                 on_delta,
                 cancel,
+                is_device,
             )
             .await?
         } else {
@@ -339,9 +415,11 @@ pub async fn prompt_cluster_turn(
                 tool_call_mode,
                 &mut hop_delta,
                 cancel,
+                is_device,
             )
             .await?
         };
+        let out = apply_prose_tool_calls(out, &tools);
         let hop_ms = hop_started.elapsed().as_millis() as i64;
         tokens_in += out.in_tok;
         tokens_out += out.out_tok;
@@ -374,7 +452,8 @@ pub async fn prompt_cluster_turn(
         }
         if !out.function_calls.is_empty() {
             if wrap || tool_calls_dup(&prev_calls, &out.function_calls) {
-                if !out.text.is_empty() {
+                // After prefetch, the model may echo the same tool call as prose; wrap up instead.
+                if !out.text.is_empty() && !used_tool {
                     if let Some(buf) = delta_buf.as_mut() {
                         for (thought, s) in buf.iter() {
                             on_delta(*thought, s.clone());
@@ -410,6 +489,7 @@ pub async fn prompt_cluster_turn(
                     cancel,
                     tracer,
                     tools_cost_usd,
+                    is_device,
                 )
                 .await;
             }
@@ -525,7 +605,7 @@ pub async fn prompt_cluster_turn(
                         .get("command")
                         .and_then(|v| v.as_str())
                         .unwrap_or("");
-                    if google_sheets_shell_command_forbidden(cmd) {
+                    if google_sheets_shell_blocked_on_ui_turn(cmd) {
                         sheets_steer_hint = Some(GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT);
                     }
                 }
@@ -751,6 +831,7 @@ pub async fn prompt_cluster_turn(
             && !req.skip_web_prefetch
             && tools.iter().any(|t| t.name == "web.search")
             && (req.force_web_tool_call || user_wants_search(&req.user))
+            && !staff_registrations_should_prefetch(&req.matched_inst_ids, &tools)
         {
             let q = search_query_from_user(&req.user);
             if tool_loop_run_web_search(
@@ -976,6 +1057,7 @@ Silakan coba lagi — saya akan memakai computer_use.delegate atau device.input 
             cancel,
             tracer,
             tools_cost_usd,
+            is_device,
         )
         .await;
     }
@@ -997,6 +1079,7 @@ async fn wrap_up(
     cancel: &CancellationToken,
     tracer: Option<&TurnTracer>,
     tools_cost_usd: f64,
+    is_device: bool,
 ) -> Result<ChatRes> {
     if cancel.is_cancelled() {
         anyhow::bail!("aborted");
@@ -1012,6 +1095,7 @@ async fn wrap_up(
         "AUTO",
         on_delta,
         cancel,
+        is_device,
     )
     .await?;
     let hop_ms = hop_started.elapsed().as_millis() as i64;
@@ -1214,6 +1298,9 @@ fn ensure_web_visit_tool(
 }
 
 pub fn user_wants_search(text: &str) -> bool {
+    if user_text_looks_like_staff_registrations_intent(text) {
+        return false;
+    }
     let t = text.to_ascii_lowercase();
     [
         "search",
@@ -1273,6 +1360,12 @@ mod tests {
     }
 
     #[test]
+    fn user_wants_search_skips_staff_siapa_saja() {
+        assert!(!user_wants_search("siapa saja"));
+        assert!(user_wants_search("siapa presiden indonesia sekarang"));
+    }
+
+    #[test]
     fn prune_previous_screenshots_keeps_append_only_under_threshold() {
         let mut contents = vec![
             json!({
@@ -1316,5 +1409,65 @@ mod tests {
         let latest_inline = contents[2]["parts"][0].get("inlineData");
         assert!(latest_inline.is_some());
         assert_eq!(latest_inline.unwrap()["data"].as_str(), Some("latest_base64_img"));
+    }
+
+    #[test]
+    fn prune_previous_screenshots_handles_turn0_prefetch_with_axtree() {
+        let mut contents = vec![
+            json!({
+                "role": "user",
+                "parts": [
+                    { "text": "Click the settings icon" },
+                    {
+                        "inlineData": {
+                            "mimeType": "image/jpeg",
+                            "data": "prefetched_base64_img"
+                        }
+                    },
+                    { "text": "Interactive UI elements:\n@1 Button 'Settings'" }
+                ]
+            }),
+            json!({
+                "role": "model",
+                "parts": [{ "text": "Clicking settings" }]
+            }),
+        ];
+
+        prune_previous_screenshots(&mut contents);
+
+        // Turn 0 user text is intact
+        assert_eq!(
+            contents[0]["parts"][0]["text"].as_str(),
+            Some("Click the settings icon")
+        );
+
+        // Turn 0 prefetched screenshot inlineData is converted to text omission
+        assert!(contents[0]["parts"][1].get("inlineData").is_none());
+        let omission_text = contents[0]["parts"][1]["text"].as_str().unwrap();
+        assert!(omission_text.contains("[Previous desktop screenshot omitted"));
+
+        // Turn 0 structured axtree text is preserved intact
+        assert_eq!(
+            contents[0]["parts"][2]["text"].as_str(),
+            Some("Interactive UI elements:\n@1 Button 'Settings'")
+        );
+
+        // New observation can be appended
+        contents.push(json!({
+            "role": "user",
+            "parts": [
+                { "text": "Visual desktop observation from device:" },
+                {
+                    "inlineData": {
+                        "mimeType": "image/jpeg",
+                        "data": "hop1_new_img"
+                    }
+                }
+            ]
+        }));
+        assert_eq!(
+            contents[2]["parts"][1]["inlineData"]["data"].as_str(),
+            Some("hop1_new_img")
+        );
     }
 }

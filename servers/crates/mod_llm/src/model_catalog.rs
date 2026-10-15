@@ -1,7 +1,7 @@
 use crate::catalog_resolve::{catalog_provider_model, catalog_row_by_provider_model};
 use crate::catalog_types::context_tokens_infer;
 use crate::llm_catalog::catalog_row_resolve;
-use crate::runtime_config::alien_chain_models;
+use crate::runtime_config::alien_chain_models_device;
 
 pub const CONTEXT_WINDOW_STEPS: [i32; 6] = [32_768, 65_536, 131_072, 262_144, 524_288, 1_048_576];
 pub const CONTEXT_WINDOW_DEFAULT: i32 = 128_000;
@@ -97,8 +97,13 @@ pub fn model_log_label(requested: &str) -> String {
 }
 
 pub fn model_chain_for_slug(slug: &str) -> Vec<ModelTarget> {
+    model_chain_for_slug_device(slug, false)
+}
+
+pub fn model_chain_for_slug_device(slug: &str, is_device: bool) -> Vec<ModelTarget> {
     if model_is_alien(slug) {
-        return alien_chain_models()
+        let models = alien_chain_models_device(is_device);
+        let targets: Vec<ModelTarget> = models
             .into_iter()
             .filter_map(|m| {
                 catalog_provider_model(&m).map(|provider_model| ModelTarget {
@@ -107,6 +112,29 @@ pub fn model_chain_for_slug(slug: &str) -> Vec<ModelTarget> {
                 })
             })
             .collect();
+        if !targets.is_empty() {
+            return targets;
+        }
+        let fallback_model = if is_device {
+            "gemini-3.5-flash-lite"
+        } else {
+            "gemini-3.1-flash-lite"
+        };
+        let fallback_alt = if is_device {
+            "gemini-3.1-flash-lite"
+        } else {
+            "gemini-3.5-flash-lite"
+        };
+        return vec![
+            ModelTarget {
+                provider: "google".into(),
+                provider_model: fallback_model.into(),
+            },
+            ModelTarget {
+                provider: "google".into(),
+                provider_model: fallback_alt.into(),
+            },
+        ];
     }
     model_resolve_target(slug).into_iter().collect()
 }
@@ -147,5 +175,17 @@ mod tests {
     fn flash_lite_family_guard() {
         assert!(model_is_flash_lite("gemini-3.1-flash-lite"));
         assert!(!model_is_flash_lite("gemini-2.5-pro"));
+    }
+
+    #[test]
+    fn alien_chain_device_routing_prioritizes_35_flash_lite() {
+        let default_chain = model_chain_for_slug_device("alienai", false);
+        assert!(!default_chain.is_empty());
+        assert_eq!(default_chain[0].provider_model, "gemini-3.1-flash-lite");
+
+        let device_chain = model_chain_for_slug_device("alienai", true);
+        assert!(!device_chain.is_empty());
+        assert_eq!(device_chain[0].provider_model, "gemini-3.5-flash-lite");
+        assert_eq!(device_chain[1].provider_model, "gemini-3.1-flash-lite");
     }
 }

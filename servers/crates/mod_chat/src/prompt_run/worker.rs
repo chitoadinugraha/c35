@@ -376,8 +376,10 @@ async fn process_prompt_job(
         let pool_hop = pool.clone();
         let req_id_hop = req_id.clone();
         let cancel_hop = cancel.clone();
+        let skip_chat_transcript = row.parent_req_id.is_some();
         let hooks = PromptTurnHooks {
             skip_billing_gate: true,
+            skip_chat_transcript_persist: skip_chat_transcript,
             on_hop: Some(Arc::new(move |hop| {
                 if hop.fail_class.starts_with("fatal_")
                     || matches!(

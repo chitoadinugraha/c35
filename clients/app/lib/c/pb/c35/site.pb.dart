@@ -2535,9 +2535,11 @@ class ResSiteList extends $pb.GeneratedMessage {
 class ReqSiteDraftGet extends $pb.GeneratedMessage {
   factory ReqSiteDraftGet({
     $fixnum.Int64? siteIid,
+    $core.bool? skipPublishStatus,
   }) {
     final result = ReqSiteDraftGet._();
     if (siteIid != null) result.siteIid = siteIid;
+    if (skipPublishStatus != null) result.skipPublishStatus = skipPublishStatus;
     return result;
   }
 
@@ -2555,6 +2557,7 @@ class ReqSiteDraftGet extends $pb.GeneratedMessage {
       package: const $pb.PackageName(_omitMessageNames ? '' : 'c35'),
       createEmptyInstance: ReqSiteDraftGet.$_createMessage)
     ..aInt64(1, _omitFieldNames ? '' : 'siteIid')
+    ..aOB(2, _omitFieldNames ? '' : 'skipPublishStatus')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -2587,6 +2590,16 @@ class ReqSiteDraftGet extends $pb.GeneratedMessage {
   $core.bool hasSiteIid() => $_has(0);
   @$pb.TagNumber(1)
   void clearSiteIid() => $_clearField(1);
+
+  /// / When true, skip draft render-hash / publish-pending (fast path for editor sections).
+  @$pb.TagNumber(2)
+  $core.bool get skipPublishStatus => $_getBF(1);
+  @$pb.TagNumber(2)
+  set skipPublishStatus($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSkipPublishStatus() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSkipPublishStatus() => $_clearField(2);
 }
 
 class ResSiteDraftGet extends $pb.GeneratedMessage {

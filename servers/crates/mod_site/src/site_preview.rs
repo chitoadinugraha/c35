@@ -7,7 +7,10 @@ use subtle::ConstantTimeEq;
 
 use crate::doc::site_doc_from_json;
 use crate::grant::site_grant_check;
-use crate::render::{page_html_render, post_detail_html_render, product_detail_html_render, render_etag};
+use crate::render::{
+    page_html_render, post_detail_html_render, product_detail_html_render, render_etag,
+    GuestRenderMode,
+};
 use crate::site_draft::site_draft_prepare_commerce_grid_doc;
 
 type HmacSha256 = Hmac<Sha256>;
@@ -100,7 +103,15 @@ pub async fn site_published_html_render(
     let mut doc = site_doc_from_json(&doc_json);
     site_draft_prepare_commerce_grid_doc(pool, site_iid, &mut doc).await;
     let path = if page_path.is_empty() { "/" } else { page_path };
-    let html = page_html_render(pool, site_iid, &doc, path, &site_name).await?;
+    let html = page_html_render(
+        pool,
+        site_iid,
+        &doc,
+        path,
+        &site_name,
+        GuestRenderMode::Published,
+    )
+    .await?;
     let etag = render_etag(&html);
     Ok((html.into_bytes(), etag))
 }
@@ -129,11 +140,20 @@ pub async fn site_draft_html_render(
         .map(|r| r.get::<String, _>("name"))
         .unwrap_or_else(|| "Site".into());
     let path = if page_path.is_empty() { "/" } else { page_path };
+    let mut doc = site_doc_from_json(&doc_json);
+    site_draft_prepare_commerce_grid_doc(pool, site_iid, &mut doc).await;
     if let Some(pid_str) = path.strip_prefix("/products/") {
         if let Ok(product_id) = pid_str.trim().parse::<i64>() {
             if product_id > 0 {
-                if let Some(html) =
-                    product_detail_html_render(pool, site_iid, product_id, &site_name).await?
+                if let Some(html) = product_detail_html_render(
+                    pool,
+                    site_iid,
+                    product_id,
+                    &site_name,
+                    &doc,
+                    GuestRenderMode::Draft,
+                )
+                .await?
                 {
                     let etag = render_etag(&html);
                     return Ok((html.into_bytes(), etag));
@@ -145,7 +165,15 @@ pub async fn site_draft_html_render(
     if let Some(post_str) = path.strip_prefix("/posts/") {
         if let Ok(post_id) = post_str.trim().parse::<i64>() {
             if post_id > 0 {
-                if let Some(html) = post_detail_html_render(pool, site_iid, post_id, &site_name).await?
+                if let Some(html) = post_detail_html_render(
+                    pool,
+                    site_iid,
+                    post_id,
+                    &site_name,
+                    &doc,
+                    GuestRenderMode::Draft,
+                )
+                .await?
                 {
                     let etag = render_etag(&html);
                     return Ok((html.into_bytes(), etag));
@@ -154,9 +182,15 @@ pub async fn site_draft_html_render(
             }
         }
     }
-    let mut doc = site_doc_from_json(&doc_json);
-    site_draft_prepare_commerce_grid_doc(pool, site_iid, &mut doc).await;
-    let html = page_html_render(pool, site_iid, &doc, path, &site_name).await?;
+    let html = page_html_render(
+        pool,
+        site_iid,
+        &doc,
+        path,
+        &site_name,
+        GuestRenderMode::Draft,
+    )
+    .await?;
     let etag = render_etag(&html);
     Ok((html.into_bytes(), etag))
 }

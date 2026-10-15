@@ -99,6 +99,20 @@ void main() {
       expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
     });
 
+    testWidgets('shows indicator when status says connected but socket is gone', (tester) async {
+      final conn = ChatConn();
+      conn.status.value = ChatConnStatus.connected;
+      expect(conn.connected, isFalse);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: UiConnWifi(conn: conn),
+        ),
+      ));
+
+      expect(find.byIcon(Icons.wifi_rounded), findsOneWidget);
+    });
+
     testWidgets('becomes Offline Mode pill when disconnected and showLabel is true', (tester) async {
       final conn = ChatConn();
       conn.status.value = ChatConnStatus.disconnected;

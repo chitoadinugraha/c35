@@ -11,6 +11,7 @@ use tokio::task::JoinHandle;
 use crate::context_pack::ContextUsageEst;
 use crate::mcp_agent::mcp_agent_owner_allowed;
 use crate::mcp_tool_artifact::mcp_json_i64;
+use crate::mention_content::mention_id_from_bracket;
 use crate::mention_context::{device_iid_resolve, MentionContext};
 use crate::prompt_turn::{PromptTurn, PromptTurnHooks};
 use crate::tools::device_screenshot_artifact::device_screenshot_artifact_put;
@@ -110,6 +111,14 @@ pub fn som_command_parse(text: &str) -> Result<SomSlashParsed, String> {
             i += 1;
             continue;
         }
+        if let Some(iid) = som_parse_device_iid_bracket_token(tok)? {
+            if iid <= 0 {
+                return Err("device_iid must be positive".into());
+            }
+            out.device_iid = Some(iid);
+            i += 1;
+            continue;
+        }
         if let Ok(n) = parse_mark_index(tok) {
             out.som_mark = Some(n);
             i += 1;
@@ -118,6 +127,29 @@ pub fn som_command_parse(text: &str) -> Result<SomSlashParsed, String> {
         return Err(format!("unknown token: {tok}"));
     }
     Ok(out)
+}
+
+/// `[@iid:<snowflake>]` or `[@iid:<snowflake>|label]` after `/som` (composer wire text).
+fn som_parse_device_iid_bracket_token(tok: &str) -> Result<Option<i64>, String> {
+    let t = tok.trim();
+    if !t.starts_with("[@") || !t.ends_with(']') {
+        return Ok(None);
+    }
+    let inner = t[2..t.len() - 1].trim();
+    let inner = inner.strip_prefix('@').unwrap_or(inner);
+    let Some(colon) = inner.find(':') else {
+        return Err(format!("unknown token: {tok}"));
+    };
+    let kind = inner[..colon].trim();
+    let body = inner[colon + 1..].trim();
+    let Some(canonical) = mention_id_from_bracket(kind, body) else {
+        return Err(format!("unknown token: {tok}"));
+    };
+    let Some(rest) = canonical.strip_prefix("iid:") else {
+        return Ok(None);
+    };
+    let id = parse_i64_token(rest)?;
+    Ok(Some(id))
 }
 
 fn parse_i64_token(s: &str) -> Result<i64, String> {
@@ -771,6 +803,15 @@ mod tests {
         assert_eq!(p.som_mark, Some(2));
         let p2 = som_command_parse("/som at 0.25 0.75").expect("parse");
         assert_eq!(p2.marker, Some((0.25, 0.75)));
+    }
+
+    #[test]
+    fn som_command_parse_bracket_device_mention() {
+        let p = som_command_parse("/som [@iid:98063412749627392|VM1]").expect("parse");
+        assert_eq!(p.device_iid, Some(98063412749627392));
+        let p2 = som_command_parse("/som [@iid:99001] mark 3").expect("parse");
+        assert_eq!(p2.device_iid, Some(99001));
+        assert_eq!(p2.som_mark, Some(3));
     }
 
     #[test]

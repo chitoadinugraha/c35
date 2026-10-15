@@ -12,6 +12,7 @@ struct Palette {
     surface: &'static str,
     on_surface: &'static str,
     muted: &'static str,
+    #[allow(dead_code)]
     primary: &'static str,
     outline: &'static str,
     dark: bool,
@@ -122,7 +123,8 @@ impl GuestDesign {
         let palette = palette_resolve(&base, dark);
         let accent_raw = theme.get("accent").and_then(|v| v.as_str()).unwrap_or("").trim();
         let accent = if accent_raw.is_empty() {
-            format!("#{}", palette.primary)
+            // CSA default — matches Flutter `GuestSiteBoot.csaDefaultAccent`.
+            "#F97316".to_string()
         } else {
             accent_raw.to_string()
         };

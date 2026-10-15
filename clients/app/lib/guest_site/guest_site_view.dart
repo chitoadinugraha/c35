@@ -5,13 +5,15 @@ import 'package:alienai_c35/c/pb/c35/site.pbenum.dart';
 import 'package:alienai_c35/c/site/design/site_backdrop.dart';
 import 'package:alienai_c35/c/site/design/site_design_models.dart';
 import 'package:alienai_c35/c/site/design/site_design_resolve.dart';
+import 'package:alienai_c35/c/site/design/site_hub.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/guest_site/guest_site_blocks.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
+import 'package:alienai_c35/guest_site/guest_site_cart.dart';
 import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
 import 'package:alienai_c35/guest_site/guest_site_hours.dart';
 import 'package:alienai_c35/guest_site/guest_site_i18n.dart';
-import 'package:alienai_c35/guest_site/guest_site_layout.dart';
+import 'package:alienai_c35/guest_site/guest_site_layout.dart' show guestLayoutMaxWidth, guestLayoutMode, guestShellListBottomInset;
 import 'package:alienai_c35/guest_site/guest_site_pic.dart';
 import 'package:alienai_c35/guest_site/guest_site_preview_handoff.dart';
 import 'package:alienai_c35/guest_site/guest_site_scroll_behavior.dart';
@@ -23,6 +25,8 @@ const _guestTextSecondary = Color(0xFFA1A1AA);
 const _guestTextPrimary = Color(0xFFF4F4F5);
 
 /// Renders v1 site blocks from `site_boot_get` JSON (guest HTML parity in Flutter).
+// Web follow-up: hub tab default + posts preview already in `initGuestHubCatalogTabs()`;
+// shell bottom inset matches `.guest-page-main` padding in `site-guest.v1.css`.
 class GuestSiteView extends StatelessWidget {
   const GuestSiteView({
     super.key,
@@ -132,7 +136,7 @@ class _GuestSiteBootLoaderState extends State<GuestSiteBootLoader> {
       );
 }
 
-class _GuestSiteBody extends StatefulWidget {
+class _GuestSiteBody extends StatelessWidget {
   const _GuestSiteBody({
     required this.boot,
     required this.blockKeyAt,
@@ -144,15 +148,8 @@ class _GuestSiteBody extends StatefulWidget {
   final String emptyLabel;
 
   @override
-  State<_GuestSiteBody> createState() => _GuestSiteBodyState();
-}
-
-class _GuestSiteBodyState extends State<_GuestSiteBody> {
-  var _showSticky = false;
-
-  @override
   Widget build(BuildContext context) {
-    final boot = widget.boot;
+    final boot = this.boot;
     final blocks = boot.homeBlocks;
     final accent = boot.accentColor;
     final openHours = boot.openHoursSlots;
@@ -168,7 +165,7 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
         padding: const EdgeInsets.all(20),
         child: Center(
           child: Text(
-            widget.emptyLabel,
+            emptyLabel,
             style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 13),
           ),
         ),
@@ -183,8 +180,11 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
     final productCount = boot.productPreload.values.fold<int>(0, (n, list) => n + list.length);
     final gridIdx = blocks.indexWhere((b) => b['type']?.toString() == 'product_grid');
     final feedIdx = blocks.indexWhere((b) => b['type']?.toString() == 'social_feed');
+    final hasHubPosts = boot.postsPreload.isNotEmpty;
+    final hasHubProducts = productCount > 0;
     final hubTabsCandidate =
-        gridIdx >= 0 && feedIdx >= 0 && boot.postsPreload.isNotEmpty && productCount > 0;
+        gridIdx >= 0 && feedIdx >= 0 && siteHubShowTabs(hasProducts: hasHubProducts, hasPosts: hasHubPosts);
+    final hubProfile = siteDesignHubProfile(renderDesign);
     final i18n = GuestSiteI18n.fromMeta(boot.meta);
     var emittedHubTabs = false;
     final blockWidgets = <Widget>[];
@@ -221,7 +221,8 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
         final feedBlock = blocks[feedIdx];
         child = GuestSiteHubCatalogTabs(
           accent: accent,
-          defaultTab: renderDesign?.profileDesign.hubDefaultTab ?? 'shop',
+          profile: hubProfile,
+          postCount: boot.postsPreload.length,
           i18n: i18n,
           foreground: fg,
           shop: guestSiteBlock(
@@ -247,35 +248,43 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
             orderProgressSteps: boot.orderProgressSteps,
             bootQueues: boot.queues,
           ),
-          posts: guestSiteBlock(
-            block: feedBlock,
-            accent: accent,
-            siteName: boot.name,
-            siteIid: boot.siteIid,
-            siteAlienId: boot.alienId,
-            productDesign: boot.productDesign,
-            productRows: const [],
-            commerceObjects: boot.commerceObjects,
-            hubLinks: boot.links,
-            postsPreload: boot.postsPreload,
-            openHours: openHours,
-            suppressHoursBlock: hubShowsHours,
-            siteAvatar: boot.avatarUrl,
-            design: renderDesign,
-            featuredContacts: boot.featuredContacts,
-            catalogMeta: boot.meta,
-            foreground: fg,
-            muted: muted,
-            orderProgressSteps: boot.orderProgressSteps,
-            bootQueues: boot.queues,
-          ),
+          postsBuilder: ({required bool postsExpanded}) {
+            final limit = siteHubPostsPreviewLimit(hubProfile);
+            final visible = siteHubPostsVisibleMaps(
+              boot.postsPreload,
+              limit: limit,
+              expanded: postsExpanded,
+            );
+            return guestSiteBlock(
+              block: feedBlock,
+              accent: accent,
+              siteName: boot.name,
+              siteIid: boot.siteIid,
+              siteAlienId: boot.alienId,
+              productDesign: boot.productDesign,
+              productRows: const [],
+              commerceObjects: boot.commerceObjects,
+              hubLinks: boot.links,
+              postsPreload: visible,
+              openHours: openHours,
+              suppressHoursBlock: hubShowsHours,
+              siteAvatar: boot.avatarUrl,
+              design: renderDesign,
+              featuredContacts: boot.featuredContacts,
+              catalogMeta: boot.meta,
+              foreground: fg,
+              muted: muted,
+              orderProgressSteps: boot.orderProgressSteps,
+              bootQueues: boot.queues,
+            );
+          },
         );
         emittedHubTabs = true;
       } else if (hubTabsCandidate &&
           !emittedHubTabs &&
           type == 'product_grid' &&
           productRows.isEmpty) {
-        blockWidgets.add(KeyedSubtree(key: widget.blockKeyAt?.call(i), child: child));
+        blockWidgets.add(KeyedSubtree(key: blockKeyAt?.call(i), child: child));
         final feedChild = guestSiteBlock(
           block: blocks[feedIdx],
           accent: accent,
@@ -298,11 +307,11 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
           orderProgressSteps: boot.orderProgressSteps,
           bootQueues: boot.queues,
         );
-        blockWidgets.add(KeyedSubtree(key: widget.blockKeyAt?.call(feedIdx), child: feedChild));
+        blockWidgets.add(KeyedSubtree(key: blockKeyAt?.call(feedIdx), child: feedChild));
         emittedHubTabs = true;
         continue;
       }
-      blockWidgets.add(KeyedSubtree(key: widget.blockKeyAt?.call(i), child: child));
+      blockWidgets.add(KeyedSubtree(key: blockKeyAt?.call(i), child: child));
     }
     blockWidgets.addAll([
       if (boot.shouldShowMetaLocation) _GuestSiteMetaLocationChip(accent: accent, label: boot.locationLabel),
@@ -313,32 +322,40 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
         ),
       const SizedBox(height: 28),
       Center(child: UiPoweredByAlien(color: muted, strongColor: fg)),
-      const SizedBox(height: 88),
+      const SizedBox(height: 16),
     ]);
 
     // CSA `UiSitePreview` scrolls inside the phone frame (ListView), not via an outer wrapper.
-    final scrollBehavior = SitePreviewViewportHandoff.maybeOf(context) != null
+    final inEditorPreview = SitePreviewViewportHandoff.maybeOf(context) != null;
+    final scrollBehavior = inEditorPreview
         ? const SitePreviewHandoffScrollBehavior()
         : const GuestSitePreviewScrollBehavior();
     final layout = guestLayoutMode(boot.meta, productCount: productCount);
     final maxW = guestLayoutMaxWidth(layout);
 
-    final scrollBody = ScrollConfiguration(
-      behavior: scrollBehavior,
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (n) {
-          if (n is ScrollUpdateNotification || n is ScrollEndNotification) {
-            final next = n.metrics.pixels > 120;
-            if (next != _showSticky) setState(() => _showSticky = next);
-          }
-          return false;
-        },
+    Widget buildScroll({required bool cartBarVisible}) {
+      final bottomPad = guestShellListBottomInset(cartBarVisible: cartBarVisible);
+      return ScrollConfiguration(
+        behavior: scrollBehavior,
         child: ListView(
-          padding: EdgeInsets.zero,
+          key: const Key('guest-site-scroll'),
+          physics: inEditorPreview ? const ClampingScrollPhysics() : null,
+          padding: EdgeInsets.fromLTRB(0, 0, 0, bottomPad),
           children: blockWidgets,
         ),
-      ),
-    );
+      );
+    }
+
+    final cart = GuestSiteCartScope.maybeOf(context);
+    final scrollBody = cart == null
+        ? buildScroll(cartBarVisible: false)
+        : ListenableBuilder(
+            listenable: cart,
+            builder: (context, _) {
+              final cartBar = cart.count > 0 && !cart.sheetOpen;
+              return buildScroll(cartBarVisible: cartBar);
+            },
+          );
 
     final framed = Center(
       child: ConstrainedBox(
@@ -347,82 +364,8 @@ class _GuestSiteBodyState extends State<_GuestSiteBody> {
       ),
     );
 
-    final stacked = Stack(
-      children: [
-        framed,
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          child: IgnorePointer(
-            ignoring: !_showSticky,
-            child: AnimatedSlide(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              offset: _showSticky ? Offset.zero : const Offset(0, -1),
-              child: _GuestSiteStickyBar(boot: boot, accent: accent, fg: fg),
-            ),
-          ),
-        ),
-      ],
-    );
-
-    if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: stacked);
-    return _GuestSiteCanvas(resolved: resolved, effects: boot.effects, child: stacked);
-  }
-}
-
-class _GuestSiteStickyBar extends StatelessWidget {
-  const _GuestSiteStickyBar({required this.boot, required this.accent, required this.fg});
-
-  final GuestSiteBoot boot;
-  final Color accent;
-  final Color fg;
-
-  @override
-  Widget build(BuildContext context) {
-    final link = boot.links.cast<Map<String, dynamic>?>().firstWhere(
-          (l) => (l?['url'] ?? '').toString().trim().isNotEmpty,
-          orElse: () => null,
-        );
-    return Material(
-      elevation: 2,
-      color: fg.withValues(alpha: 0.06),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              if (boot.avatarUrl.trim().isNotEmpty)
-                CircleAvatar(radius: 16, backgroundImage: NetworkImage(boot.avatarUrl)),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  boot.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fg),
-                ),
-              ),
-              if (link != null)
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  ),
-                  child: Text(
-                    link['label']?.toString() ?? link['title']?.toString() ?? 'Hubungi',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
+    if (resolved == null) return GuestSiteEffectStack(effects: boot.effects, child: framed);
+    return _GuestSiteCanvas(resolved: resolved, effects: boot.effects, child: framed);
   }
 }
 

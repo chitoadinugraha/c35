@@ -10,13 +10,27 @@ void main() {
     expect(chatTitleFromText('  '), 'Chat');
   });
 
-  test('chatTitleDisplay hides empty and new chat', () {
-    expect(chatTitleDisplay(''), '');
-    expect(chatTitleDisplay('New chat'), '');
-    expect(chatTitleDisplay('hello world'), 'Hello world');
+  test('chatTitleFromText keeps labeled bracket token', () {
+    expect(
+      chatTitleFromText('[@iid:42|VM1] can you add rows'),
+      '[@iid:42|VM1] Can you add rows',
+    );
   });
 
-  test('chatTitleDisplay prepends sticky site label when title omitted mention', () {
+  test('chatTitleFromText allows longer first line than legacy 48 cap', () {
+    final msg = '[@iid:42|VM1] can you see what is on A3 and open chrome please';
+    final title = chatTitleFromText(msg);
+    expect(title.contains('on A3'), isTrue);
+    expect(title.length, lessThanOrEqualTo(kChatTitleMaxChars));
+  });
+
+  test('chatTitleDisplayPlain hides empty and new chat', () {
+    expect(chatTitleDisplayPlain(''), '');
+    expect(chatTitleDisplayPlain('New chat'), '');
+    expect(chatTitleDisplayPlain('hello world'), 'Hello world');
+  });
+
+  test('chatTitleDisplayPlain prepends sticky site label when title omitted mention', () {
     const siteId = 'iid:12345';
     const mentions = [
       CatalogMention(
@@ -31,7 +45,7 @@ void main() {
       ),
     ];
     expect(
-      chatTitleDisplay(
+      chatTitleDisplayPlain(
         'apa barang yang paling untung hari ini?',
         mentions: mentions,
         stickyMentionIds: [siteId],
@@ -40,7 +54,7 @@ void main() {
     );
   });
 
-  test('chatTitleDisplay resolves device bracket to label', () {
+  test('chatTitleDisplayPlain resolves device bracket to label', () {
     const deviceId = 'iid:98063412749627392';
     const mentions = [
       CatalogMention(
@@ -55,8 +69,12 @@ void main() {
       ),
     ];
     expect(
-      chatTitleDisplay('[@iid:98063412749627392] buka google chrome', mentions: mentions),
+      chatTitleDisplayPlain('[@iid:98063412749627392] buka google chrome', mentions: mentions),
       'DESKTOP-D8406DF buka google chrome',
+    );
+    expect(
+      chatTitleDisplayPlain('[@iid:98063412749627392|VM1] buka google chrome', mentions: const []),
+      'VM1 buka google chrome',
     );
   });
 
@@ -96,7 +114,7 @@ void main() {
     );
   });
 
-  test('chatTitleOnPromptStart keeps resolved mention label in title', () {
+  test('chatTitleOnPromptStart keeps bracket mention in title', () {
     const siteId = 'iid:12345';
     const mentions = [
       CatalogMention(
@@ -110,16 +128,15 @@ void main() {
         kind: 'identity',
       ),
     ];
-    final token = composerMentionToken(siteId);
     expect(
       chatTitleOnPromptStart(
         localChatId: 1,
         serverChatId: 99,
         existingTitle: 'New chat',
-        previewLine: 'berapa untung $token hari ini?',
+        previewLine: 'berapa untung ${composerMentionBracketForId(siteId, label: 'Gucicha')} hari ini?',
         mentions: mentions,
       ),
-      'Berapa untung Gucicha hari ini?',
+      'Berapa untung [@iid:12345|Gucicha] hari ini?',
     );
   });
 }

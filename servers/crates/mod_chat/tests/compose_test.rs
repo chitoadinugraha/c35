@@ -2,7 +2,8 @@ use c35_mod_chat::compose::{
     compose_force_account_tool_call, compose_force_catalog_menu_tool_call, compose_force_consumption_coach_tool_call,
     compose_force_device_operate_tool_call, compose_force_presentation_tool_call,
     compose_force_site_builder_tool_call, compose_force_site_query_tool_call, compose_force_tool_call,
-    compose_force_viz_chart_tool_call, compose_suppress_general_web_when_viz_chart, compose_force_web_tool_call,
+    compose_force_viz_chart_tool_call, compose_suppress_general_web_when_staff_registrations,
+    compose_suppress_general_web_when_viz_chart, compose_force_web_tool_call,
     compose_tools_and_inst, site_builder_bootstrap_catalog, site_builder_ready_to_create, tool_mention_eligible,
     ComposeTurnOpts,
 };
@@ -1414,6 +1415,31 @@ fn compose_force_tool_call_when_consumption_coach_inst_and_tool() {
 }
 
 #[test]
+fn compose_force_tool_call_when_staff_registrations_inst_and_tool() {
+    let tools = vec![ToolDef::new(
+        "admin.user.registrations.list".into(),
+        "Registrations".into(),
+        json!({}),
+    )];
+    assert!(compose_force_tool_call(&["inst.staff.registrations".into()], &tools));
+}
+
+#[test]
+fn compose_suppress_general_web_when_staff_registrations_matched() {
+    let ids = vec!["inst.staff.registrations".into()];
+    assert!(compose_suppress_general_web_when_staff_registrations(&ids));
+    let tools = vec![
+        ToolDef::new("web.search".into(), "Search".into(), json!({})),
+        ToolDef::new(
+            "admin.user.registrations.list".into(),
+            "Registrations".into(),
+            json!({}),
+        ),
+    ];
+    assert!(!compose_force_web_tool_call(&ids, &tools, "siapa saja", &[]));
+}
+
+#[test]
 fn compose_force_tool_call_skipped_when_sheets_inst_matched() {
     let tools = vec![ToolDef::new("web.search".into(), "Search".into(), json!({}))];
     let ids = ["inst.web_search".into(), "inst.mention.sheets".into()];
@@ -1700,6 +1726,72 @@ fn compose_device_sheets_header_rename_feds_input_from_iid_in_text() {
         out.tools.iter().any(|t| t.name == "computer_use.delegate"),
         "computer_use.delegate must be fed"
     );
+}
+
+#[test]
+fn compose_device_sheets_add_rows_without_google_keyword_excludes_shell() {
+    let tools = cluster_tools();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![],
+        bots: vec![],
+        default_site_iid: None,
+    };
+    let text = "[@iid:98063412749627392|VM1]now can you add 2 more row to that sheet?";
+    let out = compose_tools_and_inst(
+        &[inst_core_assistant(), inst_device_operate()],
+        text,
+        tools,
+        &[],
+        &[],
+        &[],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(
+        out.matched_ids.contains(&"inst.device.google_sheets".into()),
+        "add rows on @device should inject inst.device.google_sheets"
+    );
+    assert!(
+        out.tools.iter().any(|t| t.name == "computer_use.delegate"),
+        "computer_use.delegate must be fed"
+    );
+    assert!(
+        !out.tools.iter().any(|t| t.name == "shell.run"),
+        "shell.run must be excluded"
+    );
+}
+
+#[test]
+fn compose_device_sheets_change_that_excludes_shell() {
+    let tools = cluster_tools();
+    let mention = MentionContext {
+        sites: vec![],
+        devices: vec![],
+        bots: vec![],
+        default_site_iid: None,
+    };
+    let text = "[@iid:98063412749627392|VM1]can you change that to \"Este\"";
+    let out = compose_tools_and_inst(
+        &[inst_core_assistant(), inst_device_operate()],
+        text,
+        tools,
+        &[],
+        &[],
+        &[],
+        "agent",
+        &[],
+        &inst_scopes_home(),
+        &mention,
+        &SiteCapabilityView::empty(),
+        ComposeTurnOpts::default(),
+    );
+    assert!(out.matched_ids.contains(&"inst.device.google_sheets".into()));
+    assert!(!out.tools.iter().any(|t| t.name == "shell.run"));
 }
 
 #[test]

@@ -312,7 +312,11 @@ fn registration_row_json(r: &AdminUserRegistrationRow) -> Value {
     json!({
         "identity_id": r.identity_id,
         "name": r.name,
-        "handle": r.handle,
+        "handle": if r.handle.is_empty() {
+            Value::Null
+        } else {
+            json!(r.handle)
+        },
         "email": r.email,
         "registered_ts_ms": r.registered_ts_ms,
         "referred_by": referred_by,
@@ -323,8 +327,14 @@ pub async fn admin_user_registrations_list_exec(ctx: &ToolContext, args: &Value)
     if let Err(e) = require_staff_json(ctx, "admin.user.registrations.list").await {
         return Ok(e);
     }
+    let preset = arg_str(args, "preset");
+    let preset = if preset.is_empty() {
+        arg_str(args, "range")
+    } else {
+        preset
+    };
     let req = ReqAdminUserRegistrationsList {
-        preset: arg_str(args, "preset"),
+        preset,
         since: arg_str(args, "since"),
         until: arg_str(args, "until"),
         count_only: args.get("count_only").and_then(|v| v.as_bool()).unwrap_or(false),
@@ -474,9 +484,14 @@ pub async fn billing_withdraw_review_exec(ctx: &ToolContext, args: &Value) -> Re
 tool! {
     struct: AdminUserRegistrationsListTool,
     name: "admin.user.registrations.list",
-    description: "List or count platform user signups in a date window (partner/director). Use preset today|yesterday|this_week|last_week|this_month|last_month or since/until YYYY-MM-DD in viewer timezone. count_only for totals only. Each row includes referrer name and handle.",
+    description: "List or count platform user signups in a date window (partner/director). Parameter preset (not range): today|yesterday|this_week|last_week|this_month|last_month, or since/until YYYY-MM-DD in viewer timezone. count_only for totals only. Each row: name, handle (@alien_id or email when no Alien ID), email, referrer.",
     topics: ["staff", "referral"],
     always: ["general", "staff"],
+    rag_phrases: [
+        "berapa user mendaftar", "siapa yang mendaftar", "siapa saja", "daftar user baru",
+        "registrasi hari ini", "user registrations", "who registered", "signups today",
+        "daftar siapa", "list user baru", "new users today",
+    ],
     requires_global_roles: ["partner", "director"],
     readonly: true,
     parameters: {

@@ -2,11 +2,13 @@ use async_nats::Client;
 use c35_mod_chat::owner_session_prepare_for_live;
 use c35_proto::{ReqLiveStart, ResLiveStart};
 use c35_store::snowflake_id;
+use serde_json::json;
 use sqlx::PgPool;
 
 use crate::billing::{live_billing_gate_nats_cached, live_req_id};
 use crate::catalog::live_offer_resolve;
 use crate::session::live_session_register;
+use crate::trace::live_error_record;
 
 pub fn live_enabled() -> bool {
     match std::env::var("C35_LIVE_ENABLED")
@@ -20,36 +22,103 @@ pub fn live_enabled() -> bool {
     }
 }
 
+fn live_start_log_req_id(client_req_id: &str) -> String {
+    let t = client_req_id.trim();
+    if t.is_empty() {
+        format!("live_start:{}", snowflake_id())
+    } else {
+        t.to_string()
+    }
+}
+
+async fn live_start_fail(
+    pool: &PgPool,
+    nats: Option<&Client>,
+    owner_iid: i64,
+    log_req_id: &str,
+    chat_id: Option<i64>,
+    offer_id: &str,
+    error: &str,
+    detail: Option<&str>,
+) -> ResLiveStart {
+    live_error_record(
+        pool,
+        nats,
+        owner_iid,
+        Some(log_req_id),
+        chat_id,
+        "live_start",
+        error,
+        detail,
+        json!({ "offer_id": offer_id }),
+    )
+    .await;
+    ResLiveStart {
+        error: error.into(),
+        ..Default::default()
+    }
+}
+
 pub async fn live_start_rpc(
     pool: &PgPool,
     nats: Option<&Client>,
     owner_iid: i64,
     req: ReqLiveStart,
 ) -> ResLiveStart {
+    let chat_id = (req.chat_id > 0).then_some(req.chat_id);
+    let log_req_id = live_start_log_req_id(&req.req_id);
     let offer_id = req.offer_id.trim();
     if offer_id.is_empty() {
-        return ResLiveStart {
-            error: "offer_id required".into(),
-            ..Default::default()
-        };
+        return live_start_fail(
+            pool,
+            nats,
+            owner_iid,
+            &log_req_id,
+            chat_id,
+            "",
+            "offer_id required",
+            None,
+        )
+        .await;
     }
     let Some(offer) = live_offer_resolve(pool, offer_id).await else {
-        return ResLiveStart {
-            error: "Unknown live offer".into(),
-            ..Default::default()
-        };
+        return live_start_fail(
+            pool,
+            nats,
+            owner_iid,
+            &log_req_id,
+            chat_id,
+            offer_id,
+            "Unknown live offer",
+            None,
+        )
+        .await;
     };
     if !offer.enabled {
-        return ResLiveStart {
-            error: "This live call option is not available yet".into(),
-            ..Default::default()
-        };
+        return live_start_fail(
+            pool,
+            nats,
+            owner_iid,
+            &log_req_id,
+            chat_id,
+            offer_id,
+            "This live call option is not available yet",
+            None,
+        )
+        .await;
     }
     if !live_enabled() {
-        return ResLiveStart {
-            error: "Live call is not available yet".into(),
-            ..Default::default()
-        };
+        return live_start_fail(
+            pool,
+            nats,
+            owner_iid,
+            &log_req_id,
+            chat_id,
+            offer_id,
+            "Live call is not available yet",
+            Some("C35_LIVE_ENABLED is off"),
+        )
+        .await;
     }
     let sid = snowflake_id().to_string();
     let req_id = live_req_id(&req.req_id, &sid);
@@ -67,13 +136,20 @@ pub async fn live_start_rpc(
     {
         Ok(r) => r,
         Err(e) => {
-            return ResLiveStart {
-                error: e.to_string(),
-                ..Default::default()
-            };
+            let detail = e.to_string();
+            return live_start_fail(
+                pool,
+                nats,
+                owner_iid,
+                &req_id,
+                chat_id,
+                offer_id,
+                &detail,
+                Some(&detail),
+            )
+            .await;
         }
     };
-    let chat_id = (req.chat_id > 0).then_some(req.chat_id);
     let mention_ids = live_mention_ids_resolve(pool, owner_iid, chat_id, &req.mention_ids).await;
     let token = live_session_register(
         &sid,

@@ -1,3 +1,4 @@
+import 'package:alienai_c35/c/site/site_draft_adapter.dart';
 import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
 import 'package:alienai_c35/c/site/site_editor_flush_coordinator.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_cache.dart';
@@ -11,6 +12,7 @@ class SiteEditorSaveScope extends InheritedWidget {
     required this.flush,
     required this.preview,
     required this.catalog,
+    this.draft,
     required super.child,
   });
 
@@ -18,6 +20,7 @@ class SiteEditorSaveScope extends InheritedWidget {
   final SiteEditorFlushCoordinator flush;
   final SiteEditorPreviewCache preview;
   final SiteEditorCatalogCache catalog;
+  final SiteDraftAdapter? draft;
 
   static SiteEditorSaveScope? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<SiteEditorSaveScope>();
@@ -35,6 +38,8 @@ class SiteEditorSaveScope extends InheritedWidget {
   static SiteEditorPreviewCache previewCache(BuildContext context) => of(context).preview;
 
   static SiteEditorCatalogCache catalogCache(BuildContext context) => of(context).catalog;
+
+  static SiteDraftAdapter? draftAdapter(BuildContext context) => maybeOf(context)?.draft;
 
   static Future<T> run<T>(BuildContext context, Future<T> Function() fn) =>
       siteEditorSaveRun(saveBus(context), fn);
@@ -63,5 +68,6 @@ class SiteEditorSaveScope extends InheritedWidget {
       oldWidget.bus != bus ||
       oldWidget.flush != flush ||
       oldWidget.preview != preview ||
-      oldWidget.catalog != catalog;
+      oldWidget.catalog != catalog ||
+      oldWidget.draft != draft;
 }

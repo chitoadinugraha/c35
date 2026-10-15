@@ -573,6 +573,14 @@ CREATE TABLE IF NOT EXISTS site.queue_ticket (
     FOREIGN KEY (site_iid, queue_id) REFERENCES site.queue (site_iid, queue_id)
 );
 
+ALTER TABLE site.queue_ticket
+    ADD COLUMN IF NOT EXISTS run_id BIGINT NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS track_token VARCHAR(64) NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS display_label TEXT NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+    ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS done_at TIMESTAMPTZ;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_site_queue_ticket_track_token
     ON site.queue_ticket (track_token)
     WHERE track_token <> '' AND deleted_ts IS NULL;

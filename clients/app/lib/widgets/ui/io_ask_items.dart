@@ -73,6 +73,7 @@ class IoAskItemsDialog extends StatefulWidget {
     this.dividerBelowHeader = false,
     this.bodyGap = 10,
     this.popOnSelect = true,
+    this.onItemSelected,
     this.noMatchItem,
   });
 
@@ -94,6 +95,7 @@ class IoAskItemsDialog extends StatefulWidget {
   final bool dividerBelowHeader;
   final double bodyGap;
   final bool popOnSelect;
+  final ValueChanged<IoAskItem>? onItemSelected;
   final IoAskItem? Function(String query)? noMatchItem;
 
   @override
@@ -129,7 +131,12 @@ class _IoAskItemsDialogState extends State<IoAskItemsDialog> {
   }
 
   void _onItemTap(IoAskItem item) {
-    if (item.actions.isNotEmpty || !widget.popOnSelect) return;
+    if (item.actions.isNotEmpty) return;
+    if (widget.onItemSelected != null) {
+      widget.onItemSelected!(item);
+      return;
+    }
+    if (!widget.popOnSelect) return;
     Navigator.pop(context, item);
   }
 

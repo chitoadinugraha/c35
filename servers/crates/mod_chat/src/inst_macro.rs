@@ -529,6 +529,40 @@ mod tests {
     }
 
     #[test]
+    fn inst_pick_staff_registrations_siapa_saja() {
+        let rows = vec![InstRow {
+            id: "inst.staff.registrations".into(),
+            scope: SCOPE_GLOBAL.into(),
+            kind: "task".into(),
+            topic_id: "".into(),
+            topics: vec![],
+            inst: "staff registrations".into(),
+            phrases: vec!["siapa saja".into()],
+            triggers: vec![],
+            include_tools: vec!["admin.user.registrations.list".into()],
+            exclude_tools: vec![],
+            requires_global_roles: vec!["partner".into(), "director".into()],
+            priority: 139,
+        }];
+        let empty: [String; 0] = [];
+        let scopes = vec![SCOPE_GLOBAL.into()];
+        let staff_partner = StaffView {
+            is_root: false,
+            global_roles: HashSet::from(["partner".into()]),
+        };
+        let ctx = InstMatchCtx {
+            scopes: &scopes,
+            topic_id: "general",
+            active_topics: &[],
+            text: "siapa saja",
+            mention_ids: &empty,
+            signals: &empty,
+            staff: Some(&staff_partner),
+        };
+        assert_eq!(inst_pick(&rows, &ctx).len(), 1);
+    }
+
+    #[test]
     fn inst_pick_web_phrases() {
         let rows = vec![row("inst.web_search", &["search the web", "cari"])];
         let empty: [String; 0] = [];

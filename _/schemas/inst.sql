@@ -233,8 +233,8 @@ INSERT INTO ai.inst (
     ARRAY['device']::TEXT[],
     '[DEVICE OPERATE] The user @mentioned a remote desktop and wants you to act on that machine — not read instructions back to them. \
 Use device_iid from [MENTION TARGETS]. If several devices are listed, ask which one before tools. \
-Hop 1 — observe: device.screenshot with som=true, or computer_use.delegate with the full user goal (preferred for multi-step UI such as forms, installers, settings wizards). \
-Act — device.input (prefer click_and_type for inputs to clear-and-type cleanly; shortcuts, clicks; screenshot_after=true on clicks) or keep delegating until the goal is done. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. \
+Eager observation: Turn 0 already contains a Set-of-Mark desktop observation with Canvas OCR. You do NOT need to call device.screenshot on Hop 1; proceed directly to device.input (or computer_use.delegate with the full user goal for multi-step UI such as forms, installers, settings wizards). \
+Act & batch: Always use device.input (with batch actions: [...] or click_and_type). Never use shell.run or PowerShell SendKeys for GUI/mouse/keyboard interactions. shell.run may only launch apps or URLs; never treat opening a link as completing create/fill/click work. Prefer click_and_type for inputs to clear-and-type cleanly; use screenshot_after=true on clicks. \
 If modals, banners, or side panels block the target UI, dismiss them first (Got it, X, Escape) — do not hand off to the user while overlays are visible. \
 Never tell the user to click through the UI themselves unless a tool failed, consent is required, or inst.browser.2fa-style human step applies. \
 When computer_use.delegate returns goal_met false or incomplete true, do not echo child click steps — say briefly that automation could not finish on the device. If goal_met true, report what was accomplished. \
@@ -382,16 +382,21 @@ Never tell the user to type in A1/B1/C1 themselves unless every tool attempt fai
         'new google sheet',
         'with fields',
         'header',
-        'column'
+        'column',
+        'add row',
+        'more row',
+        'that sheet',
+        'change that',
+        'mouse click',
+        'send key'
     ],
     ARRAY[
         'tool_include:device.screenshot',
         'tool_include:device.input',
-        'tool_include:computer_use.delegate',
-        'tool_include:shell.run'
+        'tool_include:computer_use.delegate'
     ],
-    ARRAY['device.screenshot', 'device.input', 'computer_use.delegate', 'shell.run'],
-    ARRAY['web.search', 'web.visit', 'web.research', 'browser.sheets.append_row', 'browser.sheets.cell_set'],
+    ARRAY['device.screenshot', 'device.input', 'computer_use.delegate'],
+    ARRAY['web.search', 'web.visit', 'web.research', 'browser.sheets.append_row', 'browser.sheets.cell_set', 'shell.run'],
     159,
     'seed',
     NOW()
@@ -743,8 +748,8 @@ INSERT INTO ai.inst (
     'topic',
     'computer_use',
     '[COMPUTER USE] Autonomous desktop automation on the target paired device (device_iid). The human is not at the keyboard — never ask them to click, tap, type, or finish UI steps. \
-1. Observe first: device.screenshot with som=true; use axtree_text and numbered badges — do not guess coords when elements are tagged. Look at control sizes and center coords. \
-2. Act stepwise: prefer composite event_type=''click_and_type'' for text fields, search boxes, and form inputs (it clicks, focuses, clears existing text with Ctrl+A + Backspace, and types cleanly without string appending bugs). When performing known sequential steps (e.g. typing multiple fields or navigating forms), pass actions=[...] in device.input to batch them in a single turn. For pure clicks, use mouse_click with screenshot_after=true. For slow-loading dialogs, set settle_ms=800. shell.run only launches apps/URLs — all editor UI (forms, dialogs, settings) is device.input. \
+1. Eager observation: Turn 0 already contains a Set-of-Mark desktop observation with Canvas OCR. You do NOT need to call device.screenshot on Hop 1; proceed directly to device.input. Use axtree_text, [CanvasText] tags, and numbered badges — do not guess coords when elements are tagged. Look at control sizes and center coords. Call device.screenshot only when verifying subsequent state or if the screen refreshed. \
+2. Act & batch: Always use device.input (with batch actions: [...] or click_and_type). Never use shell.run or PowerShell SendKeys for GUI/mouse/keyboard interactions. Prefer composite event_type=''click_and_type'' for text fields, search boxes, and form inputs (it clicks, focuses, clears existing text with Ctrl+A + Backspace, and types cleanly without string appending bugs). When performing known sequential steps (e.g. typing multiple fields or navigating forms), pass actions=[...] in device.input to batch them in a single turn. For pure clicks, use mouse_click with screenshot_after=true. For slow-loading dialogs, set settle_ms=800. shell.run only launches apps/URLs — all editor UI (forms, dialogs, settings) is device.input. \
 3. Verify & Self-Correct: inspect follow-up screenshot and red target marker. If the UI did not change or the click missed after 2 tries, pivot immediately to keyboard navigation (Tab to move focus, Enter or Space to activate, or shortcut) rather than repeating the same click. \
 4. Finish only when the full goal is done (e.g. form created, title set, every field added). Forbidden final replies: handoffs, give-up ("blocked by", "not responding", "multiple tabs"), or numbered steps for the user. \
 5. Google Forms: one Chrome window — if the tab strip is cluttered, close extra tabs or open a fresh window before the template gallery; use som=true; click Blank via badge or Tab+Enter if clicks miss twice; opening forms.google.com is not completion. \
@@ -1500,6 +1505,7 @@ Do not conflate with device agent presence or guest queue.',
         'tool_include:site.presence_location.put',
         'tool_include:site.grant.put'
     ],
+    ARRAY['site.config.put', 'site.work_shift.put', 'site.presence_location.put', 'site.grant.put'],
     126,
     'seed',
     NOW()
@@ -2838,15 +2844,16 @@ INSERT INTO ai.inst (
     'global',
     'task',
     '',
-    '[STAFF REGISTRATIONS] Partner/director asks how many users signed up or who registered in a period. Call admin.user.registrations.list. Count only: count_only true. List with referrers: count_only false. Map hari ini to preset today, minggu lalu to last_week, bulan ini to this_month, or since/until YYYY-MM-DD. Reply with names and @handles; omit numeric uid unless the operator asks. Do not use referral.tree.get for signup reports.',
+    '[STAFF REGISTRATIONS] Partner/director asks how many users signed up or who registered in a period. Call admin.user.registrations.list. Count only: count_only true. List with referrers: count_only false. Map hari ini to preset today, minggu lalu to last_week, bulan ini to this_month, or since/until YYYY-MM-DD. Reply with names plus handle (@alien_id) or email when handle is null; omit numeric uid unless the operator asks. Do not use referral.tree.get for signup reports.',
     ARRAY[
         'berapa user mendaftar', 'berapa user yang mendaftar', 'berapa yang mendaftar', 'user mendaftar hari ini',
-        'siapa yang mendaftar', 'daftar user baru', 'registrasi hari ini',
+        'siapa yang mendaftar', 'siapa saja', 'daftar siapa', 'daftar user baru', 'list user baru',
+        'user siapa aja', 'registrasi hari ini', 'siapa aja yang daftar',
         'signups today', 'new users today', 'who registered', 'user registrations'
     ],
     ARRAY['tool_include:admin.user.registrations.list'],
     ARRAY['admin.user.registrations.list'],
-    ARRAY[]::TEXT[],
+    ARRAY['web.search', 'web.visit'],
     ARRAY['partner', 'director']::TEXT[],
     139,
     'seed',

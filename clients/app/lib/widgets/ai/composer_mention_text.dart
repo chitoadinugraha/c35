@@ -25,11 +25,47 @@ List<String> composerMentionIdsParse(String text) =>
 
 final RegExp _composerMentionPlainIidRe = RegExp(r'\biid:\d+\b', caseSensitive: false);
 
-/// Bracket mention in stored / wire message text. `[@iid:<snowflake>]`, `[@catalog:<id>]`.
-/// Future kinds (e.g. `[@file:<hash>]`) extend the same pattern — see `_/specs/chat.md`.
+bool _composerMentionInsideBracketAt(String text, int index) {
+  final before = text.substring(0, index);
+  final open = before.lastIndexOf('[@');
+  if (open < 0) return false;
+  return !before.substring(open).contains(']');
+}
+
+String composerMentionPlainIidOutsideBrackets(String text) {
+  final buf = StringBuffer();
+  var i = 0;
+  while (i < text.length) {
+    final m = _composerMentionPlainIidRe.matchAsPrefix(text, i);
+    if (m != null && !_composerMentionInsideBracketAt(text, i)) {
+      buf.write(composerMentionBracketForId(m.group(0)!));
+      i = m.end;
+      continue;
+    }
+    buf.write(text[i]);
+    i++;
+  }
+  return buf.toString();
+}
+
+/// Bracket mention in stored / wire message text. `[@iid:<snowflake>]`, optional `|label` snapshot.
+/// Future kinds (e.g. `[@file:<hash>]`) extend the same pattern — see `_/specs/mention.md`.
 final RegExp composerMentionBracketRe = RegExp(r'\[@(iid|catalog|drive):([^\]]+)\]', caseSensitive: false);
 
-String composerMentionBracketForId(String canonicalId) {
+(String payload, String? label) composerMentionBracketBodyParts(String body) {
+  final b = body.trim();
+  final idx = b.indexOf('|');
+  if (idx < 0) return (b, null);
+  final payload = b.substring(0, idx).trim();
+  final label = b.substring(idx + 1).trim();
+  if (payload.isEmpty) return (b, null);
+  if (label.isEmpty) return (payload, null);
+  return (payload, label);
+}
+
+String? composerMentionBracketLabelFromBody(String body) => composerMentionBracketBodyParts(body).$2;
+
+String composerMentionBracketForId(String canonicalId, {String? label}) {
   var t = canonicalId.trim();
   if (t.startsWith('[@') && t.contains(']')) {
     final end = t.indexOf(']');
@@ -37,28 +73,48 @@ String composerMentionBracketForId(String canonicalId) {
     final colon = inner.indexOf(':');
     if (colon > 0) {
       final id = composerMentionIdFromBracket(inner.substring(0, colon), inner.substring(colon + 1));
-      if (id != null) return composerMentionBracketForId(id);
+      if (id != null) return composerMentionBracketForId(id, label: label);
     }
   }
   final bracketed = composerMentionBracketRe.firstMatch(t);
+  String? existingSnap;
   if (bracketed != null) {
     final id = composerMentionIdFromBracket(bracketed.group(1)!, bracketed.group(2)!);
+    existingSnap = composerMentionBracketLabelFromBody(bracketed.group(2)!);
     if (id != null) t = id;
   }
-  if (t.startsWith('iid:')) return '[@iid:${t.substring(4)}]';
-  if (t.startsWith('catalog:')) return '[@catalog:${t.substring(8)}]';
-  if (t.startsWith('drive:')) return '[@drive:${t.substring(6)}]';
-  if (RegExp(r'^\d+$').hasMatch(t)) return '[@iid:$t]';
-  return '[@catalog:$t]';
+  String bracket(String kind, String payload) {
+    final (core, snapInPayload) = composerMentionBracketBodyParts(payload);
+    final snap = (label?.trim().isNotEmpty == true ? label!.trim() : null) ?? existingSnap ?? snapInPayload;
+    if (snap != null && snap.isNotEmpty && !snap.contains(']')) {
+      return '[@$kind:$core|$snap]';
+    }
+    return '[@$kind:$core]';
+  }
+
+  if (t.startsWith('iid:')) {
+    final (payload, _) = composerMentionBracketBodyParts(t.substring(4));
+    return bracket('iid', payload);
+  }
+  if (t.startsWith('catalog:')) {
+    final (payload, _) = composerMentionBracketBodyParts(t.substring(8));
+    return bracket('catalog', payload);
+  }
+  if (t.startsWith('drive:')) {
+    final (payload, _) = composerMentionBracketBodyParts(t.substring(6));
+    return bracket('drive', payload);
+  }
+  if (RegExp(r'^\d+$').hasMatch(t)) return bracket('iid', t);
+  return bracket('catalog', t);
 }
 
 String? composerMentionIdFromBracket(String kind, String body) {
   final k = kind.trim().toLowerCase();
-  final b = body.trim();
-  if (b.isEmpty) return null;
-  if (k == 'iid') return 'iid:$b';
-  if (k == 'catalog') return 'catalog:$b';
-  if (k == 'drive') return 'drive:$b';
+  final (payload, _) = composerMentionBracketBodyParts(body);
+  if (payload.isEmpty) return null;
+  if (k == 'iid') return 'iid:$payload';
+  if (k == 'catalog') return 'catalog:$payload';
+  if (k == 'drive') return 'drive:$payload';
   return null;
 }
 
@@ -126,7 +182,12 @@ String composerMentionPlainText(String text) =>
 String composerMentionComparePlain(String text) {
   var out = composerMentionBracketTokenize(text);
   out = out.replaceAll(_composerMentionTokenRe, ' ');
-  out = out.replaceAll(composerMentionBracketRe, ' ');
+  out = out.replaceAllMapped(composerMentionBracketRe, (m) {
+    final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+    final label = composerMentionBracketLabelFromBody(m.group(2)!);
+    if (label != null && label.isNotEmpty) return label;
+    return id ?? '';
+  });
   return out.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
 }
 
@@ -157,6 +218,75 @@ String composerMentionStripTrailingOpenBracketShell(String before) {
 }
 
 /// Collapse nested `[@` shells before wire / title (mirrors server `mention_bracket_fixup_nesting`).
+bool _composerMentionIsLetter(String ch) => RegExp(r'[A-Za-z]').hasMatch(ch);
+
+/// Close unclosed `[@iid:…` before message text; drop truncated open brackets; fix `]word` spacing.
+String composerMentionBracketRepair(String text) {
+  final out = StringBuffer();
+  var i = 0;
+  while (i < text.length) {
+    if (text.startsWith('[@iid:', i)) {
+      final start = i;
+      i += 6;
+      while (i < text.length && RegExp(r'\d').hasMatch(text[i])) {
+        i++;
+      }
+      if (i < text.length && text[i] == '|') {
+        i++;
+        while (i < text.length && text[i] != ']' && text[i] != '[') {
+          i++;
+        }
+      }
+      if (i < text.length && text[i] == ']') {
+        out.write(text.substring(start, i + 1));
+        i++;
+        continue;
+      }
+      if (i < text.length && _composerMentionIsLetter(text[i])) {
+        out.write(text.substring(start, i));
+        out.write('] ');
+        continue;
+      }
+      out.write(text.substring(start, i));
+      continue;
+    }
+    if ((text.startsWith('[@catalog:', i) || text.startsWith('[@drive:', i)) && text.indexOf(':', i) >= 0) {
+      final colon = text.indexOf(':', i);
+      final start = i;
+      i = colon + 1;
+      while (i < text.length && text[i] != ']' && text[i] != '[') {
+        i++;
+      }
+      if (i < text.length && text[i] == ']') {
+        out.write(text.substring(start, i + 1));
+        i++;
+        continue;
+      }
+      if (i < text.length && _composerMentionIsLetter(text[i])) {
+        out.write(text.substring(start, i));
+        out.write('] ');
+        continue;
+      }
+      out.write(text.substring(start, i));
+      continue;
+    }
+    if (text[i] == ']' && i + 1 < text.length && _composerMentionIsLetter(text[i + 1])) {
+      out.write('] ');
+      i++;
+      continue;
+    }
+    out.write(text[i]);
+    i++;
+  }
+  return composerMentionStripDanglingOpenBrackets(out.toString());
+}
+
+String composerMentionStripDanglingOpenBrackets(String text) {
+  var out = text;
+  out = out.replaceAll(RegExp(r'\[@(?:iid|catalog|drive):[^\]]*$', caseSensitive: false), '');
+  return out.trimRight();
+}
+
 String composerMentionBracketFixupNesting(String text) {
   var s = text;
   for (var i = 0; i < 8; i++) {
@@ -211,10 +341,30 @@ String composerMentionStripBracketShellAroundTokens(String text) {
   return out;
 }
 
+String composerMentionSanitizeLabelLeaks(String text, List<CatalogMention> mentions) {
+  if (text.isEmpty) return text;
+  final snapLabels = composerMentionBracketSnapshotLabels(text);
+  var out = text;
+  final ids = <String>{
+    ...composerMentionIdsParse(out),
+    ...composerMentionIdsCollect(out),
+  };
+  for (final id in ids) {
+    final label = _composerMentionDisplayLabel(id, mentions, snapLabels);
+    if (label.isEmpty || label == id || label.startsWith('iid:')) continue;
+    final token = composerMentionToken(id);
+    final esc = RegExp.escape(label);
+    out = out.replaceAll(RegExp('$token(\\|$esc\\]|\\|$esc)+'), token);
+    out = out.replaceAll(RegExp('^\\|$esc(\\|$esc\\]|\\|$esc)*\\]?'), '');
+  }
+  return out;
+}
+
 String composerMentionDisplayFinalize(String text, List<CatalogMention> mentions) {
   var out = composerMentionStripBracketShellAroundTokens(text);
   out = composerMentionStripOrphanBrackets(out);
   out = composerMentionStripDuplicateLabelsAfterTokens(out, mentions);
+  out = composerMentionSanitizeLabelLeaks(out, mentions);
   return out;
 }
 
@@ -252,7 +402,9 @@ String composerMentionStripDuplicateLabelsAfterTokens(String text, List<CatalogM
 
 /// Re-wrap device mention labels as composer tokens after retry / server plain text.
 String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions, {List<String>? mentionIds}) {
-  var out = composerMentionBracketFixupNesting(plain);
+  var out = composerMentionBracketRepair(plain);
+  out = composerMentionBracketFixupNesting(out);
+  out = composerMentionSanitizeLabelLeaks(out, mentions);
   out = composerMentionBracketTokenize(out);
   if (!_composerMentionTokenRe.hasMatch(out)) {
     out = composerMentionInlineIidTokenize(out);
@@ -285,20 +437,36 @@ String composerMentionDisplayRestore(String plain, List<CatalogMention> mentions
 /// Plain text safe for [Text] when mention chips cannot render (empty catalog, reload).
 String composerMentionUserContentDisplay(String content, List<CatalogMention> mentions) {
   if (!composerMentionTextHasTokens(content)) return content;
-  if (mentions.isNotEmpty) return content;
   return composerMentionTextForPrompt(content, mentions, mentionIds: composerMentionIdsCollect(content));
 }
 
+Map<String, String> composerMentionBracketSnapshotLabels(String text) {
+  final out = <String, String>{};
+  for (final m in composerMentionBracketRe.allMatches(text)) {
+    final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+    final snap = composerMentionBracketLabelFromBody(m.group(2)!);
+    if (id != null && snap != null && snap.isNotEmpty) {
+      out[id] = snap;
+    }
+  }
+  return out;
+}
+
+String _composerMentionDisplayLabel(String id, List<CatalogMention> mentions, Map<String, String> snapLabels) {
+  return composerMentionLookup(mentions, id)?.displayLabel ?? snapLabels[id] ?? id;
+}
+
 String composerMentionTextForPrompt(String text, List<CatalogMention> mentions, {List<String>? mentionIds}) {
+  final snapLabels = composerMentionBracketSnapshotLabels(text);
   var out = composerMentionBracketTokenize(text);
   out = out.replaceAllMapped(_composerMentionTokenRe, (m) {
     final id = m.group(1)!.trim();
-    return composerMentionLookup(mentions, id)?.displayLabel ?? id;
+    return _composerMentionDisplayLabel(id, mentions, snapLabels);
   });
   out = out.replaceAllMapped(composerMentionBracketRe, (m) {
     final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
     if (id == null) return m.group(0)!;
-    return composerMentionLookup(mentions, id)?.displayLabel ?? id;
+    return _composerMentionDisplayLabel(id, mentions, snapLabels);
   });
   final ids = mentionIds ?? composerMentionIdsCollect(text);
   if (out.contains(composerMentionStart) && ids.isNotEmpty) {
@@ -309,7 +477,7 @@ String composerMentionTextForPrompt(String text, List<CatalogMention> mentions, 
       if (ch == composerMentionStart) {
         if (queue.isEmpty) continue;
         final id = queue.removeAt(0);
-        sb.write(composerMentionLookup(mentions, id)?.displayLabel ?? id);
+        sb.write(_composerMentionDisplayLabel(id, mentions, snapLabels));
       } else if (ch != composerMentionEnd) {
         sb.write(ch);
       }
@@ -322,25 +490,36 @@ String composerMentionTextForPrompt(String text, List<CatalogMention> mentions, 
 
 /// Plain text + bracket mentions for wire / server `chat_msg.content`.
 String composerMentionTextForWire(String text, List<CatalogMention> mentions, {List<String>? mentionIds}) {
-  var out = composerMentionBracketFixupNesting(text);
+  var out = composerMentionBracketRepair(text);
+  out = composerMentionBracketFixupNesting(out);
   out = composerMentionStripBracketShellAroundTokens(out);
-  out = out.replaceAllMapped(_composerMentionTokenRe, (m) => composerMentionBracketForId(m.group(1)!));
-  out = out.replaceAllMapped(_composerMentionPlainIidRe, (m) => composerMentionBracketForId(m.group(0)!));
+  out = out.replaceAllMapped(_composerMentionTokenRe, (m) {
+    final id = m.group(1)!;
+    final label = composerMentionLookup(mentions, id)?.displayLabel;
+    return composerMentionBracketForId(id, label: label);
+  });
+  out = composerMentionPlainIidOutsideBrackets(out);
   out = out.replaceAllMapped(composerMentionBracketRe, (m) {
     final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
-    return id == null ? m.group(0)! : composerMentionBracketForId(id);
+    if (id == null) return m.group(0)!;
+    final snap = composerMentionBracketLabelFromBody(m.group(2)!);
+    final label = composerMentionLookup(mentions, id)?.displayLabel ?? snap;
+    return composerMentionBracketForId(id, label: label);
   });
   var rest = out.trimLeft();
   final ids = mentionIds ?? composerMentionIdsCollect(out);
-  for (final id in ids) {
-    final m = composerMentionLookup(mentions, id);
-    if (m == null) continue;
-    final label = m.displayLabel.trim();
-    if (label.isEmpty || !rest.toLowerCase().startsWith(label.toLowerCase())) continue;
-    out = composerMentionBracketForId(id) + rest.substring(label.length);
-    break;
+  if (!rest.startsWith('[@') && !composerMentionBracketRe.hasMatch(rest.split(' ').first)) {
+    for (final id in ids) {
+      final m = composerMentionLookup(mentions, id);
+      if (m == null) continue;
+      final label = m.displayLabel.trim();
+      if (label.isEmpty || !rest.toLowerCase().startsWith(label.toLowerCase())) continue;
+      out = composerMentionBracketForId(id, label: label) + rest.substring(label.length);
+      break;
+    }
   }
   out = composerMentionBracketFixupNesting(out);
+  out = composerMentionSanitizeLabelLeaks(out, mentions);
   return out.replaceAll(RegExp(r'[ \t]+\n'), '\n').replaceAll(RegExp(r' {2,}'), ' ').trim();
 }
 
@@ -429,6 +608,39 @@ CatalogMention? composerMentionLookup(List<CatalogMention> mentions, String id) 
   return null;
 }
 
+/// Catalog rows plus `|label` snapshots from bracket text (for titles / history before catalog loads).
+List<CatalogMention> composerMentionCatalogWithBracketSnapshots(String text, List<CatalogMention> mentions) {
+  final seen = mentions.map((m) => m.id).toSet();
+  final out = List<CatalogMention>.from(mentions);
+  for (final m in composerMentionBracketRe.allMatches(text)) {
+    final id = composerMentionIdFromBracket(m.group(1)!, m.group(2)!);
+    if (id == null || seen.contains(id)) continue;
+    final snap = composerMentionBracketLabelFromBody(m.group(2)!);
+    if (snap == null || snap.isEmpty) continue;
+    seen.add(id);
+    out.add(CatalogMention(
+      id: id,
+      topicId: 'device',
+      icon: '',
+      color: '',
+      labelKey: '',
+      captionKey: '',
+      label: snap,
+      kind: 'identity',
+    ));
+  }
+  return out;
+}
+
+/// Stored title / preview with bracket mentions -> chip tokens for [ComposerMentionMessageText].
+String composerMentionTextForTitleUi(String text, List<CatalogMention> mentions) {
+  var out = composerMentionBracketRepair(text);
+  out = composerMentionBracketFixupNesting(out);
+  out = composerMentionBracketTokenize(out);
+  out = composerMentionDisplayFinalize(out, composerMentionCatalogWithBracketSnapshots(text, mentions));
+  return out;
+}
+
 class ComposerMentionSpanBuilder extends SpecialTextSpanBuilder {
   ComposerMentionSpanBuilder({required this.mentions});
 
@@ -510,15 +722,26 @@ class _ComposerMentionChipInline extends StatelessWidget {
 }
 
 class ComposerMentionMessageText extends StatelessWidget {
-  const ComposerMentionMessageText({super.key, required this.text, required this.mentions, this.style});
+  const ComposerMentionMessageText({
+    super.key,
+    required this.text,
+    required this.mentions,
+    this.style,
+    this.maxLines,
+    this.overflow,
+  });
 
   final String text;
   final List<CatalogMention> mentions;
   final TextStyle? style;
+  final int? maxLines;
+  final TextOverflow? overflow;
 
   @override
   Widget build(BuildContext context) => ExtendedText(
         text,
+        maxLines: maxLines,
+        overflow: overflow ?? (maxLines != null ? TextOverflow.ellipsis : null),
         specialTextSpanBuilder: ComposerMentionSpanBuilder(mentions: mentions),
         style: style ?? const TextStyle(fontSize: 14.5, height: 1.45, color: Color(0xFFE4E4E7), fontWeight: FontWeight.w500),
       );

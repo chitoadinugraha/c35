@@ -48,10 +48,36 @@ bool msgThoughtIsToolCallingLine(String raw) {
 String msgThoughtStripPlaceholders(String raw) =>
     raw.split('\n').where((line) => !msgThoughtIsPlaceholder(line) && !msgThoughtIsToolCallingLine(line)).join('\n').trim();
 
+const _msgUserSteerSuffixMarkers = <String>[
+  '\n\n[GOOGLE SHEETS ON DEVICE]',
+  '\n\n[GOOGLE FORMS',
+  '\n\n[GOOGLE SHEETS PARENT TURN]',
+  '\n\n[GOOGLE SHEETS GOTO CELL]',
+  '\n\n[RETRY]',
+  '\n\n[COMPUTER USE',
+];
+
+/// Internal compose/delegate blocks appended after the real user phrase (server child goal).
+bool msgUserContentHasSteerSuffix(String raw) =>
+    _msgUserSteerSuffixMarkers.any((m) => raw.contains(m));
+
+/// User-visible text only — strips appended steering playbooks.
+String msgUserContentPublic(String raw) {
+  var out = raw;
+  for (final m in _msgUserSteerSuffixMarkers) {
+    final i = out.indexOf(m);
+    if (i >= 0) out = out.substring(0, i);
+  }
+  return out.trim();
+}
+
 /// Compose / device steering leaked into the visible answer stream (not end-user text).
 bool msgStreamLooksLikeSteerLeak(String raw) {
   final t = raw.trimLeft();
   if (t.isEmpty) return false;
+  if (msgUserContentHasSteerSuffix(raw) && msgUserContentPublic(raw).isEmpty) {
+    return true;
+  }
   if (t.startsWith('[') && t.contains(']')) {
     final head = t.split(']').first.toUpperCase();
     if (head.contains('GOOGLE SHEETS') ||

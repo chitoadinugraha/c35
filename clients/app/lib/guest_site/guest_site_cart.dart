@@ -738,35 +738,52 @@ Widget _guestCartBarInner({
 }
 
 class GuestSiteCommerceSheetHost extends StatelessWidget {
-  const GuestSiteCommerceSheetHost({super.key, required this.panel});
+  const GuestSiteCommerceSheetHost({
+    super.key,
+    required this.panel,
+    this.onDismiss,
+  });
 
   final Widget panel;
+  final VoidCallback? onDismiss;
 
   @override
-  Widget build(BuildContext context) => Material(
-        color: Colors.transparent,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Positioned.fill(
+  Widget build(BuildContext context) {
+    Widget child = Material(
+      color: Colors.transparent,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onDismiss,
               child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                 child: const ColoredBox(color: Color(0x73000000)),
               ),
             ),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 1, end: 0),
-              duration: const Duration(milliseconds: 340),
-              curve: Curves.easeOutCubic,
-              builder: (context, slide, child) => Transform.translate(
-                offset: Offset(0, 20 * slide),
-                child: Opacity(opacity: 1 - slide * 0.25, child: child),
-              ),
-              child: Align(alignment: Alignment.bottomCenter, child: panel),
+          ),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 1, end: 0),
+            duration: const Duration(milliseconds: 340),
+            curve: Curves.easeOutCubic,
+            builder: (context, slide, child) => Transform.translate(
+              offset: Offset(0, 20 * slide),
+              child: Opacity(opacity: 1 - slide * 0.25, child: child),
             ),
-          ],
-        ),
-      );
+            child: Align(alignment: Alignment.bottomCenter, child: panel),
+          ),
+        ],
+      ),
+    );
+    // Editor preview: do not pan the stage when the sheet scroll hits an edge.
+    child = NotificationListener<ScrollNotification>(
+      onNotification: (_) => true,
+      child: child,
+    );
+    return child;
+  }
 }
 
 class GuestSiteCartChrome extends StatelessWidget {
@@ -875,103 +892,153 @@ class GuestSiteOrderSheet extends StatelessWidget {
     final draft = controller.orderDraft;
     if (draft == null) return const SizedBox.shrink();
     final lineTotal = draft.price * draft.qty;
-    final primary = draft.qty > 0 ? 'Pesan ${draft.qty} item · Rp $lineTotal' : 'Batalkan';
+    final primary = draft.qty > 0 ? 'Pesan ${draft.qty} item · ${guestSiteRp(lineTotal)}' : 'Batalkan';
+    final maxSheetHeight = MediaQuery.sizeOf(context).height * 0.92;
     return GuestSiteCommerceSheetHost(
+      onDismiss: controller.cancelOrder,
       panel: Container(
         width: double.infinity,
-        constraints: const BoxConstraints(maxWidth: 480),
+        constraints: BoxConstraints(maxWidth: 480, maxHeight: maxSheetHeight),
         decoration: BoxDecoration(color: cardBg, borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
         child: SafeArea(
           top: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 12), decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2))),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          _orderPic(context, draft.pic, accent),
-                          if (draft.qty > 0)
-                            Positioned(
-                              top: -6,
-                              right: -6,
-                              child: CircleAvatar(radius: 10, backgroundColor: accent, child: Text('${draft.qty}', style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800))),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: muted.withValues(alpha: 0.4), borderRadius: BorderRadius.circular(2)),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(children: [
-                              Expanded(child: Text(draft.name, style: TextStyle(fontWeight: FontWeight.w700, color: fg))),
-                              Text('Rp ${draft.price}', style: TextStyle(fontWeight: FontWeight.w800, color: accent)),
-                            ]),
-                            if (draft.desc.trim().isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  draft.desc.trim(),
-                                  style: TextStyle(fontSize: 12, height: 1.35, color: muted),
-                                ),
+                            Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                _orderPic(context, draft.pic, accent),
+                                if (draft.qty > 0)
+                                  Positioned(
+                                    top: -6,
+                                    right: -6,
+                                    child: CircleAvatar(
+                                      radius: 10,
+                                      backgroundColor: accent,
+                                      child: Text(
+                                        '${draft.qty}',
+                                        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w800),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(child: Text(draft.name, style: TextStyle(fontWeight: FontWeight.w700, color: fg))),
+                                      Text(
+                                        guestSiteRp(draft.price),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          color: accent,
+                                          fontFeatures: const [FontFeature.tabularFigures()],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (draft.desc.trim().isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: Text(
+                                        draft.desc.trim(),
+                                        style: TextStyle(fontSize: 12, height: 1.35, color: muted),
+                                      ),
+                                    ),
+                                  const SizedBox(height: 8),
+                                  TextField(
+                                    style: TextStyle(color: fg),
+                                    minLines: 2,
+                                    maxLines: 4,
+                                    keyboardType: TextInputType.multiline,
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      hintText: 'Catatan (opsional)...',
+                                      hintStyle: TextStyle(color: muted),
+                                      filled: true,
+                                      fillColor: fg.withValues(alpha: 0.06),
+                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                                    ),
+                                    onChanged: controller.orderSetNote,
+                                  ),
+                                ],
                               ),
-                            const SizedBox(height: 8),
-                            TextField(
-                              style: TextStyle(color: fg),
-                              minLines: 2,
-                              maxLines: 4,
-                              keyboardType: TextInputType.multiline,
-                              decoration: InputDecoration(isDense: true, hintText: 'Catatan (opsional)...', hintStyle: TextStyle(color: muted), filled: true, fillColor: fg.withValues(alpha: 0.06), border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none)),
-                              onChanged: controller.orderSetNote,
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  if (draft.stockMax != null)
-                    Padding(padding: const EdgeInsets.only(top: 8), child: Align(alignment: Alignment.centerLeft, child: Text('Stok: ${draft.stockMax}', style: TextStyle(fontSize: 12, color: muted)))),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    shrinkWrap: true,
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.8,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      for (final k in _numpad)
-                        Material(
-                          color: fg.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          child: InkWell(
-                            onTap: () => controller.orderNumpad(k),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Center(child: Text(k, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: fg))),
+                        if (draft.stockMax != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Stok: ${draft.stockMax}', style: TextStyle(fontSize: 12, color: muted)),
+                            ),
                           ),
+                        const SizedBox(height: 12),
+                        GridView.count(
+                          shrinkWrap: true,
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 1.8,
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: [
+                            for (final k in _numpad)
+                              Material(
+                                color: fg.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                child: InkWell(
+                                  onTap: () => controller.orderNumpad(k),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Center(child: Text(k, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: fg))),
+                                ),
+                              ),
+                          ],
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(backgroundColor: draft.qty > 0 ? accent : muted.withValues(alpha: 0.3), foregroundColor: draft.qty > 0 ? Colors.white : muted, padding: const EdgeInsets.symmetric(vertical: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                      onPressed: () => draft.qty <= 0 ? controller.cancelOrder() : controller.confirmOrder(),
-                      child: Text(primary, textAlign: TextAlign.center),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: draft.qty > 0 ? accent : muted.withValues(alpha: 0.3),
+                      foregroundColor: draft.qty > 0 ? Colors.white : muted,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () => draft.qty <= 0 ? controller.cancelOrder() : controller.confirmOrder(),
+                    child: Text(primary, textAlign: TextAlign.center),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
+      ),
     );
   }
 
@@ -1408,6 +1475,7 @@ class GuestSiteCheckoutSheetPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => GuestSiteCommerceSheetHost(
+        onDismiss: onClose,
         panel: Container(
           width: double.infinity,
           constraints: const BoxConstraints(maxWidth: 480, maxHeight: 560),
@@ -1504,16 +1572,37 @@ class _GuestSiteOrdersChipState extends State<GuestSiteOrdersChip> {
       right: 12,
       child: Material(
         color: const Color(0xCC18181B),
-        borderRadius: BorderRadius.circular(999),
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => guestSiteShowMemberPortal(context: context, siteIid: widget.siteIid, accent: widget.accent),
-          borderRadius: BorderRadius.circular(999),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Text(
-              _count > 0 ? 'Pesanan saya ($_count)' : 'Akun',
-              style: TextStyle(color: widget.accent, fontWeight: FontWeight.w600, fontSize: 12),
-            ),
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: _count > 0
+                ? Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      const Icon(Icons.person_outline, color: Colors.white, size: 22),
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: widget.accent,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '$_count',
+                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, height: 1),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : const Icon(Icons.person_outline, color: Colors.white, size: 22),
           ),
         ),
       ),

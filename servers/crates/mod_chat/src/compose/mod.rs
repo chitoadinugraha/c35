@@ -98,6 +98,9 @@ pub fn compose_force_web_tool_call(
     ) {
         return false;
     }
+    if compose_suppress_general_web_when_staff_registrations(matched_ids) {
+        return false;
+    }
     if context_web::compose_suppress_web_when_context_ready(matched_ids, enrich_keys, user_text) {
         return false;
     }
@@ -121,6 +124,12 @@ pub fn compose_suppress_general_web_when_viz_chart(matched_ids: &[String]) -> bo
     matched_ids.iter().any(|id| id == "inst.viz.chart")
 }
 
+pub fn compose_suppress_general_web_when_staff_registrations(matched_ids: &[String]) -> bool {
+    matched_ids
+        .iter()
+        .any(|id| id == "inst.staff.registrations")
+}
+
 /// First LLM hop must call consumption.today when nutrition coach inst matched.
 pub fn compose_force_consumption_coach_tool_call(
     matched_ids: &[String],
@@ -128,6 +137,15 @@ pub fn compose_force_consumption_coach_tool_call(
 ) -> bool {
     matched_ids.iter().any(|id| id == "inst.consumption_coach")
         && tools.iter().any(|t| t.name == "consumption.today")
+}
+
+/// First LLM hop must call admin.user.registrations.list when staff registrations inst matched.
+pub fn compose_force_staff_registrations_tool_call(
+    matched_ids: &[String],
+    tools: &[ToolDef],
+) -> bool {
+    matched_ids.iter().any(|id| id == "inst.staff.registrations")
+        && tools_has(tools, "admin.user.registrations.list")
 }
 
 /// First LLM hop must call storage.usage when storage inst matched.
@@ -270,6 +288,7 @@ pub fn compose_force_tool_call(matched_ids: &[String], tools: &[ToolDef]) -> boo
         || compose_force_site_query_tool_call(matched_ids, tools)
         || compose_force_browser_ensure_tool_call(matched_ids, tools)
         || compose_force_device_operate_tool_call(matched_ids, tools)
+        || compose_force_staff_registrations_tool_call(matched_ids, tools)
 }
 
 pub fn compose_force_tool_call_with_text(
@@ -288,6 +307,7 @@ pub fn compose_force_tool_call_with_text(
         || compose_force_site_builder_tool_call(matched_ids, tools, user_text)
         || compose_force_browser_ensure_tool_call(matched_ids, tools)
         || compose_force_device_operate_tool_call(matched_ids, tools)
+        || compose_force_staff_registrations_tool_call(matched_ids, tools)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -543,8 +563,7 @@ fn compose_prepare_scoped(
     let mut matched_ids: Vec<String> = matched.iter().map(|r| r.id.clone()).collect();
     let device_scope = device_scope_early;
     let device_sheets_desktop = device_scope
-        && (crate::prompt::google_sheets::user_text_looks_like_google_sheets_desktop(text)
-            || crate::prompt::google_sheets::user_text_looks_like_spreadsheet_cell_ref_edit(text));
+        && crate::prompt::google_sheets::user_text_looks_like_device_spreadsheet_ui(text);
     if device_sheets_desktop {
         if !matched_ids.iter().any(|id| id == "inst.device.google_sheets") {
             matched_ids.push("inst.device.google_sheets".into());
@@ -652,6 +671,7 @@ fn compose_prepare_scoped(
         .collect();
     if !crate::site_commerce_compose::site_commerce_suppress_general_web(text, &matched_ids)
         && !compose_suppress_general_web_when_viz_chart(&matched_ids)
+        && !compose_suppress_general_web_when_staff_registrations(&matched_ids)
     {
         compose_force_general_web(&eligible_tools, &topic_refs, &mut force_include);
     }

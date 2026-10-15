@@ -2,7 +2,11 @@ use std::path::Path;
 
 use c35_mod_site::guest_design::{FeaturedContact, GuestDesign};
 use c35_mod_site::site_assistant_boot_extras;
-use c35_mod_site::render::{block_html_render, guest_root_css, guest_shell_html, ProductRow};
+use c35_mod_site::GuestI18n;
+use c35_mod_site::render::{
+    block_html_render, guest_hub_catalog_tabs_html, guest_hub_initial_tab, guest_root_css,
+    guest_shell_html, ProductRow,
+};
 use c35_mod_site::site_boot_json_assemble;
 use c35_proto::SiteBootMode;
 use serde_json::json;
@@ -306,6 +310,42 @@ fn guest_design_boot_json_fields() {
     assert_eq!(boot["featured_contacts"][0]["name"], "Northwind");
     assert_eq!(boot["featured_contacts"][0]["pic"], "/fs/north?v=thumb");
     assert_eq!(boot["featured_contacts"][0]["featured"], "partners");
+}
+
+#[test]
+fn guest_shell_emits_wrap_backdrop_and_storefront() {
+    let design = GuestDesign::from_theme_json(&fixture_theme());
+    let html = guest_shell_html(&design, "<section></section>");
+    assert!(html.contains("class=\"wrap guest-page-main\""));
+    assert!(html.contains("guest-storefront"));
+    assert!(html.contains("guest-backdrop"));
+    assert!(html.contains("data-backdrop=\"glow\""));
+}
+
+#[test]
+fn guest_hub_initial_tab_respects_profile_default() {
+    let posts_design = GuestDesign::from_theme_json(r##"{"profile":{"hubDefaultTab":"posts"}}"##);
+    assert_eq!(guest_hub_initial_tab(&posts_design, true, true), "posts");
+    let shop_design = GuestDesign::from_theme_json(r##"{"profile":{"hubDefaultTab":"shop"}}"##);
+    assert_eq!(guest_hub_initial_tab(&shop_design, true, true), "shop");
+    assert_eq!(guest_hub_initial_tab(&shop_design, true, false), "shop");
+    assert_eq!(guest_hub_initial_tab(&posts_design, false, true), "posts");
+}
+
+#[test]
+fn guest_hub_catalog_tabs_posts_default_hides_shop_panel() {
+    let design = GuestDesign::from_theme_json(r##"{"profile":{"hubDefaultTab":"posts"}}"##);
+    let tab = guest_hub_initial_tab(&design, true, true);
+    let html = guest_hub_catalog_tabs_html(
+        r#"<section class="product-grid" data-guest="site_product">shop</section>"#,
+        r#"<li class="post-card">p</li>"#,
+        tab,
+        &GuestI18n::english(),
+    );
+    assert!(html.contains("data-guest=\"hub_catalog\""));
+    assert!(html.contains("data-hub-panel=\"shop\" role=\"tabpanel\" hidden"));
+    assert!(html.contains("data-hub-tab=\"posts\" role=\"tab\" aria-selected=\"true\""));
+    assert!(!html.contains("data-hub-panel=\"posts\" role=\"tabpanel\" hidden"));
 }
 
 #[test]

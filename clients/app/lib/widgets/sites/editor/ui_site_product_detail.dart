@@ -180,7 +180,6 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     siteEditorScheduleSave(
       context,
       key: 'product:${widget.product.productId}:$key',
-      debounce: const Duration(milliseconds: 450),
       save: action,
     );
   }
@@ -480,14 +479,15 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
     if (widget.busy || _picUploading) return;
     final choice = await showModalBottomSheet<_ProductPicChoice>(
       context: context,
-      backgroundColor: _sheetBg,
       showDragHandle: true,
       useSafeArea: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
+      builder: (ctx) => Material(
+        color: _sheetBg,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
               leading: const Icon(Icons.upload_outlined, color: _text),
               title: const Text('Upload', style: TextStyle(color: _text)),
               onTap: () => Navigator.pop(ctx, _ProductPicChoice.upload),
@@ -497,8 +497,9 @@ class _UiSiteProductDetailState extends State<UiSiteProductDetail> {
               title: const Text('Generate', style: TextStyle(color: _text)),
               onTap: () => Navigator.pop(ctx, _ProductPicChoice.generate),
             ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );

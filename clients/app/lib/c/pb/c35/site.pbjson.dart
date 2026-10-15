@@ -503,12 +503,20 @@ const ReqSiteDraftGet$json = {
   '1': 'ReqSiteDraftGet',
   '2': [
     {'1': 'site_iid', '3': 1, '4': 1, '5': 3, '10': 'siteIid'},
+    {
+      '1': 'skip_publish_status',
+      '3': 2,
+      '4': 1,
+      '5': 8,
+      '10': 'skipPublishStatus'
+    },
   ],
 };
 
 /// Descriptor for `ReqSiteDraftGet`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List reqSiteDraftGetDescriptor = $convert.base64Decode(
-    'Cg9SZXFTaXRlRHJhZnRHZXQSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQ=');
+    'Cg9SZXFTaXRlRHJhZnRHZXQSGQoIc2l0ZV9paWQYASABKANSB3NpdGVJaWQSLgoTc2tpcF9wdW'
+    'JsaXNoX3N0YXR1cxgCIAEoCFIRc2tpcFB1Ymxpc2hTdGF0dXM=');
 
 @$core.Deprecated('Use resSiteDraftGetDescriptor instead')
 const ResSiteDraftGet$json = {

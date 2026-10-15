@@ -3,9 +3,7 @@ import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_cart.dart';
 import 'package:alienai_c35/guest_site/guest_site_chat_panel.dart';
 import 'package:alienai_c35/guest_site/guest_site_live_call.dart';
-import 'package:alienai_c35/widgets/ai/alien_icon_svg.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 
 /// Guest storefront chat / call chrome (preview + published parity target).
@@ -106,54 +104,38 @@ class _GuestSiteAssistantLayerState extends State<GuestSiteAssistantLayer> {
               controller: _callController,
               intro: _ai.callIntro,
             ),
-            if (cart != null && cart.count > 0 && !cart.sheetOpen && showChat)
+            if (showChat || showCall)
               ListenableBuilder(
-                listenable: cart,
-                builder: (context, _) => Positioned(
-                  left: 12,
-                  right: 12,
-                  bottom: 12,
-                  child: Row(
-                    children: [
-                      _AssistantFab(
-                        key: const Key('guest-assistant-chat-cart'),
-                        alien: true,
-                        icon: Icons.chat_bubble_outline,
-                        onTap: _toggleChat,
-                      ),
-                      const Spacer(),
-                      const SizedBox(width: 48),
-                    ],
-                  ),
-                ),
-              ),
-            if (!(cart != null && cart.count > 0 && !cart.sheetOpen) || !showChat)
-              Positioned(
-                right: 16,
-                bottom: cart != null && cart.count > 0 && !cart.sheetOpen ? 88 : 16,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (showChat && !(cart != null && cart.count > 0 && !cart.sheetOpen))
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: _AssistantFab(
-                          key: const Key('guest-assistant-chat'),
-                          alien: true,
-                          icon: Icons.chat_bubble_outline,
-                          onTap: _toggleChat,
-                        ),
-                      ),
-                    if (showCall)
-                      _AssistantFab(
-                        key: const Key('guest-assistant-call'),
-                        alien: false,
-                        icon: Icons.phone_in_talk_outlined,
-                        busy: isConnecting,
-                        onTap: isConnecting ? null : _startCall,
-                      ),
-                  ],
-                ),
+                listenable: cart ?? _callController,
+                builder: (context, _) {
+                  final cartBarUp = cart != null && cart.count > 0 && !cart.sheetOpen;
+                  return Positioned(
+                    right: 16,
+                    bottom: cartBarUp ? 88 : 16,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (showChat)
+                          Padding(
+                            padding: EdgeInsets.only(bottom: showCall ? 10 : 0),
+                            child: _AssistantFab(
+                              key: const Key('guest-assistant-chat'),
+                              icon: Icons.chat_bubble_outline,
+                              onTap: _toggleChat,
+                            ),
+                          ),
+                        if (showCall)
+                          _AssistantFab(
+                            key: const Key('guest-assistant-call'),
+                            icon: Icons.phone_in_talk_outlined,
+                            busy: isConnecting,
+                            onTap: isConnecting ? null : _startCall,
+                          ),
+                      ],
+                    ),
+                  );
+                },
               ),
           ],
         );
@@ -165,13 +147,11 @@ class _GuestSiteAssistantLayerState extends State<GuestSiteAssistantLayer> {
 class _AssistantFab extends StatelessWidget {
   const _AssistantFab({
     super.key,
-    required this.alien,
     required this.icon,
     this.busy = false,
     this.onTap,
   });
 
-  final bool alien;
   final IconData icon;
   final bool busy;
   final VoidCallback? onTap;
@@ -180,7 +160,7 @@ class _AssistantFab extends StatelessWidget {
   Widget build(BuildContext context) => Material(
         elevation: 6,
         shape: const CircleBorder(),
-        color: alien ? Colors.black : const Color(0xFF34D399),
+        color: Colors.black,
         child: InkWell(
           customBorder: const CircleBorder(),
           onTap: onTap,
@@ -198,12 +178,7 @@ class _AssistantFab extends StatelessWidget {
                       ),
                     ),
                   )
-                : alien
-                    ? Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: SvgPicture.string(alienIconSvg, fit: BoxFit.contain),
-                      )
-                    : Icon(icon, color: Colors.white),
+                : Icon(icon, color: Colors.white, size: 24),
           ),
         ),
       );

@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 
 /// CSA-style autosave state for site editor chrome (`Saving…` subtitle).
 class SiteEditorSaveBus extends ChangeNotifier {
+  var _inFlight = 0;
   var saving = false;
   var error = '';
 
   void beginSave() {
     var changed = false;
+    _inFlight++;
     if (!saving) {
       saving = true;
       changed = true;
@@ -19,22 +21,28 @@ class SiteEditorSaveBus extends ChangeNotifier {
   }
 
   void endSaveSuccess() {
-    if (!saving) return;
-    saving = false;
-    notifyListeners();
+    if (_release()) notifyListeners();
   }
 
   void endSaveError(String message) {
     var changed = false;
-    if (saving) {
-      saving = false;
-      changed = true;
-    }
-    if (error != message) {
+    if (message.isNotEmpty && error != message) {
       error = message;
       changed = true;
     }
+    changed = _release() || changed;
     if (changed) notifyListeners();
+  }
+
+  /// Decrements in-flight count; returns whether UI state changed.
+  bool _release() {
+    if (_inFlight <= 0) return false;
+    _inFlight--;
+    if (_inFlight == 0 && saving) {
+      saving = false;
+      return true;
+    }
+    return false;
   }
 }
 

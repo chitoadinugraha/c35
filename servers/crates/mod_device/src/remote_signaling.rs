@@ -227,7 +227,7 @@ pub(crate) async fn device_remote_allowed(
     }
 }
 
-pub(crate) async fn agent_cluster_online(
+pub async fn agent_cluster_online(
     pool: &PgPool,
     nats: Option<&async_nats::Client>,
     device_iid: i64,

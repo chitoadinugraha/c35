@@ -38,7 +38,7 @@ pub use release_config::{
 };
 pub use remote_ice_config::remote_ice_config;
 pub use remote_signaling::{
-    agent_online_cache_invalidate, remote_agent_send_raw, remote_allowed_cache_invalidate,
+    agent_cluster_online, agent_online_cache_invalidate, remote_agent_send_raw, remote_allowed_cache_invalidate,
     remote_browser_device_iid_for_invoke, remote_device_agent_push,
     remote_device_browser_invoke,
     remote_device_browser_invoke_app, remote_device_command_run,

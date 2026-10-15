@@ -409,6 +409,9 @@ class ChatStore extends ChangeNotifier {
 
   int _nextLocalId = -1;
   var _msgsRev = 0;
+
+  /// Bumps on every message list mutation (for cheap UI caches).
+  int get msgsRevision => _msgsRev;
   var _userPromptsRev = 0;
   List<String>? _recentUserPromptsCache;
   var _recentUserPromptsCacheRev = -1;
@@ -582,7 +585,7 @@ class ChatStore extends ChangeNotifier {
 
   Future<void> _persistChats() async {
     if (!_loaded) return;
-    if (ChatInteractionGate.composerTypingActive) {
+    if (ChatInteractionGate.composerTypingActive || promptBusy) {
       _schedulePersistChats();
       return;
     }
@@ -594,7 +597,7 @@ class ChatStore extends ChangeNotifier {
 
   Future<void> _persistMsgs(int chatId) async {
     if (!_loaded || chatId <= 0) return;
-    if (ChatInteractionGate.composerTypingActive) {
+    if (ChatInteractionGate.composerTypingActive || promptBusy) {
       _dirtyMsgChatIds.add(chatId);
       _debouncePersistMsgs(chatId);
       return;
@@ -617,7 +620,9 @@ class ChatStore extends ChangeNotifier {
 
   void _notifyListenersDebounced() {
     if (_notifyDebounce?.isActive ?? false) return;
-    final ms = ChatInteractionGate.composerTypingActive ? 280 : 64;
+    final ms = ChatInteractionGate.composerTypingActive
+        ? 340
+        : (promptBusy ? 180 : 96);
     _notifyDebounce = Timer(Duration(milliseconds: ms), _notifyListenersNow);
   }
 
@@ -662,7 +667,7 @@ class ChatStore extends ChangeNotifier {
   void _touchMsgs(int chatId, {bool debounce = false, MsgRow? userPromptTouch}) {
     if (userPromptTouch?.role == 'user') _bumpUserPromptsRev();
     _bumpMsgsRev();
-    _msgsSortChat(chatId);
+    if (!debounce) _msgsSortChat(chatId);
     if (debounce) {
       _debouncePersistMsgs(chatId);
       _notifyListenersDebounced();
@@ -1313,6 +1318,11 @@ class ChatStore extends ChangeNotifier {
       ChatMsgRole.CHAT_MSG_ROLE_SYSTEM => 'system',
       _ => 'assistant',
     };
+    var content = m.content;
+    if (role == 'user') {
+      content = msgUserContentPublic(content);
+      if (content.isEmpty && msgUserContentHasSteerSuffix(m.content)) return;
+    }
     final id = m.id.toInt();
     final old = prior;
     msgPut(
@@ -1320,7 +1330,7 @@ class ChatStore extends ChangeNotifier {
         id: id,
         chatId: m.chatId.toInt(),
         role: role,
-        content: m.content,
+        content: content,
         thought: m.thought,
         attachmentsJson: m.attachmentsJson,
         blocksJson: m.blocksJson,
@@ -1382,7 +1392,14 @@ class ChatStore extends ChangeNotifier {
     if (cid == null) return;
     final rid = reqId.isNotEmpty ? reqId : (pendingPromptReqId ?? '');
     if (!msgStreamAccepts(rid)) return;
-    if (msgStreamLooksLikeSteerLeak(text)) {
+    if (msgUserContentHasSteerSuffix(text)) {
+      final public = msgUserContentPublic(text);
+      if (public.isEmpty || msgStreamLooksLikeSteerLeak(text)) {
+        msgStreamThought(text, chatId: cid, reqId: rid);
+        return;
+      }
+      text = public;
+    } else if (msgStreamLooksLikeSteerLeak(text)) {
       msgStreamThought(text, chatId: cid, reqId: rid);
       return;
     }

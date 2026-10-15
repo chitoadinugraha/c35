@@ -264,11 +264,13 @@ class _UiChatHistorySidebarState extends State<UiChatHistorySidebar> {
     final isStreaming = widget.store.promptBusyFor(c.id) || c.lastMsgStatus == 'streaming';
     return _ChatTile(
       title: c.title.trim().isEmpty || c.title == 'New chat'
-          ? c.title
-          : chatTitleDisplay(
-              c.title,
+          ? Text(c.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13))
+          : ChatTitleText(
+              title: c.title,
               mentions: widget.store.mentionCatalog.mentions,
               stickyMentionIds: c.stickyMentionIds,
+              style: const TextStyle(fontSize: 13),
+              maxLines: 1,
             ),
       subtitle: subtitle,
       boundDevice: c.boundDeviceIid > 0,
@@ -324,7 +326,7 @@ class _ChatTile extends StatefulWidget {
     required this.onMenu,
   });
 
-  final String title;
+  final Widget title;
   final String subtitle;
   final bool boundDevice;
   final bool selected;
@@ -437,7 +439,12 @@ class _ChatTileState extends State<_ChatTile> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(deleting ? 'Deleting…' : widget.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: color)),
+                          DefaultTextStyle(
+                            style: TextStyle(fontSize: 13, color: color),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            child: deleting ? const Text('Deleting…') : widget.title,
+                          ),
                           if (widget.subtitle.isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(top: 2),

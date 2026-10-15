@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
 import 'package:alienai_c35/c/site/platform_site.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_draft_adapter.dart';
 import 'package:alienai_c35/c/site/site_editor_flush_coordinator.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_nav.dart';
 import 'package:alienai_c35/c/site/site_editor_catalog_cache.dart';
@@ -12,7 +13,9 @@ import 'package:alienai_c35/c/site/site_editor_save_bus.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/c/site/site_table_rows.dart';
 import 'package:alienai_c35/c/ui/ui_error_snackbar.dart';
-import 'package:alienai_c35/widgets/ui/ui_loading.dart';
+import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
+import 'package:alienai_c35/widgets/ui/ui_img.dart';
+import 'package:alienai_c35/widgets/ui/ui_loading_page.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_shared.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_chrome.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_editor_menu.dart';
@@ -78,7 +81,11 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   var _publishing = false;
   var _publishPending = true;
   var _mobilePreviewOpen = false;
+  var _wideDetailOpen = true;
   var _exitInFlight = false;
+  SiteDraftAdapter? _draftAdapter;
+  String? _draftLoadError;
+  var _draftLoadAttempt = 0;
 
   int get _siteIid => _row.siteIid.toInt();
 
@@ -104,19 +111,95 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     _catalogCache = SiteEditorCatalogCache(api: widget.api, siteIid: _siteIid);
     final initial = _resolvedInitialSection;
     if (initial != siteEditorMenuDefaultId) _nav.section = initial;
-    unawaited(_loadCaps());
-    unawaited(_refreshPublishPending());
     _catalogCache.addListener(_syncCatalogToPreview);
     _catalogCache.addListener(_onEditorGateProgress);
     _previewCache.addListener(_onEditorGateProgress);
     unawaited(_catalogCache.warm());
-    unawaited(_previewCache.ensureLoaded());
+    unawaited(_catalogCache.prefetchProductsExtras(widget.api));
+    unawaited(_loadDraftAdapter());
   }
 
-  bool get _editorGateOpen {
-    final catalogReady = _catalogCache.warmDone || _catalogCache.warmError != null;
-    final previewReady = _previewCache.boot != null || _previewCache.error != null;
-    return catalogReady && previewReady;
+  Future<void> _loadDraftAdapter() async {
+    final attempt = ++_draftLoadAttempt;
+    if (mounted) {
+      setState(() {
+        _draftLoadError = null;
+        if (_draftAdapter != null) {
+          _draftAdapter!.design.removeListener(_onAdapterDesignPreview);
+          _draftAdapter!.dispose();
+          _draftAdapter = null;
+        }
+      });
+    }
+    try {
+      // Fast path: draft + config only; catalog warm continues in background.
+      final draftConfig = await Future.wait([
+        widget.api.draftGet(_siteIid),
+        widget.api.configGet(_siteIid),
+      ]);
+      final draft = draftConfig[0] as SiteDraft;
+      final config = draftConfig[1] as SiteConfig;
+      final adapter = SiteDraftAdapter.fromDraft(
+        api: widget.api,
+        draft: draft,
+        capabilitiesJson: config.capabilitiesJson,
+        catalog: _catalogCache,
+      );
+      if (!mounted || attempt != _draftLoadAttempt) {
+        adapter.dispose();
+        return;
+      }
+      adapter.design.addListener(_onAdapterDesignPreview);
+      _catalogCache.applyProductCatalogMeta(adapter.catalogMeta);
+      setState(() {
+        _draftAdapter = adapter;
+        _draftLoadError = null;
+        _caps = SiteEditorCaps.parse(siteCapabilitiesEncode(adapter.capabilities));
+      });
+      _onAdapterDesignPreview();
+      unawaited(_previewCache.ensureLoaded());
+      unawaited(_refreshPublishPending());
+    } catch (e) {
+      if (!mounted || attempt != _draftLoadAttempt) return;
+      setState(() => _draftLoadError = uiFriendlyError(e));
+    }
+  }
+
+  Widget _draftLoadingPage() {
+    final handle = _row.alienId.trim().isEmpty ? null : '@${_row.alienId.trim()}';
+    final pic = _row.pic.trim();
+    final avatar = pic.isNotEmpty
+        ? UiImg(src: pic, width: 76, height: 76, fit: BoxFit.cover, fallback: _siteAvatarFallback())
+        : _siteAvatarFallback();
+    return UiLoadingPage(
+      onBack: widget.onBack ?? () => Navigator.maybePop(context),
+      message: 'Loading site…',
+      error: _draftLoadError,
+      onRetry: _draftLoadError != null ? () => unawaited(_loadDraftAdapter()) : null,
+      hero: UiLoadingPageSiteHero(
+        name: _siteTitle,
+        handle: handle,
+        avatar: avatar,
+        loading: true,
+      ),
+    );
+  }
+
+  Widget _siteAvatarFallback() {
+    final letter = _siteTitle.isNotEmpty ? _siteTitle[0].toUpperCase() : 'S';
+    return Container(
+      width: 76,
+      height: 76,
+      alignment: Alignment.center,
+      color: const Color(0xFF27272A),
+      child: Text(letter, style: const TextStyle(color: Color(0xFFF4F4F5), fontSize: 28, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  void _onAdapterDesignPreview() {
+    final adapter = _draftAdapter;
+    if (adapter == null) return;
+    _previewCache.patch((boot) => siteEditorPreviewPatchDesignStore(boot, adapter.design));
   }
 
   void _onEditorGateProgress() {
@@ -146,7 +229,13 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       });
       unawaited(_refreshPublishPending());
       unawaited(_catalogCache.warm());
+      unawaited(_catalogCache.prefetchProductsExtras(widget.api));
       unawaited(_previewCache.ensureLoaded());
+      _draftAdapter?.design.removeListener(_onAdapterDesignPreview);
+      unawaited(_draftAdapter?.flush());
+      _draftAdapter?.dispose();
+      _draftAdapter = null;
+      unawaited(_loadDraftAdapter());
     } else if (oldWidget.row != widget.row) {
       _row = widget.row.clone();
       _previewCache.updateRow(_row);
@@ -158,7 +247,10 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     _catalogCache.removeListener(_syncCatalogToPreview);
     _catalogCache.removeListener(_onEditorGateProgress);
     _previewCache.removeListener(_onEditorGateProgress);
+    _draftAdapter?.design.removeListener(_onAdapterDesignPreview);
     unawaited(_flush.flush());
+    unawaited(_draftAdapter?.flush());
+    _draftAdapter?.dispose();
     _previewCache.dispose();
     _catalogCache.dispose();
     _saveBus.dispose();
@@ -172,6 +264,12 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   }
 
   void _onDraftSaved() {
+    final adapter = _draftAdapter;
+    if (adapter != null) {
+      unawaited(widget.api.draftGet(_siteIid).then((draft) {
+        if (mounted) adapter.replaceBaseline(draft);
+      }));
+    }
     _previewCache.scheduleServerSync();
     unawaited(_refreshPublishPending());
   }
@@ -302,10 +400,10 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     );
   }
 
-  double _previewPaneW(double width) => siteEditorShowPreviewPane(width) ? siteEditorPreviewPaneW : 0;
+  double _previewPaneW(bool wide) => wide && _wideDetailOpen ? siteEditorDetailPaneW : 0;
 
   bool _catalogMasterDetail(BuildContext context, bool wide, String section) =>
-      _nav.catalogMasterDetail(context, wide: wide, section: section, previewPaneW: _previewPaneW(MediaQuery.sizeOf(context).width));
+      _nav.catalogMasterDetail(context, wide: wide, section: section, previewPaneW: _previewPaneW(wide));
 
   void _openSection(String id) => setState(() => _nav.openSection(_coerceSection(id)));
 
@@ -371,6 +469,11 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
   Future<void> _prepareNavigateBack() async {
     await _flush.flush();
     if (!mounted) return;
+    final adapter = _draftAdapter;
+    if (adapter != null && adapter.hasPendingFlush) {
+      await siteEditorSaveRun(_saveBus, () => adapter.flush());
+    }
+    if (!mounted) return;
     await SiteEditorSaveScope.waitWhileSavingBus(_saveBus);
   }
 
@@ -394,7 +497,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
         setState(_nav.pop);
         return;
       }
-      if (!wide && _nav.narrowCatalogDrill(section)) {
+      if (_nav.narrowCatalogDrill(section)) {
         setState(_nav.pop);
         return;
       }
@@ -444,10 +547,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
         },
       );
 
-  Widget _sectionBody(BuildContext context, String section, {required bool wide}) {
-    final shown = _coerceSection(section);
-    final masterDetail = _catalogMasterDetail(context, wide, shown);
-    return switch (shown) {
+  Widget _sectionEditor(BuildContext context, String shown, {required bool masterDetail}) => switch (shown) {
       'info' => UiSiteInfoEditor(row: _row, api: widget.api, siteIid: _siteIid, onRowChanged: _onRowChanged, onDraftSaved: _onDraftSaved),
       'links' => UiSiteLinksEditor(
           api: widget.api,
@@ -567,11 +667,23 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
       'plan' => const UiSitePlanEditor(),
       _ => Center(child: Text('Coming soon', style: const TextStyle(color: _muted, fontSize: 13))),
     };
+
+  Widget _sectionBody(BuildContext context, String section, {required bool wide}) {
+    final shown = _coerceSection(section);
+    if (!wide) {
+      final masterDetail = _catalogMasterDetail(context, wide, shown);
+      return _sectionEditor(context, shown, masterDetail: masterDetail);
+    }
+    return LayoutBuilder(
+      builder: (context, c) {
+        final catalogMaster =
+            SiteEditorNav.masterDetailSectionIds.contains(shown) && c.maxWidth >= siteEditorMasterDetailBreakpoint;
+        return _sectionEditor(context, shown, masterDetail: catalogMaster);
+      },
+    );
   }
 
-  Widget _buildWide(BuildContext context, String active) {
-    final width = MediaQuery.sizeOf(context).width;
-    final showPreview = siteEditorShowPreviewPane(width);
+  Widget _buildWideMaster(BuildContext context, String active) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -586,10 +698,6 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           ),
         ),
         Expanded(child: _sectionBody(context, active, wide: true)),
-        if (showPreview) ...[
-          siteCatalogMasterDivider(context),
-          SizedBox(width: siteEditorPreviewPaneW, child: _previewPane()),
-        ],
       ],
     );
   }
@@ -608,6 +716,7 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     required List<SiteEditorBreadcrumbSegment> breadcrumb,
     VoidCallback? onBack,
     required List<Widget> actions,
+    bool showDetailCollapse = false,
   }) =>
       ListenableBuilder(
         listenable: _saveBus,
@@ -617,6 +726,9 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
           statusColor: statusColor,
           breadcrumb: breadcrumb,
           onBack: onBack,
+          showDetailCollapse: showDetailCollapse,
+          detailOpen: _wideDetailOpen,
+          onDetailToggle: showDetailCollapse ? () => setState(() => _wideDetailOpen = !_wideDetailOpen) : null,
           actions: actions,
         ),
       );
@@ -629,35 +741,22 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
     final active = _nav.section ?? (wide ? _resolvedInitialSection : '');
     final onMenu = !wide && (_nav.section == null || _nav.section!.isEmpty);
 
+    if (_draftAdapter == null) {
+      return _draftLoadingPage();
+    }
+
     return SiteEditorSaveScope(
       bus: _saveBus,
       flush: _flush,
       preview: _previewCache,
       catalog: _catalogCache,
+      draft: _draftAdapter,
       child: SiteEditorNavScope(
         nav: _nav,
         onNavChanged: () {
           if (mounted) setState(() {});
         },
-        child: Builder(
-          builder: (context) {
-            final body = _siteEditorBody(context, wide: wide, active: active, onMenu: onMenu);
-            if (!_editorGateOpen) {
-              return Stack(
-                children: [
-                  body,
-                  const Positioned.fill(
-                    child: ColoredBox(
-                      color: Color(0xFF08080A),
-                      child: UILoading(message: 'Loading site editor'),
-                    ),
-                  ),
-                ],
-              );
-            }
-            return body;
-          },
-        ),
+        child: _siteEditorBody(context, wide: wide, active: active, onMenu: onMenu),
       ),
     );
   }
@@ -734,18 +833,30 @@ class _UiSiteEditorShellState extends State<UiSiteEditorShell> {
 
           final section = active.isEmpty ? _resolvedInitialSection : active;
           final header = _chromeHeaderState(true);
-          return Column(
+          return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _chrome(
-                statusLine: header.statusLine,
-                statusColor: header.statusColor,
-                breadcrumb: header.breadcrumb,
-                onBack: () => unawaited(_handleChromeBack(section: section, wide: true, onMenu: false)),
-                actions: chromeActions,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _chrome(
+                      statusLine: header.statusLine,
+                      statusColor: header.statusColor,
+                      breadcrumb: header.breadcrumb,
+                      onBack: () => unawaited(_handleChromeBack(section: section, wide: true, onMenu: false)),
+                      actions: chromeActions,
+                      showDetailCollapse: true,
+                    ),
+                    _saveErrorStrip(),
+                    Expanded(child: _buildWideMaster(context, section)),
+                  ],
+                ),
               ),
-              _saveErrorStrip(),
-              Expanded(child: _buildWide(context, section)),
+              if (_wideDetailOpen) ...[
+                siteCatalogMasterDivider(context),
+                SizedBox(width: siteEditorDetailPaneW, child: _previewPane()),
+              ],
             ],
           );
       },

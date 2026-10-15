@@ -217,10 +217,12 @@ pub async fn site_guest_turn_with_hooks(
         thinking: thinking_level(""),
         tools: composed.tools.clone(),
         history: vec![],
+        matched_inst_ids: composed.matched_ids.clone(),
         force_tool_call: false,
         force_web_tool_call: false,
         catalog_web: CatalogWebPhase::Off,
         skip_web_prefetch: true,
+        device_prefetch: None,
     };
 
     let mut turn_ctx = TurnCtx {

@@ -355,6 +355,7 @@ fn prompt_req_put(
             &cancel,
             PromptTurnHooks {
                 skip_billing_gate: false,
+                skip_chat_transcript_persist: false,
                 on_hop: None,
                 owner_session: Some(owner_session),
             },

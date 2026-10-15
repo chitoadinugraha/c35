@@ -100,13 +100,14 @@ class _UiSiteAiChannelsSectionState extends State<UiSiteAiChannelsSection> {
       if (!mounted) return;
       final picked = await showModalBottomSheet<String>(
         context: context,
-        backgroundColor: const Color(0xFF18181B),
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-        builder: (ctx) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
+        builder: (ctx) => Material(
+          color: const Color(0xFF18181B),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
                 leading: const Icon(Icons.telegram, color: _accent),
                 title: const Text('Telegram', style: TextStyle(color: _text)),
                 onTap: () => Navigator.pop(ctx, 'telegram'),
@@ -116,12 +117,13 @@ class _UiSiteAiChannelsSectionState extends State<UiSiteAiChannelsSection> {
                 title: const Text('WhatsApp (QR device)', style: TextStyle(color: _text)),
                 onTap: () => Navigator.pop(ctx, 'wa_pair'),
               ),
-              ListTile(
-                leading: const Icon(Icons.cloud_outlined, color: _accent),
-                title: const Text('WhatsApp (Meta API)', style: TextStyle(color: _text)),
-                onTap: () => Navigator.pop(ctx, 'wa_meta'),
-              ),
-            ],
+                ListTile(
+                  leading: const Icon(Icons.cloud_outlined, color: _accent),
+                  title: const Text('WhatsApp (Meta API)', style: TextStyle(color: _text)),
+                  onTap: () => Navigator.pop(ctx, 'wa_meta'),
+                ),
+              ],
+            ),
           ),
         ),
       );

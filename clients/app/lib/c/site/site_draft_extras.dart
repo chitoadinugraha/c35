@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:alienai_c35/c/site/site_ai_assistant.dart';
 
+export 'package:alienai_c35/c/site/site_ai_assistant.dart' show SiteAiAssistantDraft;
+
 /// Draft extras stored on `SiteDoc.metaJson` (the `meta` object inside `site.draft.doc_json`).
 /// `draftPut` round-trips `meta`, so these keys survive the existing Info save path.
 

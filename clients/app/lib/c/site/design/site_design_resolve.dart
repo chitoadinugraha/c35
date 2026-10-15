@@ -4,6 +4,7 @@ import 'site_card_style.dart';
 import 'site_color.dart';
 import 'site_design_models.dart';
 import 'site_design_store.dart';
+import 'site_hub.dart';
 import 'site_theme.dart';
 
 class SiteResolvedDesign {
@@ -77,6 +78,13 @@ SiteResolvedDesign siteDesignResolve(SiteDesignStore draft) => SiteResolvedDesig
       blockStyles: {for (final b in draft.blockDesigns) b.block: b},
       productDesign: draft.productDesign,
     );
+
+/// Hub tab + posts preview settings from boot `design.profile` (CSA `site_hub.dart` parity).
+SiteProfileDesignDraft siteDesignHubProfile(SiteDesignStore? design) =>
+    design?.profileDesign ?? const SiteProfileDesignDraft();
+
+int siteDesignHubPostsPreviewLimit(SiteDesignStore? design) =>
+    siteHubPostsPreviewLimit(siteDesignHubProfile(design));
 
 SiteThemeTokens siteDesignSelectedTheme(SiteDesignStore draft) =>
     siteThemeResolve(draft.themeBaseId, draft.themeDark).tokens;

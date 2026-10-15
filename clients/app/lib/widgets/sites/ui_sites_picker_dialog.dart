@@ -3,7 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:alienai_c35/c/chat/chat_conn.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
-import 'package:alienai_c35/c/config.dart';
+import 'package:alienai_c35/c/site/site_row_visit.dart';
 import 'package:alienai_c35/c/log.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
@@ -21,8 +21,6 @@ import 'package:alienai_c35/widgets/ui/ui_alert.dart';
 import 'package:alienai_c35/widgets/ui/ui_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-
 typedef UiSitesPickerSiteAction = void Function(String siteIid);
 
 Future<void> uiSitesPickerOpen({
@@ -239,7 +237,7 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
       imageUrl: row.pic,
       icon: Icons.language_outlined,
       actions: [
-        IoAskItemAction(label: 'Visit', icon: Icons.open_in_new_rounded, onTap: () => unawaited(_visitSite(context, row))),
+        IoAskItemAction(label: 'Visit', icon: Icons.open_in_new_rounded, onTap: () => unawaited(siteRowVisit(context, row))),
         IoAskItemAction(label: 'Edit', icon: Icons.edit_outlined, onTap: () => _edit(id)),
         IoAskItemAction(label: 'POS', icon: Icons.point_of_sale_outlined, onTap: () => unawaited(_pos(row))),
       ],
@@ -282,21 +280,3 @@ class _UiSitesPickerDialogState extends State<UiSitesPickerDialog> {
       );
 }
 
-Future<void> _visitSite(BuildContext context, SiteRow row) async {
-  try {
-    final origin = C35Config.guestSiteOrigin.replaceAll(RegExp(r'/+$'), '');
-    final slug = row.alienId.isNotEmpty ? row.alienId : row.siteIid.toString();
-    late final String url;
-    url = row.publishedVersionId.isNotEmpty ? '$origin/$slug' : '$origin/$slug?draft=1';
-    if (!await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication) && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open URL'), behavior: SnackBarBehavior.floating));
-    }
-  } catch (e) {
-    lError('sites picker visit: $e');
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating),
-      );
-    }
-  }
-}

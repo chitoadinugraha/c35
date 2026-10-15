@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:alienai_c35/c/chat/chat_interaction_gate.dart';
 import 'package:alienai_c35/c/media/media_types.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Remote-ready attachment row (hash / URL only — no bytes on disk).
@@ -198,22 +200,30 @@ class ComposerDraftStore {
   void _schedulePersist() {
     if (_uid <= 0) return;
     _persistDebounce?.cancel();
-    _persistDebounce = Timer(const Duration(milliseconds: 450), () => unawaited(_persistNow()));
+    _persistDebounce = Timer(const Duration(milliseconds: 650), () => unawaited(_persistNow()));
   }
 
   Future<void> _persistNow() async {
+    if (ChatInteractionGate.composerTypingActive) {
+      _schedulePersist();
+      return;
+    }
     final uid = _uid;
     if (uid <= 0) return;
+    final snapshot = Map<String, ComposerDraft>.from(_mem);
     final p = await SharedPreferences.getInstance();
     final prefix = 'c35.composer.draft.$uid.';
-    final keep = _mem.keys.toSet();
+    final keep = snapshot.keys.toSet();
     for (final key in p.getKeys()) {
       if (key.startsWith(prefix) && !keep.contains(key.substring(prefix.length))) {
         await p.remove(key);
       }
     }
-    for (final e in _mem.entries) {
-      await p.setString('$prefix${e.key}', jsonEncode(e.value.toJson()));
+    for (final e in snapshot.entries) {
+      final encoded = kIsWeb ? jsonEncode(e.value.toJson()) : await compute(_encodeDraftJson, e.value.toJson());
+      await p.setString('$prefix${e.key}', encoded);
     }
   }
 }
+
+String _encodeDraftJson(Map<String, dynamic> j) => jsonEncode(j);

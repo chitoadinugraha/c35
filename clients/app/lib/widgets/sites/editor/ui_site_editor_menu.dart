@@ -58,7 +58,6 @@ List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps, {bool platfo
         if (caps.queue) const SiteEditorMenuItem('queue', Icons.queue, 'Queue'),
       ]),
       SiteEditorMenuGroup('Settings', [
-        const SiteEditorMenuItem('capabilities', Icons.tune_outlined, 'Capabilities'),
         const SiteEditorMenuItem('team', Icons.group_outlined, 'Team'),
         SiteEditorMenuItem(
           'attendance',
@@ -69,6 +68,7 @@ List<SiteEditorMenuGroup> siteEditorMenuGroups(SiteEditorCaps caps, {bool platfo
         ),
         const SiteEditorMenuItem('accounts', Icons.account_balance_wallet_outlined, 'Accounts'),
         const SiteEditorMenuItem('notifications', Icons.notifications_outlined, 'Notifications'),
+        const SiteEditorMenuItem('capabilities', Icons.tune_outlined, 'Capabilities'),
         const SiteEditorMenuItem('plan', Icons.workspace_premium_outlined, 'Plan'),
         const SiteEditorMenuItem('publish', Icons.rocket_launch_outlined, 'Publish'),
       ]),

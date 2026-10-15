@@ -108,7 +108,6 @@ class _UiSiteQueueDetailState extends State<UiSiteQueueDetail> with SingleTicker
     siteEditorScheduleSave(
       context,
       key: 'queue:${widget.queueId}',
-      debounce: const Duration(milliseconds: 450),
       save: _saveNow,
     );
   }

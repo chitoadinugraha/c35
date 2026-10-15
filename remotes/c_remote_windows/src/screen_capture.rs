@@ -414,7 +414,7 @@ pub fn capture_screen_gdi(
 
         let mut axtree = String::new();
         if som {
-            let marks = crate::uia::uia_walk();
+            let marks = crate::uia::uia_walk_som(Some((&bgra_buf, dst_w, dst_h, src_w as u32, src_h as u32)));
             axtree = crate::uia::axtree_text(&marks, src_w as u32, src_h as u32);
             crate::uia::draw_som_overlay(&mut bgra_buf, dst_w, dst_h, src_w as u32, src_h as u32, &marks);
         }
@@ -482,7 +482,7 @@ fn encode_bgra_screenshot(
 
     let mut axtree = String::new();
     if som {
-        let marks = crate::uia::uia_walk();
+        let marks = crate::uia::uia_walk_som(Some((&bgra_buf, dst_w, dst_h, src_w, src_h)));
         axtree = crate::uia::axtree_text(&marks, src_w, src_h);
         crate::uia::draw_som_overlay(&mut bgra_buf, dst_w, dst_h, src_w, src_h, &marks);
     }

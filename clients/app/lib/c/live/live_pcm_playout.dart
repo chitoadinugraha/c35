@@ -22,5 +22,7 @@ abstract class LivePcmPlayout {
   Future<void> start(int sampleRateHz);
   Future<void> write(Uint8List pcm);
   Future<void> stop();
+
+  Future<void> refreshQueuedMs() async {}
 }
 

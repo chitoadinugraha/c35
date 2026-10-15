@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use c35_mod_llm::{cf_chat_generate, model_chain_for_slug, model_is_alien, model_log_label};
+use c35_mod_llm::{
+    cf_chat_generate, model_chain_for_slug_device, model_is_alien, model_log_label,
+};
 use reqwest::Client;
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
@@ -9,6 +11,23 @@ use tokio_util::sync::CancellationToken;
 use super::gemini::{gemini_generate, gemini_generate_stream};
 use super::thought::ParseOut;
 use crate::tools::http_client;
+
+pub fn is_device_tools(tools: &Value) -> bool {
+    if let Some(arr) = tools.as_array() {
+        for t in arr {
+            if let Some(funcs) = t.get("function_declarations").and_then(|f| f.as_array()) {
+                for f in funcs {
+                    if let Some(name) = f.get("name").and_then(|n| n.as_str()) {
+                        if name.starts_with("device.") || name.starts_with("computer_use.") {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
 
 fn llm_stream_uses_gemini(provider: &str) -> bool {
     provider == "google"
@@ -84,8 +103,10 @@ pub async fn llm_generate_chain(
     system: &str,
     user: &str,
     tool_call_mode: &str,
+    is_device: bool,
 ) -> Result<(ParseOut, String, String)> {
-    let chain = model_chain_for_slug(requested_model);
+    let effective_device = is_device || is_device_tools(tools);
+    let chain = model_chain_for_slug_device(requested_model, effective_device);
     if chain.is_empty() {
         anyhow::bail!("no catalog models available for {requested_model}");
     }
@@ -157,9 +178,11 @@ pub async fn llm_stream_chain(
     tool_call_mode: &str,
     on_delta: &mut (dyn FnMut(bool, String) + Send),
     cancel: &CancellationToken,
+    is_device: bool,
 ) -> Result<(ParseOut, String, String)> {
     let client = http_client(Duration::from_secs(120));
-    let chain = model_chain_for_slug(requested_model);
+    let effective_device = is_device || is_device_tools(tools);
+    let chain = model_chain_for_slug_device(requested_model, effective_device);
     if chain.is_empty() {
         anyhow::bail!("no catalog models available for {requested_model}");
     }

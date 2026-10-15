@@ -278,6 +278,22 @@ pub fn alien_chain_models() -> Vec<String> {
     RUNTIME.read().expect("runtime lock").alien_models.clone()
 }
 
+pub fn alien_chain_models_for_device() -> Vec<String> {
+    alien_chain_models_device(true)
+}
+
+pub fn alien_chain_models_device(is_device: bool) -> Vec<String> {
+    let mut models = alien_chain_models();
+    if is_device {
+        if !models.iter().any(|m| m == "gemini-3.5-flash-lite") {
+            models.push("gemini-3.5-flash-lite".to_string());
+        }
+        models.sort_by(|a, b| crate::catalog_rank::alien_chain_sort_cmp_device(a, b, true));
+        models.dedup();
+    }
+    models
+}
+
 pub fn alien_default_model() -> String {
     use crate::catalog_resolve::catalog_alien_default;
     alien_chain_models()

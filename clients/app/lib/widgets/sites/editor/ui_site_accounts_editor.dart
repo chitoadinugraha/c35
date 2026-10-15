@@ -4,6 +4,7 @@ import 'package:alienai_c35/c/site/site_api.dart';
 import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_draft_flush.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
@@ -76,7 +77,26 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.siteIid != widget.siteIid) unawaited(_load());
     if (oldWidget.masterDetail != widget.masterDetail) _pickDefault();
-    if (oldWidget.detailId != widget.detailId) _bindActive();
+    if (oldWidget.detailId != widget.detailId ||
+        oldWidget.masterDetail != widget.masterDetail ||
+        oldWidget.siteIid != widget.siteIid) {
+      _syncDetailBinding();
+    }
+  }
+
+  void _syncDetailBinding() {
+    final id = _activeId;
+    if (id == null || id == _editingId) return;
+    _bindActive();
+  }
+
+  void _scheduleDetailBinding() {
+    final id = _activeId;
+    if (id == null || id == _editingId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_activeId == id && _editingId != id) _bindActive();
+    });
   }
 
   List<SitePaymentAccountDraft> get _filtered {
@@ -97,12 +117,20 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
       _error = null;
     });
     try {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      _items
-        ..clear()
-        ..addAll(siteDraftExtrasParse(draft.doc.metaJson).paymentAccounts);
+      final adapter = SiteEditorSaveScope.draftAdapter(context);
+      if (adapter != null) {
+        _items
+          ..clear()
+          ..addAll(adapter.extras.paymentAccounts);
+      } else {
+        final draft = await widget.api.draftGet(widget.siteIid);
+        _items
+          ..clear()
+          ..addAll(siteDraftExtrasParse(draft.doc.metaJson).paymentAccounts);
+      }
       _pickDefault();
-      _bindActive();
+      _syncDetailBinding();
+      _error = null;
     } catch (e) {
       _error = uiFriendlyError(e);
     } finally {
@@ -183,15 +211,21 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
   }
 
   Future<void> _save() async {
-    await SiteEditorSaveScope.run(context, () async {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      final next = draft.clone();
-      final doc = next.doc.clone();
-      doc.metaJson = siteDraftExtrasMerge(doc.metaJson, paymentAccounts: List<SitePaymentAccountDraft>.from(_items));
-      next.doc = doc;
-      await widget.api.draftPut(next);
-      widget.onDraftSaved?.call();
-    });
+    final adapter = SiteEditorSaveScope.draftAdapter(context);
+    if (adapter != null) {
+      adapter.setPaymentAccounts(List<SitePaymentAccountDraft>.from(_items));
+      await siteEditorFlushDraft(context);
+    } else {
+      await SiteEditorSaveScope.run(context, () async {
+        final draft = await widget.api.draftGet(widget.siteIid);
+        final next = draft.clone();
+        final doc = next.doc.clone();
+        doc.metaJson = siteDraftExtrasMerge(doc.metaJson, paymentAccounts: List<SitePaymentAccountDraft>.from(_items));
+        next.doc = doc;
+        await widget.api.draftPut(next);
+      });
+    }
+    widget.onDraftSaved?.call();
   }
 
   void _add() {
@@ -229,13 +263,22 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator(strokeWidth: 2));
     if (_error != null && _items.isEmpty) {
-      return Center(child: Text(_error!, style: const TextStyle(color: _muted, fontSize: 13)));
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: _muted, fontSize: 13)),
+            const SizedBox(height: 12),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
+      );
     }
     final detailId = _activeId;
     if (widget.masterDetail) {
       if (_items.isEmpty) return _listPane(selectedId: null);
       final selected = detailId ?? _items.first.id;
-      if (_editingId != selected) _bindActive();
+      _scheduleDetailBinding();
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -246,7 +289,7 @@ class _UiSiteAccountsEditorState extends State<UiSiteAccountsEditor> {
       );
     }
     if (detailId != null && _find(detailId) != null) {
-      if (_editingId != detailId) _bindActive();
+      _scheduleDetailBinding();
       return _detail(detailId);
     }
     return _listPane(selectedId: null);

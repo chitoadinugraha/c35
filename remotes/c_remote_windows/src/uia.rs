@@ -9,7 +9,8 @@ use tracing::debug;
 use uiautomation::controls::ControlType;
 use uiautomation::types::Handle;
 use uiautomation::{UIAutomation, UIElement};
-use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
+use windows::Win32::Foundation::RECT;
+use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowRect, GetWindowTextW};
 
 const WALK_CAP: usize = 200;
 const WALK_DEPTH: i32 = 20;
@@ -59,10 +60,12 @@ pub fn axtree_text(marks: &[Mark], screen_w: u32, screen_h: u32) -> String {
     }
 
     // Prioritize most interactive controls (Edit, Button, ComboBox, CheckBox, TabItem, Hyperlink)
+    // then CanvasText, then others
     filtered.sort_by_key(|m| {
         match m.control_type.as_str() {
             "Edit" | "Button" | "ComboBox" | "CheckBox" | "TabItem" | "Hyperlink" => 0,
-            _ => 1,
+            "CanvasText" => 1,
+            _ => 2,
         }
     });
 
@@ -80,8 +83,15 @@ pub fn axtree_text(marks: &[Mark], screen_w: u32, screen_h: u32) -> String {
     lines.join("\n")
 }
 
-/// Walk the UI Automation tree of the active foreground window.
+/// Walk the UI Automation tree of the active foreground window without image context.
 pub fn uia_walk() -> Vec<Mark> {
+    uia_walk_som(None)
+}
+
+/// Walk the UI Automation tree and fuse with native OCR for Canvas/sparse controls.
+///
+/// `image` is `(bgra_data, buf_w, buf_h, screen_w, screen_h)`.
+pub fn uia_walk_som(image: Option<(&[u8], u32, u32, u32, u32)>) -> Vec<Mark> {
     let auto = match UIAutomation::new() {
         Ok(a) => a,
         Err(e) => {
@@ -110,12 +120,38 @@ pub fn uia_walk() -> Vec<Mark> {
     let mut q: VecDeque<(UIElement, i32)> = VecDeque::new();
     q.push_back((root, 0));
     let mut n = 1u32;
+    let mut has_canvas_or_document = false;
+    let mut canvas_roi: Option<[i32; 4]> = None;
 
     while let Some((el, depth)) = q.pop_front() {
         if out.len() >= WALK_CAP {
             break;
         }
         if depth <= WALK_DEPTH {
+            if let Ok(ct) = el.get_control_type() {
+                if ct == ControlType::Document
+                    || ct == ControlType::Custom
+                    || ct == ControlType::Pane
+                {
+                    if let Ok(r) = el.get_bounding_rectangle() {
+                        let l = r.get_left();
+                        let t = r.get_top();
+                        let w = r.get_right() - l;
+                        let h = r.get_bottom() - t;
+                        if w >= 150 && h >= 150 {
+                            has_canvas_or_document = true;
+                            let area = w as i64 * h as i64;
+                            let cur_area = canvas_roi
+                                .map(|b| b[2] as i64 * b[3] as i64)
+                                .unwrap_or(0);
+                            if canvas_roi.is_none() || area > cur_area {
+                                canvas_roi = Some([l, t, w, h]);
+                            }
+                        }
+                    }
+                }
+            }
+
             if let Some(mark) = mark_from(&el, n) {
                 out.push(mark);
                 n += 1;
@@ -136,7 +172,152 @@ pub fn uia_walk() -> Vec<Mark> {
         }
     }
 
+    // Canvas OCR & Set-of-Mark (SoM) fusion:
+    // If active foreground window has a canvas/document or sparse actionable nodes (< 15)
+    if let Some((data, buf_w, buf_h, screen_w, screen_h)) = image {
+        if !data.is_empty()
+            && buf_w > 0
+            && buf_h > 0
+            && (has_canvas_or_document || out.len() < 15)
+        {
+            let target_roi = canvas_roi.or_else(foreground_window_rect);
+            let roi_scaled = target_roi.map(|[rx, ry, rw, rh]| {
+                if screen_w > 0 && screen_h > 0 && (screen_w != buf_w || screen_h != buf_h) {
+                    let sx = buf_w as f64 / screen_w as f64;
+                    let sy = buf_h as f64 / screen_h as f64;
+                    [
+                        (rx as f64 * sx).round() as i32,
+                        (ry as f64 * sy).round() as i32,
+                        (rw as f64 * sx).round() as i32,
+                        (rh as f64 * sy).round() as i32,
+                    ]
+                } else {
+                    [rx, ry, rw, rh]
+                }
+            });
+
+            if let Ok(ocr_marks) = crate::ocr::run_ocr_bgra(data, buf_w, buf_h, roi_scaled) {
+                let rev_sx = if buf_w > 0 && screen_w > 0 {
+                    screen_w as f64 / buf_w as f64
+                } else {
+                    1.0
+                };
+                let rev_sy = if buf_h > 0 && screen_h > 0 {
+                    screen_h as f64 / buf_h as f64
+                } else {
+                    1.0
+                };
+
+                let budget = MAX_AXTREE_ITEMS.saturating_sub(out.len());
+                let mut added = 0;
+
+                for ocr in ocr_marks {
+                    if added >= budget {
+                        break;
+                    }
+                    let scr_x = (ocr.bbox[0] as f64 * rev_sx).round() as i32;
+                    let scr_y = (ocr.bbox[1] as f64 * rev_sy).round() as i32;
+                    let scr_w = (ocr.bbox[2] as f64 * rev_sx).round() as i32;
+                    let scr_h = (ocr.bbox[3] as f64 * rev_sy).round() as i32;
+
+                    if scr_w <= 4 || scr_h <= 4 || ocr.text.trim().is_empty() {
+                        continue;
+                    }
+
+                    // Deduplicate against existing UIA buttons, edits, links, etc.
+                    let overlaps = out.iter().any(|u| {
+                        let is_interactive = matches!(
+                            u.control_type.as_str(),
+                            "Button"
+                                | "Edit"
+                                | "ComboBox"
+                                | "CheckBox"
+                                | "RadioButton"
+                                | "Hyperlink"
+                                | "MenuItem"
+                                | "TabItem"
+                                | "ListItem"
+                                | "TreeItem"
+                        );
+                        is_interactive && ocr_overlaps_uia([scr_x, scr_y, scr_w, scr_h], u.bbox)
+                    });
+
+                    if !overlaps {
+                        out.push(Mark {
+                            id: String::new(),
+                            control_type: "CanvasText".to_string(),
+                            name: ocr.text,
+                            auto_id: String::new(),
+                            center_x: scr_x + scr_w / 2,
+                            center_y: scr_y + scr_h / 2,
+                            bbox: [scr_x, scr_y, scr_w, scr_h],
+                        });
+                        added += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Renumber marks sequentially (@1, @2, ...) and cap at MAX_AXTREE_ITEMS
+    out.truncate(MAX_AXTREE_ITEMS);
+    for (idx, m) in out.iter_mut().enumerate() {
+        m.id = format!("@{}", idx + 1);
+    }
+
     out
+}
+
+/// Check if an OCR bounding box overlaps with a known UIA control bounding box.
+pub fn ocr_overlaps_uia(ocr_bbox: [i32; 4], uia_bbox: [i32; 4]) -> bool {
+    let [ox, oy, ow, oh] = ocr_bbox;
+    let [ux, uy, uw, uh] = uia_bbox;
+
+    if ow <= 0 || oh <= 0 || uw <= 0 || uh <= 0 {
+        return false;
+    }
+
+    let ocx = ox + ow / 2;
+    let ocy = oy + oh / 2;
+
+    // 1. Center containment: OCR token center is inside the UIA control box
+    if ocx >= ux && ocx <= ux + uw && ocy >= uy && ocy <= uy + uh {
+        return true;
+    }
+
+    // 2. Spatial intersection over OCR area
+    let inter_l = ox.max(ux);
+    let inter_r = (ox + ow).min(ux + uw);
+    let inter_t = oy.max(uy);
+    let inter_b = (oy + oh).min(uy + uh);
+
+    if inter_r > inter_l && inter_b > inter_t {
+        let inter_area = (inter_r - inter_l) as i64 * (inter_b - inter_t) as i64;
+        let ocr_area = ow as i64 * oh as i64;
+        if ocr_area > 0 && inter_area * 100 / ocr_area >= 35 {
+            return true;
+        }
+    }
+
+    false
+}
+
+pub fn foreground_window_rect() -> Option<[i32; 4]> {
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.is_invalid() {
+            return None;
+        }
+        let mut rect = RECT::default();
+        if GetWindowRect(hwnd, &mut rect).is_ok() {
+            let w = rect.right - rect.left;
+            let h = rect.bottom - rect.top;
+            if w > 10 && h > 10 {
+                return Some([rect.left, rect.top, w, h]);
+            }
+        }
+        None
+    }
 }
 
 pub fn uia_foreground_title() -> String {
@@ -314,7 +495,13 @@ pub fn draw_som_overlay(
         let right = (bx + bw).min(dst_w as i32 - 1);
         let bottom = (by + bh).min(dst_h as i32 - 1);
 
-        // 1. Draw 2px hollow bounding box in Coral / Orange-Red: BGRA = [0, 69, 255, 255]
+        let (border_b, border_g, border_r) = if m.control_type == "CanvasText" {
+            (240u8, 160u8, 0u8) // Cyan / Sky Blue for Canvas text
+        } else {
+            (0u8, 69u8, 255u8) // Coral / Orange-Red for native UIA controls
+        };
+
+        // 1. Draw 2px hollow bounding box
         for y in by..=bottom {
             for x in bx..=right {
                 let is_border = (y - by).abs() < 2
@@ -324,9 +511,9 @@ pub fn draw_som_overlay(
 
                 if is_border && x >= 0 && x < dst_w as i32 && y >= 0 && y < dst_h as i32 {
                     let idx = (y as usize * dst_w as usize + x as usize) * 4;
-                    buf[idx] = 0;
-                    buf[idx + 1] = 69;
-                    buf[idx + 2] = 255;
+                    buf[idx] = border_b;
+                    buf[idx + 1] = border_g;
+                    buf[idx + 2] = border_r;
                     buf[idx + 3] = 255;
                 }
             }
@@ -632,7 +819,131 @@ mod tests {
         // 1 header line + 50 items = 51 lines
         assert_eq!(lines.len(), 51);
         assert_eq!(lines[0], "Interactive UI elements (use exact normalized x, y to click):");
-        assert!(lines[1].contains("@1 Button 'Button 1'"));
-        assert!(lines[50].contains("@50 Button 'Button 50'"));
+        assert_eq!(lines[1].contains("@1 Button 'Button 1'"), true);
+        assert_eq!(lines[50].contains("@50 Button 'Button 50'"), true);
+    }
+
+    #[test]
+    fn test_ocr_overlaps_uia_contained() {
+        let uia_button = [100, 100, 100, 40]; // [x, y, w, h]
+        // OCR text completely inside button
+        let ocr_inside = [120, 110, 60, 20];
+        assert!(ocr_overlaps_uia(ocr_inside, uia_button));
+    }
+
+    #[test]
+    fn test_ocr_overlaps_uia_partial_overlap() {
+        let uia_edit = [100, 100, 100, 40];
+        // OCR text overlapping significantly (>35%)
+        let ocr_overlap = [150, 100, 80, 40];
+        assert!(ocr_overlaps_uia(ocr_overlap, uia_edit));
+    }
+
+    #[test]
+    fn test_ocr_overlaps_uia_no_overlap() {
+        let uia_button = [100, 100, 100, 40];
+        // OCR text far away on the canvas
+        let ocr_separate = [400, 500, 80, 20];
+        assert!(!ocr_overlaps_uia(ocr_separate, uia_button));
+    }
+
+    #[test]
+    fn test_ocr_overlaps_uia_zero_size() {
+        assert!(!ocr_overlaps_uia([0, 0, 0, 0], [10, 10, 50, 50]));
+        assert!(!ocr_overlaps_uia([10, 10, 50, 50], [0, 0, 0, 0]));
+    }
+
+    #[test]
+    fn test_axtree_text_with_canvas_text() {
+        let marks = vec![
+            Mark {
+                id: "@1".to_string(),
+                control_type: "Button".to_string(),
+                name: "Submit".to_string(),
+                auto_id: "".to_string(),
+                center_x: 200,
+                center_y: 200,
+                bbox: [150, 180, 100, 40],
+            },
+            Mark {
+                id: "@2".to_string(),
+                control_type: "CanvasText".to_string(),
+                name: "Revenue".to_string(),
+                auto_id: "".to_string(),
+                center_x: 400,
+                center_y: 300,
+                bbox: [370, 290, 60, 20],
+            },
+            Mark {
+                id: "@3".to_string(),
+                control_type: "ListItem".to_string(),
+                name: "Row 1".to_string(),
+                auto_id: "".to_string(),
+                center_x: 100,
+                center_y: 500,
+                bbox: [50, 480, 100, 40],
+            },
+        ];
+
+        let text = axtree_text(&marks, 1000, 1000);
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines.len(), 4);
+        // Priority 0: Button
+        assert!(lines[1].contains("@1 Button 'Submit'"));
+        // Priority 1: CanvasText
+        assert!(lines[2].contains("@2 CanvasText 'Revenue'"));
+        assert!(lines[2].contains("center=(0.400, 0.300) pixel=(400, 300) size=(60x20)"));
+        // Priority 2: ListItem
+        assert!(lines[3].contains("@3 ListItem 'Row 1'"));
+    }
+
+    #[test]
+    fn test_draw_som_overlay_with_canvas_text() {
+        let mut buf = vec![0u8; 100 * 100 * 4];
+        let marks = vec![
+            Mark {
+                id: "@1".to_string(),
+                control_type: "Button".to_string(),
+                name: "Btn".to_string(),
+                auto_id: "".to_string(),
+                center_x: 35,
+                center_y: 35,
+                bbox: [20, 20, 30, 30],
+            },
+            Mark {
+                id: "@2".to_string(),
+                control_type: "CanvasText".to_string(),
+                name: "Txt".to_string(),
+                auto_id: "".to_string(),
+                center_x: 75,
+                center_y: 75,
+                bbox: [60, 60, 30, 30],
+            },
+        ];
+
+        draw_som_overlay(&mut buf, 100, 100, 100, 100, &marks);
+
+        // Verify UIA button border is drawn (Coral: BGRA = [0, 69, 255, 255])
+        let uia_border_idx = (20 * 100 + 20) * 4;
+        assert_eq!(buf[uia_border_idx], 0);
+        assert_eq!(buf[uia_border_idx + 1], 69);
+        assert_eq!(buf[uia_border_idx + 2], 255);
+
+        // Verify CanvasText border is drawn (Cyan: BGRA = [240, 160, 0, 255])
+        let canvas_border_idx = (60 * 100 + 60) * 4;
+        assert_eq!(buf[canvas_border_idx], 240);
+        assert_eq!(buf[canvas_border_idx + 1], 160);
+        assert_eq!(buf[canvas_border_idx + 2], 0);
+
+        // Verify number badges are rendered (Crimson Red background: [60, 20, 220, 255])
+        let uia_badge_idx = (10 * 100 + 20) * 4; // y in 2..20, x in 20..46
+        assert_eq!(buf[uia_badge_idx], 60);
+        assert_eq!(buf[uia_badge_idx + 1], 20);
+        assert_eq!(buf[uia_badge_idx + 2], 220);
+
+        let canvas_badge_idx = (50 * 100 + 60) * 4; // y in 42..60, x in 60..86
+        assert_eq!(buf[canvas_badge_idx], 60);
+        assert_eq!(buf[canvas_badge_idx + 1], 20);
+        assert_eq!(buf[canvas_badge_idx + 2], 220);
     }
 }

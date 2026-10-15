@@ -359,6 +359,10 @@ class ChatConn {
     lError('chat ws: $e');
     if (_manualDisconnect) {
       _failAll(uiPromptErrorMessage('$e'));
+      _detachSocket();
+    } else {
+      _detachSocket();
+      _statusOfflineIfSocketGone();
     }
     _scheduleReconnectIfNeeded();
   }
@@ -367,8 +371,23 @@ class ChatConn {
     if (gen != _socketGen) return;
     if (_manualDisconnect) {
       _failAll(uiConnectionFailed);
+      _detachSocket();
+    } else {
+      _detachSocket();
+      _statusOfflineIfSocketGone();
     }
     _scheduleReconnectIfNeeded();
+  }
+
+  /// [status] can stay [ChatConnStatus.connected] after the socket is torn down
+  /// (e.g. send failure while a reconnect timer is already scheduled). Keep UI
+  /// and [connected] in sync so the offline indicator can show.
+  void _statusOfflineIfSocketGone() {
+    if (_manualDisconnect || Session.instance.token.trim().isEmpty) return;
+    if (_ch != null) return;
+    if (status.value == ChatConnStatus.connected) {
+      _statusSet(ChatConnStatus.reconnecting);
+    }
   }
 
   void _scheduleReconnectIfNeeded() {
@@ -380,7 +399,10 @@ class ChatConn {
       _statusSet(ChatConnStatus.disconnected);
       return;
     }
-    if (_reconnectTimer != null) return;
+    if (_reconnectTimer != null) {
+      _statusOfflineIfSocketGone();
+      return;
+    }
     _statusSet(ChatConnStatus.reconnecting);
     _retryCount++;
     // Exponential backoff capped at 16 seconds to prevent socket exhaustion and ensure quick recovery
@@ -433,6 +455,7 @@ class ChatConn {
   Future<void> _nudgeReconnectAfterSendFailure() async {
     if (_manualDisconnect || Session.instance.token.trim().isEmpty) return;
     await _tearDownSocket(failPending: false);
+    _statusOfflineIfSocketGone();
     _scheduleReconnectIfNeeded();
   }
 
@@ -1142,8 +1165,30 @@ class ChatConn {
         (res) => res.siteList,
       );
 
-  Future<ResSiteDraftGet> siteDraftGet(int siteIid) => _rpc<ResSiteDraftGet>(
-        WsReq(siteDraftGet: ReqSiteDraftGet(siteIid: Int64(siteIid))),
+  Future<ResSiteQueryRun> siteQueryRun({
+    required String queryId,
+    required List<int> siteIids,
+    String paramsJson = '{}',
+  }) =>
+      _rpc<ResSiteQueryRun>(
+        WsReq(
+          siteQueryRun: ReqSiteQueryRun(
+            queryId: queryId,
+            siteIids: siteIids.map(Int64.new).toList(growable: false),
+            paramsJson: paramsJson,
+          ),
+        ),
+        (res) => res.siteQueryRun,
+      );
+
+  Future<ResSiteDraftGet> siteDraftGet(int siteIid, {bool skipPublishStatus = false}) =>
+      _rpc<ResSiteDraftGet>(
+        WsReq(
+          siteDraftGet: ReqSiteDraftGet(
+            siteIid: Int64(siteIid),
+            skipPublishStatus: skipPublishStatus,
+          ),
+        ),
         (res) => res.siteDraftGet,
       );
 

@@ -3,8 +3,9 @@ use axum::extract::{Query, State, WebSocketUpgrade};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use c35_ctx::AppState;
-use c35_mod_live::{live_guest_session_take, live_proxy_run, live_session_take};
+use c35_mod_live::{live_error_record, live_guest_session_take, live_proxy_run, live_session_take};
 use serde::Deserialize;
+use serde_json::json;
 
 #[derive(Debug, Deserialize)]
 pub struct LiveWsQuery {
@@ -28,24 +29,44 @@ pub async fn live_ws_handler(
         .unwrap_or("")
         .trim();
 
+    let pool = state.pool.clone();
+    let nats = state.nats.clone();
+
+    let mut caller_iid = 0i64;
+    if let Some(user_jwt) = q.jwt.as_deref().filter(|s| !s.trim().is_empty()) {
+        if let Ok(Some(id)) = c35_mod_identity::auth_session_resolve(&pool, user_jwt).await {
+            if id > 0 {
+                caller_iid = id;
+            }
+        }
+    }
+
     if sid.is_empty() || live_token.is_empty() {
+        live_error_record(
+            &pool,
+            nats.as_ref(),
+            caller_iid,
+            None,
+            None,
+            "live_ws",
+            "Live WebSocket rejected: missing sid or token",
+            Some("bad_request"),
+            json!({ "sid": sid, "has_token": !live_token.is_empty() }),
+        )
+        .await;
         return axum::http::StatusCode::BAD_REQUEST.into_response();
     }
 
     let mut ticket_opt = None;
 
-    // 1. Authenticated user path if jwt is present
-    if let Some(user_jwt) = q.jwt.as_deref().filter(|s| !s.trim().is_empty()) {
-        if let Ok(Some(caller_iid)) = c35_mod_identity::auth_session_resolve(&state.pool, user_jwt).await {
-            if caller_iid > 0 {
-                ticket_opt = live_session_take(&state.pool, sid, live_token, caller_iid).await;
-            }
-        }
+    // 1. Authenticated user path when JWT resolves to a caller
+    if caller_iid > 0 {
+        ticket_opt = live_session_take(&pool, sid, live_token, caller_iid).await;
     }
 
     // 2. Guest path when jwt is absent or invalid: allow anonymous guest WebSocket
     if ticket_opt.is_none() {
-        if let Some(guest_ticket) = live_guest_session_take(&state.pool, sid, live_token).await {
+        if let Some(guest_ticket) = live_guest_session_take(&pool, sid, live_token).await {
             if guest_ticket.guest.is_some() {
                 ticket_opt = Some(guest_ticket);
             }
@@ -53,12 +74,26 @@ pub async fn live_ws_handler(
     }
 
     let Some(ticket) = ticket_opt else {
+        live_error_record(
+            &pool,
+            nats.as_ref(),
+            caller_iid,
+            None,
+            None,
+            "live_ws",
+            "Live WebSocket rejected: invalid or expired session",
+            Some(if caller_iid > 0 {
+                "live_session_take_failed"
+            } else {
+                "guest_auth_failed"
+            }),
+            json!({ "sid": sid }),
+        )
+        .await;
         return axum::http::StatusCode::FORBIDDEN.into_response();
     };
 
     let _ = c35_mod_identity::identity_geo_from_headers(&headers);
-    let pool = state.pool.clone();
-    let nats = state.nats.clone();
     ws.on_upgrade(move |socket: WebSocket| async move {
         live_proxy_run(pool, nats, ticket, socket).await;
     })

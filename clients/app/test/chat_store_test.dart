@@ -786,6 +786,13 @@ void main() {
     expect(store.msgs.single.content, '        def foo():\n......');
   });
 
+  test('msgUserContentPublic strips appended google sheets playbook', () {
+    const leaked =
+        "Add two new rows.\n\n[GOOGLE SHEETS ON DEVICE] Always device.screenshot with som=true before acting.";
+    expect(msgUserContentPublic(leaked), 'Add two new rows.');
+    expect(msgUserContentHasSteerSuffix(leaked), isTrue);
+  });
+
   test('msgStreamCancel blocks further chunks and scrubs steer leak', () {
     final store = ChatStore();
     store.msgs = [

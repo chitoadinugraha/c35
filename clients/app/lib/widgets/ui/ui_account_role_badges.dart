@@ -12,14 +12,14 @@ enum UiAccountRoleBadgeSize { menu, page }
 class UiAccountRoleBadgesAction {
   const UiAccountRoleBadgesAction({
     this.onRootConsole,
-    this.onDirectorEditSite,
+    this.onDirectorManageSite,
     this.onFinancePayments,
     this.onFinanceReceiveAccounts,
     this.onMarketingGenerateVoucher,
   });
 
   final VoidCallback? onRootConsole;
-  final VoidCallback? onDirectorEditSite;
+  final VoidCallback? onDirectorManageSite;
   final VoidCallback? onFinancePayments;
   final VoidCallback? onFinanceReceiveAccounts;
   final VoidCallback? onMarketingGenerateVoucher;
@@ -28,7 +28,7 @@ class UiAccountRoleBadgesAction {
 bool uiAccountRoleHasFinanceNav(UiAccountRoleBadgesAction action) =>
     action.onFinancePayments != null || action.onFinanceReceiveAccounts != null;
 
-bool uiAccountRoleHasDirectorNav(UiAccountRoleBadgesAction action) => action.onDirectorEditSite != null;
+bool uiAccountRoleHasDirectorNav(UiAccountRoleBadgesAction action) => action.onDirectorManageSite != null;
 
 bool uiAccountRoleHasMarketingNav(UiAccountRoleBadgesAction action) => action.onMarketingGenerateVoucher != null;
 
@@ -129,20 +129,20 @@ class _DirectorBadgeState extends State<_DirectorBadge> {
       color: const Color(0xFF18181B),
       position: uiMenuPositionBelow(menuCtx, box),
       items: [
-        if (widget.action.onDirectorEditSite != null)
+        if (widget.action.onDirectorManageSite != null)
           const PopupMenuItem(
-            value: 'edit_site',
+            value: 'manage_site',
             child: Row(
               children: [
-                Icon(Icons.edit_outlined, size: 16, color: _muted),
+                Icon(Icons.language_outlined, size: 16, color: _muted),
                 SizedBox(width: 10),
-                Text('Edit site', style: TextStyle(color: _badgeText, fontSize: 13)),
+                Text('Manage site', style: TextStyle(color: _badgeText, fontSize: 13)),
               ],
             ),
           ),
       ],
     );
-    if (selected == 'edit_site') widget.action.onDirectorEditSite?.call();
+    if (selected == 'manage_site') widget.action.onDirectorManageSite?.call();
   }
 
   @override

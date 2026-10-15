@@ -21,8 +21,11 @@ import 'package:alienai_c35/c/ui/money_format.dart';
 import 'package:alienai_c35/c/ui/ui_duration_format.dart';
 import 'package:alienai_c35/c/ui/ui_format.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:alienai_c35/c/chat/chat_inbox.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ai/ui_live_offer_icon.dart';
+import 'package:alienai_c35/widgets/ai/ui_msg_error.dart';
+import 'package:alienai_c35/widgets/ui/ui_error_fallback.dart';
 import 'package:alienai_c35/widgets/ai/ui_mention_chip.dart';
 import 'package:alienai_c35/widgets/billing/ui_billing_plan_sheet.dart';
 import 'package:file_picker/file_picker.dart';
@@ -58,7 +61,7 @@ class PageLiveCall extends StatefulWidget {
 class _PageLiveCallState extends State<PageLiveCall> {
   late final LiveCallSession _session = LiveCallSession();
   var _busy = false;
-  String? _error;
+  String? _errorRaw;
   DateTime? _connectedAt;
   Timer? _callDurationTimer;
   int _callElapsedSeconds = 0;
@@ -162,20 +165,20 @@ class _PageLiveCallState extends State<PageLiveCall> {
         : (wallet.balanceUsd > 0 ? wallet.balanceUsd : 0.0);
     final totalMins = retailUsdPerMin > 0 ? ((allowRem + balUsd) / retailUsdPerMin) : 0.0;
     if (totalMins <= 0.0) {
-      setState(() => _error = 'No call time available. Top up your balance or upgrade your plan to continue.');
+      setState(() => _errorRaw = 'No call time available. Top up your balance or upgrade your plan to continue.');
       showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid));
       return;
     }
 
     setState(() {
       _busy = true;
-      _error = null;
+      _errorRaw = null;
     });
     try {
       final perm = await sttMicPermissionEnsure();
       if (!mounted || !_busy) return;
       if (!perm) {
-        setState(() => _error = sttMicErrorMessage());
+        setState(() => _errorRaw = sttMicErrorMessage());
         return;
       }
 
@@ -190,15 +193,15 @@ class _PageLiveCallState extends State<PageLiveCall> {
       if (!mounted || !_busy) return;
       if (res.error.isNotEmpty) {
         _refreshWallet();
-        setState(() => _error = uiFriendlyError(res.error));
+        setState(() => _errorRaw = res.error);
       } else {
         await LiveCallPrefs.setLastOfferId(widget.offer.id);
         if (!mounted || !_busy) return;
         await _session.connect(res);
-        if (_session.error.value != null && mounted) setState(() => _error = uiFriendlyError(_session.error.value!));
+        if (_session.error.value != null && mounted) setState(() => _errorRaw = _session.error.value);
       }
     } catch (e) {
-      if (mounted && _busy) setState(() => _error = uiFriendlyError(e));
+      if (mounted && _busy) setState(() => _errorRaw = uiErrorDetailText(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -211,7 +214,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
     final err = _session.error.value;
     if (err == LiveCallSession.disconnectedError && _redials < 2 && !_busy) {
       _redials++;
-      setState(() => _error = 'Reconnecting...');
+      setState(() => _errorRaw = 'Reconnecting...');
       Future.delayed(Duration(seconds: _redials), () {
         if (mounted && !_session.connected.value && !_busy) {
           _session.error.value = null;
@@ -220,7 +223,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
       });
       return;
     }
-    setState(() => _error = err != null ? uiFriendlyError(err) : null);
+    setState(() => _errorRaw = err);
   }
 
   Future<void> _hangup() async {
@@ -298,7 +301,48 @@ class _PageLiveCallState extends State<PageLiveCall> {
                         ),
                       ),
                       Expanded(
-                        child: Center(
+                        child: inCall && ready
+                            ? Column(
+                                children: [
+                                  _compactInCallHeader(ready: ready),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: SingleChildScrollView(
+                                        physics: const ClampingScrollPhysics(),
+                                        padding: const EdgeInsets.only(bottom: 8),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            _transcriptBubbles(on: inCall, ready: ready, roomy: true),
+                                            _toolExecutingIndicator(on: inCall, ready: ready),
+                                            if (PromptUsagePrefs.instance.showUsageStats)
+                                              ValueListenableBuilder<LiveUsage?>(
+                                                valueListenable: _session.usage,
+                                                builder: (_, u, __) => u == null
+                                                    ? const SizedBox.shrink()
+                                                    : Padding(
+                                                        padding: const EdgeInsets.only(top: 10),
+                                                        child: Text(
+                                                          '${uiFmtGroupedInt(u.totalTokens)} tokens · in ${uiFmtGroupedInt(u.promptTokens)} · out ${uiFmtGroupedInt(u.responseTokens)}',
+                                                          textAlign: TextAlign.center,
+                                                          style: const TextStyle(color: Color(0xFF52525B), fontSize: 11),
+                                                        ),
+                                                      ),
+                                              ),
+                                            if (_errorRaw != null) ...[
+                                              const SizedBox(height: 14),
+                                              _errorBanner(),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Center(
                           child: SingleChildScrollView(
                             physics: const ClampingScrollPhysics(),
                             child: Padding(
@@ -466,9 +510,9 @@ class _PageLiveCallState extends State<PageLiveCall> {
                                               ),
                                             ),
                                     ),
-                                  if (_error != null) ...[
+                                  if (_errorRaw != null) ...[
                                     const SizedBox(height: 14),
-                                    _errorBanner(_error!),
+                                    _errorBanner(),
                                   ],
                                 ],
                               ),
@@ -476,7 +520,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 8),
                       _callControls(inCall: inCall),
                       const SizedBox(height: 8),
                     ],
@@ -500,62 +544,68 @@ class _PageLiveCallState extends State<PageLiveCall> {
     return InkWell(
       onTap: hasTime ? null : () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid)),
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 280,
-        margin: const EdgeInsets.only(top: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF131316),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: hasTime ? const Color(0xFF22C55E).withValues(alpha: 0.28) : const Color(0xFF27272A),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF131316),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: hasTime ? const Color(0xFF22C55E).withValues(alpha: 0.28) : const Color(0xFF27272A),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accentColor.withValues(alpha: 0.15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              child: Icon(
-                Icons.hourglass_top_rounded,
-                size: 13,
-                color: accentColor,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              limitLabel,
-              style: const TextStyle(
-                color: Color(0xFFA1A1AA),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              availableLabel,
-              style: TextStyle(
-                color: accentColor,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            if (!hasTime) ...[
-              const SizedBox(width: 6),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFF71717A)),
             ],
-          ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accentColor.withValues(alpha: 0.15),
+                ),
+                child: Icon(
+                  Icons.hourglass_top_rounded,
+                  size: 13,
+                  color: accentColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                limitLabel,
+                style: const TextStyle(
+                  color: Color(0xFFA1A1AA),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  availableLabel,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: accentColor,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+              if (!hasTime) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Color(0xFF71717A)),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -624,13 +674,54 @@ class _PageLiveCallState extends State<PageLiveCall> {
     );
   }
 
-  Widget _avatarRing({required bool inCall, required bool ready}) {
+  Widget _compactInCallHeader({required bool ready}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          _avatarRing(inCall: true, ready: ready, compact: true),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  liveOfferActionTitle(widget.offer),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFFAFAFA),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _formatDuration(_callElapsedSeconds),
+                  style: const TextStyle(
+                    color: Color(0xFF22C55E),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _avatarRing({required bool inCall, required bool ready, bool compact = false}) {
     final ring = inCall
         ? const Color(0xFF22C55E)
         : const Color(0xFF3F3F46);
+    final outer = compact ? 56.0 : 104.0;
+    final iconSize = compact ? 28.0 : 48.0;
     return Container(
-      width: 104,
-      height: 104,
+      width: outer,
+      height: outer,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: ring, width: 3),
@@ -644,12 +735,12 @@ class _PageLiveCallState extends State<PageLiveCall> {
           shape: BoxShape.circle,
           color: Color(0xFF18181B),
         ),
-        child: Center(child: UiLiveOfferIcon(offer: widget.offer, size: 48)),
+        child: Center(child: UiLiveOfferIcon(offer: widget.offer, size: iconSize)),
       ),
     );
   }
 
-  Widget _transcriptBubbles({required bool on, required bool ready}) {
+  Widget _transcriptBubbles({required bool on, required bool ready, bool roomy = false}) {
     if (!on || !ready) return const SizedBox.shrink();
 
     return ListenableBuilder(
@@ -663,8 +754,9 @@ class _PageLiveCallState extends State<PageLiveCall> {
         }
 
         return Container(
-          margin: const EdgeInsets.only(top: 14),
-          constraints: const BoxConstraints(maxWidth: 460),
+          margin: EdgeInsets.only(top: roomy ? 4 : 14),
+          width: roomy ? double.infinity : null,
+          constraints: roomy ? null : const BoxConstraints(maxWidth: 460),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -675,7 +767,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
                   child: Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    constraints: const BoxConstraints(maxWidth: 360),
+                    constraints: BoxConstraints(maxWidth: roomy ? 520 : 360),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0F172A).withValues(alpha: 0.9),
                       borderRadius: const BorderRadius.only(
@@ -723,7 +815,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
                   alignment: Alignment.centerLeft,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    constraints: const BoxConstraints(maxWidth: 360),
+                    constraints: BoxConstraints(maxWidth: roomy ? 520 : 360),
                     decoration: BoxDecoration(
                       color: const Color(0xFF141416).withValues(alpha: 0.92),
                       borderRadius: const BorderRadius.only(
@@ -834,72 +926,41 @@ class _PageLiveCallState extends State<PageLiveCall> {
     return _tr('tool.executing', 'Menjalankan alat: $name…');
   }
 
-  Widget _errorBanner(String message) {
-    final quota = uiIsQuotaError(message);
-    var displayMsg = quota && message == uiCannotConnectToAlienAi
-        ? 'Out of call quota. Upgrade your plan to continue.'
-        : message;
-    if (quota && (message.contains("insufficient safe balance") || message.contains("out of quota") || message.contains("No call time available"))) {
-      displayMsg = "Insufficient balance or call quota. Top up your balance or upgrade your plan to continue.";
-    }
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: quota
-            ? const Color(0xFF0C4A6E).withValues(alpha: 0.45)
-            : const Color(0xFF450A0A).withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: quota ? const Color(0xFF0284C7).withValues(alpha: 0.5) : const Color(0xFF7F1D1D),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                quota ? Icons.bolt_rounded : Icons.error_outline_rounded,
-                size: 18,
-                color: quota ? const Color(0xFF38BDF8) : const Color(0xFFF87171),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  displayMsg,
-                  style: TextStyle(
-                    color: quota ? const Color(0xFFBAE6FD) : const Color(0xFFFECACA),
-                    fontSize: 13,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (quota) ...[
-            const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid)),
-              icon: const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFF38BDF8)),
-              label: const Text(
-                'Top up / Upgrade plan',
-                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFF38BDF8).withValues(alpha: 0.15),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
-                ),
-              ),
+  Widget _errorBanner() {
+    final raw = _errorRaw?.trim() ?? '';
+    if (raw.isEmpty) return const SizedBox.shrink();
+    final reconnecting = raw.toLowerCase() == 'reconnecting...';
+    final inCall = _session.connected.value;
+    final friendly = uiFriendlyError(raw);
+    final quota = uiIsQuotaError(raw) || uiIsQuotaError(friendly);
+    final canRetry = !reconnecting && !inCall && !_busy && widget.offer.enabled;
+
+    return Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: quota ? const Color(0xFF0C1929) : const Color(0xFF18181B),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: quota ? const Color(0xFF0E7490).withValues(alpha: 0.45) : const Color(0xFF3F3F46),
             ),
-          ],
-        ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
+            child: UiMsgError(
+              message: friendly,
+              detail: sessionViewerIsRoot() && !reconnecting ? raw : null,
+              viewerIsRoot: sessionViewerIsRoot(),
+              onRetry: canRetry ? () => unawaited(_connect()) : null,
+              retrying: _busy,
+              onUpgrade: quota
+                  ? () => showBillingPlanSheet(context, ReferralConn(uid: Session.instance.uid))
+                  : null,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -933,6 +994,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
           active: muted,
           activeColor: const Color(0xFFEF4444),
           onTap: _session.toggleMicMute,
+          compact: true,
         );
         final speakerBtn = _controlCircleButton(
           icon: speakerOn ? Icons.volume_up_rounded : Icons.volume_down_rounded,
@@ -940,6 +1002,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
           active: speakerOn,
           activeColor: const Color(0xFF10B981),
           onTap: _session.toggleSpeaker,
+          compact: true,
         );
         final attachBtn = _controlCircleButton(
           icon: Icons.add_rounded,
@@ -947,6 +1010,7 @@ class _PageLiveCallState extends State<PageLiveCall> {
           active: hasAttachment,
           activeColor: const Color(0xFF38BDF8),
           onTap: _pickAndAttachMedia,
+          compact: true,
         );
         final videoBtn = _controlCircleButton(
           icon: camActive ? Icons.videocam_rounded : Icons.videocam_outlined,
@@ -957,55 +1021,33 @@ class _PageLiveCallState extends State<PageLiveCall> {
             await _session.toggleCamera();
             if (mounted) setState(() {});
           },
+          compact: true,
         );
 
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: double.infinity,
-              child: LayoutBuilder(
-              builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 480;
-                final controls = [micBtn, speakerBtn, attachBtn, videoBtn];
-                if (wide) {
-                  return ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: math.min(560, constraints.maxWidth)),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: controls,
-                    ),
-                  );
-                }
-                return ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 240),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [micBtn, speakerBtn],
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [attachBtn, videoBtn],
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            ),
-            const SizedBox(height: 28),
-            // Centered End call button at the bottom
-            _roundCallButton(
-              color: const Color(0xFFDC2626),
-              icon: Icons.call_end_rounded,
-              size: 68,
-              onTap: _hangup,
-            ),
-          ],
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [micBtn, const SizedBox(width: 4), speakerBtn],
+                ),
+              ),
+              _roundCallButton(
+                color: const Color(0xFFDC2626),
+                icon: Icons.call_end_rounded,
+                size: 58,
+                onTap: _hangup,
+              ),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [attachBtn, const SizedBox(width: 4), videoBtn],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -1017,51 +1059,58 @@ class _PageLiveCallState extends State<PageLiveCall> {
     required bool active,
     required Color activeColor,
     required VoidCallback onTap,
-  }) =>
-      SizedBox(
-        width: 84,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Material(
-              color: active ? activeColor.withValues(alpha: 0.18) : const Color(0xFF27272A),
-              shape: const CircleBorder(),
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: onTap,
-                child: Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: active ? activeColor : const Color(0xFF3F3F46),
-                      width: 1.5,
-                    ),
+    bool compact = false,
+  }) {
+    final circle = compact ? 44.0 : 58.0;
+    final iconSize = compact ? 20.0 : 26.0;
+    final slotWidth = compact ? 56.0 : 84.0;
+    final labelSize = compact ? 9.5 : 11.5;
+    return SizedBox(
+      width: slotWidth,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Material(
+            color: active ? activeColor.withValues(alpha: 0.18) : const Color(0xFF27272A),
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: onTap,
+              child: Container(
+                width: circle,
+                height: circle,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: active ? activeColor : const Color(0xFF3F3F46),
+                    width: 1.5,
                   ),
-                  child: Icon(
-                    icon,
-                    color: active ? activeColor : const Color(0xFFD4D4D8),
-                    size: 26,
-                  ),
+                ),
+                child: Icon(
+                  icon,
+                  color: active ? activeColor : const Color(0xFFD4D4D8),
+                  size: iconSize,
                 ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: active ? activeColor : const Color(0xFFA1A1AA),
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-              ),
+          ),
+          if (!compact) const SizedBox(height: 6),
+          if (compact) const SizedBox(height: 3),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: active ? activeColor : const Color(0xFFA1A1AA),
+              fontSize: labelSize,
+              fontWeight: FontWeight.w500,
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _roundCallButton({
     required Color color,

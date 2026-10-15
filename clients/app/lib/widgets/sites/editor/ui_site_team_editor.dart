@@ -127,16 +127,19 @@ class UiSiteTeamEditor extends StatefulWidget {
 class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
-  var _loading = true;
+  var _loading = false;
   var _busy = false;
   String? _error;
   String? _selectedId;
   List<SiteGrant> _grants = const [];
   List<SiteWorkShift> _shifts = const [];
+  var _loadScheduled = false;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_reload());
   }
 
@@ -191,7 +194,9 @@ class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> with SiteEditorCata
     if (mounted) {
       setState(() {
         _loading = false;
-        if (catalog.warmError != null && _grants.isEmpty) {
+        if (_grants.isNotEmpty) {
+          _error = null;
+        } else if (catalog.warmError != null) {
           _error = uiFriendlyError(catalog.warmError!);
         }
       });
@@ -199,12 +204,17 @@ class _UiSiteTeamEditorState extends State<UiSiteTeamEditor> with SiteEditorCata
   }
 
   Future<void> _reload() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (siteEditorCatalogWaitsForWarm(editorCatalog)) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
-      if (await ensureEditorCatalog()) return;
+      if (await ensureEditorCatalog()) {
+        if (mounted) setState(() => _loading = false);
+        return;
+      }
       final grants = await widget.api.grantList(widget.siteIid);
       List<SiteWorkShift> shifts = const [];
       try {

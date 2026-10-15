@@ -418,6 +418,22 @@ To eliminate coordinate hallucination and trial-and-error clicks:
   ```
 - The vision model can target `@index` or normalized center coordinates with 100% precision.
 
+#### 2b. Canvas OCR-Augmented Set-of-Mark (WinRT OcrEngine)
+
+Modern web and desktop applications (Google Sheets, Google Docs, Figma, Flutter Web, Miro) render controls onto a monolithic `<canvas>` element, which appears as a black box to OS accessibility trees (UIA). To ground canvas content:
+- **Selective ROI WinRT OCR (`ocr.rs`):** When the active foreground window contains a canvas/document pane or when actionable UIA nodes are sparse (<15), the Windows agent executes `Windows.Media.Ocr.OcrEngine` directly on the BGRA framebuffer slice.
+- **Hardware-Accelerated & Zero-Dependency:** Uses built-in Windows 10/11 OS runtime (`windows` crate with `Media_Ocr` & `Graphics_Imaging`). Zero external DLLs, Python, or ONNX overhead; runs in **10–25ms**.
+- **Mark Fusion & Deduplication:** OCR word bounding boxes are fused into the SoM registry as `@N CanvasText '<text>'`. Words that spatially overlap with existing UIA native controls are deduplicated.
+- **Badge Overlay & Inspection:** Numbered badges are drawn on OCR text centers on the JPEG screenshot. Full parity with `/som <device>` and `/som <device> mark <N>` crosshairs for developer debugging.
+
+#### 2c. Turn-0 Eager Screenshot & SoM Pre-Fetching (Zero-Turn Cold Start)
+
+Traditional computer use incurs a 2–4s latency penalty on turn 1 because the model must decide to call `device.screenshot` before taking any action.
+- **Eager Capture on Mention/Delegate:** When a user prompt mentions a device or when `computer_use.delegate` starts, the server queries the in-memory cluster presence cache (`agent_cluster_online`). If the device is online, an eager capture request (`som=true`) is dispatched concurrently over NATS.
+- **Turn 0 Injection:** The resulting JPEG (with visual badges) is attached directly into `inlineData`, and the structured `axtree_text` (including both native UIA controls and CanvasText tokens) is appended to the user turn prompt.
+- **Immediate Action:** The model starts in Turn 1 already possessing visual grounding, calling `device.input` directly without a preliminary screenshot round.
+- **Offline Safeguard:** If the device is offline or fails to respond within 600ms, the turn falls back seamlessly to standard text without stalling.
+
 #### 3. Visual Red Action Markers & Box Downsampling
 
 - When verifying an action or setting `marker_x` and `marker_y`, `draw_red_marker` renders a solid red target dot (radius 4px) encircled by a crisp white halo (radius 7px).

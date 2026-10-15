@@ -9,7 +9,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     MOUSEEVENTF_WHEEL, MOUSEINPUT, VIRTUAL_KEY,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
+    GetCursorPos, GetSystemMetrics, SetCursorPos, SM_CXSCREEN, SM_CYSCREEN,
 };
 
 static CONTROL_ALLOWED: AtomicBool = AtomicBool::new(true);
@@ -170,13 +170,24 @@ pub fn execute_input(evt: &RemoteInputEvent) {
             }
         }
         "mouse_drag" => {
-            let btn_down = mouse_down_flag(evt.button);
-            let btn_up = mouse_up_flag(evt.button);
-            send_mouse_event(btn_down, 0);
-            std::thread::sleep(std::time::Duration::from_millis(20));
-            sync_remote_pointer(px, py);
-            std::thread::sleep(std::time::Duration::from_millis(40));
-            send_mouse_event(btn_up, 0);
+            let (start_px, start_py) = if let Some((sx, sy)) = parse_start_coords(&evt.text, w, h) {
+                (sx, sy)
+            } else {
+                let mut cur = windows::Win32::Foundation::POINT::default();
+                if unsafe { GetCursorPos(&mut cur) }.is_ok() {
+                    (cur.x, cur.y)
+                } else {
+                    (px, py)
+                }
+            };
+            execute_smooth_drag(start_px, start_py, px, py, evt.button, w, h);
+        }
+        "mouse_stroke" | "stroke" | "draw" => {
+            let mut pts = parse_stroke_points(&evt.text, w, h);
+            if pts.is_empty() {
+                pts.push((px, py));
+            }
+            execute_stroke(&pts, evt.button, w, h);
         }
         "wheel" => {
             sync_remote_pointer(px, py);
@@ -260,6 +271,29 @@ pub fn execute_input(evt: &RemoteInputEvent) {
                 }
             }
         }
+        "clipboard_image" | "set_clipboard_image" => {
+            #[cfg(windows)]
+            {
+                if !evt.text.is_empty() {
+                    unsafe {
+                        let _ = set_clipboard_image(&evt.text);
+                    }
+                }
+            }
+        }
+        "clipboard_paste_image" | "paste_image" => {
+            #[cfg(windows)]
+            {
+                if !evt.text.is_empty() {
+                    unsafe {
+                        if set_clipboard_image(&evt.text) {
+                            std::thread::sleep(std::time::Duration::from_millis(30));
+                        }
+                    }
+                }
+                trigger_paste();
+            }
+        }
         other => {
             info!(event_type = other, "unhandled remote input event");
         }
@@ -296,6 +330,10 @@ fn should_probe_cursor(evt_type: &str) -> bool {
                 | "middle_click"
                 | "click_and_type"
                 | "wheel"
+                | "mouse_drag"
+                | "mouse_stroke"
+                | "stroke"
+                | "draw"
         )
     {
         if matches!(evt.event_type.as_str(), "mouse_move" | "wheel") {
@@ -607,5 +645,305 @@ fn trigger_paste() {
     std::thread::sleep(std::time::Duration::from_millis(30));
     send_key_event(0x56, true);
     send_key_event(0x11, true);
+}
+
+fn parse_start_coords(text: &str, w: i32, h: i32) -> Option<(i32, i32)> {
+    let t = text.trim();
+    if t.is_empty() {
+        return None;
+    }
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(t) {
+        let sx = v.get("start_x").or_else(|| v.get("x")).and_then(|x| x.as_f64());
+        let sy = v.get("start_y").or_else(|| v.get("y")).and_then(|y| y.as_f64());
+        if let (Some(x), Some(y)) = (sx, sy) {
+            let px = (x.clamp(0.0, 1.0) * w as f64).round() as i32;
+            let py = (y.clamp(0.0, 1.0) * h as f64).round() as i32;
+            return Some((px, py));
+        }
+    }
+    let clean = t.strip_prefix("start:").unwrap_or(t).trim();
+    let parts: Vec<&str> = clean.split(',').map(str::trim).collect();
+    if parts.len() == 2 {
+        if let (Ok(x), Ok(y)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
+            let px = (x.clamp(0.0, 1.0) * w as f64).round() as i32;
+            let py = (y.clamp(0.0, 1.0) * h as f64).round() as i32;
+            return Some((px, py));
+        }
+    }
+    None
+}
+
+fn parse_stroke_points(text: &str, w: i32, h: i32) -> Vec<(i32, i32)> {
+    let t = text.trim();
+    if t.is_empty() {
+        return Vec::new();
+    }
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(t) {
+        let arr = if let Some(a) = v.as_array() {
+            Some(a)
+        } else if let Some(a) = v.get("points").and_then(|p| p.as_array()) {
+            Some(a)
+        } else {
+            None
+        };
+        if let Some(arr) = arr {
+            let mut pts = Vec::with_capacity(arr.len());
+            for item in arr {
+                if let Some(obj) = item.as_object() {
+                    let x = obj.get("x").and_then(|v| v.as_f64());
+                    let y = obj.get("y").and_then(|v| v.as_f64());
+                    if let (Some(x), Some(y)) = (x, y) {
+                        let px = (x.clamp(0.0, 1.0) * w as f64).round() as i32;
+                        let py = (y.clamp(0.0, 1.0) * h as f64).round() as i32;
+                        pts.push((px, py));
+                    }
+                } else if let Some(coords) = item.as_array() {
+                    if coords.len() >= 2 {
+                        let x = coords[0].as_f64();
+                        let y = coords[1].as_f64();
+                        if let (Some(x), Some(y)) = (x, y) {
+                            let px = (x.clamp(0.0, 1.0) * w as f64).round() as i32;
+                            let py = (y.clamp(0.0, 1.0) * h as f64).round() as i32;
+                            pts.push((px, py));
+                        }
+                    }
+                }
+            }
+            if !pts.is_empty() {
+                return pts;
+            }
+        }
+    }
+    let mut pts = Vec::new();
+    for seg in t.split([';', '\n', '|']) {
+        let seg = seg.trim();
+        if seg.is_empty() {
+            continue;
+        }
+        let parts: Vec<&str> = seg.split([',', ' ']).filter(|s| !s.is_empty()).collect();
+        if parts.len() >= 2 {
+            if let (Ok(x), Ok(y)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
+                let px = (x.clamp(0.0, 1.0) * w as f64).round() as i32;
+                let py = (y.clamp(0.0, 1.0) * h as f64).round() as i32;
+                pts.push((px, py));
+            }
+        }
+    }
+    pts
+}
+
+fn execute_smooth_drag(
+    start_x: i32,
+    start_y: i32,
+    end_x: i32,
+    end_y: i32,
+    button: i32,
+    w: i32,
+    h: i32,
+) {
+    let btn_down = mouse_down_flag(button);
+    let btn_up = mouse_up_flag(button);
+
+    sync_remote_pointer(start_x, start_y);
+    nudge_pointer_hit_test(start_x, start_y, w, h);
+    std::thread::sleep(std::time::Duration::from_millis(30));
+
+    send_mouse_event(btn_down, 0);
+    std::thread::sleep(std::time::Duration::from_millis(35));
+
+    let dx = (end_x - start_x) as f64;
+    let dy = (end_y - start_y) as f64;
+    let dist = (dx * dx + dy * dy).sqrt();
+    let steps = ((dist / 14.0).round() as usize).clamp(8, 45);
+
+    for i in 1..=steps {
+        let t = i as f64 / steps as f64;
+        let ease = t * t * (3.0 - 2.0 * t);
+        let cur_x = (start_x as f64 + dx * ease).round() as i32;
+        let cur_y = (start_y as f64 + dy * ease).round() as i32;
+        sync_remote_pointer(cur_x, cur_y);
+        nudge_pointer_hit_test(cur_x, cur_y, w, h);
+        std::thread::sleep(std::time::Duration::from_millis(6));
+    }
+
+    sync_remote_pointer(end_x, end_y);
+    nudge_pointer_hit_test(end_x, end_y, w, h);
+    std::thread::sleep(std::time::Duration::from_millis(35));
+    send_mouse_event(btn_up, 0);
+    std::thread::sleep(std::time::Duration::from_millis(20));
+}
+
+fn execute_stroke(points: &[(i32, i32)], button: i32, w: i32, h: i32) {
+    if points.is_empty() {
+        return;
+    }
+    if points.len() == 1 {
+        let (px, py) = points[0];
+        sync_remote_pointer(px, py);
+        nudge_pointer_hit_test(px, py, w, h);
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        let btn_down = mouse_down_flag(button);
+        let btn_up = mouse_up_flag(button);
+        send_mouse_event(btn_down, 0);
+        std::thread::sleep(std::time::Duration::from_millis(60));
+        send_mouse_event(btn_up, 0);
+        return;
+    }
+
+    let btn_down = mouse_down_flag(button);
+    let btn_up = mouse_up_flag(button);
+
+    let (start_x, start_y) = points[0];
+    sync_remote_pointer(start_x, start_y);
+    nudge_pointer_hit_test(start_x, start_y, w, h);
+    std::thread::sleep(std::time::Duration::from_millis(30));
+
+    send_mouse_event(btn_down, 0);
+    std::thread::sleep(std::time::Duration::from_millis(30));
+
+    for i in 1..points.len() {
+        let (p0_x, p0_y) = points[i - 1];
+        let (p1_x, p1_y) = points[i];
+        let dx = (p1_x - p0_x) as f64;
+        let dy = (p1_y - p0_y) as f64;
+        let dist = (dx * dx + dy * dy).sqrt();
+        let sub_steps = ((dist / 10.0).round() as usize).clamp(1, 15);
+
+        for s in 1..=sub_steps {
+            let t = s as f64 / sub_steps as f64;
+            let cx = (p0_x as f64 + dx * t).round() as i32;
+            let cy = (p0_y as f64 + dy * t).round() as i32;
+            sync_remote_pointer(cx, cy);
+            nudge_pointer_hit_test(cx, cy, w, h);
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+    }
+
+    let (end_x, end_y) = points[points.len() - 1];
+    sync_remote_pointer(end_x, end_y);
+    nudge_pointer_hit_test(end_x, end_y, w, h);
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    send_mouse_event(btn_up, 0);
+    std::thread::sleep(std::time::Duration::from_millis(20));
+}
+
+#[cfg(windows)]
+unsafe fn set_clipboard_image(input: &str) -> bool {
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::DataExchange::{
+        CloseClipboard, EmptyClipboard, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
+    };
+    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    let raw_bytes: Vec<u8> = if trimmed.starts_with("data:image/") {
+        if let Some(pos) = trimmed.find(";base64,") {
+            let b64 = &trimmed[pos + 8..];
+            use base64::Engine;
+            base64::engine::general_purpose::STANDARD.decode(b64.trim()).unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    } else if let Ok(bytes) = std::fs::read(trimmed) {
+        bytes
+    } else if let Some(resolved) = c_remote_core::webrtc::fs::path_resolve(trimmed).ok().and_then(|p| std::fs::read(p).ok()) {
+        resolved
+    } else {
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD.decode(trimmed).unwrap_or_default()
+    };
+
+    if raw_bytes.is_empty() {
+        warn!("set_clipboard_image: failed to load or decode image bytes");
+        return false;
+    }
+
+    let dynamic_img = match image::load_from_memory(&raw_bytes) {
+        Ok(img) => img,
+        Err(e) => {
+            warn!("set_clipboard_image: image decoding failed: {e}");
+            return false;
+        }
+    };
+
+    let rgba = dynamic_img.to_rgba8();
+    let (width, height) = (rgba.width(), rgba.height());
+    if width == 0 || height == 0 {
+        return false;
+    }
+
+    let header_size = 40usize;
+    let row_stride = (width as usize) * 4;
+    let dib_size = header_size + row_stride * (height as usize);
+    let mut dib_bytes = Vec::with_capacity(dib_size);
+
+    dib_bytes.extend_from_slice(&40u32.to_le_bytes());
+    dib_bytes.extend_from_slice(&(width as i32).to_le_bytes());
+    dib_bytes.extend_from_slice(&(height as i32).to_le_bytes());
+    dib_bytes.extend_from_slice(&1u16.to_le_bytes());
+    dib_bytes.extend_from_slice(&32u16.to_le_bytes());
+    dib_bytes.extend_from_slice(&0u32.to_le_bytes());
+    dib_bytes.extend_from_slice(&((width * height * 4) as u32).to_le_bytes());
+    dib_bytes.extend_from_slice(&2835i32.to_le_bytes());
+    dib_bytes.extend_from_slice(&2835i32.to_le_bytes());
+    dib_bytes.extend_from_slice(&0u32.to_le_bytes());
+    dib_bytes.extend_from_slice(&0u32.to_le_bytes());
+
+    for y in (0..height).rev() {
+        for x in 0..width {
+            let p = rgba.get_pixel(x, y);
+            dib_bytes.push(p[2]); // B
+            dib_bytes.push(p[1]); // G
+            dib_bytes.push(p[0]); // R
+            dib_bytes.push(p[3]); // A
+        }
+    }
+
+    if OpenClipboard(None).is_err() {
+        return false;
+    }
+    let _ = EmptyClipboard();
+
+    let mut success = false;
+    if let Ok(hmem_dib) = GlobalAlloc(GMEM_MOVEABLE, dib_bytes.len()) {
+        let ptr = GlobalLock(hmem_dib) as *mut u8;
+        if !ptr.is_null() {
+            std::ptr::copy_nonoverlapping(dib_bytes.as_ptr(), ptr, dib_bytes.len());
+            let _ = GlobalUnlock(hmem_dib);
+            const CF_DIB: u32 = 8;
+            if SetClipboardData(CF_DIB, HANDLE(hmem_dib.0)).is_ok() {
+                success = true;
+            }
+        }
+    }
+
+    let png_fmt = RegisterClipboardFormatW(windows::core::w!("PNG"));
+    if png_fmt > 0 {
+        let png_bytes = if raw_bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+            raw_bytes
+        } else {
+            let mut buf = std::io::Cursor::new(Vec::new());
+            let _ = dynamic_img.write_to(&mut buf, image::ImageFormat::Png);
+            buf.into_inner()
+        };
+
+        if !png_bytes.is_empty() {
+            if let Ok(hmem_png) = GlobalAlloc(GMEM_MOVEABLE, png_bytes.len()) {
+                let ptr = GlobalLock(hmem_png) as *mut u8;
+                if !ptr.is_null() {
+                    std::ptr::copy_nonoverlapping(png_bytes.as_ptr(), ptr, png_bytes.len());
+                    let _ = GlobalUnlock(hmem_png);
+                    let _ = SetClipboardData(png_fmt, HANDLE(hmem_png.0));
+                }
+            }
+        }
+    }
+
+    let _ = CloseClipboard();
+    success
 }
 

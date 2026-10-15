@@ -226,6 +226,8 @@ message ResSiteList {
 
 message ReqSiteDraftGet {
   int64 site_iid = 1;
+  /// When true, skip draft render-hash / publish-pending (fast path for editor sections).
+  bool skip_publish_status = 2;
 }
 
 message ResSiteDraftGet {

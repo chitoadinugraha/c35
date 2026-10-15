@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "live_pcm_channel.h"
 
 namespace {
 
@@ -49,6 +50,7 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  RegisterLivePcmAudioChannel(flutter_controller_->engine()->messenger());
 
   HWND view_window = flutter_controller_->view()->GetNativeWindow();
   SetChildContent(view_window);

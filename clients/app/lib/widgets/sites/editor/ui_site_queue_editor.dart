@@ -42,7 +42,7 @@ class UiSiteQueueEditor extends StatefulWidget {
 class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
-  var _loading = true;
+  var _loading = false;
   var _busy = false;
   String? _error;
   String? _selectedId;
@@ -130,10 +130,12 @@ class _UiSiteQueueEditorState extends State<UiSiteQueueEditor> with SiteEditorCa
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (siteEditorCatalogWaitsForWarm(editorCatalog)) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
       if (await ensureEditorCatalog()) return;
       final items = await widget.api.queueList(widget.siteIid);

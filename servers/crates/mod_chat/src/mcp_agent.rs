@@ -454,6 +454,7 @@ pub async fn mcp_prompt_run(
     .await;
     let hooks = PromptTurnHooks {
         skip_billing_gate: true,
+        skip_chat_transcript_persist: false,
         on_hop: None,
         owner_session: Some(owner_session),
     };

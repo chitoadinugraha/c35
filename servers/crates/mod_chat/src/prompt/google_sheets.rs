@@ -1,12 +1,15 @@
 //! Google Sheets in Chrome on @device Windows/desktop (not browser.sheets API).
 
 pub const GOOGLE_SHEETS_DESKTOP_PLAYBOOK: &str = "[GOOGLE SHEETS ON DEVICE] \
-Always device.screenshot with som=true before acting. \
+Turn 0 already provides a Set-of-Mark desktop observation with Canvas OCR. For subsequent steps or verification, call device.screenshot with som=true. \
 Prefer computer_use.delegate with the full user goal, or stepwise device.input — never tell the user to type in cells or rename the title themselves. \
 Desktop @device uses OS device.input only — never browser.sheets.* (extension API) and never shell.run PowerShell/SendKeys/WScript for spreadsheet typing or sample rows. \
+Always use device.input (with batch actions: [...] or click_and_type). \
 Launch: shell.run may open Chrome or https://sheets.new only when no Sheets tab is visible; reuse an existing spreadsheet tab when present. \
 Before entering headers or data: dismiss every blocker on screen — onboarding modals (Got it, No thanks), side panels (Tables — X), top promo banners (X), sign-in nags. \
-Row-1 headers: goto A1, B1, C1 (ctrl+g each) then type_text in the active cell — never guess pixel coordinates on the grid. After each cell, screenshot and verify formula bar text. \
+Canvas text discovery: utilize [CanvasText] tags from Set-of-Mark observation to locate existing columns, headers, and sheet tabs across the canvas grid. \
+Combine canvas text discovery with Ctrl+G (Go to range) for precise cell addressing — never guess pixel coordinates on the grid. \
+Row-1 headers: goto A1, B1, C1 (ctrl+g each + enter) then type_text in the active cell — never guess pixel coordinates on the grid. After each cell, screenshot and verify formula bar text or [CanvasText] tags. \
 Sample data rows: goto A2/A3/A4 with ctrl+g + cell ref + enter, then type_text + tab across columns — never click_and_type on grid pixels; verify name box and that values sit in A:C not E:G. \
 Spreadsheet title: click the Rename control (Untitled spreadsheet) and click_and_type the new title — not manual directions to the user. \
 If text lands in the wrong column (e.g. GenderNama, or D1/E1 filled for a 3-column task), clear and redo. \
@@ -45,12 +48,77 @@ fn header_token_hits(t: &str) -> u32 {
     HEADER_TOKENS.iter().filter(|tok| t.contains(*tok)).count() as u32
 }
 
+fn device_mention_in_text(text: &str) -> bool {
+    text.contains("[@iid:") || text.contains("@iid:")
+}
+
 fn text_mentions_google_sheet(t: &str) -> bool {
     t.contains("google sheet")
         || t.contains("google sheets")
         || t.contains("spreadsheet")
         || t.contains("sheets.new")
         || t.contains("lembar kerja")
+        || t.contains("that sheet")
+        || t.contains("the sheet")
+        || t.contains("lembar")
+}
+
+/// Add/insert rows on an open sheet (English/ID), with or without "google sheet" in the phrase.
+fn looks_like_sheet_row_insert_intent(t: &str) -> bool {
+    let row = t.contains("row") || t.contains("rows") || t.contains("baris");
+    if !row {
+        return false;
+    }
+    t.contains("add")
+        || t.contains("more")
+        || t.contains("insert")
+        || t.contains("append")
+        || t.contains("tambah")
+        || t.contains("tambahkan")
+        || t.contains("new row")
+        || t.contains("another row")
+}
+
+/// @device follow-ups while Chrome Sheets is already the task (no "google sheet" required).
+fn looks_like_sheet_scoped_followup(t: &str) -> bool {
+    if t.contains("change that")
+        || t.contains("change it")
+        || t.contains("update that")
+        || t.contains("add it")
+        || t.contains("what is on")
+        || t.contains("what's on")
+        || looks_like_sheet_row_insert_intent(t)
+    {
+        return true;
+    }
+    let ui_keys = t.contains("mouse click")
+        || t.contains("send key")
+        || t.contains("send keys")
+        || t.contains("keyboard");
+    ui_keys && (text_mentions_google_sheet(t) || t.contains("add it"))
+}
+
+fn looks_like_device_sheet_scoped_ui(text: &str) -> bool {
+    if !device_mention_in_text(text) {
+        return false;
+    }
+    let t = text.to_ascii_lowercase();
+    if text_mentions_google_sheet(&t) {
+        return true;
+    }
+    if looks_like_sheet_scoped_followup(&t) {
+        return true;
+    }
+    if spreadsheet_cell_ref_in_text(text)
+        && (t.contains("on ")
+            || t.contains("what")
+            || t.contains("see")
+            || t.contains("change")
+            || t.contains("cell"))
+    {
+        return true;
+    }
+    false
 }
 
 fn looks_like_sheet_create_intent(t: &str) -> bool {
@@ -137,6 +205,7 @@ pub fn user_text_looks_like_spreadsheet_cell_ref_edit(text: &str) -> bool {
     t.contains("ubah")
         || t.contains("ganti")
         || t.contains("edit")
+        || t.contains("change")
         || t.contains(" to ")
         || t.contains(" jadi ")
         || t.contains("isi ")
@@ -145,10 +214,13 @@ pub fn user_text_looks_like_spreadsheet_cell_ref_edit(text: &str) -> bool {
 }
 
 pub fn user_text_looks_like_device_spreadsheet_ui(user: &str) -> bool {
-    let scoped = user.contains("[@iid:") || user.contains("@iid:");
     if user_text_looks_like_google_sheets_desktop(user) {
         return true;
     }
+    if looks_like_device_sheet_scoped_ui(user) {
+        return true;
+    }
+    let scoped = device_mention_in_text(user);
     scoped && user_text_looks_like_spreadsheet_cell_ref_edit(user)
 }
 /// Desktop Chrome Sheets UI on a paired @device (not extension browser.sheets.*).
@@ -157,6 +229,7 @@ pub fn user_text_looks_like_google_sheets_desktop(text: &str) -> bool {
     looks_like_sheet_create_intent(&t)
         || looks_like_sheet_cell_edit_intent(&t)
         || looks_like_sheet_device_ui_intent(&t)
+        || looks_like_device_sheet_scoped_ui(text)
 }
 
 fn push_unique_header(out: &mut Vec<String>, s: &str) {
@@ -254,7 +327,11 @@ pub fn google_sheets_sample_row_count(goal: &str) -> u32 {
 
 pub fn google_sheets_min_tool_counts(goal: &str) -> ComputerUseToolCounts {
     let g = goal.to_ascii_lowercase();
-    if !google_sheets_header_build(goal) && !looks_like_sheet_device_ui_intent(&g) {
+    if !google_sheets_header_build(goal)
+        && !looks_like_sheet_device_ui_intent(&g)
+        && !looks_like_sheet_row_insert_intent(&g)
+        && !looks_like_device_sheet_scoped_ui(goal)
+    {
         return ComputerUseToolCounts::default();
     }
     let cols = header_tokens_in_goal(goal).len().max(2);
@@ -281,7 +358,7 @@ pub fn google_sheets_parent_turn_may_finish(
     counts: ComputerUseToolCounts,
     delegate_goal_met: bool,
 ) -> bool {
-    if !user_text_looks_like_google_sheets_desktop(goal) {
+    if !user_text_looks_like_device_spreadsheet_ui(goal) {
         return true;
     }
     if !computer_use_final_text_acceptable(summary) {
@@ -304,8 +381,8 @@ pub fn google_sheets_playbook_block() -> &'static str {
 pub const GOOGLE_SHEETS_PIXEL_GRID_STEER_HINT: &str = "That device.input batch used click_and_type on grid coordinates without Go to range. \
 Use ctrl+g, type the cell (e.g. A2), enter, then type_text + tab for each value. Screenshot must show the name box on column A before you claim success.";
 
-pub const GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT: &str = "shell.run SendKeys/WScript is forbidden for Google Sheets on @device. \
-Use device.input with ctrl+g goto (A2, A3, …) and type_text + tab only.";
+pub const GOOGLE_SHEETS_SHELL_FORBIDDEN_HINT: &str = "shell.run is not allowed for Google Sheets grid edits on @device (no SendKeys, echo scripts, or COM automation). \
+Use computer_use.delegate or device.input with ctrl+g goto (A2, A3, …) and type_text + tab; verify with device.screenshot.";
 
 pub fn google_sheets_shell_command_forbidden(command: &str) -> bool {
     let t = command.to_ascii_lowercase();
@@ -313,6 +390,36 @@ pub fn google_sheets_shell_command_forbidden(command: &str) -> bool {
         || t.contains("wscript.shell")
         || t.contains("appactivate")
         || t.contains("system.windows.forms")
+        || t.contains("internetexplorer.application")
+        || t.contains("simulated ui")
+        || t.starts_with('#')
+        || t.contains("echo \"adding")
+        || t.contains("echo \"add")
+}
+
+fn google_sheets_shell_launch_allowlisted(t: &str) -> bool {
+    if t.contains("sendkeys") || t.contains("wscript") {
+        return false;
+    }
+    if t.contains("sheets.new") || t.contains("docs.google.com/spreadsheets") {
+        return true;
+    }
+    t == "chrome"
+        || t.starts_with("start chrome")
+        || t.starts_with("start-process chrome")
+        || (t.contains("start-process") && t.contains("chrome"))
+}
+
+/// On Sheets UI turns, block shell except minimal Chrome/sheets.new launch.
+pub fn google_sheets_shell_blocked_on_ui_turn(command: &str) -> bool {
+    if google_sheets_shell_command_forbidden(command) {
+        return true;
+    }
+    let t = command.trim().to_ascii_lowercase();
+    if t.is_empty() {
+        return true;
+    }
+    !google_sheets_shell_launch_allowlisted(&t)
 }
 
 fn cell_ref_looks_like_goto(text: &str) -> bool {
@@ -539,12 +646,28 @@ mod tests {
     }
 
     #[test]
+    fn vm_chat_add_rows_and_change_that_match_scoped_sheets() {
+        let add = "[@iid:98063412749627392|VM1]now can you add 2 more row to that sheet?";
+        assert!(user_text_looks_like_device_spreadsheet_ui(add));
+        let change = "[@iid:98063412749627392|VM1]can you change that to \"Este\"";
+        assert!(user_text_looks_like_device_spreadsheet_ui(change));
+        let keys = "[@iid:98063412749627392|VM1]can you add it using mouse click and send key?";
+        assert!(user_text_looks_like_device_spreadsheet_ui(keys));
+    }
 
     #[test]
     fn shell_sendkeys_forbidden_on_sheets() {
         assert!(google_sheets_shell_command_forbidden(
             "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('Budi')"
         ));
+    }
+
+    #[test]
+    fn shell_echo_script_blocked_on_sheets_ui_turn() {
+        assert!(google_sheets_shell_blocked_on_ui_turn(
+            "echo \"Adding 2 rows to the spreadsheet...\""
+        ));
+        assert!(!google_sheets_shell_blocked_on_ui_turn("start-process chrome"));
     }
 
     #[test]

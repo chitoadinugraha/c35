@@ -49,7 +49,7 @@ tool! {
     struct: ShellRunTool,
     name: "shell.run",
     aliases: ["device.command", "device_command", "device.shell.run", "shell_run", "run_command_on_device", "exec_device"],
-    description: "Run a shell command on a paired remote device. On Windows this is PowerShell/cmd; on Android only allowlisted sh diagnostics (see tool description after device type is known). Use device.input for UI when possible.",
+    description: "Run a shell command on a paired remote device. On Windows this is PowerShell/cmd; on Android only allowlisted sh diagnostics (see tool description after device type is known). Use device.input or computer_use.delegate for on-screen UI (clicks, typing in Chrome/Google Sheets) — never SendKeys or echo scripts for spreadsheet cells.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     rag_phrases: ["ping", "shell", "powershell", "cmd", "terminal", "run command", "network latency"],
@@ -187,9 +187,12 @@ pub(crate) fn normalize_input_event_type(raw: &str) -> String {
         "tripleclick" => "triple_click".into(),
         "rightclick" => "right_click".into(),
         "drag" => "mouse_drag".into(),
+        "stroke" | "draw" | "draw_stroke" => "mouse_stroke".into(),
         "hotkey" | "key_combo" => "shortcut".into(),
         "click_and_type" | "clickandtype" => "click_and_type".into(),
         "clear_text" | "cleartext" => "clear_text".into(),
+        "copy_image" | "set_clipboard_image" => "clipboard_image".into(),
+        "paste_image" | "set_and_paste_image" => "clipboard_paste_image".into(),
         _ => s,
     }
 }
@@ -209,11 +212,27 @@ pub(crate) fn parse_single_input_event(
 
     let x = val.get("x").and_then(|v| v.as_f64()).unwrap_or(0.0);
     let y = val.get("y").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    let text = val
+    let mut text = val
         .get("text")
         .and_then(|v| v.as_str())
         .unwrap_or_default()
         .to_string();
+
+    if text.is_empty() {
+        if let Some(pts) = val.get("points") {
+            text = pts.to_string();
+        } else if let (Some(sx), Some(sy)) = (
+            val.get("start_x").and_then(|v| v.as_f64()),
+            val.get("start_y").and_then(|v| v.as_f64()),
+        ) {
+            text = format!("{sx},{sy}");
+        } else if let Some(img_b64) = val.get("image_base64").and_then(|v| v.as_str()) {
+            text = img_b64.to_string();
+        } else if let Some(img_path) = val.get("image_path").and_then(|v| v.as_str()) {
+            text = img_path.to_string();
+        }
+    }
+
     let key_code = val.get("key_code").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
     let button = val.get("button").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
     let delta_y = val.get("delta_y").and_then(|v| v.as_i64()).unwrap_or(0) as i32;
@@ -258,15 +277,20 @@ tool! {
     struct: DeviceInputTool,
     name: "device.input",
     aliases: ["device_input", "device_computer_use"],
-    description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Chrome extension browser devices use CDP trusted keys/clicks (not OS SendKeys); pass tab_id for the target tab. On @device Windows Chrome for Google Sheets: goto cells with shortcut ctrl+g + type_text (A2) + enter, then type_text/tab — do not click_and_type grid pixels or shell.run SendKeys. Extension-only browser.sheets.* is a different path. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
+    description: "Send mouse or keyboard input (mouse_click, type_text, shortcut, mouse_drag, mouse_stroke, clipboard_image, etc.) to a paired remote device. Coordinates (x, y) are normalized 0.0–1.0. Supports smooth mouse_drag (with optional start_x, start_y), mouse_stroke (array of points for drawing continuous paths/curves), and clipboard_image/clipboard_paste_image (base64 or local file path for pasting images directly into Paint, Canva, Photoshop). Chrome extension browser devices use CDP trusted keys/clicks; pass tab_id for the target tab. On @device Windows Chrome for Google Sheets: goto cells with shortcut ctrl+g + type_text (A2) + enter, then type_text/tab — do not click_and_type grid pixels or shell.run SendKeys. Extension-only browser.sheets.* is a different path. screenshot_after=true captures a follow-up JPEG with a red marker when supported.",
     topics: ["device", "computer_use"],
     always: ["device", "computer_use"],
     ui_calling_key: "tool.device.input.calling",
     ui_done_key: "tool.device.input.done",
     parameters: {
         device_iid: (integer, "Target device identity ID", required),
-        event_type: (string, "Input event type: 'mouse_click', 'double_click', 'triple_click', 'right_click', 'middle_click', 'mouse_move', 'mouse_down', 'mouse_up', 'mouse_drag', 'wheel', 'type_text', 'click_and_type', 'clear_text', 'shortcut', 'key_down', 'key_up'", optional),
+        event_type: (string, "Input event type: 'mouse_click', 'double_click', 'triple_click', 'right_click', 'middle_click', 'mouse_move', 'mouse_down', 'mouse_up', 'mouse_drag', 'mouse_stroke', 'clipboard_image', 'clipboard_paste_image', 'wheel', 'type_text', 'click_and_type', 'clear_text', 'shortcut', 'key_down', 'key_up'", optional),
         actions: (array, "Optional list of consecutive input events to execute in one turn, e.g. [{'event_type': 'click_and_type', 'x': 0.2, 'y': 0.3, 'text': '...'}, {'event_type': 'shortcut', 'text': 'tab'}]", optional),
+        points: (array, "For mouse_stroke: array of points e.g. [{'x': 0.2, 'y': 0.3}, {'x': 0.25, 'y': 0.35}] to draw a continuous stroke/path on screen", optional),
+        start_x: (number, "For mouse_drag: starting normalized X coordinate (optional, defaults to current cursor position)", optional),
+        start_y: (number, "For mouse_drag: starting normalized Y coordinate (optional, defaults to current cursor position)", optional),
+        image_base64: (string, "For clipboard_image or clipboard_paste_image: base64 encoded PNG/JPEG image data", optional),
+        image_path: (string, "For clipboard_image or clipboard_paste_image: local file path to image", optional),
         x: (number, "Normalized X coordinate (0.0 to 1.0, where 0.0 is left edge and 1.0 is right edge)", optional),
         y: (number, "Normalized Y coordinate (0.0 to 1.0, where 0.0 is top edge and 1.0 is bottom edge)", optional),
         text: (string, "Text string to type (for type_text or click_and_type) or key combo like 'ctrl+c', 'alt+tab', 'win+r' (for shortcut)", optional),
@@ -360,6 +384,7 @@ tool! {
                     ev.event_type.contains("click")
                         || ev.event_type.contains("move")
                         || ev.event_type.contains("drag")
+                        || ev.event_type.contains("stroke")
                 })
                 .map(|ev| (ev.x, ev.y));
 
@@ -660,7 +685,7 @@ tool! {
 }
 
 const SHELL_RUN_DESC_WINDOWS: &str =
-    "Run PowerShell or cmd on a paired Windows PC. Use for ping, scripts, bulk file work, and stdout/stderr. To open a GUI app (Chrome, Edge, Notepad), use a simple launch such as `chrome` or `Start-Process chrome` — the agent opens it directly like a double-click (no shell window). Before launching Chrome for Google Forms, prefer device.screenshot: reuse an existing Forms tab instead of opening forms.new again. Use device.input when the UI is already on screen.";
+    "Run PowerShell or cmd on a paired Windows PC. Use for ping, scripts, bulk file work, and stdout/stderr. To open a GUI app (Chrome, Edge, Notepad), use a simple launch such as `chrome` or `Start-Process chrome` — the agent opens it directly like a double-click (no shell window). Before launching Chrome for Google Forms, prefer device.screenshot: reuse an existing Forms tab instead of opening forms.new again. For Google Sheets grid edits (cells, rows, typing), use device.input or computer_use.delegate only — not shell.run SendKeys, COM, or echo scripts.";
 
 const SHELL_RUN_DESC_ANDROID: &str =
     "Run an allowlisted `/system/bin/sh -c` command on a paired Android remote agent (not PowerShell). Only approved diagnostics are permitted (e.g. getprop, pm list packages, df, id, ls on paths the FS layer cannot reach). Arbitrary root, package install, or destructive commands are denied. Prefer device.fs.list / device.fs.read for files and device.input for UI taps, swipes, and text.";

@@ -1,7 +1,10 @@
 import 'dart:async';
 
+import 'package:alienai_c35/c/pb/c35/collection.pb.dart';
 import 'package:alienai_c35/c/pb/c35/site.pb.dart';
+import 'package:alienai_c35/c/site/collection_def.dart';
 import 'package:alienai_c35/c/site/site_api.dart';
+import 'package:alienai_c35/c/site/site_draft_meta.dart';
 import 'package:flutter/foundation.dart';
 
 /// Shared catalog rows for the site editor — warmed once on shell open.
@@ -29,7 +32,14 @@ class SiteEditorCatalogCache extends ChangeNotifier {
   var productLoadingMore = false;
   var productLoadingAll = false;
 
+  TableDef? productTableDef;
+  List<SiteProductEmbed> productEmbeds = const [];
+  SiteDraftMeta? productCatalogMeta;
+  var productsExtrasDone = false;
+  var productsExtrasLoading = false;
+
   Future<void>? _warmFuture;
+  Future<void>? _productsExtrasFuture;
   var _disposed = false;
 
   List<SiteLink> get links => _linksById.values.toList(growable: false);
@@ -44,6 +54,20 @@ class SiteEditorCatalogCache extends ChangeNotifier {
   SiteQueue? get primaryQueue => _queues.isEmpty ? null : _queues.first;
 
   Future<void> warm() => ensureWarm();
+
+  void applyProductCatalogMeta(SiteDraftMeta meta) {
+    productCatalogMeta = meta;
+    notifyListeners();
+  }
+
+  /// Collection schema + product embeds for the products editor (started on shell open).
+  Future<void> prefetchProductsExtras(SiteApi api) => ensureProductsExtras(api);
+
+  Future<void> ensureProductsExtras(SiteApi api) {
+    if (_disposed || productsExtrasDone) return Future<void>.value();
+    _productsExtrasFuture ??= _runProductsExtras(api);
+    return _productsExtrasFuture!;
+  }
 
   Future<void> ensureWarm() {
     if (_disposed) return Future<void>.value();
@@ -62,6 +86,30 @@ class SiteEditorCatalogCache extends ChangeNotifier {
   void notifyListeners() {
     if (_disposed) return;
     super.notifyListeners();
+  }
+
+  Future<void> _runProductsExtras(SiteApi api) async {
+    if (_disposed || productsExtrasDone) return;
+    productsExtrasLoading = true;
+    notifyListeners();
+    try {
+      final defs = await api.collectionDefs(siteIid: siteIid);
+      productTableDef = api.tableDefFor(defs, 'site.product') ?? collectionDefForFallback('site.product');
+      try {
+        productEmbeds = await api.productEmbedList(siteIid);
+      } catch (_) {
+        productEmbeds = const [];
+      }
+    } catch (_) {
+      productTableDef ??= collectionDefForFallback('site.product');
+      productEmbeds = const [];
+    } finally {
+      if (!_disposed) {
+        productsExtrasDone = true;
+        productsExtrasLoading = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> _runWarm() async {
@@ -93,12 +141,20 @@ class SiteEditorCatalogCache extends ChangeNotifier {
       warmDone = true;
     } catch (e) {
       warmError = '$e';
+      _warmFuture = null;
     } finally {
       if (!_disposed) {
         warming = false;
         notifyListeners();
       }
     }
+  }
+
+  /// Clears a failed warm so [ensureWarm] can run [editorWarm] again (e.g. section Retry).
+  void resetWarmAfterFailure() {
+    if (warmDone || warmError == null) return;
+    warmError = null;
+    _warmFuture = null;
   }
 
   void _mergeProducts(List<SiteProduct> items, {bool replace = false}) {

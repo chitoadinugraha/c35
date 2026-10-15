@@ -254,6 +254,7 @@ pub async fn channel_prompt_turn(
         thinking: thinking_level(""),
         tools: composed.tools.clone(),
         history,
+        matched_inst_ids: composed.matched_ids.clone(),
         force_tool_call: crate::compose::compose_force_tool_call_with_text(
             &composed.matched_ids,
             &composed.tools,
@@ -272,6 +273,7 @@ pub async fn channel_prompt_turn(
                 &composed.trace.inst_enrich_keys,
                 &prompt_text,
             ),
+        device_prefetch: None,
     };
     let mut turn_ctx = TurnCtx {
         pool,

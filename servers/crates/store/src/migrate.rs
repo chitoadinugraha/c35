@@ -685,6 +685,25 @@ mod tests {
     }
 
     #[test]
+    fn sql_stmts_parses_device_operate_and_computer_use() {
+        let sql = include_str!("../../../../_/schemas/inst.sql");
+        let stmts = super::sql_stmts(sql);
+        let operate = stmts
+            .iter()
+            .find(|s| s.contains("'inst.device.operate'") && s.contains("INSERT INTO ai.inst"))
+            .expect("inst.device.operate INSERT");
+        assert!(operate.contains("Eager observation: Turn 0 already contains"));
+        assert!(operate.contains("Always use device.input"));
+
+        let cu = stmts
+            .iter()
+            .find(|s| s.contains("'inst.computer_use'") && s.contains("INSERT INTO ai.inst"))
+            .expect("inst.computer_use INSERT");
+        assert!(cu.contains("Eager observation: Turn 0 already contains"));
+        assert!(cu.contains("Always use device.input"));
+    }
+
+    #[test]
     fn sql_stmts_splits_do_dollar_block_as_one_statement() {
         let sql = r"
         CREATE TABLE t (id INT);

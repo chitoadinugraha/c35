@@ -21,6 +21,9 @@ class UiSiteEditorChrome extends StatelessWidget {
     this.statusColor,
     this.breadcrumb = const [],
     this.onBack,
+    this.showDetailCollapse = false,
+    this.detailOpen = true,
+    this.onDetailToggle,
     this.actions,
   });
 
@@ -29,6 +32,9 @@ class UiSiteEditorChrome extends StatelessWidget {
   final Color? statusColor;
   final List<SiteEditorBreadcrumbSegment> breadcrumb;
   final VoidCallback? onBack;
+  final bool showDetailCollapse;
+  final bool detailOpen;
+  final VoidCallback? onDetailToggle;
   final List<Widget>? actions;
 
   @override
@@ -77,6 +83,12 @@ class UiSiteEditorChrome extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (showDetailCollapse && onDetailToggle != null)
+                  uiIconButton(
+                    tooltip: detailOpen ? 'Hide preview' : 'Show preview',
+                    onPressed: onDetailToggle,
+                    icon: Icon(detailOpen ? Icons.phone_iphone : Icons.phone_iphone_outlined, size: 20),
+                  ),
                 if (actions != null) ...?actions,
               ],
             ),

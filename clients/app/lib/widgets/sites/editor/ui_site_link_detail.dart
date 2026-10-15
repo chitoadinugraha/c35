@@ -47,11 +47,9 @@ class _UiSiteLinkDetailState extends State<UiSiteLinkDetail> {
   @override
   void didUpdateWidget(covariant UiSiteLinkDetail oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if ('${oldWidget.link.linkId}' != '${widget.link.linkId}' ||
-        oldWidget.link.url != widget.link.url ||
-        oldWidget.link.icon != widget.link.icon ||
-        oldWidget.link.label != widget.link.label ||
-        oldWidget.link.display != widget.link.display) {
+    // Only re-bind controllers when switching links. Patching url/label on each
+    // keystroke updates [widget.link] and would reset the text field mid-edit.
+    if ('${oldWidget.link.linkId}' != '${widget.link.linkId}') {
       _syncFromLink();
     }
   }
@@ -172,7 +170,7 @@ class _UiSiteLinkDetailState extends State<UiSiteLinkDetail> {
           ],
         ),
         Text(
-          'Display on site',
+          'Display mode',
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: siteEditorFormText,
@@ -257,6 +255,8 @@ class _SiteLinkDisplaySketch extends StatelessWidget {
   final String mode;
   final Color color;
 
+  static const _sketchH = 40.0;
+
   @override
   Widget build(BuildContext context) {
     final muted = color.withValues(alpha: 0.35);
@@ -270,11 +270,12 @@ class _SiteLinkDisplaySketch extends StatelessWidget {
       margin: const EdgeInsets.only(left: 6),
       decoration: BoxDecoration(color: muted, borderRadius: BorderRadius.circular(2)),
     );
+    Widget sketch;
     if (mode == siteLinkDisplayIcon) {
-      return Center(
+      sketch = Center(
         child: Container(
-          width: 36,
-          height: 36,
+          width: 32,
+          height: 32,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             border: Border.all(color: muted),
@@ -283,17 +284,21 @@ class _SiteLinkDisplaySketch extends StatelessWidget {
           child: icon,
         ),
       );
-    }
-    if (mode == siteLinkDisplayCard) {
-      return Container(
-        padding: const EdgeInsets.all(6),
+    } else if (mode == siteLinkDisplayCard) {
+      sketch = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         decoration: BoxDecoration(
           border: Border.all(color: muted),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(children: [icon, Expanded(child: line)]),
       );
+    } else {
+      sketch = Row(children: [icon, Expanded(child: line)]);
     }
-    return Row(children: [icon, Expanded(child: line)]);
+    return SizedBox(
+      height: _sketchH,
+      child: Align(alignment: Alignment.center, child: sketch),
+    );
   }
 }

@@ -1,3 +1,5 @@
+import 'package:alienai_c35/c/site/design/site_design_resolve.dart';
+import 'package:alienai_c35/c/site/design/site_hub.dart';
 import 'package:alienai_c35/guest_site/guest_site_boot.dart';
 import 'package:alienai_c35/guest_site/guest_site_effect_stack.dart';
 import 'package:alienai_c35/guest_site/guest_site_view.dart';
@@ -69,6 +71,29 @@ Map<String, dynamic> _designBoot() => {
     };
 
 void main() {
+  test('siteDesignHubProfile reads hub tab and posts preview from design', () {
+    final boot = GuestSiteBoot.fromJson({
+      ..._designBoot(),
+      'design': {
+        ..._designBoot()['design'] as Map<String, dynamic>,
+        'profile': {
+          'showAvatar': false,
+          'hubDefaultTab': 'posts',
+          'hubPostsPreviewLimit': 3,
+        },
+      },
+    });
+    final profile = siteDesignHubProfile(boot.design);
+    expect(siteHubDefaultTabNormalize(profile.hubDefaultTab), 'posts');
+    expect(siteDesignHubPostsPreviewLimit(boot.design), 3);
+    expect(
+      siteHubInitialTab(design: profile, hasProducts: true, hasPosts: true),
+      'posts',
+    );
+    expect(siteHubPostsVisibleMaps(List.generate(5, (i) => {'i': i}), limit: 3, expanded: false), hasLength(3));
+    expect(siteHubPostsHasMoreMaps(List.generate(5, (i) => {'i': i}), 3), isTrue);
+  });
+
   test('boot design store reads accent, profile, contacts, and effects', () {
     final boot = GuestSiteBoot.fromJson(_designBoot());
     expect(boot.design, isNotNull);

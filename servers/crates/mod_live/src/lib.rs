@@ -27,7 +27,10 @@ pub use google::{live_google_proxy_run, live_proxy_run, parse_gemini_audio};
 pub use grok::live_grok_run;
 pub use media::{extract_attachment_text, parse_media_attach, MediaAttachment};
 pub use openai::live_openai_run;
-pub use resume::{live_focus_pin, live_swap_should_run, live_text_seed, LiveResume};
+pub use resume::{
+    live_focus_pin, live_history_context_block, live_swap_should_run, live_text_seed, LiveResume,
+};
+pub use trace::live_error_record;
 pub use rpc::{live_enabled, live_start_rpc};
 pub use session::{
     guest_live_session_register, live_guest_session_take, live_session_drop, live_session_register,

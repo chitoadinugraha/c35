@@ -81,6 +81,12 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     super.initState();
     _nameCtrl.addListener(_scheduleSave);
     _taglineCtrl.addListener(_scheduleSave);
+    _pic = widget.row.pic;
+    final cached = widget.api.draftGetCached(widget.siteIid);
+    if (cached != null && cached.hasDraft()) {
+      _applyDraft(cached.draft);
+      _loading = false;
+    }
     unawaited(_load());
   }
 
@@ -108,20 +114,28 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
     super.dispose();
   }
 
+  void _applyDraft(SiteDraft draft) {
+    _draftDoc = draft.doc.clone();
+    final meta = draft.doc.metaJson;
+    _suppressSave = true;
+    _taglineCtrl.text = siteMetaTaglineRead(meta);
+    _suppressSave = false;
+    _hours = siteScheduleSlotsFromMetaJson(meta);
+    siteMetaLocationRead(meta, (label, href, lat, lng) {
+      _locationLabel = label;
+      _lat = lat;
+      _lng = lng;
+    });
+    _pic = widget.row.pic;
+  }
+
   Future<void> _load() async {
-    setState(() => _loading = true);
+    final showBlockingLoader = _draftDoc == null;
+    if (showBlockingLoader && mounted) setState(() => _loading = true);
     try {
       final draft = await widget.api.draftGet(widget.siteIid);
-      _draftDoc = draft.doc.clone();
-      final meta = draft.doc.metaJson;
-      _taglineCtrl.text = siteMetaTaglineRead(meta);
-      _hours = siteScheduleSlotsFromMetaJson(meta);
-      siteMetaLocationRead(meta, (label, href, lat, lng) {
-        _locationLabel = label;
-        _lat = lat;
-        _lng = lng;
-      });
-      _pic = widget.row.pic;
+      if (!mounted) return;
+      _applyDraft(draft);
     } catch (e) {
       if (mounted) uiShowErrorSnackBar(context, e);
     } finally {
@@ -220,14 +234,15 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
   Future<void> _chooseAvatar() async {
     final choice = await showModalBottomSheet<_AvatarChoice>(
       context: context,
-      backgroundColor: _sheetBg,
       showDragHandle: true,
       useSafeArea: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
+      builder: (ctx) => Material(
+        color: _sheetBg,
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
               leading: const Icon(Icons.upload_outlined, color: _text),
               title: const Text('Upload', style: TextStyle(color: _text)),
               onTap: () => Navigator.pop(ctx, _AvatarChoice.upload),
@@ -237,8 +252,9 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
               title: const Text('Generate', style: TextStyle(color: _text)),
               onTap: () => Navigator.pop(ctx, _AvatarChoice.generate),
             ),
-            const SizedBox(height: 8),
-          ],
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
@@ -389,7 +405,7 @@ class _UiSiteInfoEditorState extends State<UiSiteInfoEditor> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
+    if (_loading && _draftDoc == null) {
       return const Center(child: UILoading(message: 'Loading site info'));
     }
     final handle = widget.row.alienId.trim();

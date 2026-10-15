@@ -259,31 +259,36 @@ class SiteEditorNav {
     _stack.removeWhere((f) => f is T);
   }
 
-  static const _masterDetailSections = {
+  static const masterDetailSectionIds = {
+    'design',
     'products',
-    'posts',
     'links',
     'contacts',
     'objects',
+    'attendance',
+    'accounts',
+    'queue',
     'team',
-    'design',
     'effects',
     'ai',
-    'accounts',
-    'attendance',
+    'posts',
   };
 
+  static const _masterDetailSections = masterDetailSectionIds;
+
   static const _catalogDetailSections = {
-    'posts',
+    'design',
+    'products',
     'links',
-    'attendance',
     'contacts',
     'objects',
+    'attendance',
+    'accounts',
+    'queue',
     'team',
-    'design',
     'effects',
     'ai',
-    'accounts',
+    'posts',
   };
 }
 

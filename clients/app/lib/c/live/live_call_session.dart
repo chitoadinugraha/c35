@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:alienai_c35/c/audio/mic_stream_candidates.dart';
+import 'package:alienai_c35/c/audio/mic_stream_candidates.dart' show liveCallMicStreamCandidates;
 import 'package:alienai_c35/c/config.dart';
 import 'package:alienai_c35/c/live/live_pcm_jitter_buffer.dart';
 import 'package:alienai_c35/c/live/live_pcm_playout.dart';
@@ -56,6 +56,7 @@ class LiveCallSession {
   Timer? _bufferJitterTimer;
   final LivePcmJitterBuffer _downlinkPcm = LivePcmJitterBuffer(
     sampleRateHz: 24000,
+    ceilingTargetMs: _desktopJitterCeilingMs(),
     onUnderrun: () => debugPrint('[LiveCallSession] live_audio_underrun'),
   );
   int _audioSampleRate = 24000;
@@ -63,7 +64,44 @@ class LiveCallSession {
   var _usePlayerA = true;
   LivePcmPlayout? _streamPlayout;
   Timer? _streamPlayoutTimer;
-  static const double _fallbackChunkSec = 0.12;
+  var _streamPumpInFlight = false;
+
+  static int _desktopJitterCeilingMs() {
+    if (kIsWeb) return 1200;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+        return 6000;
+      default:
+        return 1200;
+    }
+  }
+
+  bool get _useDesktopWavPlayback =>
+      _streamPlayout == null &&
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
+  static double get _fallbackChunkSec {
+    if (kIsWeb) return 0.12;
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+        return 1.5;
+      default:
+        return 0.12;
+    }
+  }
+
+  /// Start the next WAV chunk before the previous one ends (desktop audioplayers gap fill).
+  static const int _desktopPlaybackOverlapMs = 90;
+
+  static bool get _isWindowsDesktop =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
   static int get _streamFrameMs => kIsWeb ? 80 : 20;
   var _disposed = false;
   var _userHungUp = false;
@@ -683,42 +721,47 @@ class LiveCallSession {
       });
       debugPrint('[LiveCallSession] stream playout active @ ${_audioSampleRate}Hz');
     } catch (e) {
-      debugPrint('[LiveCallSession] stream playout init failed: $e');
+      debugPrint('[LiveCallSession] stream playout init failed: $e — using WAV fallback');
     }
   }
 
   Future<void> _pumpStreamPlayout({bool flush = false}) async {
+    if (_streamPumpInFlight) return;
     final playout = _streamPlayout;
     if (_disposed || playout == null) return;
-    final frameBytes = (_audioSampleRate * 2 * _streamFrameMs) ~/ 1000;
-    if (frameBytes <= 0) return;
-    final minBytes = (_audioSampleRate * 2 * _downlinkPcm.targetBufferMs) ~/ 1000;
-    if (!flush && _downlinkPcm.length < minBytes) {
-      _playBusy = _downlinkPcm.bufferedMs() > 30;
-      return;
-    }
+    _streamPumpInFlight = true;
+    try {
+      final frameBytes = (_audioSampleRate * 2 * _streamFrameMs) ~/ 1000;
+      if (frameBytes <= 0) return;
+      final minBytes = (_audioSampleRate * 2 * _downlinkPcm.targetBufferMs) ~/ 1000;
+      if (!flush && _downlinkPcm.length < minBytes) {
+        await playout.refreshQueuedMs();
+        _playBusy = _downlinkPcm.bufferedMs() > 30 || playout.scheduledAheadMs > 20;
+        return;
+      }
 
-    // On web, maintain lookahead scheduling window (150-300ms) in Web Audio timeline
-    // so background tab throttling (clamping Timer.periodic to 1000ms) does not starve playback.
-    const maxWebLookaheadMs = 250;
-    var iterations = 0;
-    while (_downlinkPcm.isNotEmpty && !_disposed) {
-      if (kIsWeb && playout.scheduledAheadMs >= maxWebLookaheadMs && !flush) {
-        break;
+      const maxLookaheadMs = 300;
+      final burstCap = kIsWeb || playout.scheduledAheadMs > 0 ? 10 : 1;
+      var iterations = 0;
+      while (_downlinkPcm.isNotEmpty && !_disposed) {
+        await playout.refreshQueuedMs();
+        if (playout.scheduledAheadMs >= maxLookaheadMs && !flush) break;
+        final chunk = _downlinkPcm.takeForPlayback(frameBytes);
+        if (chunk.isEmpty) break;
+        try {
+          await playout.write(chunk);
+        } catch (e) {
+          debugPrint('[LiveCallSession] stream write failed: $e');
+          break;
+        }
+        iterations++;
+        if (iterations >= burstCap) break;
       }
-      final chunk = _downlinkPcm.takeForPlayback(frameBytes);
-      if (chunk.isEmpty) break;
-      try {
-        await playout.write(chunk);
-        _playBusy = true;
-      } catch (e) {
-        debugPrint('[LiveCallSession] stream write failed: $e');
-        break;
-      }
-      iterations++;
-      if (!kIsWeb || iterations >= 6) break;
+      await playout.refreshQueuedMs();
+      _playBusy = _downlinkPcm.bufferedMs() > 30 || playout.scheduledAheadMs > 20;
+    } finally {
+      _streamPumpInFlight = false;
     }
-    _playBusy = _downlinkPcm.isNotEmpty || (kIsWeb && playout.scheduledAheadMs > 20);
   }
 
 
@@ -736,6 +779,13 @@ class LiveCallSession {
 
   Future<void> _awaitPlayerDone(AudioPlayer player, int durMs) async {
     if (durMs <= 0) return;
+    // audioplayers on Windows often signals complete before PCM finishes, which
+    // caused the drain loop to skip ahead (cropped tail-only audio) and dropped
+    // mic gating (broken uplink / subtitles).
+    if (_useDesktopWavPlayback) {
+      await Future.delayed(Duration(milliseconds: durMs + 50));
+      return;
+    }
     try {
       await player.onPlayerComplete.first.timeout(Duration(milliseconds: durMs + 300));
     } catch (_) {
@@ -761,7 +811,12 @@ class LiveCallSession {
         final player = _usePlayerA ? _playerA : _playerB;
         await player.play(BytesSource(wav));
         if (_disposed || _playbackEpoch != epoch) break;
-        await _awaitPlayerDone(player, durMs);
+        if (_useDesktopWavPlayback) {
+          final waitMs = max(0, durMs - _desktopPlaybackOverlapMs);
+          await Future.delayed(Duration(milliseconds: waitMs));
+        } else {
+          await _awaitPlayerDone(player, durMs);
+        }
         if (_disposed || _playbackEpoch != epoch) break;
         _usePlayerA = !_usePlayerA;
         flush = false;
@@ -823,6 +878,21 @@ class LiveCallSession {
     if (_ch == null && onWebSocketSendForTesting == null) return;
 
     final rms = _computeRms(pcm16k);
+
+    // Windows `record` + AEC often yields near-silent PCM so client VAD never uplinks.
+    // Stream continuously while the assistant is not playing; keep barge-in during playback.
+    if (_isWindowsDesktop) {
+      if (_playBusy) {
+        final bargeIn = rms >= _bargeInRmsMin;
+        if (!bargeIn) {
+          _addToPreSpeechBuffer(pcm16k);
+          return;
+        }
+        _handleInterruption();
+      }
+      _sendWs(pcm16k);
+      return;
+    }
     // Dynamic speech threshold with gentle sensitive floor (70.0) and bounded ceiling (150.0):
     // Silence/hiss is typically RMS 5-30. Normal/soft speech is RMS 100-500.
     final threshold = min(_vadThresholdMax, max(_vadThresholdMin, _ambientNoiseRms * 1.3));
@@ -902,34 +972,40 @@ class LiveCallSession {
     final bool isMobile = !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
 
-    final candidates = micStreamCandidates(isMobile: isMobile, isWeb: kIsWeb);
+    final isWindowsDesktop = _isWindowsDesktop;
+    final candidates = liveCallMicStreamCandidates(
+      isMobile: isMobile,
+      isWeb: kIsWeb,
+      isWindowsDesktop: isWindowsDesktop,
+    );
 
     Stream<Uint8List>? stream;
     int streamRate = 16000;
     int streamChannels = 1;
 
     for (final cand in candidates) {
-      // First try with AEC and noise suppression enabled
-      try {
-        final cfg = RecordConfig(
-          encoder: AudioEncoder.pcm16bits,
-          sampleRate: cand.sampleRate,
-          numChannels: cand.numChannels,
-          bitRate: cand.bitRate,
-          device: activeMic,
-          noiseSuppress: true,
-          echoCancel: true,
-        );
-        stream = await _recorder!.startStream(cfg);
-        streamRate = cand.sampleRate;
-        streamChannels = cand.numChannels;
-        debugPrint('[LiveCallSession] startStream active: ${cand.sampleRate}Hz ${cand.numChannels}ch (AEC on)');
-        break;
-      } catch (e) {
-        debugPrint('[LiveCallSession] candidate ${cand.sampleRate}Hz with AEC failed: $e');
+      // Windows desktop: skip AEC/NS — drivers often mute the stream or break Live uplink.
+      if (!isWindowsDesktop) {
+        try {
+          final cfg = RecordConfig(
+            encoder: AudioEncoder.pcm16bits,
+            sampleRate: cand.sampleRate,
+            numChannels: cand.numChannels,
+            bitRate: cand.bitRate,
+            device: activeMic,
+            noiseSuppress: true,
+            echoCancel: true,
+          );
+          stream = await _recorder!.startStream(cfg);
+          streamRate = cand.sampleRate;
+          streamChannels = cand.numChannels;
+          debugPrint('[LiveCallSession] startStream active: ${cand.sampleRate}Hz ${cand.numChannels}ch (AEC on)');
+          break;
+        } catch (e) {
+          debugPrint('[LiveCallSession] candidate ${cand.sampleRate}Hz with AEC failed: $e');
+        }
       }
 
-      // If AEC failed (some Android OEMs reject hardware AEC on raw PCM), retry without AEC
       try {
         final fallbackCfg = RecordConfig(
           encoder: AudioEncoder.pcm16bits,

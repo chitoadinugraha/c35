@@ -248,6 +248,9 @@ class GuestSiteBoot {
   String? nextProductCursorForBlock(String blockId) =>
       productPreloadMeta[blockId]?['next_cursor']?.toString();
 
+  /// CSA default guest `--accent` when theme/design do not set one.
+  static const Color csaDefaultAccent = Color(0xFFF97316);
+
   Color get accentColor {
     final fromDesign = design?.accent.trim() ?? '';
     if (fromDesign.isNotEmpty) return siteColorParse(fromDesign);
@@ -255,8 +258,11 @@ class GuestSiteBoot {
     if (hex.length == 6) {
       return Color(int.parse('FF$hex', radix: 16));
     }
-    return const Color(0xFFF97316);
+    return csaDefaultAccent;
   }
+
+  /// Commerce chrome (cart bar, order/checkout sheets) — same as [accentColor] (CSA `--accent`).
+  Color get commerceAccent => accentColor;
 
   String get locationLabel => meta['location_label']?.toString().trim() ?? '';
 

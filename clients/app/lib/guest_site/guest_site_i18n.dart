@@ -26,6 +26,8 @@ class GuestSiteI18n {
 
   String get hubTabPosts => indonesian ? 'Posting' : 'Posts';
 
+  String hubSeeAllPosts(int total) => indonesian ? 'Lihat semua ($total)' : 'See all ($total)';
+
   String get filterAll => indonesian ? 'Semua' : 'All';
 
   String get loadMore => indonesian ? 'Muat lebih banyak' : 'Load more';

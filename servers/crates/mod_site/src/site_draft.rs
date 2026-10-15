@@ -162,13 +162,17 @@ pub async fn site_draft_get(
         };
         (doc_json, draft)
     };
-    let (publish_pending, draft_render_hash, published_render_hash) = site_publish_pending_for_draft(
-        pool,
-        req.site_iid,
-        &draft_doc_json,
-        draft.updated_ts_ms,
-    )
-    .await?;
+    let (publish_pending, draft_render_hash, published_render_hash) = if req.skip_publish_status {
+        (false, String::new(), String::new())
+    } else {
+        site_publish_pending_for_draft(
+            pool,
+            req.site_iid,
+            &draft_doc_json,
+            draft.updated_ts_ms,
+        )
+        .await?
+    };
     let config_row = sqlx::query(
         r#"
         SELECT site_iid, owner_iid, published_version_id, inventory_costing_method, tz,

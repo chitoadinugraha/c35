@@ -42,14 +42,17 @@ class UiSiteContactsEditor extends StatefulWidget {
 class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> with SiteEditorCatalogListener {
   late final _searchCtrl = TextEditingController();
   var _search = '';
-  var _loading = true;
+  var _loading = false;
+  var _loadScheduled = false;
   var _busy = false;
   String? _error;
   String? _selectedId;
   final _byId = <String, SiteContact>{};
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_loadScheduled) return;
+    _loadScheduled = true;
     unawaited(_load());
   }
 
@@ -109,7 +112,9 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> with SiteEd
     if (mounted) {
       setState(() {
         _loading = false;
-        if (catalog.warmError != null && _byId.isEmpty) {
+        if (catalog.warmError == null) {
+          _error = null;
+        } else if (_byId.isEmpty) {
           _error = uiFriendlyError(catalog.warmError!);
         }
       });
@@ -117,12 +122,15 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> with SiteEd
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    final retryWarm = _error != null;
+    if (siteEditorCatalogWaitsForWarm(editorCatalog)) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
-      if (await ensureEditorCatalog()) return;
+      if (await ensureEditorCatalog(retryWarm: retryWarm)) return;
       final items = await widget.api.contactList(widget.siteIid);
       for (final c in items) {
         editorCatalog?.upsertContact(c);
@@ -131,6 +139,7 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> with SiteEd
         ..clear()
         ..addEntries(items.map((c) => MapEntry('${c.contactId}', c)));
       _pickDefault();
+      _error = null;
     } catch (e) {
       _error = uiFriendlyError(e);
     } finally {
@@ -160,7 +169,6 @@ class _UiSiteContactsEditorState extends State<UiSiteContactsEditor> with SiteEd
     siteEditorScheduleSave(
       context,
       key: 'contact:$id',
-      debounce: const Duration(milliseconds: 450),
       save: () => _put(id, draft),
     );
   }

@@ -48,7 +48,6 @@ Future<void> main() async {
     if (_desktop) await windowManager.ensureInitialized();
     if (_desktop) {
       await Session.instance.restore();
-      await serverHostInit();
     }
     runApp(
       EasyLocalization(

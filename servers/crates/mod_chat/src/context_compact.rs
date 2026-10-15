@@ -31,7 +31,7 @@ pub const CONTEXT_COMPACT_MODEL: &str = c35_mod_llm::CHEAP_MODEL;
 const SUMMARY_MAX_LEN: usize = 8000;
 
 const COMPACT_SYSTEM: &str =
-    "Summarize the conversation for future LLM context. Output JSON only: {\"summary\":\"…\",\"decisions\":[],\"open_tasks\":[],\"entities\":{},\"title\":\"short title\"}. title is a short chat title of at most 48 characters in the user's language. Preserve all IDs, numbers, names, and decisions verbatim. Do not invent facts.";
+    "Summarize the conversation for future LLM context. Output JSON only: {\"summary\":\"…\",\"decisions\":[],\"open_tasks\":[],\"entities\":{},\"title\":\"short title\"}. title is a short chat title of at most 80 characters in the user's language. Preserve all IDs, numbers, names, and decisions verbatim. Do not invent facts.";
 
 #[derive(Debug, Clone)]
 pub struct ChatContextState {
@@ -210,7 +210,11 @@ async fn compact_llm(
 }
 
 fn compact_title_cap(title: &str) -> String {
-    title.trim().chars().take(48).collect()
+    title
+        .trim()
+        .chars()
+        .take(crate::mention_content::CHAT_TITLE_MAX_CHARS)
+        .collect()
 }
 
 fn parse_compact_out(text: &str) -> (String, String) {

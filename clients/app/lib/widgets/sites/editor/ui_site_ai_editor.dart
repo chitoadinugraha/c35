@@ -7,6 +7,7 @@ import 'package:alienai_c35/c/site/site_draft_extras.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/widgets/ai/alien_icon_svg.dart';
 import 'package:alienai_c35/c/site/site_editor_autosave.dart';
+import 'package:alienai_c35/c/site/site_editor_draft_flush.dart';
 import 'package:alienai_c35/c/site/site_editor_preview_patch.dart';
 import 'package:alienai_c35/widgets/sites/editor/site_editor_save_scope.dart';
 import 'package:alienai_c35/widgets/sites/editor/ui_site_catalog_detail_header.dart';
@@ -103,7 +104,26 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.siteIid != widget.siteIid) unawaited(_load());
     if (oldWidget.masterDetail != widget.masterDetail) _pickDefault();
-    if (oldWidget.detailId != widget.detailId) _bindActive();
+    if (oldWidget.detailId != widget.detailId ||
+        oldWidget.masterDetail != widget.masterDetail ||
+        oldWidget.siteIid != widget.siteIid) {
+      _syncDetailBinding();
+    }
+  }
+
+  void _syncDetailBinding() {
+    final id = _activeId;
+    if (id == null || id == _editingId) return;
+    _bindActive();
+  }
+
+  void _scheduleDetailBinding() {
+    final id = _activeId;
+    if (id == null || id == _editingId) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_activeId == id && _editingId != id) _bindActive();
+    });
   }
 
   List<SiteKnowledgeDraft> get _filtered {
@@ -120,8 +140,10 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
       _error = null;
     });
     try {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      final extras = siteDraftExtrasParse(draft.doc.metaJson);
+      final adapter = SiteEditorSaveScope.draftAdapter(context);
+      final extras = adapter != null
+          ? adapter.extras
+          : siteDraftExtrasParse((await widget.api.draftGet(widget.siteIid)).doc.metaJson);
       _items
         ..clear()
         ..addAll(extras.knowledge);
@@ -224,24 +246,34 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
   }
 
   void _scheduleSave() {
+    if (_loading) return;
     _previewDraftMeta();
     siteEditorScheduleSave(context, key: 'ai', save: _save);
   }
 
   Future<void> _save() async {
-    await SiteEditorSaveScope.run(context, () async {
-      final draft = await widget.api.draftGet(widget.siteIid);
-      final next = draft.clone();
-      final doc = next.doc.clone();
-      doc.metaJson = siteDraftExtrasMerge(
-        doc.metaJson,
+    final adapter = SiteEditorSaveScope.draftAdapter(context);
+    if (adapter != null) {
+      adapter.setKnowledgeAndAi(
         knowledge: List<SiteKnowledgeDraft>.from(_items),
         aiAssistant: _aiAssistant,
       );
-      next.doc = doc;
-      await widget.api.draftPut(next);
-      widget.onDraftSaved?.call();
-    });
+      await siteEditorFlushDraft(context);
+    } else {
+      await SiteEditorSaveScope.run(context, () async {
+        final draft = await widget.api.draftGet(widget.siteIid);
+        final next = draft.clone();
+        final doc = next.doc.clone();
+        doc.metaJson = siteDraftExtrasMerge(
+          doc.metaJson,
+          knowledge: List<SiteKnowledgeDraft>.from(_items),
+          aiAssistant: _aiAssistant,
+        );
+        next.doc = doc;
+        await widget.api.draftPut(next);
+      });
+    }
+    widget.onDraftSaved?.call();
   }
 
   void _add() {
@@ -509,7 +541,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
     if (widget.masterDetail && widget.pane == SiteAiPane.list) {
       if (_items.isEmpty) return _listPane(selectedId: null);
       final selected = detailId ?? _items.first.id;
-      if (_editingId != selected) _bindActive();
+      _scheduleDetailBinding();
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -520,7 +552,7 @@ class _UiSiteAiEditorState extends State<UiSiteAiEditor> {
       );
     }
     if (!widget.masterDetail && widget.pane == SiteAiPane.list && detailId != null && _items.any((k) => k.id == detailId)) {
-      if (_editingId != detailId) _bindActive();
+      _scheduleDetailBinding();
       return _detail(detailId);
     }
     return _paneBody(selectedId: detailId);
