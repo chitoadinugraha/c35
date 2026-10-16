@@ -18,7 +18,6 @@ Future<void> webNotifPost({
     tag: routeJson.hashCode.toString(),
   );
   n.onClick.listen((_) {
-    html.window.focus();
     onTap?.call(routeJson);
   });
 }
