@@ -68,5 +68,8 @@ _/certs
 # =============================================================================
 !_/schemas
 !_/schemas/**
+!_/schemas/skill_seeds
+!_/schemas/skill_seeds/**
+!_/schemas/skill_seeds/**/*.md
 !_/deployments
 !_/deployments/**
