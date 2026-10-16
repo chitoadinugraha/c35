@@ -5,11 +5,11 @@ use tracing::warn;
 pub const CATALOG_AUTHOR_IID: i64 = 33001;
 
 const GOOGLE_SHEETS_DEVICE_FORMAT_BODY: &str =
-    include_str!("../../../../_/schemas/skill_seeds/google_sheets_device_format.md");
+    include_str!("../../../../_/schemas/skill_seeds/google_sheets_device_format.txt");
 const GOOGLE_DOCS_DEVICE_BODY: &str =
-    include_str!("../../../../_/schemas/skill_seeds/google_docs_device.md");
+    include_str!("../../../../_/schemas/skill_seeds/google_docs_device.txt");
 const GOOGLE_SLIDES_DEVICE_BODY: &str =
-    include_str!("../../../../_/schemas/skill_seeds/google_slides_device.md");
+    include_str!("../../../../_/schemas/skill_seeds/google_slides_device.txt");
 
 fn hash_body(body_md: &str) -> String {
     blake3::hash(body_md.as_bytes()).to_hex().to_string()

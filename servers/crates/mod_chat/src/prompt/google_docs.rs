@@ -8,7 +8,7 @@ Select text before applying bold, alignment, or heading styles. \
 Verify title and body in post-action screenshot — do not finish on prose alone.";
 
 pub const GOOGLE_DOCS_DEVICE_SKILL: &str =
-    include_str!("../../../../../_/schemas/skill_seeds/google_docs_device.md");
+    include_str!("../../../../../_/schemas/skill_seeds/google_docs_device.txt");
 
 pub const GOOGLE_DOCS_SKILL_RULE: &str = "[GOOGLE DOCS] \
 For Docs on @device use device.input + this skill playbook. \

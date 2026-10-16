@@ -8,7 +8,7 @@ Close Themes side panel (X top-right) when it covers the canvas. \
 Verify slide thumbnails and text in screenshot before finishing.";
 
 pub const GOOGLE_SLIDES_DEVICE_SKILL: &str =
-    include_str!("../../../../../_/schemas/skill_seeds/google_slides_device.md");
+    include_str!("../../../../../_/schemas/skill_seeds/google_slides_device.txt");
 
 pub const GOOGLE_SLIDES_SKILL_RULE: &str = "[GOOGLE SLIDES IN CHROME] \
 On @device with Google Slides in the browser, use device.input and the google-slides-device skill. \

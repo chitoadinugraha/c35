@@ -91,7 +91,7 @@ Fields:
 | `site_id`, `name`, `alien_id`, `avatar_url` | Identity meta (CSA `__SITE_BOOT__` subset) |
 | `meta`, `theme` | From `SiteDoc` |
 | `meta.lang` / `meta.locale` | Guest copy (`id` default): quote labels, catalog chips, load-more |
-| `meta.guest_layout` | `hub` (600px) or `store` (1040px, 4-col grid on desktop); auto `store` when home catalog has 9+ products. Web `body.guest-layout-{hub\|store}`; Flutter `guestLayoutMode` + `guestLayoutMaxWidth`. |
+| `meta.guest_layout` | `hub` (600px, default) or `store` (1040px, 4-col grid on desktop) when set explicitly. Web `body.guest-layout-{hub\|store}`; Flutter `guestLayoutMode` + `guestLayoutMaxWidth`. |
 | `meta.primary_color` | Brand seed for guest `--accent` when `theme.accent` is empty; default `#F97316`. Editable in Sites → Info. Theme design accent overrides. |
 | `meta.lang` / `meta.locale` | Also drives catalog search placeholder (`Cari produk…` / `Search products…`) on web store grids |
 | `pages` | Block tree (`id`, `type`, `props`) |

@@ -3,7 +3,7 @@ String guestLayoutMode(Map<String, dynamic> meta, {required int productCount}) {
   final explicit = (meta['guest_layout'] ?? meta['layout_mode'] ?? '').toString().trim().toLowerCase();
   if (explicit == 'store') return 'store';
   if (explicit == 'hub') return 'hub';
-  return productCount >= 9 ? 'store' : 'hub';
+  return 'hub';
 }
 
 double guestLayoutMaxWidth(String layout) => layout == 'store' ? 1040 : 600;

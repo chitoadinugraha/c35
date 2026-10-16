@@ -18,10 +18,11 @@ fn guest_i18n_english_meta() {
 }
 
 #[test]
-fn guest_layout_auto_store() {
-    assert_eq!(guest_layout_mode(&json!({}), 9), "store");
+fn guest_layout_defaults_hub() {
+    assert_eq!(guest_layout_mode(&json!({}), 9), "hub");
     assert_eq!(guest_layout_mode(&json!({}), 3), "hub");
     assert_eq!(guest_layout_mode(&json!({"guest_layout": "store"}), 0), "store");
+    assert_eq!(guest_layout_mode(&json!({"guest_layout": "hub"}), 99), "hub");
 }
 
 #[test]

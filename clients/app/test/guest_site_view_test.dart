@@ -72,9 +72,9 @@ void main() {
     expect(boot.accentColor, const Color(0xFF2563EB));
   });
 
-  test('guestLayoutMode uses store layout from meta', () {
+  test('guestLayoutMode defaults hub; store only when meta says so', () {
     expect(guestLayoutMode({'guest_layout': 'store'}, productCount: 1), 'store');
-    expect(guestLayoutMode({}, productCount: 9), 'store');
+    expect(guestLayoutMode({}, productCount: 9), 'hub');
     expect(guestLayoutMode({}, productCount: 3), 'hub');
   });
 

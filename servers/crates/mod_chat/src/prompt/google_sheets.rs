@@ -23,7 +23,7 @@ Execute cell edits, clicks, and text typing directly using device.input with bat
 Do not delegate to background subagents for single-turn cell edits, clicks, or simple typing.";
 
 pub const GOOGLE_SHEETS_DEVICE_FORMAT_SKILL: &str =
-    include_str!("../../../../../_/schemas/skill_seeds/google_sheets_device_format.md");
+    include_str!("../../../../../_/schemas/skill_seeds/google_sheets_device_format.txt");
 
 pub const GOOGLE_SHEETS_FORMAT_TOOL_RULE: &str = "[GOOGLE SHEETS FORMATTING] \
 For borders, alignment, and number formats: on Chrome extension browser devices use browser.sheets.format_range (tab_id + range + format). \

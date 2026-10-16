@@ -213,8 +213,8 @@ impl GuestI18n {
     }
 }
 
-/// `hub` (narrow link-in-bio) or `store` (wider catalog). Auto `store` when many products.
-pub fn guest_layout_mode(meta: &Value, product_count: usize) -> &'static str {
+/// `hub` (narrow link-in-bio) or `store` (wider catalog). Default `hub`; `store` only when set in meta.
+pub fn guest_layout_mode(meta: &Value, _product_count: usize) -> &'static str {
     if let Some(v) = meta
         .get("guest_layout")
         .or_else(|| meta.get("layout_mode"))
@@ -228,11 +228,7 @@ pub fn guest_layout_mode(meta: &Value, product_count: usize) -> &'static str {
             return "hub";
         }
     }
-    if product_count >= 9 {
-        "store"
-    } else {
-        "hub"
-    }
+    "hub"
 }
 
 pub fn guest_layout_page_max_css(layout: &str) -> &'static str {
