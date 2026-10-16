@@ -6,7 +6,7 @@ class _FakeLocal implements LocalNotifPort {
   int calls = 0;
 
   @override
-  Future<void> post({required String title, required String body, required String routeJson}) async {
+  Future<void> post({required String title, required String body, required String routeJson, String? category}) async {
     calls++;
   }
 }

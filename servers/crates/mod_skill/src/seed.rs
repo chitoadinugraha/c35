@@ -4,6 +4,13 @@ use tracing::warn;
 
 pub const CATALOG_AUTHOR_IID: i64 = 33001;
 
+const GOOGLE_SHEETS_DEVICE_FORMAT_BODY: &str =
+    include_str!("../../../../_/schemas/skill_seeds/google_sheets_device_format.md");
+const GOOGLE_DOCS_DEVICE_BODY: &str =
+    include_str!("../../../../_/schemas/skill_seeds/google_docs_device.md");
+const GOOGLE_SLIDES_DEVICE_BODY: &str =
+    include_str!("../../../../_/schemas/skill_seeds/google_slides_device.md");
+
 fn hash_body(body_md: &str) -> String {
     blake3::hash(body_md.as_bytes()).to_hex().to_string()
 }
@@ -57,6 +64,54 @@ pub async fn skill_catalog_ensure_seed(pool: &PgPool) {
             19,
             4.8,
             false,
+        ),
+        (
+            1004i64,
+            1104i64,
+            1204i64,
+            "google-sheets-device-format",
+            "Google Sheets — format (@device)",
+            "Borders, alignment, number/currency formats on desktop Chrome when API tools are unavailable.",
+            GOOGLE_SHEETS_DEVICE_FORMAT_BODY,
+            "Alien AI Official",
+            r#"["sheets", "google", "device", "format"]"#,
+            "alienai",
+            "",
+            0i32,
+            5.0f64,
+            true,
+        ),
+        (
+            1005i64,
+            1105i64,
+            1205i64,
+            "google-docs-device",
+            "Google Docs — edit & format (@device)",
+            "Create and format Google Docs in Chrome on a paired PC (headings, lists, alignment).",
+            GOOGLE_DOCS_DEVICE_BODY,
+            "Alien AI Official",
+            r#"["docs", "google", "device", "format"]"#,
+            "alienai",
+            "",
+            0i32,
+            5.0f64,
+            true,
+        ),
+        (
+            1006i64,
+            1106i64,
+            1206i64,
+            "google-slides-device",
+            "Google Slides — edit & format (@device)",
+            "Edit Google Slides in Chrome on a paired PC (slides, themes, text boxes).",
+            GOOGLE_SLIDES_DEVICE_BODY,
+            "Alien AI Official",
+            r#"["slides", "google", "device", "format"]"#,
+            "alienai",
+            "",
+            0i32,
+            5.0f64,
+            true,
         ),
     ];
 

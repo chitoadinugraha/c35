@@ -48,6 +48,39 @@ bool _taskRunIsActive(TaskRunStatus status) =>
     status == TaskRunStatus.TASK_RUN_STATUS_LEASED ||
     status == TaskRunStatus.TASK_RUN_STATUS_QUEUED;
 
+typedef TaskOpenSourceMessage = void Function(int msgId);
+
+enum _TaskListFilter {
+  all,
+  queue,
+  oneTime,
+  scheduled,
+}
+
+extension on _TaskListFilter {
+  String get label => switch (this) {
+        _TaskListFilter.all => 'All',
+        _TaskListFilter.queue => 'Queue',
+        _TaskListFilter.oneTime => 'One time',
+        _TaskListFilter.scheduled => 'Scheduled',
+      };
+}
+
+bool _taskMatchesFilter(Task task, _TaskListFilter filter) {
+  if (filter == _TaskListFilter.all) return true;
+  final triggers = task.triggers;
+  bool hasKind(TaskTriggerKind k) => triggers.any((t) => t.kind == k);
+  final manualOnly = triggers.isEmpty ||
+      triggers.every((t) => t.kind == TaskTriggerKind.TASK_TRIGGER_KIND_UNSPECIFIED);
+  return switch (filter) {
+    _TaskListFilter.all => true,
+    _TaskListFilter.scheduled => hasKind(TaskTriggerKind.TASK_TRIGGER_KIND_CRON),
+    _TaskListFilter.oneTime => hasKind(TaskTriggerKind.TASK_TRIGGER_KIND_ONCE),
+    _TaskListFilter.queue =>
+      hasKind(TaskTriggerKind.TASK_TRIGGER_KIND_WEBHOOK) || manualOnly,
+  };
+}
+
 class UiTaskMasterDetail extends StatefulWidget {
   const UiTaskMasterDetail({
     super.key,
@@ -59,7 +92,9 @@ class UiTaskMasterDetail extends StatefulWidget {
     this.hideBarActions = false,
     this.onDrillBack,
     this.title,
+    this.showMasterTitle = true,
     this.agentOnline = true,
+    this.onOpenSourceMessage,
   });
 
   final ChatConn? conn;
@@ -70,7 +105,9 @@ class UiTaskMasterDetail extends StatefulWidget {
   final bool hideBarActions;
   final VoidCallback? onDrillBack;
   final String? title;
+  final bool showMasterTitle;
   final bool agentOnline;
+  final TaskOpenSourceMessage? onOpenSourceMessage;
 
   @override
   State<UiTaskMasterDetail> createState() => UiTaskMasterDetailState();
@@ -81,6 +118,7 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
   var _loading = true;
   var _busy = false;
   var _tasks = <Task>[];
+  var _filter = _TaskListFilter.all;
   String? _selectedId;
   StreamSubscription<TaskRunPush>? _pushSub;
   final _deviceActiveRunIds = <Int64>{};
@@ -100,7 +138,14 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
     _pushSub = widget.conn?.onTaskRunPush.listen(_onTaskRunPush);
   }
 
-  void createTask() => unawaited(_createTask());
+  List<Task> get _visibleTasks =>
+      _tasks.where((t) => _taskMatchesFilter(t, _filter)).toList();
+
+  void _syncSelectionToVisible() {
+    final visible = _visibleTasks;
+    if (_selectedId != null && visible.any((t) => '${t.id}' == _selectedId)) return;
+    _selectTask(visible.isNotEmpty ? visible.first : null);
+  }
 
   @override
   void didUpdateWidget(covariant UiTaskMasterDetail oldWidget) {
@@ -174,9 +219,8 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
         } else {
           _selectTask(existing);
         }
-      } else if (_tasks.isNotEmpty) {
-        _selectTask(_tasks.first);
       }
+      _syncSelectionToVisible();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -229,56 +273,6 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
       // Non-fatal
     } finally {
       if (mounted) setState(() => _runsLoading = false);
-    }
-  }
-
-  Future<void> _createTask() async {
-    if (_busy) return;
-    final draft = Task(
-      id: Int64.ZERO,
-      ownerIid: Int64(widget.ownerIid),
-      deviceIid: Int64(widget.deviceIid),
-      name: 'New Scheduled Task',
-      prompt: '',
-      isActive: true,
-      triggers: [
-        TaskTrigger(
-          id: Int64.ZERO,
-          taskId: Int64.ZERO,
-          kind: TaskTriggerKind.TASK_TRIGGER_KIND_CRON,
-          cronExpr: '0 9 * * *',
-          timezone: taskTimezoneLocal(),
-          label: 'Daily · 09:00',
-          isActive: true,
-        ),
-      ],
-    );
-
-    setState(() => _busy = true);
-    try {
-      final saved = await _api.put(
-        draft,
-        scope: widget.scope,
-        deviceIid: widget.deviceIid,
-        botIid: widget.botIid,
-      );
-      setState(() {
-        _tasks.insert(0, saved);
-        _selectTask(saved);
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Created new task draft'), behavior: SnackBarBehavior.floating),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(uiFriendlyError(e)), behavior: SnackBarBehavior.floating),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -511,16 +505,45 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
     }
   }
 
+  Widget _filterDropdown() => DropdownButtonHideUnderline(
+        child: DropdownButton<_TaskListFilter>(
+          value: _filter,
+          isDense: true,
+          dropdownColor: const Color(0xFF1E1E24),
+          style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w500),
+          icon: const Icon(Icons.expand_more, size: 16, color: _muted),
+          items: _TaskListFilter.values
+              .map(
+                (f) => DropdownMenuItem(
+                  value: f,
+                  child: Text(f.label),
+                ),
+              )
+              .toList(),
+          onChanged: _busy
+              ? null
+              : (f) {
+                  if (f == null) return;
+                  setState(() {
+                    _filter = f;
+                    _syncSelectionToVisible();
+                  });
+                },
+        ),
+      );
+
   Widget _masterBar() => Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 10, 6),
         child: Row(
+          mainAxisAlignment: widget.showMasterTitle ? MainAxisAlignment.start : MainAxisAlignment.end,
           children: [
-            Expanded(
-              child: Text(
-                widget.title ?? 'Tasks',
-                style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+            if (widget.showMasterTitle)
+              Expanded(
+                child: Text(
+                  widget.title ?? 'Tasks',
+                  style: const TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
               ),
-            ),
             if (widget.scope == TaskScope.TASK_SCOPE_DEVICE && widget.deviceIid > 0 && _deviceHasActiveRuns())
               TextButton(
                 onPressed: _busy ? null : _stopAllOnDevice,
@@ -531,18 +554,13 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
                 ),
                 child: const Text('Stop all', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               ),
+            _filterDropdown(),
             if (!widget.hideBarActions) ...[
+              const SizedBox(width: 4),
               uiIconButton(
                 tooltip: 'Refresh tasks',
                 onPressed: _busy ? null : _load,
                 icon: const Icon(Icons.refresh, size: 18, color: _muted),
-                style: _barBtnStyle,
-              ),
-              const SizedBox(width: 6),
-              uiIconButton(
-                tooltip: 'Add task',
-                onPressed: _busy ? null : _createTask,
-                icon: const Icon(Icons.add, size: 18, color: _accent),
                 style: _barBtnStyle,
               ),
             ],
@@ -561,6 +579,7 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
     if (_loading) {
       return const UILoading();
     }
+    final visible = _visibleTasks;
     if (_tasks.isEmpty) {
       return Center(
         child: Padding(
@@ -572,14 +591,31 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
               const SizedBox(height: 12),
               const Text('No tasks yet', style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              const Text('Create automations and scheduled triggers.', style: TextStyle(color: _muted, fontSize: 12), textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : _createTask,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Create task'),
-                style: OutlinedButton.styleFrom(foregroundColor: _accent, side: const BorderSide(color: _border)),
+              const Text(
+                'Ask Home to create a scheduled task, or add one from a device.',
+                style: TextStyle(color: _muted, fontSize: 12),
+                textAlign: TextAlign.center,
               ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (visible.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.filter_list_outlined, size: 32, color: _muted),
+              const SizedBox(height: 10),
+              Text(
+                'No ${_filter.label.toLowerCase()} tasks',
+                style: const TextStyle(color: _text, fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              const Text('Try another filter.', style: TextStyle(color: _muted, fontSize: 12)),
             ],
           ),
         ),
@@ -588,10 +624,10 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
 
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      itemCount: _tasks.length,
+      itemCount: visible.length,
       separatorBuilder: (_, __) => const Divider(height: 1, color: _border, indent: 12, endIndent: 12),
       itemBuilder: (context, i) {
-        final task = _tasks[i];
+        final task = visible[i];
         final id = '${task.id}';
         final selected = _selectedId == id;
         final nextRun = taskNextRunLabel(task);
@@ -664,13 +700,6 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    icon: const Icon(Icons.play_arrow_rounded, size: 20, color: _accent),
-                    tooltip: 'Run task now',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _busy ? null : () => _runTask(task),
-                  ),
                 ],
               ),
             ),
@@ -712,81 +741,44 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.name.isNotEmpty ? task.name : 'Untitled task',
-                      style: const TextStyle(color: _text, fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: const Color(0xFF27272A), borderRadius: BorderRadius.circular(4)),
-                          child: Text(
-                            switch (widget.scope) {
-                              TaskScope.TASK_SCOPE_DEVICE => 'Device Scope',
-                              TaskScope.TASK_SCOPE_BOT => 'Bot Scope',
-                              _ => 'User Scope',
-                            },
-                            style: const TextStyle(color: _muted, fontSize: 11),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: _isActive ? const Color(0xFF064E3B) : const Color(0xFF27272A),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            _isActive ? 'Active' : 'Paused',
-                            style: TextStyle(color: _isActive ? _accent : _muted, fontSize: 11, fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _runTask(task),
+                  icon: const Icon(Icons.play_arrow, size: 16),
+                  label: const Text('Run now', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _accent,
+                    side: const BorderSide(color: _border),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-              ),
-              OutlinedButton.icon(
-                onPressed: _busy ? null : () => _runTask(task),
-                icon: const Icon(Icons.play_arrow, size: 16),
-                label: const Text('Run now', style: TextStyle(fontSize: 12)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _accent,
-                  side: const BorderSide(color: _border),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  visualDensity: VisualDensity.compact,
+                FilledButton.icon(
+                  onPressed: _busy ? null : _saveCurrentTask,
+                  icon: _busy
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      : const Icon(Icons.check, size: 16),
+                  label: const Text('Save', style: TextStyle(fontSize: 12)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accent,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: _busy ? null : _saveCurrentTask,
-                icon: _busy
-                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                    : const Icon(Icons.check, size: 16),
-                label: const Text('Save', style: TextStyle(fontSize: 12)),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _accent,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  visualDensity: VisualDensity.compact,
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, size: 18, color: _muted),
+                  tooltip: 'Delete task',
+                  onPressed: _busy ? null : _deleteCurrentTask,
                 ),
-              ),
-              const SizedBox(width: 6),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, size: 18, color: _muted),
-                tooltip: 'Delete task',
-                onPressed: _busy ? null : _deleteCurrentTask,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         if (widget.scope == TaskScope.TASK_SCOPE_DEVICE && !widget.agentOnline)
@@ -908,11 +900,12 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
           children: [
             const Icon(Icons.history_outlined, size: 18, color: _accent),
             const SizedBox(width: 8),
-            const Text(
-              'Run History',
-              style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+            const Expanded(
+              child: Text(
+                'Run History',
+                style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
             ),
-            const Spacer(),
             if (_runsLoading)
               const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: _accent)),
           ],
@@ -933,7 +926,10 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
               ),
             ),
           ),
-        ..._runs.take(10).map(_buildRunRow),
+        ..._runs
+            .where((r) => r.parentRunId.toInt() == 0)
+            .take(10)
+            .map(_buildRunRow),
       ],
     );
   }
@@ -979,6 +975,10 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
         ? '${started.day.toString().padLeft(2, '0')}/${started.month.toString().padLeft(2, '0')} ${started.hour.toString().padLeft(2, '0')}:${started.minute.toString().padLeft(2, '0')}'
         : '';
 
+    final sourceMsgId = run.sourceMsgId.toInt();
+    final isOrchestrator = run.metaJson.contains('"role":"orchestrator"') ||
+        run.metaJson.contains('"role": "orchestrator"');
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
@@ -1019,6 +1019,10 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
                     ],
                   ],
                 ),
+                if (isOrchestrator) ...[
+                  const SizedBox(height: 2),
+                  const Text('Orchestrator', style: TextStyle(color: Color(0xFF93C5FD), fontSize: 10)),
+                ],
                 if (run.summary.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(run.summary, style: const TextStyle(color: Color(0xFFD4D4D8), fontSize: 12)),
@@ -1051,6 +1055,16 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
               ],
             ),
           ),
+          if (sourceMsgId > 0 && widget.onOpenSourceMessage != null)
+            TextButton(
+              onPressed: () => widget.onOpenSourceMessage!(sourceMsgId),
+              style: TextButton.styleFrom(
+                foregroundColor: _accent,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              child: const Text('Chat', style: TextStyle(fontSize: 11)),
+            ),
           if (isRunning)
             TextButton(
               onPressed: () => _cancelRun(run),
@@ -1078,7 +1092,7 @@ class UiTaskMasterDetailState extends State<UiTaskMasterDetail> {
         },
         onDrillBack: widget.onDrillBack != null ? () => setState(() => _selectedId = null) : null,
         detailBuilder: _detail,
-        listEmpty: !_loading && _tasks.isEmpty,
+        listEmpty: !_loading && _visibleTasks.isEmpty,
         collapseWhenEmpty: false,
         emptyDetail: const Center(
           child: Text('Select a task', style: TextStyle(color: _muted, fontSize: 13)),
@@ -1095,6 +1109,7 @@ class PageTasks extends StatelessWidget {
     this.deviceIid = 0,
     this.botIid = 0,
     this.title = 'Tasks',
+    this.onOpenSourceMessage,
   });
 
   final ChatConn? conn;
@@ -1103,6 +1118,7 @@ class PageTasks extends StatelessWidget {
   final int deviceIid;
   final int botIid;
   final String title;
+  final TaskOpenSourceMessage? onOpenSourceMessage;
 
   @override
   Widget build(BuildContext context) => UiPage(
@@ -1114,6 +1130,8 @@ class PageTasks extends StatelessWidget {
           scope: scope,
           deviceIid: deviceIid,
           botIid: botIid,
+          showMasterTitle: false,
+          onOpenSourceMessage: onOpenSourceMessage,
         ),
       );
 }

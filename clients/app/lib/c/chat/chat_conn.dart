@@ -28,6 +28,7 @@ import 'package:alienai_c35/c/pb/c35/task.pb.dart';
 import 'package:alienai_c35/c/pb/c35/sync.pb.dart';
 import 'package:alienai_c35/c/pb/c35/tx.pb.dart';
 import 'package:alienai_c35/c/pb/c35/wire.pb.dart';
+import 'package:alienai_c35/core/notify/notify_desktop_client.dart';
 import 'package:alienai_c35/c/trace/trace_log.dart';
 import 'package:alienai_c35/c/ui/ui_friendly_error.dart';
 import 'package:alienai_c35/c/trace/trace_view.dart';
@@ -91,6 +92,14 @@ class PromptStreamEvent {
   final ResPromptEnd? end;
 }
 
+/// NATS / WS fanout when this client is not driving [req_id] (other tab, reattach).
+class PromptEndFanout {
+  const PromptEndFanout({required this.chatId, required this.end});
+
+  final int chatId;
+  final ResPromptEnd end;
+}
+
 typedef ChatSocketOpen = WebSocketChannel Function(Uri uri);
 
 class ChatConn {
@@ -124,6 +133,8 @@ class ChatConn {
   final _reconnectedCtrl = StreamController<void>.broadcast();
   final _socketAttachedCtrl = StreamController<void>.broadcast();
   final _promptPending = <String, StreamController<PromptStreamEvent>>{};
+  final _promptChatByReqId = <String, int>{};
+  final _promptEndFanoutCtrl = StreamController<PromptEndFanout>.broadcast();
   final _abortedPromptReqIds = <String>{};
   final _rpcPending = <String, Completer<WsRes>>{};
   final _syncPushCtrl = StreamController<SyncPush>.broadcast();
@@ -154,6 +165,7 @@ class ChatConn {
   Stream<LogPush> get onLogPush => _logPushCtrl.stream;
   Stream<PromptRunPush> get onPromptRunPush => _promptRunPushCtrl.stream;
   Stream<PromptFollowupPush> get onPromptFollowupPush => _promptFollowupPushCtrl.stream;
+  Stream<PromptEndFanout> get onPromptEndFanout => _promptEndFanoutCtrl.stream;
   Stream<TaskRunPush> get onTaskRunPush => _taskRunPushCtrl.stream;
   Stream<DevicePresencePush> get onDevicePresencePush => _devicePresencePushCtrl.stream;
   Stream<NotifyPush> get onNotifyPush => _notifyPushCtrl.stream;
@@ -510,6 +522,35 @@ class ChatConn {
     c.complete(res);
   }
 
+  bool _routePromptDelta(String reqId, ResPromptDelta d) {
+    final id = reqId.trim();
+    if (id.isEmpty) return false;
+    final ctrl = _promptPending[id];
+    if (ctrl != null && !ctrl.isClosed) {
+      ctrl.add(PromptStreamEvent.delta(text: d.text, thought: d.thought, blocksJson: d.blocksJson));
+      return true;
+    }
+    if (PromptRunStore.instance.isTrackedChildRun(id)) {
+      PromptRunStore.instance.appendDelta(id, d.text, d.thought);
+      return true;
+    }
+    return false;
+  }
+
+  /// Test hook: deliver a server [WsRes] as if it arrived on the active socket.
+  @visibleForTesting
+  void dispatchWsRes(WsRes res) {
+    _onData(res.writeToBuffer(), _socketGen);
+  }
+
+  @visibleForTesting
+  StreamController<PromptStreamEvent> trackPromptStream(String reqId) {
+    final id = reqId.trim();
+    final ctrl = StreamController<PromptStreamEvent>();
+    _promptPending[id] = ctrl;
+    return ctrl;
+  }
+
   void _onData(dynamic data, int gen) {
     if (gen != _socketGen) return;
     if (data is! List<int>) return;
@@ -594,6 +635,15 @@ class ChatConn {
       return;
     }
 
+    if (res.hasPromptStart() && reqId.isNotEmpty) {
+      final cid = res.promptStart.chatId.toInt();
+      if (cid > 0) _promptChatByReqId[reqId] = cid;
+    }
+
+    if (res.hasPromptDelta() && reqId.isNotEmpty) {
+      if (_routePromptDelta(reqId, res.promptDelta)) return;
+    }
+
     final ctrl = _promptPending[reqId];
     if (ctrl != null && !ctrl.isClosed) {
       if (res.hasPromptStart()) {
@@ -601,23 +651,25 @@ class ChatConn {
         ctrl.add(PromptStreamEvent.start(chatId: s.chatId, msgId: s.msgId, model: s.model));
         return;
       }
-      if (res.hasPromptDelta()) {
-        final d = res.promptDelta;
-        ctrl.add(PromptStreamEvent.delta(text: d.text, thought: d.thought, blocksJson: d.blocksJson));
-        return;
-      }
       if (res.hasPromptEnd()) {
+        _promptChatByReqId.remove(reqId);
         ctrl.add(PromptStreamEvent.end(res.promptEnd));
         unawaited(ctrl.close());
         _promptPending.remove(reqId);
         return;
       }
       if (res.hasPromptFail()) {
+        _promptChatByReqId.remove(reqId);
         ctrl.add(PromptStreamEvent.fail(res.promptFail.message));
         unawaited(ctrl.close());
         _promptPending.remove(reqId);
         return;
       }
+    }
+
+    if (res.hasPromptEnd() && reqId.isNotEmpty) {
+      _emitPromptEndFanout(reqId, res.promptEnd);
+      return;
     }
 
     if (reqId.isNotEmpty && _rpcPending.containsKey(reqId)) {
@@ -632,6 +684,14 @@ class ChatConn {
     }
   }
 
+  void _emitPromptEndFanout(String reqId, ResPromptEnd end) {
+    final fromEnd = end.chatId.toInt();
+    final chatId = fromEnd > 0 ? fromEnd : (_promptChatByReqId.remove(reqId) ?? 0);
+    _promptChatByReqId.remove(reqId);
+    if (chatId <= 0 || _promptEndFanoutCtrl.isClosed) return;
+    _promptEndFanoutCtrl.add(PromptEndFanout(chatId: chatId, end: end));
+  }
+
   void _failAll(String message) {
     for (final e in _promptPending.entries) {
       if (e.value.isClosed) continue;
@@ -639,6 +699,7 @@ class ChatConn {
       if (!e.value.isClosed) e.value.close();
     }
     _promptPending.clear();
+    _promptChatByReqId.clear();
     for (final c in _rpcPending.values) {
       if (!c.isCompleted) c.completeError(message);
     }
@@ -1752,6 +1813,11 @@ class ChatConn {
   }
 
   Future<void> appPresence({required String clientId, required bool resumed}) async {
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.windows &&
+        NotifyDesktopClient.instance.helperOk) {
+      return;
+    }
     await _rpc<ResAppPresence>(
       WsReq(appPresence: ReqAppPresence(clientId: clientId, resumed: resumed)),
       (res) => res.appPresence,

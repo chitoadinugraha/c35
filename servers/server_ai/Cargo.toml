@@ -21,6 +21,7 @@ dotenvy = { workspace = true }
 futures-util = { workspace = true }
 serde_json = { workspace = true }
 c35_mod_billing = { path = "../crates/mod_billing", package = "c35_mod_billing" }
+c35_mod_captcha = { path = "../crates/mod_captcha", package = "c35_mod_captcha" }
 c35_mod_file = { path = "../crates/mod_file", package = "c35_mod_file" }
 reqwest = { workspace = true }
 c35_mod_channel = { path = "../crates/mod_channel", package = "c35_mod_channel" }

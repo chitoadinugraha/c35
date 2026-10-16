@@ -113,6 +113,7 @@ pub async fn context_idle_process(pool: &PgPool, chat_id: i64, owner_iid: i64) -
             billing.compaction_tokens_in,
             billing.compaction_tokens_out,
             0,
+            0,
             None,
             extra,
             Some(billing.to_log_meta()),

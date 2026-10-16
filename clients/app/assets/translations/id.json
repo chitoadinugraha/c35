@@ -553,6 +553,7 @@
         "bots": "Bot",
         "devices": "Perangkat",
         "sites": "Situs",
+        "tasks": "Tugas",
         "notifications": "Notifikasi",
         "mailboxesCount": "{count} mailbox",
         "mailNew": "{count} baru",

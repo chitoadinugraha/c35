@@ -31,6 +31,15 @@ fn status_to_db(s: TaskRunStatus) -> &'static str {
     }
 }
 
+pub const TASK_RUN_SELECT: &str = r#"
+        SELECT id, owner_iid, device_iid, task_id, trigger_id, chat_id, req_id, status,
+               prompt, skill_id, model, step_index, summary, error, lease_pod,
+               lease_expires_ts, started_ts, finished_ts, created_ts, updated_ts, deleted_ts,
+               meta_json, tokens_in, tokens_out, cost_usd::float8 AS cost_usd, duration_ms,
+               parent_run_id, source_msg_id, last_msg_id
+        FROM ai.task_run
+"#;
+
 pub fn row_to_task_run(r: &sqlx::postgres::PgRow) -> TaskRun {
     let meta: Value = r.try_get("meta_json").unwrap_or(Value::Object(Default::default()));
     TaskRun {
@@ -64,20 +73,17 @@ pub fn row_to_task_run(r: &sqlx::postgres::PgRow) -> TaskRun {
             .map(|v| v as i64)
             .or_else(|_| r.try_get::<i64, _>("duration_ms"))
             .unwrap_or(0),
+        parent_run_id: r.try_get("parent_run_id").unwrap_or(0),
+        source_msg_id: r.try_get("source_msg_id").unwrap_or(0),
+        last_msg_id: r.try_get("last_msg_id").unwrap_or(0),
     }
 }
 
 pub async fn task_run_get(pool: &PgPool, owner_iid: i64, run_id: i64) -> Option<TaskRun> {
-    let row = sqlx::query(
-        r#"
-        SELECT id, owner_iid, device_iid, task_id, trigger_id, chat_id, req_id, status,
-               prompt, skill_id, model, step_index, summary, error, lease_pod,
-               lease_expires_ts, started_ts, finished_ts, created_ts, updated_ts, deleted_ts,
-               meta_json, tokens_in, tokens_out, cost_usd::float8 AS cost_usd, duration_ms
-        FROM ai.task_run
-        WHERE id = $1 AND owner_iid = $2 AND deleted_ts IS NULL
-        "#,
-    )
+    let row = sqlx::query(&format!(
+        "{} WHERE id = $1 AND owner_iid = $2 AND deleted_ts IS NULL",
+        TASK_RUN_SELECT.trim()
+    ))
     .bind(run_id)
     .bind(owner_iid)
     .fetch_optional(pool)
@@ -392,19 +398,60 @@ pub async fn task_delete(pool: &PgPool, owner_iid: i64, task_id: i64) -> Result<
     Ok(trigger_ids)
 }
 
-pub async fn task_run_list_for_task(pool: &PgPool, owner_iid: i64, task_id: i64, limit: i32) -> Vec<TaskRun> {
-    let rows = sqlx::query(
+pub async fn task_run_list_children(
+    pool: &PgPool,
+    owner_iid: i64,
+    parent_run_id: i64,
+    limit: i32,
+) -> Vec<TaskRun> {
+    let rows = sqlx::query(&format!(
+        "{} WHERE owner_iid = $1 AND parent_run_id = $2 AND deleted_ts IS NULL
+        ORDER BY created_ts ASC
+        LIMIT $3",
+        TASK_RUN_SELECT.trim()
+    ))
+    .bind(owner_iid)
+    .bind(parent_run_id)
+    .bind(limit.max(1).min(500))
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    rows.iter().map(row_to_task_run).collect()
+}
+
+pub async fn task_run_active_children(pool: &PgPool, parent_run_id: i64) -> Vec<i64> {
+    sqlx::query_scalar(
         r#"
-        SELECT id, owner_iid, device_iid, task_id, trigger_id, chat_id, req_id, status,
-               prompt, skill_id, model, step_index, summary, error, lease_pod,
-               lease_expires_ts, started_ts, finished_ts, created_ts, updated_ts, deleted_ts,
-               meta_json, tokens_in, tokens_out, cost_usd::float8 AS cost_usd, duration_ms
-        FROM ai.task_run
-        WHERE owner_iid = $1 AND task_id = $2 AND deleted_ts IS NULL
-        ORDER BY created_ts DESC
-        LIMIT $3
+        SELECT id FROM ai.task_run
+        WHERE parent_run_id = $1 AND deleted_ts IS NULL
+          AND status IN ('queued', 'leased', 'running')
         "#,
     )
+    .bind(parent_run_id)
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default()
+}
+
+pub async fn task_run_set_last_msg_id(pool: &PgPool, run_id: i64, msg_id: i64) {
+    let _ = sqlx::query(
+        r#"
+        UPDATE ai.task_run SET last_msg_id = $2, updated_ts = NOW() WHERE id = $1
+        "#,
+    )
+    .bind(run_id)
+    .bind(msg_id)
+    .execute(pool)
+    .await;
+}
+
+pub async fn task_run_list_for_task(pool: &PgPool, owner_iid: i64, task_id: i64, limit: i32) -> Vec<TaskRun> {
+    let rows = sqlx::query(&format!(
+        "{} WHERE owner_iid = $1 AND task_id = $2 AND deleted_ts IS NULL
+        ORDER BY created_ts DESC
+        LIMIT $3",
+        TASK_RUN_SELECT.trim()
+    ))
     .bind(owner_iid)
     .bind(task_id)
     .bind(limit.max(1).min(100))

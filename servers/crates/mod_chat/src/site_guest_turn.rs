@@ -303,6 +303,7 @@ pub async fn site_guest_turn_with_hooks(
         &res.model_used,
         res.tokens_in,
         res.tokens_out,
+        res.tokens_cached,
         duration_ms,
         Some(&bctx),
         res.tools_cost_usd + composed.trace.tool_embed_cost_usd,

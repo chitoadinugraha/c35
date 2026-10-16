@@ -22,7 +22,7 @@ async fn alien_turn_deducts_alien_rings_only() {
         .await
         .expect("apply rings");
 
-    let overflow = billing_profile_deduct_turn(&pool, user, "alienai", 10_000, 2_000, FX_MICRO)
+    let overflow = billing_profile_deduct_turn(&pool, user, "alienai", 10_000, 2_000, 0, FX_MICRO)
         .await
         .expect("deduct")
         .unwrap_or(0.0);
@@ -47,7 +47,8 @@ async fn frontier_turn_deducts_frontier_rings() {
         .await
         .expect("apply rings");
 
-    let overflow = billing_profile_deduct_turn(&pool, user, "gemini-2.5-flash-lite", 10_000, 2_000, FX_MICRO)
+    let overflow =
+        billing_profile_deduct_turn(&pool, user, "gemini-2.5-flash-lite", 10_000, 2_000, 0, FX_MICRO)
         .await
         .expect("deduct")
         .unwrap_or(0.0);

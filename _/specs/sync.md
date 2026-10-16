@@ -142,8 +142,12 @@ c35.user.{owner_iid}.app.>
 | `c35.user.{iid}.app.task_run` | `WsRes` (`TaskRunPush`) | Task run progress (future) |
 | `c35.user.{iid}.app.device_presence` | `WsRes` (`DevicePresencePush`) | Remote/IoT agent online + `meta_json` (connect/disconnect + ~30s heartbeat while agent WS up) |
 | `c35.user.{iid}.app.inbox` | `WsRes` (`SyncPush`) | New chat, `chat_member`, committed `chat_msg` (future) |
-| `c35.user.{iid}.app.notify` | `WsRes` (`NotifyPush`) | User notification deliver (live app socket). See [notify.md](notify.md) |
+| `c35.user.{iid}.app.notify` | `WsRes` (`NotifyPush`) | Interrupting user notification (banner / local / FCM router). Not a silent UI sync. See [notify.md](notify.md) |
 | `c35.user.{iid}.app.chat.{chat_id}` | `WsRes` | Prompt stream (`PromptStart` / `Delta` / `End`) + per-chat `SyncPush` |
+
+**Sync vs alert:** Subjects such as `app.inbox`, `app.task_run`, and `app.site_order` carry `SyncPush` (or typed billing pushes) to refresh lists and detail panes. **`app.notify` is the alert lane** — one `NotifyPush` per delivered `ai.notify` row. Product hooks may publish both (for example guest order: `app.site_order` for POS data plus `app.notify` for staff shade). Audit timeline uses `c35.user.{iid}.ev.notified` (`user.notified` in `ai.log`), not the app WS.
+
+**Optional narrow WS:** `GET /v1/ws?jwt=…&lane=notify` subscribes only the `app.notify` tail (Windows session helper; full app socket keeps the default `c35.user.{iid}.app.>` filter).
 
 **Code:** subject helpers + decode — `servers/crates/system/nats/src/user_app.rs` (`c35_nats::user_app_subject_*`, `user_app_subscribe_subject`).
 

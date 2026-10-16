@@ -433,6 +433,9 @@ class TaskRun extends $pb.GeneratedMessage {
     $core.int? tokensOut,
     $core.double? costUsd,
     $fixnum.Int64? durationMs,
+    $fixnum.Int64? parentRunId,
+    $fixnum.Int64? sourceMsgId,
+    $fixnum.Int64? lastMsgId,
   }) {
     final result = TaskRun._();
     if (id != null) result.id = id;
@@ -461,6 +464,9 @@ class TaskRun extends $pb.GeneratedMessage {
     if (tokensOut != null) result.tokensOut = tokensOut;
     if (costUsd != null) result.costUsd = costUsd;
     if (durationMs != null) result.durationMs = durationMs;
+    if (parentRunId != null) result.parentRunId = parentRunId;
+    if (sourceMsgId != null) result.sourceMsgId = sourceMsgId;
+    if (lastMsgId != null) result.lastMsgId = lastMsgId;
     return result;
   }
 
@@ -504,6 +510,9 @@ class TaskRun extends $pb.GeneratedMessage {
     ..aI(25, _omitFieldNames ? '' : 'tokensOut')
     ..aD(26, _omitFieldNames ? '' : 'costUsd')
     ..aInt64(27, _omitFieldNames ? '' : 'durationMs')
+    ..aInt64(28, _omitFieldNames ? '' : 'parentRunId')
+    ..aInt64(29, _omitFieldNames ? '' : 'sourceMsgId')
+    ..aInt64(30, _omitFieldNames ? '' : 'lastMsgId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -759,6 +768,33 @@ class TaskRun extends $pb.GeneratedMessage {
   $core.bool hasDurationMs() => $_has(25);
   @$pb.TagNumber(27)
   void clearDurationMs() => $_clearField(27);
+
+  @$pb.TagNumber(28)
+  $fixnum.Int64 get parentRunId => $_getI64(26);
+  @$pb.TagNumber(28)
+  set parentRunId($fixnum.Int64 value) => $_setInt64(26, value);
+  @$pb.TagNumber(28)
+  $core.bool hasParentRunId() => $_has(26);
+  @$pb.TagNumber(28)
+  void clearParentRunId() => $_clearField(28);
+
+  @$pb.TagNumber(29)
+  $fixnum.Int64 get sourceMsgId => $_getI64(27);
+  @$pb.TagNumber(29)
+  set sourceMsgId($fixnum.Int64 value) => $_setInt64(27, value);
+  @$pb.TagNumber(29)
+  $core.bool hasSourceMsgId() => $_has(27);
+  @$pb.TagNumber(29)
+  void clearSourceMsgId() => $_clearField(29);
+
+  @$pb.TagNumber(30)
+  $fixnum.Int64 get lastMsgId => $_getI64(28);
+  @$pb.TagNumber(30)
+  set lastMsgId($fixnum.Int64 value) => $_setInt64(28, value);
+  @$pb.TagNumber(30)
+  $core.bool hasLastMsgId() => $_has(28);
+  @$pb.TagNumber(30)
+  void clearLastMsgId() => $_clearField(30);
 }
 
 class ReqTaskList extends $pb.GeneratedMessage {
@@ -1007,6 +1043,8 @@ class ReqTaskRunStart extends $pb.GeneratedMessage {
     $core.String? model,
     $fixnum.Int64? chatId,
     $core.String? reqId,
+    $fixnum.Int64? parentRunId,
+    $fixnum.Int64? sourceMsgId,
   }) {
     final result = ReqTaskRunStart._();
     if (deviceIid != null) result.deviceIid = deviceIid;
@@ -1016,6 +1054,8 @@ class ReqTaskRunStart extends $pb.GeneratedMessage {
     if (model != null) result.model = model;
     if (chatId != null) result.chatId = chatId;
     if (reqId != null) result.reqId = reqId;
+    if (parentRunId != null) result.parentRunId = parentRunId;
+    if (sourceMsgId != null) result.sourceMsgId = sourceMsgId;
     return result;
   }
 
@@ -1039,6 +1079,8 @@ class ReqTaskRunStart extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'model')
     ..aInt64(6, _omitFieldNames ? '' : 'chatId')
     ..aOS(7, _omitFieldNames ? '' : 'reqId')
+    ..aInt64(8, _omitFieldNames ? '' : 'parentRunId')
+    ..aInt64(9, _omitFieldNames ? '' : 'sourceMsgId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1125,6 +1167,24 @@ class ReqTaskRunStart extends $pb.GeneratedMessage {
   $core.bool hasReqId() => $_has(6);
   @$pb.TagNumber(7)
   void clearReqId() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $fixnum.Int64 get parentRunId => $_getI64(7);
+  @$pb.TagNumber(8)
+  set parentRunId($fixnum.Int64 value) => $_setInt64(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasParentRunId() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearParentRunId() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get sourceMsgId => $_getI64(8);
+  @$pb.TagNumber(9)
+  set sourceMsgId($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasSourceMsgId() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearSourceMsgId() => $_clearField(9);
 }
 
 class ResTaskRunStart extends $pb.GeneratedMessage {
@@ -1436,12 +1496,14 @@ class ReqTaskRunList extends $pb.GeneratedMessage {
     $fixnum.Int64? sinceMs,
     $core.int? limit,
     $fixnum.Int64? taskId,
+    $fixnum.Int64? parentRunId,
   }) {
     final result = ReqTaskRunList._();
     if (deviceIid != null) result.deviceIid = deviceIid;
     if (sinceMs != null) result.sinceMs = sinceMs;
     if (limit != null) result.limit = limit;
     if (taskId != null) result.taskId = taskId;
+    if (parentRunId != null) result.parentRunId = parentRunId;
     return result;
   }
 
@@ -1462,6 +1524,7 @@ class ReqTaskRunList extends $pb.GeneratedMessage {
     ..aInt64(2, _omitFieldNames ? '' : 'sinceMs')
     ..aI(3, _omitFieldNames ? '' : 'limit')
     ..aInt64(4, _omitFieldNames ? '' : 'taskId')
+    ..aInt64(5, _omitFieldNames ? '' : 'parentRunId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1521,6 +1584,15 @@ class ReqTaskRunList extends $pb.GeneratedMessage {
   $core.bool hasTaskId() => $_has(3);
   @$pb.TagNumber(4)
   void clearTaskId() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get parentRunId => $_getI64(4);
+  @$pb.TagNumber(5)
+  set parentRunId($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasParentRunId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearParentRunId() => $_clearField(5);
 }
 
 class ResTaskRunList extends $pb.GeneratedMessage {

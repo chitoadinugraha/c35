@@ -123,6 +123,8 @@ async fn task_scheduler_loop(pool: PgPool, nats: Client) {
             model,
             chat_id: 0,
             req_id: format!("sched.{}.{}", trigger_id, c35_store::snowflake_id()),
+            parent_run_id: 0,
+            source_msg_id: 0,
         };
 
         match crate::rpc::task_run_start_rpc(&pool, Some(&nats), owner_iid, req).await {

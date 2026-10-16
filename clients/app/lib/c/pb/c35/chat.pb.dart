@@ -1470,6 +1470,7 @@ class ResPromptEnd extends $pb.GeneratedMessage {
     $core.int? promptTokens,
     $core.int? contextWindow,
     ContextUsage? usage,
+    $fixnum.Int64? chatId,
   }) {
     final result = ResPromptEnd._();
     if (msgId != null) result.msgId = msgId;
@@ -1484,6 +1485,7 @@ class ResPromptEnd extends $pb.GeneratedMessage {
     if (promptTokens != null) result.promptTokens = promptTokens;
     if (contextWindow != null) result.contextWindow = contextWindow;
     if (usage != null) result.usage = usage;
+    if (chatId != null) result.chatId = chatId;
     return result;
   }
 
@@ -1513,6 +1515,7 @@ class ResPromptEnd extends $pb.GeneratedMessage {
     ..aI(11, _omitFieldNames ? '' : 'contextWindow')
     ..aOM<ContextUsage>(12, _omitFieldNames ? '' : 'usage',
         subBuilder: ContextUsage.$_createMessage)
+    ..aInt64(13, _omitFieldNames ? '' : 'chatId')
     ..hasRequiredFields = false;
 
   @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
@@ -1646,6 +1649,15 @@ class ResPromptEnd extends $pb.GeneratedMessage {
   void clearUsage() => $_clearField(12);
   @$pb.TagNumber(12)
   ContextUsage ensureUsage() => $_ensure(11);
+
+  @$pb.TagNumber(13)
+  $fixnum.Int64 get chatId => $_getI64(12);
+  @$pb.TagNumber(13)
+  set chatId($fixnum.Int64 value) => $_setInt64(12, value);
+  @$pb.TagNumber(13)
+  $core.bool hasChatId() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearChatId() => $_clearField(13);
 }
 
 class ResPromptFail extends $pb.GeneratedMessage {

@@ -4,7 +4,9 @@ use c35_mod_log::{log_put, LogPut};
 use c35_store::snowflake_id;
 use sqlx::PgPool;
 
-use crate::billing_cost::{billing_cost_usd, billing_cost_wholesale_usd, RETAIL_MARKUP};
+use crate::billing_cost::{
+    billing_cost_with_cache_usd, billing_cost_wholesale_with_cache_usd, RETAIL_MARKUP,
+};
 use crate::billing_on_demand::DEFAULT_HOLD_USD;
 use crate::billing_profile::{
     billing_profile_deduct_rings, billing_profile_ensure, billing_profile_fetch,
@@ -268,6 +270,7 @@ pub async fn billing_usage_report(
     model: &str,
     tokens_in: i32,
     tokens_out: i32,
+    cached_tokens: i32,
     duration_ms: i32,
     bctx: Option<&crate::billing_resolve::BillingContext>,
     extra_cost_usd: f64,
@@ -282,8 +285,10 @@ pub async fn billing_usage_report(
     } else {
         billing_gate(pool, owner_iid).await?
     };
-    let llm_cost = billing_cost_usd(model, tokens_in, tokens_out);
-    let llm_wholesale = billing_cost_wholesale_usd(model, tokens_in, tokens_out);
+    let cached_tokens = cached_tokens.max(0);
+    let llm_cost = billing_cost_with_cache_usd(model, tokens_in, tokens_out, cached_tokens);
+    let llm_wholesale =
+        billing_cost_wholesale_with_cache_usd(model, tokens_in, tokens_out, cached_tokens);
     let extra_retail = extra_cost_usd.max(0.0);
     let cost_wholesale_usd = llm_wholesale + extra_retail / RETAIL_MARKUP;
     let cost = llm_cost + extra_retail;
@@ -306,6 +311,9 @@ pub async fn billing_usage_report(
     } else {
         serde_json::json!({})
     };
+    if cached_tokens > 0 {
+        meta["cached_tokens"] = serde_json::json!(cached_tokens);
+    }
     if extra_cost_usd > 0.0 {
         meta["extra_cost_usd"] = serde_json::json!(extra_cost_usd);
         meta["llm_cost_usd"] = serde_json::json!(llm_cost);
@@ -458,7 +466,16 @@ pub async fn billing_usage_report(
         }
         billing_fetch(pool, owner_iid).await?.unwrap_or(row)
     } else if let Some(b) = bctx {
-        crate::billing_resolve::billing_deduct_scoped(pool, b, cost, model).await?;
+        crate::billing_resolve::billing_deduct_scoped(
+            pool,
+            b,
+            cost,
+            model,
+            tokens_in,
+            tokens_out,
+            cached_tokens,
+        )
+        .await?;
         billing_fetch(pool, owner_iid).await?.unwrap_or(row)
     } else {
         billing_deduct_allowance(pool, owner_iid, cost).await?

@@ -79,6 +79,9 @@ message TaskRun {
   int32 tokens_out = 25;
   double cost_usd = 26;
   int64 duration_ms = 27;
+  int64 parent_run_id = 28;
+  int64 source_msg_id = 29;
+  int64 last_msg_id = 30;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,6 +113,8 @@ message ReqTaskRunStart {
   string model = 5;
   int64 chat_id = 6;          // optional correlation
   string req_id = 7;          // client-supplied or server assigns
+  int64 parent_run_id = 8;    // chunk child of orchestrator run
+  int64 source_msg_id = 9;    // Home message that spawned this run
 }
 
 message ResTaskRunStart {
@@ -139,6 +144,7 @@ message ReqTaskRunList {
   int64 since_ms = 2;
   int32 limit = 3;
   int64 task_id = 4;
+  int64 parent_run_id = 5;    // list chunk children of orchestrator
 }
 
 message ResTaskRunList {

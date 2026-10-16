@@ -553,6 +553,7 @@
         "bots": "Bots",
         "devices": "Devices",
         "sites": "Sites",
+        "tasks": "Tasks",
         "notifications": "Notifications",
         "mailboxesCount": "{count} mailboxes",
         "mailNew": "{count} new",

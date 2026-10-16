@@ -67,7 +67,10 @@ class UiMasterDetail extends StatelessWidget {
 
     if (!hasSelection) return _masterPane(nav ?? master);
 
-    return ColoredBox(color: uiPageBg, child: detailBuilder(selectedId));
+    return ColoredBox(
+      color: uiPageBg,
+      child: SizedBox.expand(child: detailBuilder(selectedId)),
+    );
   }
 
   Widget _masterPane(Widget list) => Column(
@@ -87,6 +90,6 @@ class UiMasterDetail extends StatelessWidget {
             child: Text('Select an item', style: TextStyle(color: _muted, fontSize: 13)),
           );
     }
-    return detailBuilder(selectedId);
+    return SizedBox.expand(child: detailBuilder(selectedId));
   }
 }

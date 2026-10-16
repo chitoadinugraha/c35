@@ -80,6 +80,7 @@ Single cluster tool surface for `type=browser` devices. Branch on `meta.browser_
 | `browser.sheets.cell_set` | `sheets.cell_set` | **no** | **yes** | **yes** | Open Google Sheet tab only. Name-box goto + F2 + `insertText` + Tab commit. |
 | `browser.sheets.row_read` | `sheets.row_read` | **no** | **removed** | **no** | **Removed from LLM tools** — use `range_read` with `start_col` + `columns` + `from_row`/`to_row`. Extension IPC op kept for debug only. |
 | `browser.sheets.append_row` | `sheets.append_row` | **no** | **yes** | **yes** | Product + stock on one row (default cols **B/C**). |
+| `browser.sheets.format_range` | `sheets.format_range` | **no** | **yes** | **yes** | Borders, alignment, number formats via Sheets API batchUpdate (UI shortcut fallback). |
 
 **Not an LLM tool:** Remote tab **WebRTC video + input** works on extension devices today (human plane). That is required for daily-profile control when `browser.page.act` is unavailable.
 

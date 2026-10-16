@@ -43,7 +43,8 @@ use builtin::{
     CaptchaSolveTool,
     BrowserPageActTool,
     BrowserPageExtractTool, BrowserPageObserveTool, BrowserPageScreenshotTool,
-    BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRangeReadTool,
+    BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsFormatRangeTool,
+    BrowserSheetsRangeReadTool,
     BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool, ChatMessagesTool, ChatSearchTool,
     ClientListTool, ComputerUseDelegateTool, ConsumptionAddTool, ConsumptionDeleteTool,
     ConsumptionTodayTool, ConsumptionUpdateTool, DelegateRunTool, DeviceArchiveTool,
@@ -51,10 +52,10 @@ use builtin::{
     DeviceListTool, DevicePairTool, DevicePinTool, DeviceRenameTool, DeviceScreenshotTool,
     DeviceUnpairTool,
     DocExtractTool, DriveListTool, DriveReadTool, ExpenseAddTool, ExpenseDeleteTool, VizChartTool,
-    ExpenseSummaryTool, GsheetAppendTool, GsheetReadTool, GsheetUpdateTool, ImgEditTool,
-    ImgGenerateTool, MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool,
+    ExpenseSummaryTool, GsheetAppendTool, GsheetFormatRangeTool, GsheetReadTool, GsheetUpdateTool,
+    ImgEditTool, ImgGenerateTool, MailArchiveTool, MailGetTool, MailListTool, MailMailboxListTool,
     MailMarkReadTool, MailSendTool, MemoryForgetTool, MemoryListTool, MemorySaveTool,
-    MusicGenerateTool, NotifyCancelTool, NotifyListTool, NotifyScheduleTool,
+    MusicGenerateTool, NotifyCancelTool, NotifyListTool, NotifyScheduleTool, NotifySendTool,
     PresentationCreateTool, PresentationExportTool, PresentationPatchTool,
     PresentationSourceExtractTool, PresentationSourceStructureTool, PresentationVideoExtractTool,
     PresentationVideoStructureTool, ReferralCodeDeleteTool, ReferralCodeListTool,
@@ -155,6 +156,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(GsheetReadTool));
     dispatcher.register(Arc::new(GsheetAppendTool));
     dispatcher.register(Arc::new(GsheetUpdateTool));
+    dispatcher.register(Arc::new(GsheetFormatRangeTool));
     dispatcher.register(Arc::new(BotDraftTool));
     dispatcher.register(Arc::new(BotPutTool));
     dispatcher.register(Arc::new(BotInboxQueryTool));
@@ -197,6 +199,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(BrowserSheetsCellSetTool));
     dispatcher.register(Arc::new(BrowserSheetsRowSetTool));
     dispatcher.register(Arc::new(BrowserSheetsRangeReadTool));
+    dispatcher.register(Arc::new(BrowserSheetsFormatRangeTool));
     dispatcher.register(Arc::new(BrowserFileUploadTool));
     dispatcher.register(Arc::new(DevicePairTool));
     dispatcher.register(Arc::new(DeviceGetTool));
@@ -248,6 +251,7 @@ fn build_default_dispatcher() -> ToolDispatcher {
     dispatcher.register(Arc::new(MailMailboxListTool));
     dispatcher.register(Arc::new(MailListTool));
     dispatcher.register(Arc::new(NotifyScheduleTool));
+    dispatcher.register(Arc::new(NotifySendTool));
     dispatcher.register(Arc::new(NotifyListTool));
     dispatcher.register(Arc::new(NotifyCancelTool));
     dispatcher.register(Arc::new(MailGetTool));

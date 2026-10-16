@@ -1669,3 +1669,238 @@ export const sheetsRowRead = (tabId, tab, params = {}) =>
     }
     return out;
   });
+
+const parseCellRefFmt = (ref) => {
+  const s = String(ref || "").trim().toUpperCase();
+  const m = s.match(/^([A-Z]{1,3})(\d+)$/);
+  if (!m) throw new Error(`invalid cell ${ref}`);
+  let col = 0;
+  for (const ch of m[1]) col = col * 26 + (ch.charCodeAt(0) - 64);
+  return { row: parseInt(m[2], 10) - 1, col: col - 1 };
+};
+
+const parseA1RangeGrid = (range, sheetId) => {
+  const a1 = String(range || "").includes("!") ? String(range).split("!").pop() : String(range);
+  const parts = a1.split(":");
+  const start = parseCellRefFmt(parts[0]);
+  const end = parts.length > 1 ? parseCellRefFmt(parts[1]) : start;
+  return {
+    sheetId,
+    startRowIndex: start.row,
+    endRowIndex: end.row + 1,
+    startColumnIndex: start.col,
+    endColumnIndex: end.col + 1,
+  };
+};
+
+const gridRangeJson = (g) => ({
+  sheetId: g.sheetId,
+  startRowIndex: g.startRowIndex,
+  endRowIndex: g.endRowIndex,
+  startColumnIndex: g.startColumnIndex,
+  endColumnIndex: g.endColumnIndex,
+});
+
+const buildFormatBatchRequests = (grid, format) => {
+  const requests = [];
+  const userFmt = {};
+  const fields = [];
+  const fmt = format && typeof format === "object" ? format : {};
+  if (fmt.bold === true) {
+    userFmt.textFormat = { ...(userFmt.textFormat || {}), bold: true };
+    fields.push("userEnteredFormat.textFormat.bold");
+  }
+  if (fmt.italic === true) {
+    userFmt.textFormat = { ...(userFmt.textFormat || {}), italic: true };
+    fields.push("userEnteredFormat.textFormat.italic");
+  }
+  if (fmt.horizontal_alignment) {
+    userFmt.horizontalAlignment = String(fmt.horizontal_alignment).toUpperCase();
+    fields.push("userEnteredFormat.horizontalAlignment");
+  }
+  if (fmt.vertical_alignment) {
+    userFmt.verticalAlignment = String(fmt.vertical_alignment).toUpperCase();
+    fields.push("userEnteredFormat.verticalAlignment");
+  }
+  if (fmt.wrap === true) {
+    userFmt.wrapStrategy = "WRAP";
+    fields.push("userEnteredFormat.wrapStrategy");
+  }
+  const nfType = fmt.number_format || fmt.number_format_type;
+  if (nfType) {
+    const t = String(nfType).toUpperCase();
+    const pat = fmt.number_format_pattern;
+    const patterns = {
+      NUMBER: pat || "#,##0.########",
+      CURRENCY: pat || "Rp#,##0",
+      PERCENT: pat || "0.00%",
+      DATE: pat || "yyyy-mm-dd",
+      TEXT: "@",
+    };
+    userFmt.numberFormat = patterns[t]
+      ? { type: t === "TEXT" ? "TEXT" : t, ...(t !== "TEXT" ? { pattern: patterns[t] } : {}) }
+      : { type: "NUMBER", pattern: pat || "#,##0" };
+    fields.push("userEnteredFormat.numberFormat");
+  }
+  if (fields.length) {
+    requests.push({
+      repeatCell: {
+        range: gridRangeJson(grid),
+        cell: { userEnteredFormat: userFmt },
+        fields: fields.join(","),
+      },
+    });
+  }
+  const borders = fmt.borders ? String(fmt.borders).toLowerCase() : "";
+  if (borders && borders !== "none" && borders !== "clear") {
+    const edge = { style: "SOLID", width: 1, color: { red: 0, green: 0, blue: 0 } };
+    let top = edge,
+      bottom = edge,
+      left = edge,
+      right = edge,
+      innerH = edge,
+      innerV = edge;
+    if (borders === "outer") {
+      innerH = { style: "NONE" };
+      innerV = { style: "NONE" };
+    } else if (borders === "inner") {
+      top = bottom = left = right = { style: "NONE" };
+    }
+    requests.push({
+      updateBorders: {
+        range: gridRangeJson(grid),
+        top,
+        bottom,
+        left,
+        right,
+        innerHorizontal: innerH,
+        innerVertical: innerV,
+      },
+    });
+  }
+  return requests;
+};
+
+const sheetsTabSpreadsheetMeta = (tabId) =>
+  new Promise((resolve, reject) => {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId },
+        world: "MAIN",
+        func: () => {
+          const href = String(location.href || "");
+          const idM = href.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+          if (!idM) return { ok: false, reason: "not_spreadsheet" };
+          const gidM = href.match(/[#?&]gid=(\d+)/);
+          let gid = gidM ? gidM[1] : null;
+          if (!gid) {
+            const tab =
+              document.querySelector(".docs-sheet-tab.docs-sheet-active-tab") ||
+              document.querySelector(".docs-sheet-tab[aria-selected='true']");
+            const fromDom = tab?.getAttribute("data-sheet-id") || tab?.getAttribute("data-gid");
+            if (fromDom && /^\d+$/.test(fromDom)) gid = fromDom;
+          }
+          if (!gid) gid = "0";
+          return { ok: true, spreadsheetId: idM[1], sheetId: parseInt(gid, 10) };
+        },
+      },
+      (results) => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(results?.[0]?.result);
+      }
+    );
+  });
+
+const sheetsBatchUpdateInTab = (tabId, spreadsheetId, requests) =>
+  new Promise((resolve, reject) => {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId },
+        world: "MAIN",
+        func: async (spreadsheetId, requests) => {
+          try {
+            const r = await fetch(
+              `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
+              {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ requests }),
+              }
+            );
+            const text = await r.text();
+            return { ok: r.ok, status: r.status, text: text.slice(0, 500) };
+          } catch (e) {
+            return { ok: false, error: String(e?.message || e) };
+          }
+        },
+        args: [spreadsheetId, requests],
+      },
+      (results) => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve(results?.[0]?.result);
+      }
+    );
+  });
+
+const sheetsSendShortcut = async (tabId, combo) => {
+  await cdpShortcut(tabId, String(combo || ""));
+};
+
+const sheetsFormatUiFallback = async (tabId, tab, range, format) => {
+  await sheetsNameBoxGotoRange(tabId, range);
+  await delay(200);
+  await sheetsFocusGrid(tabId);
+  const fmt = format && typeof format === "object" ? format : {};
+  if (fmt.bold === true) {
+    await sheetsSendShortcut(tabId, "ctrl+b");
+    await delay(120);
+  }
+  const align = fmt.horizontal_alignment ? String(fmt.horizontal_alignment).toUpperCase() : "";
+  if (align === "CENTER") {
+    await sheetsSendShortcut(tabId, "alt+h,a,c");
+    await delay(120);
+  } else if (align === "LEFT") {
+    await sheetsSendShortcut(tabId, "alt+h,a,l");
+    await delay(120);
+  } else if (align === "RIGHT") {
+    await sheetsSendShortcut(tabId, "alt+h,a,r");
+    await delay(120);
+  }
+  const nf = fmt.number_format || fmt.number_format_type;
+  if (nf) {
+    const t = String(nf).toUpperCase();
+    const map = { CURRENCY: "ctrl+shift+4", PERCENT: "ctrl+shift+5", DATE: "ctrl+shift+3", NUMBER: "ctrl+shift+1" };
+    if (map[t]) {
+      await sheetsSendShortcut(tabId, map[t]);
+      await delay(120);
+    }
+  }
+  return { ok: true, summary: `format UI fallback applied for ${range}`, via: "ui_shortcuts" };
+};
+
+export const sheetsFormatRange = (tabId, tab, params = {}) =>
+  sheetsWithQueue(tabId, async () => {
+    const tabNow = await chrome.tabs.get(tabId);
+    sheetsRequireSpreadsheetTab(tabNow);
+    const range = String(params.range || "").trim().toUpperCase();
+    if (!range) throw new Error("range required (e.g. A1:C1)");
+    const format = params.format && typeof params.format === "object" ? params.format : params;
+    const meta = await sheetsTabSpreadsheetMeta(tabId);
+    if (!meta?.ok) throw new Error("could not read spreadsheet id from tab");
+    const grid = parseA1RangeGrid(range, meta.sheetId);
+    const requests = buildFormatBatchRequests(grid, format);
+    if (!requests.length) throw new Error("no format options in request");
+    const api = await sheetsBatchUpdateInTab(tabId, meta.spreadsheetId, requests);
+    if (api?.ok) {
+      return {
+        ok: true,
+        summary: `formatted ${range}`,
+        range,
+        spreadsheet_id: meta.spreadsheetId,
+        via: "sheets_api",
+      };
+    }
+    const ui = await sheetsFormatUiFallback(tabId, tabNow, range, format);
+    return { ...ui, range, spreadsheet_id: meta.spreadsheetId, api_error: api?.text || api?.error };
+  });

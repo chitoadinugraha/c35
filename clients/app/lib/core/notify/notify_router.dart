@@ -1,5 +1,8 @@
 import 'package:alienai_c35/core/notify/local_notif.dart';
+import 'package:alienai_c35/core/notify/notif_open.dart';
+import 'package:alienai_c35/core/notify/web_notif.dart';
 import 'package:alienai_c35/widgets/notify/ui_notify_banner.dart';
+import 'package:flutter/foundation.dart';
 
 /// Chooses in-app banner or local notification from the app resumed flag.
 ///
@@ -46,7 +49,21 @@ class NotifyRouter {
     if (localPort is LocalNotif) {
       LocalNotif.instance.onOpened = (route) => openRoute?.call(route);
     }
-    await localPort.post(title: title, body: body, routeJson: routeJson);
+    if (kIsWeb) {
+      await WebNotif.post(
+        title: title,
+        body: body,
+        routeJson: routeJson,
+        onTap: openRoute,
+      );
+      return;
+    }
+    await localPort.post(
+      title: title,
+      body: body,
+      routeJson: routeJson,
+      category: NotifOpen.categoryFromRoute(routeJson),
+    );
   }
 
   /// Data-only FCM payload (type=user_notify) while this process is alive.

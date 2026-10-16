@@ -31,6 +31,12 @@ class PromptRunStore extends ChangeNotifier {
 
   PromptRunPush? get(String reqId) => _runs[reqId.trim()];
 
+  /// Child [computer_use.delegate] / [delegate.run] runs (have [PromptRunPush.parentReqId]).
+  bool isTrackedChildRun(String reqId) {
+    final run = get(reqId);
+    return run != null && run.parentReqId.trim().isNotEmpty;
+  }
+
   String liveThought(String reqId) => _liveThoughts[reqId.trim()]?.toString() ?? '';
   String liveText(String reqId) => _liveTexts[reqId.trim()]?.toString() ?? '';
 

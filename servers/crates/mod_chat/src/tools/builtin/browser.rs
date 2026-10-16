@@ -991,6 +991,94 @@ tool! {
     }
 }
 
+fn browser_sheets_format_params(args: &Value) -> Value {
+    let tab_id = arg_str(args, "tab_id");
+    let range = arg_str(args, "range");
+    let mut params = json!({ "tab_id": tab_id, "range": range });
+    if let Some(fmt) = args.get("format") {
+        params["format"] = fmt.clone();
+    }
+    for k in [
+        "bold",
+        "italic",
+        "underline",
+        "horizontal_alignment",
+        "vertical_alignment",
+        "wrap",
+        "number_format",
+        "number_format_type",
+        "number_format_pattern",
+        "borders",
+        "border_style",
+        "spreadsheet_id",
+    ] {
+        if let Some(v) = args.get(k) {
+            params[k] = v.clone();
+        }
+    }
+    params
+}
+
+tool! {
+    struct: BrowserSheetsFormatRangeTool,
+    name: "browser.sheets.format_range",
+    aliases: ["browser_sheets_format_range", "browser_sheets_format"],
+    description: "Format a range on an open Google Sheet tab (Sheets API batchUpdate when cluster service account can access the file, else in-tab API/UI fallback). Use for borders, alignment, number formats — not for cell values (use cell_set / range_set).",
+    topics: ["browser", "sheets"],
+    rag_phrases: [
+        "google sheet", "format cell", "border", "align center", "number format",
+        "currency", "percent", "bold header", "rapikan", "beri border",
+    ],
+    ui_calling_key: "tool.browser.sheets.format_range.calling",
+    ui_done_key: "tool.browser.sheets.format_range.done",
+    parameters: {
+        device_iid: (integer, "Target remote browser device identity ID", required),
+        tab_id: (string, "Chrome tab id for the spreadsheet", required),
+        range: (string, "A1 range e.g. A1:C1", required),
+        format: (object, "Format spec (bold, borders, horizontal_alignment, number_format, …).", optional),
+        spreadsheet_id: (string, "Optional; when bot-linked sheet id is known, server may format via gsheet.format_range.", optional),
+        bold: (boolean, "Bold text.", optional),
+        italic: (boolean, "Italic text.", optional),
+        underline: (boolean, "Underline text.", optional),
+        horizontal_alignment: (string, "LEFT | CENTER | RIGHT.", optional),
+        vertical_alignment: (string, "TOP | MIDDLE | BOTTOM.", optional),
+        wrap: (boolean, "Wrap text.", optional),
+        number_format: (string, "NUMBER | CURRENCY | PERCENT | DATE | TEXT.", optional),
+        number_format_pattern: (string, "Custom number pattern.", optional),
+        borders: (string, "all | outer | inner | none.", optional),
+        border_style: (string, "SOLID | DOTTED | DASHED.", optional),
+    },
+    execute: |args, ctx| {
+        let tab_id = arg_str(&args, "tab_id");
+        let range = arg_str(&args, "range");
+        if tab_id.is_empty() || range.is_empty() {
+            return Ok(browser_fail("tab_id and range are required"));
+        }
+        let params = browser_sheets_format_params(&args);
+        let raw = browser_invoke(&args, ctx, "sheets.format_range", params, 90).await;
+        if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
+            return Ok(raw);
+        }
+        Ok(browser_sheets_format_range_result(raw, &range))
+    }
+}
+
+fn browser_sheets_format_range_result(raw: Value, range: &str) -> Value {
+    if raw.get("ok").and_then(|v| v.as_bool()) == Some(true) {
+        let summary = raw
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("format applied");
+        return json!({
+            "ok": true,
+            "summary": summary,
+            "range": range,
+            "via": raw.get("via").cloned().unwrap_or(json!("extension")),
+        });
+    }
+    browser_fail(browser_invoke_error(&raw))
+}
+
 tool! {
     struct: BrowserFileUploadTool,
     name: "browser.file.upload",

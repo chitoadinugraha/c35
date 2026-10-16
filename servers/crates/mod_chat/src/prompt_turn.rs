@@ -952,12 +952,18 @@ where
     let mut compose_signals = vec![inst_pool_signal(&model).to_string(), "wire:date_range".into()];
     compose_signals.extend(device_platform_compose_signals(&platform_scope));
     let tool_catalog = cluster_tools_for_device_scope(&platform_scope);
+    let device_recent_context = crate::prompt::google_workspace_skill_gate::compose_device_recent_context(
+        &history_prefetch.ctx.summary,
+        catalog_followup_raw.as_deref(),
+        &history_prefetch.rows,
+    );
     let compose_opts = ComposeTurnOpts {
         extra_signals: &compose_signals,
         attachments_json: &req.attachments_json,
         extra_tool_include: &catalog_force_tools,
         extra_tool_exclude: &device_tool_exclude,
         extra_inst_suffix: &extra_inst_suffix,
+        device_recent_context: &device_recent_context,
         skip_tool_rag: is_simple_time,
         precomputed_query_embed: tool_precomputed_embed.as_deref(),
         ..ComposeTurnOpts::default()
@@ -1441,6 +1447,7 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
     let memory_embed_cost_bg = memory.trace.embed_cost_usd;
     let tokens_in_bg = res.tokens_in;
     let tokens_out_bg = res.tokens_out;
+    let tokens_cached_bg = res.tokens_cached;
     let session_bg = hooks.owner_session.clone();
     tokio::spawn(async move {
         let http_bg = http_client(std::time::Duration::from_secs(30));
@@ -1481,6 +1488,7 @@ Only fallback to user_offer.steps if delegation fails or on non-desktop devices.
             &model_bg,
             tokens_in_bg,
             tokens_out_bg,
+            tokens_cached_bg,
             duration_ms,
             Some(&bctx_bg),
             extra_cost_bg,

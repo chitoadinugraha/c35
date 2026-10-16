@@ -49,6 +49,7 @@ class Skill extends $pb.GeneratedMessage {
     $core.String? detectedAppVersion,
     $core.bool? autoSubmit,
     $fixnum.Int64? lastPatchedTsMs,
+    $core.String? healMode,
     $fixnum.Int64? createdTsMs,
     $fixnum.Int64? updatedTsMs,
     $fixnum.Int64? deletedTsMs,
@@ -81,6 +82,7 @@ class Skill extends $pb.GeneratedMessage {
       result.detectedAppVersion = detectedAppVersion;
     if (autoSubmit != null) result.autoSubmit = autoSubmit;
     if (lastPatchedTsMs != null) result.lastPatchedTsMs = lastPatchedTsMs;
+    if (healMode != null) result.healMode = healMode;
     if (createdTsMs != null) result.createdTsMs = createdTsMs;
     if (updatedTsMs != null) result.updatedTsMs = updatedTsMs;
     if (deletedTsMs != null) result.deletedTsMs = deletedTsMs;
@@ -129,6 +131,7 @@ class Skill extends $pb.GeneratedMessage {
     ..aOS(24, _omitFieldNames ? '' : 'detectedAppVersion')
     ..aOB(25, _omitFieldNames ? '' : 'autoSubmit')
     ..aInt64(26, _omitFieldNames ? '' : 'lastPatchedTsMs')
+    ..aOS(27, _omitFieldNames ? '' : 'healMode')
     ..aInt64(30, _omitFieldNames ? '' : 'createdTsMs')
     ..aInt64(31, _omitFieldNames ? '' : 'updatedTsMs')
     ..aInt64(32, _omitFieldNames ? '' : 'deletedTsMs')
@@ -382,30 +385,40 @@ class Skill extends $pb.GeneratedMessage {
   @$pb.TagNumber(26)
   void clearLastPatchedTsMs() => $_clearField(26);
 
+  /// ui = re-explore on failure; retry = bounded retries only; off = fail fast
+  @$pb.TagNumber(27)
+  $core.String get healMode => $_getSZ(26);
+  @$pb.TagNumber(27)
+  set healMode($core.String value) => $_setString(26, value);
+  @$pb.TagNumber(27)
+  $core.bool hasHealMode() => $_has(26);
+  @$pb.TagNumber(27)
+  void clearHealMode() => $_clearField(27);
+
   @$pb.TagNumber(30)
-  $fixnum.Int64 get createdTsMs => $_getI64(26);
+  $fixnum.Int64 get createdTsMs => $_getI64(27);
   @$pb.TagNumber(30)
-  set createdTsMs($fixnum.Int64 value) => $_setInt64(26, value);
+  set createdTsMs($fixnum.Int64 value) => $_setInt64(27, value);
   @$pb.TagNumber(30)
-  $core.bool hasCreatedTsMs() => $_has(26);
+  $core.bool hasCreatedTsMs() => $_has(27);
   @$pb.TagNumber(30)
   void clearCreatedTsMs() => $_clearField(30);
 
   @$pb.TagNumber(31)
-  $fixnum.Int64 get updatedTsMs => $_getI64(27);
+  $fixnum.Int64 get updatedTsMs => $_getI64(28);
   @$pb.TagNumber(31)
-  set updatedTsMs($fixnum.Int64 value) => $_setInt64(27, value);
+  set updatedTsMs($fixnum.Int64 value) => $_setInt64(28, value);
   @$pb.TagNumber(31)
-  $core.bool hasUpdatedTsMs() => $_has(27);
+  $core.bool hasUpdatedTsMs() => $_has(28);
   @$pb.TagNumber(31)
   void clearUpdatedTsMs() => $_clearField(31);
 
   @$pb.TagNumber(32)
-  $fixnum.Int64 get deletedTsMs => $_getI64(28);
+  $fixnum.Int64 get deletedTsMs => $_getI64(29);
   @$pb.TagNumber(32)
-  set deletedTsMs($fixnum.Int64 value) => $_setInt64(28, value);
+  set deletedTsMs($fixnum.Int64 value) => $_setInt64(29, value);
   @$pb.TagNumber(32)
-  $core.bool hasDeletedTsMs() => $_has(28);
+  $core.bool hasDeletedTsMs() => $_has(29);
   @$pb.TagNumber(32)
   void clearDeletedTsMs() => $_clearField(32);
 }

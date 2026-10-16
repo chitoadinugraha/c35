@@ -102,6 +102,9 @@ CREATE TABLE IF NOT EXISTS ai.task_run (
     tokens_out          INT NOT NULL DEFAULT 0,
     cost_usd            NUMERIC(12, 6) NOT NULL DEFAULT 0,
     duration_ms         INT NOT NULL DEFAULT 0,
+    parent_run_id       BIGINT NOT NULL DEFAULT 0,
+    source_msg_id       BIGINT NOT NULL DEFAULT 0,
+    last_msg_id         BIGINT NOT NULL DEFAULT 0,
 
     lease_pod           VARCHAR(64) NOT NULL DEFAULT '',
     lease_expires_ts    TIMESTAMPTZ,
@@ -135,3 +138,10 @@ ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS tokens_in INT NOT NULL DEFAULT 
 ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS tokens_out INT NOT NULL DEFAULT 0;
 ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0;
 ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS duration_ms INT NOT NULL DEFAULT 0;
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS parent_run_id BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS source_msg_id BIGINT NOT NULL DEFAULT 0;
+ALTER TABLE ai.task_run ADD COLUMN IF NOT EXISTS last_msg_id BIGINT NOT NULL DEFAULT 0;
+
+CREATE INDEX IF NOT EXISTS idx_task_run_parent
+    ON ai.task_run (parent_run_id, created_ts DESC)
+    WHERE parent_run_id <> 0 AND deleted_ts IS NULL;

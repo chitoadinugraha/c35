@@ -1,8 +1,8 @@
 use anyhow::{bail, Context, Result};
 use c35_mod_data_source::{
     data_source_list_for_bot, data_source_sync_invalidate, google_sheet_config_from_row,
-    google_sheet_read_csv, google_sheet_write_append, google_sheet_write_update, sheet_tab_name,
-    GoogleSheetConfig, SOURCE_KIND_GOOGLE_SHEET,
+    google_sheet_format_range, google_sheet_read_csv, google_sheet_write_append,
+    google_sheet_write_update, sheet_tab_name, GoogleSheetConfig, SOURCE_KIND_GOOGLE_SHEET,
 };
 use serde_json::{json, Value};
 
@@ -167,6 +167,53 @@ tool! {
     }
 }
 
+fn format_options_from_args(args: &Value) -> Value {
+    if let Some(fmt) = args.get("format") {
+        if fmt.is_object() {
+            return fmt.clone();
+        }
+    }
+    let mut fmt = json!({});
+    let copy_keys = [
+        "bold",
+        "italic",
+        "underline",
+        "horizontal_alignment",
+        "vertical_alignment",
+        "wrap",
+        "number_format",
+        "number_format_type",
+        "number_format_pattern",
+        "borders",
+        "border_style",
+    ];
+    for k in copy_keys {
+        if let Some(v) = args.get(k) {
+            fmt[k] = v.clone();
+        }
+    }
+    fmt
+}
+
+async fn gsheet_format_range_exec(args: Value, ctx: &ToolContext) -> Result<Value> {
+    let bindings = sheet_bindings(ctx).await?;
+    let want = args.get("spreadsheet_id").and_then(|v| v.as_str());
+    let cfg = binding_resolve(&bindings, want)?;
+    if !cfg.write_allowed {
+        bail!("this Google Sheet is read-only");
+    }
+    let range = args
+        .get("range")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .trim();
+    if range.is_empty() {
+        bail!("range is required (e.g. A1:C1)");
+    }
+    let format = format_options_from_args(&args);
+    google_sheet_format_range(cfg, range, &format).await
+}
+
 tool! {
     struct: GsheetUpdateTool,
     name: "gsheet.update",
@@ -180,5 +227,35 @@ tool! {
     },
     execute: |args, ctx| {
         gsheet_update_exec(args, ctx).await
+    }
+}
+
+tool! {
+    struct: GsheetFormatRangeTool,
+    name: "gsheet.format_range",
+    aliases: ["gsheet_format_range", "gsheet_format"],
+    description: "Apply cell formatting on a bot-linked Google Sheet via Sheets API (bold, borders all|outer|inner|none, horizontal_alignment LEFT|CENTER|RIGHT, vertical_alignment, wrap, number_format NUMBER|CURRENCY|PERCENT|DATE|TEXT, optional number_format_pattern). Requires service account + sheet shared as Editor.",
+    topics: ["bot", "sheets"],
+    rag_phrases: [
+        "google sheet", "format cell", "border", "align center", "number format",
+        "currency format", "percent format", "bold header",
+    ],
+    parameters: {
+        spreadsheet_id: (string, "Spreadsheet id. Omit when only one sheet is attached.", optional),
+        range: (string, "A1 range on the tab, e.g. A1:C1.", required),
+        format: (object, "Format spec object (bold, borders, horizontal_alignment, number_format, …).", optional),
+        bold: (boolean, "Bold text.", optional),
+        italic: (boolean, "Italic text.", optional),
+        underline: (boolean, "Underline text.", optional),
+        horizontal_alignment: (string, "LEFT | CENTER | RIGHT.", optional),
+        vertical_alignment: (string, "TOP | MIDDLE | BOTTOM.", optional),
+        wrap: (boolean, "Wrap text in cells.", optional),
+        number_format: (string, "NUMBER | CURRENCY | PERCENT | DATE | TIME | TEXT | SCIENTIFIC.", optional),
+        number_format_pattern: (string, "Custom pattern e.g. #,##0 or Rp#,##0.", optional),
+        borders: (string, "all | outer | inner | none.", optional),
+        border_style: (string, "SOLID | DOTTED | DASHED (default SOLID).", optional),
+    },
+    execute: |args, ctx| {
+        gsheet_format_range_exec(args, ctx).await
     }
 }

@@ -32,12 +32,20 @@ fn task_run_status_str(status: TaskRunStatus) -> &'static str {
     }
 }
 
+fn json_snowflake_iid(v: i64) -> Value {
+    if v == 0 {
+        json!(0)
+    } else {
+        json!(v.to_string())
+    }
+}
+
 fn task_run_json(run: &TaskRun) -> Value {
     let meta: Value = serde_json::from_str(run.meta_json.trim()).unwrap_or(json!({}));
     json!({
         "ok": true,
-        "run_id": run.id,
-        "device_iid": run.device_iid,
+        "run_id": json_snowflake_iid(run.id),
+        "device_iid": json_snowflake_iid(run.device_iid),
         "task_id": run.task_id,
         "chat_id": run.chat_id,
         "req_id": run.req_id,
@@ -54,6 +62,9 @@ fn task_run_json(run: &TaskRun) -> Value {
         "finished_ts_ms": run.finished_ts_ms,
         "created_ts_ms": run.created_ts_ms,
         "updated_ts_ms": run.updated_ts_ms,
+        "parent_run_id": json_snowflake_iid(run.parent_run_id),
+        "source_msg_id": json_snowflake_iid(run.source_msg_id),
+        "last_msg_id": json_snowflake_iid(run.last_msg_id),
     })
 }
 
@@ -98,6 +109,8 @@ async fn task_run_start_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<
         .unwrap_or_default()
         .trim()
         .to_string();
+    let source_msg_id = json_device_iid_field(args, "source_msg_id");
+    let parent_run_id = json_device_iid_field(args, "parent_run_id");
     let req = ReqTaskRunStart {
         device_iid,
         task_id,
@@ -106,6 +119,8 @@ async fn task_run_start_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<
         model,
         chat_id: ctx.chat_id,
         req_id: ctx.req_id.to_string(),
+        parent_run_id,
+        source_msg_id,
     };
     match task_run_start_rpc(&ctx.pool, ctx.nats.as_ref(), ctx.owner_iid, req).await {
         Ok(res) => match res.run.as_ref() {
@@ -117,7 +132,7 @@ async fn task_run_start_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<
 }
 
 async fn task_run_cancel_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
-    let run_id = args["run_id"].as_i64().unwrap_or(0);
+    let run_id = json_device_iid_field(args, "run_id");
     if run_id <= 0 {
         return Ok(task_fail("run_id is required"));
     }
@@ -152,24 +167,26 @@ async fn task_run_cancel_device_exec(ctx: &ToolContext, args: &Value) -> anyhow:
 }
 
 async fn task_run_status_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
-    let run_id = args["run_id"].as_i64().unwrap_or(0);
+    let run_id = json_device_iid_field(args, "run_id");
     if run_id > 0 {
         return match task_run_get(&ctx.pool, ctx.owner_iid, run_id).await {
             Some(run) => Ok(task_run_json(&run)),
             None => Ok(task_fail("run not found")),
         };
     }
-    let device_iid = args["device_iid"].as_i64().unwrap_or(0);
+    let device_iid = json_device_iid_field(args, "device_iid");
     let task_id = args["task_id"].as_i64().unwrap_or(0);
     let limit = args["limit"].as_i64().unwrap_or(5).clamp(1, 20) as i32;
     if device_iid <= 0 && task_id <= 0 {
         return Ok(task_fail("run_id or device_iid or task_id is required"));
     }
+    let parent_run_id = json_device_iid_field(args, "parent_run_id");
     let req = ReqTaskRunList {
         device_iid,
         since_ms: 0,
         limit,
         task_id,
+        parent_run_id,
     };
     let res = task_run_list_rpc(&ctx.pool, ctx.owner_iid, req).await;
     let runs: Vec<Value> = res.runs.iter().map(task_run_json).collect();

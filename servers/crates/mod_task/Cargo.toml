@@ -8,6 +8,7 @@ anyhow = { workspace = true }
 async-nats = { workspace = true }
 c35_mod_billing = { path = "../mod_billing", package = "c35_mod_billing" }
 c35_mod_device = { path = "../mod_device", package = "c35_mod_device" }
+c35_mod_notify = { path = "../mod_notify", package = "c35_mod_notify" }
 c35_nats = { path = "../system/nats", package = "c35_nats" }
 c35_proto = { path = "../proto", package = "c35_proto" }
 c35_store = { path = "../store", package = "c35_store" }

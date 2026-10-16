@@ -76,6 +76,19 @@ On avatar tap:
 - Unread count comes from `ReqNotifyList` (`unread_only`).
 - Deliver, banner vs local shade, and FCM: [notify.md](notify.md).
 
+**Tap routing (banner, local shade, FCM, history row):** after `ReqNotifyRead`, `NotifyRouter.openRoute` parses `route_json` (same object on `NotifyItem` in history). Resolution order: `chat_id` → open Home and focus that prompt thread (optional `req_id` scroll); else `path` → in-app route; else stay on history.
+
+| `route_json.category` | Typical `route_json` | Destination |
+|----------------------|----------------------|-------------|
+| `reminder` | `chat_id`, optional `req_id` | Home prompt thread |
+| `chat` | `chat_id`, optional `req_id` | Home prompt thread (deferred) |
+| `mail` | `path`: `/mail`, `mailbox_id`, `message_id` | `PageMail` (open mailbox / message when ids set) |
+| `site_order` | `path`: `/pos/orders`, `site_iid`, `tx_id` | Site POS orders for `site_iid` |
+| `task` | `path`: `/tasks`, `run_id` | Devices / task run detail |
+| `system` | `path` or empty | `path` when set; otherwise history only |
+
+Emitters set `category` on `route_json` (and may mirror on `NotifyPush.category`); see [notify.md](notify.md) product emit table.
+
 ### Mail (platform email)
 
 - **Entry:** avatar menu footer — **`9+` / `1`–`9` + mail icon** (left of referral tree); Settings tile when `Session.canUseMail`. Unread = sum of all mailboxes; loaded on **`ResSessionInit.nav`** (`mail_inbox_unread`, `mail_menu_visible`) and cached per uid in prefs until session init refreshes.

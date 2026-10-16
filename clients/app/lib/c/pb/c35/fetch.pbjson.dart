@@ -74,3 +74,17 @@ final $typed_data.Uint8List fetchPlatformStatsPushDescriptor =
     $convert.base64Decode(
         'ChZGZXRjaFBsYXRmb3JtU3RhdHNQdXNoEi4KE3BsYXRmb3JtX3VzZXJfY291bnQYASABKANSEX'
         'BsYXRmb3JtVXNlckNvdW50EhMKBXRzX21zGAIgASgDUgR0c01z');
+
+@$core.Deprecated('Use fetchCaptchaRatesPushDescriptor instead')
+const FetchCaptchaRatesPush$json = {
+  '1': 'FetchCaptchaRatesPush',
+  '2': [
+    {'1': 'sync_ts_ms', '3': 1, '4': 1, '5': 3, '10': 'syncTsMs'},
+    {'1': 'config_key', '3': 2, '4': 1, '5': 9, '10': 'configKey'},
+  ],
+};
+
+/// Descriptor for `FetchCaptchaRatesPush`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List fetchCaptchaRatesPushDescriptor = $convert.base64Decode(
+    'ChVGZXRjaENhcHRjaGFSYXRlc1B1c2gSHAoKc3luY190c19tcxgBIAEoA1IIc3luY1RzTXMSHQ'
+    'oKY29uZmlnX2tleRgCIAEoCVIJY29uZmlnS2V5');

@@ -749,6 +749,46 @@ async fn values_append(
     serde_json::from_str(&body).context("parse sheets append response")
 }
 
+pub(crate) async fn apply_spreadsheets_batch_update(spreadsheet_id: &str, body: Value) -> Result<Value> {
+    let api = sheets_api()?.context("Google Sheets service account required for formatting")?;
+    spreadsheets_batch_update(api.as_ref(), spreadsheet_id, body).await
+}
+
+async fn spreadsheets_batch_update(api: &SheetsApi, spreadsheet_id: &str, body: Value) -> Result<Value> {
+    let token = access_token(api).await?;
+    let url = format!(
+        "https://sheets.googleapis.com/v4/spreadsheets/{}:batchUpdate",
+        spreadsheet_id
+    );
+    let res = api
+        .http
+        .post(&url)
+        .bearer_auth(&token)
+        .json(&body)
+        .send()
+        .await
+        .context("sheets batchUpdate request")?;
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        bail!(
+            "sheets format failed (HTTP {}): {} — share the sheet as Anyone with the link can edit",
+            status,
+            text.chars().take(400).collect::<String>()
+        );
+    }
+    serde_json::from_str(&text).context("parse sheets batchUpdate response")
+}
+
+pub async fn google_sheet_format_range(
+    cfg: &GoogleSheetConfig,
+    range: &str,
+    format: &Value,
+) -> Result<Value> {
+    let http = Client::new();
+    crate::sheet_format::google_sheet_format_range(&http, cfg, range, format).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

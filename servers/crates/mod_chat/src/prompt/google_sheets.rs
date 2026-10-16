@@ -22,6 +22,14 @@ pub const GOOGLE_SHEETS_PARENT_TURN_RULE: &str = "[GOOGLE SHEETS DIRECT INPUT] \
 Execute cell edits, clicks, and text typing directly using device.input with batch actions [shortcut ctrl+g, type_text C3, shortcut enter]. \
 Do not delegate to background subagents for single-turn cell edits, clicks, or simple typing.";
 
+pub const GOOGLE_SHEETS_DEVICE_FORMAT_SKILL: &str =
+    include_str!("../../../../../_/schemas/skill_seeds/google_sheets_device_format.md");
+
+pub const GOOGLE_SHEETS_FORMAT_TOOL_RULE: &str = "[GOOGLE SHEETS FORMATTING] \
+For borders, alignment, and number formats: on Chrome extension browser devices use browser.sheets.format_range (tab_id + range + format). \
+On bot-linked sheets use gsheet.format_range. \
+On @device Windows only (no extension tools), follow the device format skill playbook with device.input — do not guess toolbar pixels without selecting the range in the name box first.";
+
 pub const GOOGLE_SHEETS_PARENT_CONTINUE_HINT: &str = "Google Sheets on @device is not done yet. \
 Continue using device.input with the name box (A1, B1, A2…) and verify with device.screenshot (som=true) — not pixel guesses. \
 Do not tell the user the sheet is finished until a screenshot shows the requested rows/title.";
@@ -241,6 +249,32 @@ pub fn user_text_looks_like_spreadsheet_cell_ref_edit(text: &str) -> bool {
         || t.contains("isi ")
         || t.contains("set ")
         || t.contains("ketik")
+}
+
+pub fn user_text_looks_like_sheet_format_intent(text: &str) -> bool {
+    let t = text.to_ascii_lowercase();
+    t.contains("border")
+        || t.contains("pinggir")
+        || t.contains("garis tepi")
+        || t.contains("align")
+        || t.contains("rata tengah")
+        || t.contains("tengah")
+        || t.contains("center")
+        || t.contains("format number")
+        || t.contains("number format")
+        || t.contains("format angka")
+        || t.contains("mata uang")
+        || t.contains("currency")
+        || t.contains("ribuan")
+        || t.contains("percent")
+        || t.contains("persen")
+        || t.contains("format cell")
+        || t.contains("rapikan")
+        || t.contains("pemisah ribuan")
+}
+
+pub fn google_sheets_format_skill_block() -> &'static str {
+    GOOGLE_SHEETS_DEVICE_FORMAT_SKILL
 }
 
 pub fn user_text_looks_like_device_spreadsheet_ui(user: &str) -> bool {

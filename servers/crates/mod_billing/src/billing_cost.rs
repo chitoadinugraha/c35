@@ -204,6 +204,21 @@ mod tests {
     }
 
     #[test]
+    fn frontier_cached_read_retail_markup() {
+        let model = "gemini-2.5-flash";
+        let tokens_in = 10_000;
+        let cached = 8_000;
+        let wholesale =
+            billing_cost_wholesale_with_cache_usd(model, tokens_in, 0, cached);
+        let retail = billing_cost_with_cache_usd(model, tokens_in, 0, cached);
+        if wholesale > 0.0 {
+            assert!((retail - wholesale * RETAIL_MARKUP).abs() < 1e-9);
+            let no_cache = billing_cost_with_cache_usd(model, tokens_in, 0, 0);
+            assert!(retail < no_cache);
+        }
+    }
+
+    #[test]
     fn image_tool_retail_applies_markup() {
         assert!((image_tool_retail_usd("draft", "gemini-3.1-flash-lite-image") - 0.0504).abs() < 0.0001);
         assert!((image_tool_retail_usd("draft", "gemini-3.1-flash-image") - 0.1005).abs() < 0.0001);

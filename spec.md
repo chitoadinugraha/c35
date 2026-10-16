@@ -114,6 +114,8 @@ Full UI spec: [`_/specs/ui.md`](_/specs/ui.md)
 | [`_/specs/web-app-bundle.md`](_/specs/web-app-bundle.md) | Flutter web bundle size, CanvasKit deploy trim, deferred mail/live/devices |
 | [`_/specs/presentation.md`](_/specs/presentation.md) | Presentations — native Flutter slide decks, 16:9 preview, Option C patching, PPTX export |
 | [`_/specs/remote.md`](_/specs/remote.md) | Remote: agent control session + WebRTC data plane (screen, files, media), NATS task scheduler & computer use |
+| [`_/specs/task-execution.md`](_/specs/task-execution.md) | Task runs: recipe / skill / prompt, batch orchestration, cron without LLM |
+| [`_/specs/plans/2026-10-15-task-execution-orchestration-multitask.md`](_/specs/plans/2026-10-15-task-execution-orchestration-multitask.md) | Implementation plan: chunk fan-out, chat links, heal policy |
 | [`_/specs/browser-remote.md`](_/specs/browser-remote.md) | Remote browser (`type=browser`): Rust agent + Playwright sidecar, same WebRTC UX |
 | [`_/specs/plans/2026-09-29-chrome-extension-remote-multitask.md`](_/specs/plans/2026-09-29-chrome-extension-remote-multitask.md) | Chrome extension remote (daily profile): native host, pair web page, OTA, alienai.id download |
 | [`_/specs/plans/2026-10-12-android-apk-ota-channel.md`](_/specs/plans/2026-10-12-android-apk-ota-channel.md) | Android APK OTA channel (independent of Play): background stage, PackageInstaller, Settings |

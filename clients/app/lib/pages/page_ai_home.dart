@@ -46,6 +46,8 @@ import 'package:alienai_c35/c/settings/user_locale_prefs.dart';
 import 'package:alienai_c35/c/settings/voice_prefs.dart';
 import 'package:alienai_c35/c/mention/composer_test_commands.dart';
 import 'package:alienai_c35/core/notify/fcm_service.dart';
+import 'package:alienai_c35/core/notify/notif_open.dart';
+import 'package:alienai_c35/core/notify/notify_desktop_client.dart';
 import 'package:alienai_c35/core/notify/notify_router.dart';
 import 'package:alienai_c35/c/store/chat_store.dart';
 import 'package:alienai_c35/c/update/app_update_busy.dart';
@@ -104,6 +106,7 @@ import 'package:alienai_c35/widgets/sites/ui_pos_link_host.dart';
 import 'package:alienai_c35/widgets/sites/ui_sites_picker_dialog.dart';
 import 'package:alienai_c35/widgets/sites/ui_staff_site_manage_card.dart';
 import 'package:alienai_c35/widgets/sites/ui_staff_site_picker_dialog.dart';
+import 'package:alienai_c35/widgets/task/ui_task_master_detail.dart';
 import 'package:alienai_c35/widgets/ui/ui_account_menu.dart';
 import 'package:alienai_c35/widgets/ui/ui_conn_wifi.dart';
 import 'package:alienai_c35/widgets/ui/ui_safe_area.dart';
@@ -160,6 +163,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   StreamSubscription? _socketAttachedSub;
   StreamSubscription? _followupPushSub;
   StreamSubscription? _promptRunPushSub;
+  StreamSubscription? _promptEndFanoutSub;
   StreamSubscription? _notifyPushSub;
   Timer? _presenceTimer;
   var _appResumed = true;
@@ -209,6 +213,11 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _followupPushSub = _conn.onPromptFollowupPush.listen((p) {
       PromptFollowupStore.instance.mergePush(p);
     });
+    _promptEndFanoutSub = _conn.onPromptEndFanout.listen((fanout) {
+      final active = _store.activeChatId;
+      if (active == null || active != fanout.chatId) return;
+      _promptEstimateApply(fanout.chatId, fanout.end);
+    });
     _promptRunPushSub = _conn.onPromptRunPush.listen((push) {
       if (push.parentReqId.isNotEmpty) return;
       final cid = _store.activeChatId;
@@ -238,6 +247,13 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     NotifyRouter.appResumed = true;
     NotifyRouter.markRead = _notifyMarkRead;
     NotifyRouter.openRoute = _openNotifyRoute;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      NotifyDesktopClient.instance.onNotifyPush = (title, body, routeJson, id) {
+        unawaited(NotifyRouter.show(title, body, routeJson, resumed: NotifyRouter.appResumed, id: id));
+        _store.notifyUnreadPut(_store.notifyUnreadCount + 1);
+      };
+      unawaited(NotifyDesktopClient.instance.start());
+    }
     _notifyPushSub = _conn.onNotifyPush.listen((push) {
       unawaited(NotifyRouter.show(push.title, push.body, push.routeJson, resumed: NotifyRouter.appResumed, id: push.id.toInt()));
       _store.notifyUnreadPut(_store.notifyUnreadCount + 1);
@@ -591,6 +607,9 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   void _appResumedSet(bool resumed) {
     _appResumed = resumed;
     NotifyRouter.appResumed = resumed;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      unawaited(NotifyDesktopClient.instance.setFocus(resumed));
+    }
     unawaited(_presenceSend(resumed));
     _presenceHeartbeat(resumed);
   }
@@ -645,16 +664,19 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 
   void _openNotifyRoute(String routeJson) {
-    final raw = routeJson.trim();
-    if (raw.isEmpty || raw == '{}') return;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return;
-      final chat = decoded['chat_id'];
-      final chatId = chat is num ? chat.toInt() : int.tryParse('$chat') ?? 0;
-      final reqId = decoded['req_id']?.toString() ?? '';
-      if (chatId > 0) unawaited(_navigateToChatMessage(chatId, reqId));
-    } catch (_) {}
+    final chatId = NotifOpen.chatIdFromRoute(routeJson);
+    if (chatId > 0) {
+      final raw = routeJson.trim();
+      String reqId = '';
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) reqId = decoded['req_id']?.toString() ?? '';
+      } catch (_) {}
+      unawaited(_navigateToChatMessage(chatId, reqId));
+      return;
+    }
+    final path = NotifOpen.pathFromRoute(routeJson);
+    if (path == '/mail') _openMail();
   }
 
   void _openNotifyHistory() => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => PageNotifyHistory(conn: _conn)));
@@ -762,6 +784,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     _connRefreshDebounce?.cancel();
     _followupPushSub?.cancel();
     _promptRunPushSub?.cancel();
+    _promptEndFanoutSub?.cancel();
     _notifyPushSub?.cancel();
     _presenceTimer?.cancel();
     VoicePrefs.instance.removeListener(_onTalkPrefs);
@@ -1182,6 +1205,31 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
+  void _openTasks() => Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => PageTasks(
+            conn: _conn,
+            ownerIid: Session.instance.uid,
+            onOpenSourceMessage: (msgId) {
+              Navigator.pop(context);
+              unawaited(_navigateToMessageId(msgId));
+            },
+          ),
+        ),
+      );
+
+  Future<void> _navigateToMessageId(int msgId) async {
+    if (msgId <= 0) return;
+    final chatId = _store.activeChatId;
+    if (chatId == null || chatId <= 0) return;
+    final msgs = _store.msgs.where((m) => m.chatId == chatId).toList();
+    final idx = msgs.indexWhere((m) => m.id == msgId);
+    if (idx >= 0) {
+      _timeline.scrollToChronologicalIndex(idx, itemCount: msgs.length, alignment: 0.5);
+    }
+  }
+
   void _openReferralTree() => Navigator.push(
         context,
         MaterialPageRoute<void>(
@@ -1283,6 +1331,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
           conn: ReferralConn(uid: Session.instance.uid),
           shellStore: _store,
           onSettings: _openSettings,
+          onTasks: _openTasks,
           onReferralTree: _openReferralTree,
           onBalance: () => billingHistorySheet(
             context,
@@ -1704,9 +1753,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
     );
   }
 
-  Widget _chatHeaderAccountTrailing(BuildContext menuCtx) => _HomeChatHeaderAccountTrailing(
-        key: const ValueKey('chat_header_account_trailing'),
-        menuCtx: menuCtx,
+  static const _headerTrailingKey = ValueKey<String>('chat_header_account_trailing');
+
+  Widget get _chatHeaderAccountTrailing => _HomeChatHeaderAccountTrailing(
+        key: _headerTrailingKey,
         home: this,
       );
 
@@ -1896,7 +1946,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
                 icon: const Icon(Icons.add_rounded),
                 onPressed: _newChat,
               ),
-            Builder(builder: _chatHeaderAccountTrailing),
+            _chatHeaderAccountTrailing,
           ],
         ),
       ),
@@ -1909,29 +1959,38 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
 
   int get _contextLimit => contextWindowResolve(_model.contextTokens, _activeChat?.contextWindow ?? 0);
 
+  static const _instructionsTokenBaseline = 1500;
+
+  int _threadCharTokenEstimate() {
+    if (_store.activeMsgs.isEmpty) return 0;
+    var totalChars = 0;
+    for (final m in _store.activeMsgs) {
+      totalChars += m.content.length + m.thought.length;
+    }
+    final conv = (totalChars / 4.0).ceil();
+    return conv > 0 ? conv + _instructionsTokenBaseline : 0;
+  }
+
   int get _effectivePromptTokens {
+    final activeId = _store.activeChatId;
+    final liveBusy = activeId != null && _store.promptBusyFor(activeId);
+    final liveEst = _threadCharTokenEstimate();
+    if (liveBusy && liveEst > 0) return liveEst;
     if (_promptTokens > 0) return _promptTokens;
     if (_usage.total > 0) return _usage.total;
-    final activeId = _store.activeChatId;
     if (activeId != null && activeId > 0) {
       final saved = _store.chatPromptTokensGet(activeId);
       if (saved > 0) return saved;
     }
-    if (_store.activeMsgs.isEmpty) return 0;
-    var totalChars = 0;
-    for (final m in _store.activeMsgs) {
-      totalChars += m.content.length;
-    }
-    final est = (totalChars / 4.0).ceil();
-    return est > 0 ? (est + 1500) : 0;
+    return liveEst;
   }
 
   ContextUsageParts get _effectiveUsage {
-    if (_usage.total > 0) return _usage;
+    if (_usage.total > 0 && !_store.promptBusyFor(_store.activeChatId)) return _usage;
     final total = _effectivePromptTokens;
     if (total <= 0) return const ContextUsageParts();
-    final conv = (total - 1500).clamp(0, total);
-    return ContextUsageParts(instructions: 1500, conversation: conv);
+    final conv = (total - _instructionsTokenBaseline).clamp(0, total);
+    return ContextUsageParts(instructions: _instructionsTokenBaseline, conversation: conv);
   }
 
   List<int> get _contextWindowOptions => contextWindowOptionsForModel(_model.contextTokens);
@@ -1945,10 +2004,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       );
 
   void _promptEstimateApply(int chatId, ResPromptEnd end) {
-    if (end.contextWindow > 0) _store.chatContextWindowPut(chatId, end.contextWindow);
+    if (end.contextWindow > 0) _store.chatContextWindowPut(chatId, end.contextWindow, notify: false);
     final usageParts = end.hasUsage() ? _usageParts(end.usage) : null;
     final pt = usageParts != null && usageParts.total > 0 ? usageParts.total : end.promptTokens;
-    if (pt > 0) _store.chatPromptTokensPut(chatId, pt);
+    if (pt > 0) _store.chatPromptTokensPut(chatId, pt, notify: false);
     if (!mounted || _store.activeChatId != chatId) return;
     setState(() {
       if (usageParts != null) {
@@ -1969,10 +2028,10 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       final applied = res.contextWindow > 0 ? res.contextWindow : window;
       if (!mounted || _store.activeChatId != id) return;
       setState(() {
-        _store.chatContextWindowPut(id, applied);
+        _store.chatContextWindowPut(id, applied, notify: false);
         _usage = _usage.copyConversation(res.promptTokens);
         _promptTokens = _usage.total;
-        _store.chatPromptTokensPut(id, _promptTokens);
+        _store.chatPromptTokensPut(id, _promptTokens, notify: false);
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating));
@@ -1991,7 +2050,7 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
       setState(() {
         _usage = _usage.copyConversation(res.promptTokens);
         _promptTokens = _usage.total;
-        _store.chatPromptTokensPut(id, _promptTokens);
+        _store.chatPromptTokensPut(id, _promptTokens, notify: false);
       });
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating));
@@ -2727,65 +2786,90 @@ class _PageAIHomeState extends State<PageAIHome> with WidgetsBindingObserver {
   }
 }
 
-/// App-bar wifi, context meter, and account control — isolated from full header rebuilds.
-class _HomeChatHeaderAccountTrailing extends StatelessWidget {
-  const _HomeChatHeaderAccountTrailing({super.key, required this.menuCtx, required this.home});
+/// App-bar wifi, context meter, and account control — single subtree; store updates via [setState] only.
+class _HomeChatHeaderAccountTrailing extends StatefulWidget {
+  const _HomeChatHeaderAccountTrailing({super.key, required this.home});
 
-  final BuildContext menuCtx;
   final _PageAIHomeState home;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-        listenable: Listenable.merge([home._store, PromptUsagePrefs.instance]),
-        builder: (context, _) {
-          final h = home;
-          final threadTokensIn = h._threadTokensIn;
-          final threadTokensOut = h._threadTokensOut;
-          final threadTotal = threadTokensIn + threadTokensOut;
-          final showMeter = (Session.instance.isRoot || Session.instance.isTester) &&
-              PromptUsagePrefs.instance.showUsageStats &&
-              (threadTotal > 0 || h._effectivePromptTokens > 0);
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              UiConnWifi(conn: h._conn, onReconnect: h._connConnect),
-              const SizedBox(width: 6),
-              if (showMeter)
-                UiContextMeter(
-                  key: const ValueKey('chat_context_meter'),
-                  promptTokens: h._effectivePromptTokens,
-                  usage: h._effectiveUsage,
-                  tokensIn: threadTokensIn,
-                  tokensOut: threadTokensOut,
-                  costUsd: h._threadCostUsd,
-                  contextLimit: h._contextLimit,
-                  windowOptions: h._contextWindowOptions,
-                  onWindowSelected: h._contextWindowSet,
-                  onSummarize: h._chatCompact,
-                  summarizeBusy: h._summarizeChatId != null && h._summarizeChatId == h._store.activeChatId,
-                  billingCurrency: AppStore.instance.wallet.billingCurrency,
-                  fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
-                  tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
-                )
-              else
-                const UiAppBarVersionLabel(),
-              SizedBox(width: showMeter ? 10 : 6),
-              UiAccountBtn(
-                tooltip: 'Account',
-                onTap: () => h._avatarMenu(menuCtx),
-                child: UiUserAvatar(
-                  name: Session.instance.name,
-                  email: Session.instance.email,
-                  handle: Session.instance.handle,
-                  pic: Session.instance.pic,
-                  size: 28,
-                ),
-              ),
-            ],
-          );
-        },
-      );
+  State<_HomeChatHeaderAccountTrailing> createState() => _HomeChatHeaderAccountTrailingState();
+}
+
+class _HomeChatHeaderAccountTrailingState extends State<_HomeChatHeaderAccountTrailing> {
+  late final VoidCallback _onStore;
+  late final VoidCallback _onUsagePrefs;
+
+  @override
+  void initState() {
+    super.initState();
+    _onStore = _scheduleRebuild;
+    _onUsagePrefs = _scheduleRebuild;
+    widget.home._store.addListener(_onStore);
+    PromptUsagePrefs.instance.addListener(_onUsagePrefs);
+  }
+
+  @override
+  void dispose() {
+    widget.home._store.removeListener(_onStore);
+    PromptUsagePrefs.instance.removeListener(_onUsagePrefs);
+    super.dispose();
+  }
+
+  void _scheduleRebuild() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final h = widget.home;
+    final threadTokensIn = h._threadTokensIn;
+    final threadTokensOut = h._threadTokensOut;
+    final threadTotal = threadTokensIn + threadTokensOut;
+    final showMeter = (Session.instance.isRoot || Session.instance.isTester) &&
+        PromptUsagePrefs.instance.showUsageStats &&
+        (threadTotal > 0 || h._effectivePromptTokens > 0);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        UiConnWifi(conn: h._conn, onReconnect: h._connConnect),
+        const SizedBox(width: 6),
+        if (showMeter)
+          UiContextMeter(
+            key: const ValueKey('chat_context_meter'),
+            promptTokens: h._effectivePromptTokens,
+            usage: h._effectiveUsage,
+            tokensIn: threadTokensIn,
+            tokensOut: threadTokensOut,
+            costUsd: h._threadCostUsd,
+            contextLimit: h._contextLimit,
+            windowOptions: h._contextWindowOptions,
+            onWindowSelected: h._contextWindowSet,
+            onSummarize: h._chatCompact,
+            summarizeBusy: h._summarizeChatId != null && h._summarizeChatId == h._store.activeChatId,
+            billingCurrency: AppStore.instance.wallet.billingCurrency,
+            fxMicroPerUsd: AppStore.instance.wallet.fxMicroPerUsd,
+            tapPadding: const EdgeInsets.fromLTRB(4, 6, 2, 6),
+          )
+        else
+          const UiAppBarVersionLabel(),
+        SizedBox(width: showMeter ? 10 : 6),
+        UiAccountBtn(
+          tooltip: 'Account',
+          onTap: () => h._avatarMenu(context),
+          child: UiUserAvatar(
+            name: Session.instance.name,
+            email: Session.instance.email,
+            handle: Session.instance.handle,
+            pic: Session.instance.pic,
+            size: 28,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Composer isolated from chat-thread [ChatStore] updates (streaming, sync) so typing stays smooth.

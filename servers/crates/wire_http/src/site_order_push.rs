@@ -1,7 +1,9 @@
 use async_nats::Client;
+use c35_mod_notify::{notify_emit, NotifyEmit, NotifyFcm};
 use c35_nats::user_app_subject_site_order;
 use c35_proto::{sync_push, SyncPush, Tx, WsRes, ws_res};
 use prost::Message;
+use serde_json::json;
 use sqlx::{PgPool, Row};
 
 pub async fn guest_order_notify_app(nats: &Client, pool: &PgPool, site_iid: i64, tx: &Tx) {
@@ -16,9 +18,38 @@ pub async fn guest_order_notify_app(nats: &Client, pool: &PgPool, site_iid: i64,
         })),
     };
     let bytes = ws.encode_to_vec();
+    let fcm = NotifyFcm::from_env();
+    let title = "New guest order".to_string();
+    let body = if tx.subject_name.trim().is_empty() {
+        format!("Order #{}", tx.tx_id)
+    } else {
+        tx.subject_name.clone()
+    };
+    let route_json = json!({
+        "path": "/pos/orders",
+        "site_iid": site_iid,
+        "tx_id": tx.tx_id,
+    });
     for uid in uids {
         let subject = user_app_subject_site_order(uid);
         let _ = nats.publish(subject, bytes.clone().into()).await;
+        if let Err(e) = notify_emit(
+            pool,
+            Some(nats),
+            &fcm,
+            NotifyEmit {
+                owner_iid: uid,
+                title: title.clone(),
+                body: body.clone(),
+                category: "site_order",
+                route_json: route_json.clone(),
+                req_id: String::new(),
+            },
+        )
+        .await
+        {
+            tracing::warn!(owner_iid = uid, error = %e, "[c35:notify] guest order emit");
+        }
     }
 }
 

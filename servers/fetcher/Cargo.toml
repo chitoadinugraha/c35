@@ -15,6 +15,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 c35_mod_billing = { path = "../crates/mod_billing", package = "c35_mod_billing" }
+c35_mod_captcha = { path = "../crates/mod_captcha", package = "c35_mod_captcha" }
 c35_mod_chat = { path = "../crates/mod_chat", package = "c35_mod_chat" }
 c35_mod_fetch = { path = "../crates/mod_fetch", package = "c35_mod_fetch" }
 c35_mod_llm = { path = "../crates/mod_llm", package = "c35_mod_llm" }

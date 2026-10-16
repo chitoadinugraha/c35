@@ -369,13 +369,14 @@ Seeded promotion: code `signup_trial`, 0.25× Lite pools, 7 days, 1× per email.
 ### LLM turn deduct (personal)
 
 ```
-billing_usage_report
-  → billing_profile_deduct_turn (if personal scope)
-      → charge_idr from pool rate (alienai vs pinned model)
-      → UPDATE billing_profile *_used_idr (FOR UPDATE)
-      → wallet_overflow_idr debited from balance_idr when pool empty
+billing_usage_report(..., tokens_in, tokens_out, cached_tokens, ...)
+  → llm_cost = billing_cost_with_cache_usd(model, tokens_in, tokens_out, cached_tokens)
+  → billing_profile_deduct_rings (personal) with that retail cost
+  → billing_deduct_scoped (bot/device) with same tokens + cached_tokens for subscription IDR pools
   → else legacy billing_deduct_allowance on billing_account
 ```
+
+`billing_profile_deduct_turn` (tests / helpers) uses the same cache-aware cost function.
 
 `billing_gate`: allow start when profile pools have remaining Rp ≥ hold estimate, else fall back to legacy allowance + wallet.
 

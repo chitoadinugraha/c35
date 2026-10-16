@@ -82,7 +82,9 @@ ActDeviceTaskRun delegate server for active_tasks; worker runs on server.
 - **One sheets tab_id** per recipe; close ephemeral e-Pus tabs after each row job.
 - Do **not** start duplicate ad-hoc runs in a tight loop from chat if billing gate fails — surface error once.
 
-**Not v1:** resume from checkpoint after server restart; per-row child `task_run` rows; extension `browser.task.run` as worker.
+**Not v1 (this plan):** resume from checkpoint after server restart; per-row child `task_run` rows; extension `browser.task.run` as worker.
+
+**Follow-on:** Parent/chunk orchestration, Activity chat links, migration-scale fan-out — **[2026-10-15-task-execution-orchestration-multitask.md](2026-10-15-task-execution-orchestration-multitask.md)** + [task-execution.md](../task-execution.md).
 
 ## Quota and billing
 

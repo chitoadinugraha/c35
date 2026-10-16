@@ -21,3 +21,9 @@ message FetchPlatformStatsPush {
   int64 platform_user_count = 1;
   int64 ts_ms = 2;
 }
+
+// Published by c35-fetcher on c35.fetch.captcha_rates after ai.config captcha.2captcha_wholesale update.
+message FetchCaptchaRatesPush {
+  int64 sync_ts_ms = 1;
+  string config_key = 2;
+}

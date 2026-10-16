@@ -97,6 +97,10 @@ User request
 - `ReqSkillPut` saves the new skill locally (`scope=device` or `scope=user`).
 - Next invocation uses the tape.
 
+### Tasks + cron (no LLM on success)
+
+Scheduled and manual **task runs** with `skill_id` execute the tape via the remote agent — see [task-execution.md](task-execution.md). Prefer **skill + cron** for fixed automations (e.g. daily device routine); reserve free-text `task.prompt` for exploration.
+
 ### 4. Self-Heal on UI Change
 
 When a skill step fails (element not found, wrong state):
@@ -114,6 +118,16 @@ Step fails
     └── patch_count >= 3 within 24h → status = 'needs_review', auto_run = false
                                        Notify user
 ```
+
+**Heal policy (planned — [orchestration plan](plans/2026-10-15-task-execution-orchestration-multitask.md) W6):**
+
+| `heal_mode` | Use | On failure |
+|-------------|-----|------------|
+| `ui` (default) | Desktop / browser taught skills | Re-explore + patch (caps above) |
+| `retry` | Shell, HTTP, IoT API tapes | Bounded retries only — **no LLM patch** |
+| `off` | Safety-critical | Fail run; user fixes skill |
+
+Until `heal_mode` ships, use short deterministic tapes for IoT/cron and disable `auto_run` after repeated failures.
 
 **Circuit-breaker fields added to `ai.skill`:**
 

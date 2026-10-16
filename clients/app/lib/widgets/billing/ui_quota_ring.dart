@@ -426,7 +426,6 @@ class UiQuotaPackagePanel extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1, color: Color(0xFF27272A)),
       ],
     );
   }

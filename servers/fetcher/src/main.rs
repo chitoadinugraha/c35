@@ -1,4 +1,5 @@
 use c35_mod_billing::FxRateFetchTask;
+use c35_mod_captcha::CaptchaRatesFetchTask;
 use c35_mod_chat::ContextIdleFetchTask;
 use c35_mod_fetch::{fetcher_run, FetchCtx, FetchTask};
 use c35_mod_llm::LlmCatalogFetchTask;
@@ -18,6 +19,9 @@ async fn main() -> anyhow::Result<()> {
     if let Err(e) = c35_mod_llm::llm_catalog_warm(&pool).await {
         tracing::warn!("llm_catalog_warm: {e:#}");
     }
+    if let Err(e) = c35_mod_captcha::captcha_rates_init(&pool).await {
+        tracing::warn!("captcha_rates_init: {e:#}");
+    }
     let nats = c35_nats::connect()
         .await
         .ok_or_else(|| anyhow::anyhow!("NATS required for c35_fetcher"))?;
@@ -26,6 +30,9 @@ async fn main() -> anyhow::Result<()> {
     let mut tasks: Vec<Box<dyn FetchTask>> = Vec::new();
     tasks.push(Box::new(FxRateFetchTask::from_env()));
     tasks.push(Box::new(LlmCatalogFetchTask));
+    if c35_mod_captcha::captcha_rates_sync_enabled() {
+        tasks.push(Box::new(CaptchaRatesFetchTask));
+    }
     tasks.push(Box::new(PlatformUserCountFetchTask));
     if c35_mod_chat::context_idle_compact_enabled() {
         tracing::info!("context_idle compact enabled");

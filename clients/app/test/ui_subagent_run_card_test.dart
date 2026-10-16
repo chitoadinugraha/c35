@@ -106,18 +106,15 @@ void main() {
             push: PromptRunPush(
               parentReqId: 'parent-1',
               label: 'Queued task',
-              status: 'queued',
-              tokensIn: 900,
-              tokensOut: 100,
-              durationMs: 1000,
-              costUsd: 0.01,
+              status: 'running',
+              kind: 'computer_use',
             ),
           ),
         ),
       ),
     );
 
-    expect(find.text('Queued'), findsOneWidget);
+    expect(find.text('Running'), findsOneWidget);
     expect(find.text('900'), findsNothing);
   });
 }

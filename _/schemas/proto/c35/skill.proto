@@ -52,6 +52,8 @@ message Skill {
   string detected_app_version = 24;
   bool auto_submit = 25;
   int64 last_patched_ts_ms = 26;
+  // ui = re-explore on failure; retry = bounded retries only; off = fail fast
+  string heal_mode = 27;
 
   int64 created_ts_ms = 30;
   int64 updated_ts_ms = 31;

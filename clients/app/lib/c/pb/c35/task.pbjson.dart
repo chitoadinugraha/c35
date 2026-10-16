@@ -170,6 +170,9 @@ const TaskRun$json = {
     {'1': 'tokens_out', '3': 25, '4': 1, '5': 5, '10': 'tokensOut'},
     {'1': 'cost_usd', '3': 26, '4': 1, '5': 1, '10': 'costUsd'},
     {'1': 'duration_ms', '3': 27, '4': 1, '5': 3, '10': 'durationMs'},
+    {'1': 'parent_run_id', '3': 28, '4': 1, '5': 3, '10': 'parentRunId'},
+    {'1': 'source_msg_id', '3': 29, '4': 1, '5': 3, '10': 'sourceMsgId'},
+    {'1': 'last_msg_id', '3': 30, '4': 1, '5': 3, '10': 'lastMsgId'},
   ],
 };
 
@@ -189,7 +192,9 @@ final $typed_data.Uint8List taskRunDescriptor = $convert.base64Decode(
     '1kZWxldGVkX3RzX21zGBYgASgDUgtkZWxldGVkVHNNcxIbCgltZXRhX2pzb24YFyABKAlSCG1l'
     'dGFKc29uEhsKCXRva2Vuc19pbhgYIAEoBVIIdG9rZW5zSW4SHQoKdG9rZW5zX291dBgZIAEoBV'
     'IJdG9rZW5zT3V0EhkKCGNvc3RfdXNkGBogASgBUgdjb3N0VXNkEh8KC2R1cmF0aW9uX21zGBsg'
-    'ASgDUgpkdXJhdGlvbk1z');
+    'ASgDUgpkdXJhdGlvbk1zEiIKDXBhcmVudF9ydW5faWQYHCABKANSC3BhcmVudFJ1bklkEiIKDX'
+    'NvdXJjZV9tc2dfaWQYHSABKANSC3NvdXJjZU1zZ0lkEh4KC2xhc3RfbXNnX2lkGB4gASgDUgls'
+    'YXN0TXNnSWQ=');
 
 @$core.Deprecated('Use reqTaskListDescriptor instead')
 const ReqTaskList$json = {
@@ -252,6 +257,8 @@ const ReqTaskRunStart$json = {
     {'1': 'model', '3': 5, '4': 1, '5': 9, '10': 'model'},
     {'1': 'chat_id', '3': 6, '4': 1, '5': 3, '10': 'chatId'},
     {'1': 'req_id', '3': 7, '4': 1, '5': 9, '10': 'reqId'},
+    {'1': 'parent_run_id', '3': 8, '4': 1, '5': 3, '10': 'parentRunId'},
+    {'1': 'source_msg_id', '3': 9, '4': 1, '5': 3, '10': 'sourceMsgId'},
   ],
 };
 
@@ -260,7 +267,8 @@ final $typed_data.Uint8List reqTaskRunStartDescriptor = $convert.base64Decode(
     'Cg9SZXFUYXNrUnVuU3RhcnQSHQoKZGV2aWNlX2lpZBgBIAEoA1IJZGV2aWNlSWlkEhcKB3Rhc2'
     'tfaWQYAiABKANSBnRhc2tJZBIWCgZwcm9tcHQYAyABKAlSBnByb21wdBIZCghza2lsbF9pZBgE'
     'IAEoA1IHc2tpbGxJZBIUCgVtb2RlbBgFIAEoCVIFbW9kZWwSFwoHY2hhdF9pZBgGIAEoA1IGY2'
-    'hhdElkEhUKBnJlcV9pZBgHIAEoCVIFcmVxSWQ=');
+    'hhdElkEhUKBnJlcV9pZBgHIAEoCVIFcmVxSWQSIgoNcGFyZW50X3J1bl9pZBgIIAEoA1ILcGFy'
+    'ZW50UnVuSWQSIgoNc291cmNlX21zZ19pZBgJIAEoA1ILc291cmNlTXNnSWQ=');
 
 @$core.Deprecated('Use resTaskRunStartDescriptor instead')
 const ResTaskRunStart$json = {
@@ -335,6 +343,7 @@ const ReqTaskRunList$json = {
     {'1': 'since_ms', '3': 2, '4': 1, '5': 3, '10': 'sinceMs'},
     {'1': 'limit', '3': 3, '4': 1, '5': 5, '10': 'limit'},
     {'1': 'task_id', '3': 4, '4': 1, '5': 3, '10': 'taskId'},
+    {'1': 'parent_run_id', '3': 5, '4': 1, '5': 3, '10': 'parentRunId'},
   ],
 };
 
@@ -342,7 +351,7 @@ const ReqTaskRunList$json = {
 final $typed_data.Uint8List reqTaskRunListDescriptor = $convert.base64Decode(
     'Cg5SZXFUYXNrUnVuTGlzdBIdCgpkZXZpY2VfaWlkGAEgASgDUglkZXZpY2VJaWQSGQoIc2luY2'
     'VfbXMYAiABKANSB3NpbmNlTXMSFAoFbGltaXQYAyABKAVSBWxpbWl0EhcKB3Rhc2tfaWQYBCAB'
-    'KANSBnRhc2tJZA==');
+    'KANSBnRhc2tJZBIiCg1wYXJlbnRfcnVuX2lkGAUgASgDUgtwYXJlbnRSdW5JZA==');
 
 @$core.Deprecated('Use resTaskRunListDescriptor instead')
 const ResTaskRunList$json = {

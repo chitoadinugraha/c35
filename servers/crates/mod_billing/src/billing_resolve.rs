@@ -187,17 +187,24 @@ pub async fn billing_subscription_deduct_turn(
     model: &str,
     tokens_in: i32,
     tokens_out: i32,
+    cached_tokens: i32,
     fx_micro: i64,
 ) -> Result<Option<f64>> {
-    use crate::billing_pool::{pool_alien_deduct_idr, pool_deduct_apply, pool_frontier_deduct_idr, PoolSnapshot};
-    use crate::billing_cost::billing_cost_wholesale_usd;
+    use crate::billing_pool::{
+        pool_alien_deduct_with_cache_idr, pool_deduct_apply, pool_frontier_deduct_idr, PoolSnapshot,
+    };
+    use crate::billing_cost::billing_cost_wholesale_with_cache_usd;
     use crate::billing_profile::model_uses_alien_pool;
 
+    let cached_tokens = cached_tokens.max(0);
     let use_alien = model_uses_alien_pool(model);
     let charge_idr = if use_alien {
-        pool_alien_deduct_idr(tokens_in, tokens_out, fx_micro)
+        pool_alien_deduct_with_cache_idr(tokens_in, tokens_out, cached_tokens, fx_micro)
     } else {
-        pool_frontier_deduct_idr(billing_cost_wholesale_usd(model, tokens_in, tokens_out), fx_micro)
+        pool_frontier_deduct_idr(
+            billing_cost_wholesale_with_cache_usd(model, tokens_in, tokens_out, cached_tokens),
+            fx_micro,
+        )
     };
     if charge_idr <= 0.0 {
         return Ok(None);
@@ -250,21 +257,28 @@ pub async fn billing_subscription_deduct_turn(
     Ok(Some(applied.wallet_overflow_idr))
 }
 
-pub async fn billing_deduct_scoped(pool: &PgPool, bctx: &BillingContext, cost_usd: f64, model: &str) -> Result<()> {
+pub async fn billing_deduct_scoped(
+    pool: &PgPool,
+    bctx: &BillingContext,
+    cost_usd: f64,
+    model: &str,
+    tokens_in: i32,
+    tokens_out: i32,
+    cached_tokens: i32,
+) -> Result<()> {
     if cost_usd <= 0.0 {
         return Ok(());
     }
     if let Some(_sub_id) = bctx.subscription_id {
         let fx_micro = crate::fx_live::fx_live_micro_per_usd();
-        // Rough token estimate from USD cost for subscription pool deduction
-        let tokens_est = (cost_usd * 1_000_000.0) as i32;
         if let Some(overflow_idr) = billing_subscription_deduct_turn(
             pool,
             &bctx.scope,
             bctx.scope_iid,
             model,
-            tokens_est,
-            0,
+            tokens_in,
+            tokens_out,
+            cached_tokens,
             fx_micro,
         )
         .await?

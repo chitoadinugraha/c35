@@ -953,12 +953,16 @@ class ChatStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void chatContextWindowPut(int id, int window) {
+  void chatContextWindowPut(int id, int window, {bool notify = true}) {
     if (id == 0 || window <= 0) return;
     final i = chats.indexWhere((c) => c.id == id);
     if (i < 0 || chats[i].contextWindow == window) return;
     chats[i].contextWindow = window;
-    _touch();
+    if (notify) {
+      _touch();
+    } else {
+      unawaited(_persistChats());
+    }
   }
 
   int chatPromptTokensGet(int id) {
@@ -967,12 +971,16 @@ class ChatStore extends ChangeNotifier {
     return i >= 0 ? chats[i].promptTokens : 0;
   }
 
-  void chatPromptTokensPut(int id, int tokens) {
+  void chatPromptTokensPut(int id, int tokens, {bool notify = true}) {
     if (id <= 0 || tokens <= 0) return;
     final i = chats.indexWhere((c) => c.id == id);
     if (i < 0 || chats[i].promptTokens == tokens) return;
     chats[i].promptTokens = tokens;
-    _touch();
+    if (notify) {
+      _touch();
+    } else {
+      unawaited(_persistChats());
+    }
   }
 
   void chatContextSummaryPresentPut(int id, bool present) {

@@ -4,6 +4,7 @@ mod config;
 mod log;
 mod nats_boot;
 mod notify_fire;
+mod notify_hooks;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -73,6 +74,9 @@ async fn main() -> anyhow::Result<()> {
     }
     if let Err(e) = c35_mod_llm::llm_catalog_warm(&pool).await {
         tracing::warn!("llm_catalog_warm: {e:#}");
+    }
+    if let Err(e) = c35_mod_captcha::captcha_rates_init(&pool).await {
+        tracing::warn!("captcha_rates_init: {e:#}");
     }
 
     let prompt_worker = Arc::new(Mutex::new(None));

@@ -3,7 +3,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Port the router calls so tests can record posts without the plugin.
 abstract class LocalNotifPort {
-  Future<void> post({required String title, required String body, required String routeJson});
+  Future<void> post({
+    required String title,
+    required String body,
+    required String routeJson,
+    String? category,
+  });
 }
 
 /// Local shade for a backgrounded app. Desktop and web no-op; Android and iOS post.
@@ -24,8 +29,52 @@ class LocalNotif implements LocalNotifPort {
     return defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
   }
 
+  static AndroidNotificationDetails _androidDetails(String? category) {
+    final cat = category?.trim().toLowerCase() ?? '';
+    switch (cat) {
+      case 'site_order':
+        return const AndroidNotificationDetails(
+          'alien_site_order',
+          'Orders',
+          channelDescription: 'New guest orders and POS alerts',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+        );
+      case 'mail':
+        return const AndroidNotificationDetails(
+          'alien_mail',
+          'Mail',
+          channelDescription: 'New mail messages',
+          importance: Importance.high,
+          priority: Priority.high,
+        );
+      case 'task':
+        return const AndroidNotificationDetails(
+          'alien_task',
+          'Tasks',
+          channelDescription: 'Task run finished or failed',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        );
+      default:
+        return const AndroidNotificationDetails(
+          'user_notify',
+          'Notifications',
+          channelDescription: 'Reminders and alerts',
+          importance: Importance.high,
+          priority: Priority.high,
+        );
+    }
+  }
+
   @override
-  Future<void> post({required String title, required String body, required String routeJson}) async {
+  Future<void> post({
+    required String title,
+    required String body,
+    required String routeJson,
+    String? category,
+  }) async {
     if (!_mobile) return;
     await _ensure();
     _seq = (_seq + 1) & 0x7fffffff;
@@ -33,15 +82,9 @@ class LocalNotif implements LocalNotifPort {
       id: _seq,
       title: title,
       body: body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'user_notify',
-          'Notifications',
-          channelDescription: 'Reminders and alerts',
-          importance: Importance.high,
-          priority: Priority.high,
-        ),
-        iOS: DarwinNotificationDetails(),
+      notificationDetails: NotificationDetails(
+        android: _androidDetails(category),
+        iOS: const DarwinNotificationDetails(),
       ),
       payload: routeJson,
     );

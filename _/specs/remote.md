@@ -191,7 +191,10 @@ queued → leased → running → done
 3. Server pod holding agent WS subscribes c35.act.device.{device_iid}.task.*
            → forwards ActDeviceTaskRun on agent session
            → UPDATE status=leased, lease_pod, lease_expires_ts
-4. Agent   executes (shell / UI / skill steps)
+4. Agent   executes per run kind (see [task-execution.md](task-execution.md)):
+           recipe → server worker + optional agent “active task” delegate;
+           skill_id → skill tape (no LLM on success);
+           else → prompt / exploration
            → EvDeviceTaskProgress / EvDeviceTaskDone on agent session (or NATS ev)
 5. Server  UPDATE ai.task_run, write ai.log rows, ack JetStream
            → TaskRunPush to owner WS clients
@@ -640,25 +643,25 @@ Users can instruct the AI to perform recurring background automations or one-sho
 - **Execution Wakeup:** NATS JetStream autonomously fires to `c35.task.fire.{trigger_id}`. A durable JetStream consumer (`c35-task-schedule-consumer` in `c35_mod_task::scheduler`) receives the fire event, confirms active status in YB, and dispatches `task_run_start_rpc`.
 - **Zero DB Polling:** No database scanning or interval polling loops exist on the server.
 
-#### 2. Agent Execution & Callback Lifecycle
+#### 2. Execution paths (recipe | skill | prompt)
+
+Full rules: **[task-execution.md](task-execution.md)**. Implementation plan: **[plans/2026-10-15-task-execution-orchestration-multitask.md](plans/2026-10-15-task-execution-orchestration-multitask.md)**.
 
 ```text
 c35-server (task_run_start_rpc)
    │
-   ├─► INSERT ai.task_run (status='running')
-   ├─► c35_mod_device::remote_agent_send_raw (ActDeviceTaskRun)
-   │      │
-   │      ▼
-   │   c_remote_windows (executes prompt / PowerShell script)
-   │      │
-   │      ├─► POST /v1/agent/task/progress (optional intermediate steps)
-   │      └─► POST /v1/agent/task/done (exit_code, summary, errors)
-   │             │
-   ▼             ▼
-c35-server (task_run_finish_rpc)
-   ├─► UPDATE ai.task_run (status='done'|'failed', duration_ms, finished_ts)
-   └─► WS fanout: TaskRunPush to user
+   ├─► INSERT ai.task_run (queued → running)
+   ├─► ActDeviceTaskRun → agent (presence, active_tasks, skill tape if skill_id)
+   │
+   ├─► IF prompt JSON has "recipe": "<name>"
+   │      └─► mod_task worker on server (parallel tools, meta_json progress)
+   │
+   └─► ELSE agent finishes run (tape or prompt) → task_run_finish_rpc
+          ├─► UPDATE ai.task_run (terminal status, metrics)
+          └─► TaskRunPush → owner WS
 ```
+
+Cron/webhook/once triggers call the same `task_run_start_rpc` — **no LLM in the scheduler**.
 
 #### 3. LLM Tools
 

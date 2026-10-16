@@ -385,6 +385,7 @@ WHEN ADDING DATA ROWS: \
 3. Type data into cells using type_text, followed by tab to move to the next column in that row. \
 4. Press enter to move to the next row (e.g. A5) and repeat for each row requested. \
 5. In your final response, only report the rows and styling that are visually confirmed in the latest screenshot. \
+FORMATTING: Prefer gsheet.format_range (bot sheet) or browser.sheets.format_range (extension tab) when available. On @device only, install skill catalog google-sheets-device-format and follow its playbook for borders, alignment, and number formats. \
 VERIFICATION: Every device.input automatically returns a fresh post-action observation screenshot with Set-of-Mark OCR. Inspect this observation to confirm actions took effect before concluding.',
     ARRAY[
         'google sheet',
@@ -417,6 +418,88 @@ VERIFICATION: Every device.input automatically returns a fresh post-action obser
     ARRAY['device.screenshot', 'device.input', 'shell.run'],
     ARRAY['computer_use.delegate', 'web.search', 'web.visit', 'web.research', 'browser.sheets.append_row', 'browser.sheets.cell_set'],
     159,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: Google Docs in Chrome on @device Windows/desktop
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.google_docs',
+    'global',
+    'task',
+    'device',
+    ARRAY['device']::TEXT[],
+    '[GOOGLE DOCS ON DEVICE] Multi-step create/edit in Chrome on the @mentioned PC. device_iid from [MENTION TARGETS]. \
+Execute directly with device.input and device.screenshot (som=true). Reuse an open document tab before docs.new. \
+Set title via title chip; body via canvas clicks and type_text. Apply heading/bold/list/align via toolbar or shortcuts after selecting text. \
+Install skill catalog google-docs-device for detailed steps. Never presentation.create for Docs. \
+Verify in screenshot before finishing.',
+    ARRAY[
+        'google doc', 'google docs', 'docs.new', 'document.new', 'google document',
+        'dokumen google', 'buat dokumen', 'create document', 'document/d/'
+    ],
+    ARRAY[
+        'tool_include:device.screenshot',
+        'tool_include:device.input',
+        'tool_include:shell.run'
+    ],
+    ARRAY['device.screenshot', 'device.input', 'shell.run'],
+    ARRAY['computer_use.delegate', 'web.search', 'web.visit', 'presentation.create', 'presentation.patch'],
+    160,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO UPDATE SET
+    inst = EXCLUDED.inst,
+    kind = EXCLUDED.kind,
+    topic_id = EXCLUDED.topic_id,
+    topics = EXCLUDED.topics,
+    phrases = EXCLUDED.phrases,
+    triggers = EXCLUDED.triggers,
+    include_tools = EXCLUDED.include_tools,
+    exclude_tools = EXCLUDED.exclude_tools,
+    priority = EXCLUDED.priority,
+    updated_ts = NOW();
+
+-- Seed: Google Slides in Chrome on @device (not Alien presentation.create)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, topics, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.device.google_slides',
+    'global',
+    'task',
+    'device',
+    ARRAY['device']::TEXT[],
+    '[GOOGLE SLIDES ON DEVICE] Google Slides in Chrome on the @mentioned PC — NOT presentation.create. \
+device_iid from [MENTION TARGETS]. device.input + device.screenshot (som=true). Reuse presentation tab before slides.new. \
+Edit filmstrip, placeholders, themes panel. Skill catalog google-slides-device for playbook. \
+Exclude in-app deck tools unless user asks for Alien slide builder without Google Slides.',
+    ARRAY[
+        'google slide', 'google slides', 'slides.new', 'presentation/d/',
+        'google presentation', 'slide di google', 'google slide baru'
+    ],
+    ARRAY[
+        'tool_include:device.screenshot',
+        'tool_include:device.input',
+        'tool_include:shell.run'
+    ],
+    ARRAY['device.screenshot', 'device.input', 'shell.run'],
+    ARRAY[
+        'computer_use.delegate', 'web.search', 'web.visit',
+        'presentation.create', 'presentation.patch', 'presentation.export'
+    ],
+    161,
     'seed',
     NOW()
 ) ON CONFLICT (id) DO UPDATE SET
@@ -594,12 +677,13 @@ INSERT INTO ai.inst (
     'global',
     'topic',
     'sheets',
-    '[GOOGLE SHEETS] Chrome extension spreadsheet. Read only browser.sheets.range_read (read_mode export). Wide row: start_col A + columns 12 + key_col C; one row: from_row=to_row=N. Inventory: product_col + stock_col. Writes: cell_set / append_row. device_iid string + tab_id from browser.tabs. gsheet.* for bot API sheets.',
+    '[GOOGLE SHEETS] Chrome extension spreadsheet. Read only browser.sheets.range_read (read_mode export). Wide row: start_col A + columns 12 + key_col C; one row: from_row=to_row=N. Inventory: product_col + stock_col. Writes: cell_set / append_row. Formatting (borders, align, number): browser.sheets.format_range. device_iid string + tab_id from browser.tabs. gsheet.* for bot API sheets (gsheet.format_range for format).',
     ARRAY[]::TEXT[],
     ARRAY[]::TEXT[],
     ARRAY[
         'browser.sheets.append_row',
         'browser.sheets.cell_set',
+        'browser.sheets.format_range',
         'browser.tabs'
     ],
     ARRAY['device.input'],
@@ -624,7 +708,7 @@ INSERT INTO ai.inst (
     'task',
     'sheets',
     ARRAY['sheets', 'browser']::TEXT[],
-    '[GOOGLE SHEETS] @mention the desktop device when browser_ready=true. If browser_ready=false, hop 1 browser.ensure (run_repairs true) and offer the user_offer: install Google Chrome + Alien AI Remote extension (faster/cheaper than web.search on their saved logins). Then browser.tabs + browser.sheets.* — never web.search/web.visit. Read only range_read (export). One full row: from_row=to_row, start_col, columns, key_col. Bulk: max_rows + from_row/to_row. Append: append_row with row=next_row. Writes: cell_set. Trust llm.summary on write ok.',
+    '[GOOGLE SHEETS] @mention the desktop device when browser_ready=true. If browser_ready=false, hop 1 browser.ensure (run_repairs true) and offer the user_offer: install Google Chrome + Alien AI Remote extension (faster/cheaper than web.search on their saved logins). Then browser.tabs + browser.sheets.* — never web.search/web.visit. Read only range_read (export). One full row: from_row=to_row, start_col, columns, key_col. Bulk: max_rows + from_row/to_row. Append: append_row with row=next_row. Writes: cell_set. Format borders/align/number: browser.sheets.format_range (not pixel-guessing menus). Trust llm.summary on write ok.',
     ARRAY[
         'google sheet', 'google sheets', 'spreadsheet', 'googlesheet',
         'feuille de calcul', 'lembar kerja', 'sheet test stock', 'test stock sheet',
@@ -635,6 +719,7 @@ INSERT INTO ai.inst (
         'tool_include:browser.ensure',
         'tool_include:browser.sheets.append_row',
         'tool_include:browser.sheets.cell_set',
+        'tool_include:browser.sheets.format_range',
         'tool_include:browser.sheets.range_read',
         'tool_include:browser.tabs',
         'tool_exclude:device.input',
@@ -1050,6 +1135,38 @@ UPDATE ai.inst SET
     enabled = true,
     updated_ts = NOW()
 WHERE id = 'inst.task.browser_worker';
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.migration',
+    'global',
+    'task',
+    'device',
+    '[TASK MIGRATION] Large backfills and migrations: use task.run_start with recipe task.chunk_fanout (total, chunk_size, parallel_children, child_recipe, child_params) for millions of rows — not delegate.run. LLM plans once and verifies with task.run_status when done; workers run without per-row chat. For sheet+e-Pus use child_recipe browser.sheet_row_backfill; for shell batches use data.shell_chunk. Pass source_msg_id when available.',
+    ARRAY['migrate', 'migration', 'jutaan', 'million rows', 'chunk', 'backfill data', 'bulk import'],
+    ARRAY['tool_include:task.run_start', 'tool_include:task.run_status', 'tool_include:task.create'],
+    ARRAY['task.run_start', 'task.run_status', 'task.create'],
+    125,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.task.cron_device',
+    'global',
+    'task',
+    'device',
+    '[TASK CRON] Recurring device automations (lights, daily script): task.create with task_trigger cron and skill_id on the task — replay skill tape without LLM each fire. Do not use free-text prompt for fixed schedules. Use heal_mode retry on IoT/API skills.',
+    ARRAY['every day', 'schedule', 'cron', '5 am', 'setiap hari', 'jadwal'],
+    ARRAY['tool_include:task.create', 'tool_include:task.list'],
+    ARRAY['task.create', 'task.list'],
+    124,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
 
 -- Seed: @image mention steering
 INSERT INTO ai.inst (
@@ -2593,7 +2710,7 @@ INSERT INTO ai.inst (
         'kabari saya', 'kasih tahu saya'
     ],
     ARRAY['tool_include:notify.schedule'],
-    ARRAY['notify.schedule', 'notify.list', 'notify.cancel'],
+    ARRAY['notify.schedule', 'notify.list', 'notify.cancel', 'notify.send'],
     ARRAY['web.search'],
     120,
     'seed',
@@ -2601,17 +2718,49 @@ INSERT INTO ai.inst (
 ) ON CONFLICT (id) DO NOTHING;
 
 UPDATE ai.inst SET
-    inst = '[NOTIFY] User wants a notification to themselves. Call notify.schedule. For "in N seconds/minutes" set delay_sec (minutes * 60). For a clock time set fire_at RFC3339 in the user timezone from context. For "notify me when you are done" / "if finished" set when=turn (delivers when this turn ends). Summarize from tool JSON: id, status, fire_at. Use notify.list when they ask what reminders they have. Use notify.cancel only when they name one to drop.',
+    inst = '[NOTIFY] User wants a notification to themselves. Call notify.schedule. For "in N seconds/minutes" set delay_sec (minutes * 60). For a clock time set fire_at RFC3339 in the user timezone from context. For "notify me when you are done" / "if finished" set when=turn (delivers when this turn ends). For immediate send without delay use notify.send. Summarize from tool JSON: id, status, fire_at. Use notify.list when they ask what reminders they have. Use notify.cancel only when they name one to drop.',
     phrases = ARRAY[
         'notify me', 'remind me', 'ingatkan', 'notification', 'in 5 seconds', 'in 5 sec',
         'kabari saya', 'kasih tahu saya'
     ],
     triggers = ARRAY['tool_include:notify.schedule'],
-    include_tools = ARRAY['notify.schedule', 'notify.list', 'notify.cancel'],
+    include_tools = ARRAY['notify.schedule', 'notify.list', 'notify.cancel', 'notify.send'],
     exclude_tools = ARRAY['web.search'],
     priority = 120,
     updated_ts = NOW()
 WHERE id = 'inst.task.notify';
+
+-- Seed: staff cross-user notify (partner / director / root)
+INSERT INTO ai.inst (
+    id, scope, kind, topic_id, inst, phrases, triggers, include_tools, exclude_tools, priority, def_hash, updated_ts
+) VALUES (
+    'inst.staff.notify',
+    'global',
+    'task',
+    '',
+    '[NOTIFY STAFF] User asks to send a push notification to another user (by name or iid). Call notify.send with target_iid when staff access allows; default recipient is the caller when they notify themselves. Summarize id, status, channels from tool JSON.',
+    ARRAY[
+        'send notification to', 'notify user', 'push to user', 'kirim notifikasi ke'
+    ],
+    ARRAY['tool_include:notify.send'],
+    ARRAY['notify.send', 'notify.list'],
+    ARRAY['web.search'],
+    115,
+    'seed',
+    NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+UPDATE ai.inst SET
+    inst = '[NOTIFY STAFF] User asks to send a push notification to another user (by name or iid). Call notify.send with target_iid when staff access allows; default recipient is the caller when they notify themselves. Summarize id, status, channels from tool JSON.',
+    phrases = ARRAY[
+        'send notification to', 'notify user', 'push to user', 'kirim notifikasi ke'
+    ],
+    triggers = ARRAY['tool_include:notify.send'],
+    include_tools = ARRAY['notify.send', 'notify.list'],
+    exclude_tools = ARRAY['web.search'],
+    priority = 115,
+    updated_ts = NOW()
+WHERE id = 'inst.staff.notify';
 
 -- Seed: platform mail send (Home assistant)
 INSERT INTO ai.inst (

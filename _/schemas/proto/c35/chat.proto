@@ -170,6 +170,7 @@ message ResPromptEnd {
   int32 prompt_tokens = 10;      // next-prompt context estimate
   int32 context_window = 11;
   ContextUsage usage = 12;
+  int64 chat_id = 13;            // fanout: apply meter when this chat is open
 }
 
 message ResPromptFail {

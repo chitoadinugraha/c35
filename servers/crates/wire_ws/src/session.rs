@@ -407,6 +407,7 @@ fn prompt_req_put(
                         prompt_tokens: turn.prompt_tokens,
                         context_window: turn.context_window,
                         usage: Some(turn.usage.proto()),
+                        chat_id,
                     })),
                 });
                 c35_mod_billing::billing_notify_owner(&pool, nats.as_ref(), owner_iid, Some(&out_tx)).await;

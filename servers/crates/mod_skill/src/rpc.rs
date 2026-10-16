@@ -371,6 +371,9 @@ fn skill_from_row(row: &sqlx::postgres::PgRow) -> Skill {
             .flatten()
             .map(|t| t.timestamp_millis())
             .unwrap_or(0),
+        heal_mode: row
+            .try_get::<String, _>("heal_mode")
+            .unwrap_or_else(|_| "ui".to_string()),
         created_ts_ms: row
             .get::<chrono::DateTime<chrono::Utc>, _>("created_ts")
             .timestamp_millis(),
@@ -484,7 +487,7 @@ pub async fn skill_list_rpc(pool: &PgPool, caller_iid: i64, req: ReqSkillList) -
                source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
                tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
                patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
-               last_patched_ts, created_ts, updated_ts, deleted_ts
+               heal_mode, last_patched_ts, created_ts, updated_ts, deleted_ts
         FROM ai.skill
         WHERE owner_iid = $1
           AND deleted_ts IS NULL
@@ -562,7 +565,7 @@ pub async fn skill_put_rpc(
                    source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
                    tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
                    patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
-                   last_patched_ts, created_ts, updated_ts, deleted_ts
+                   heal_mode, last_patched_ts, created_ts, updated_ts, deleted_ts
             FROM ai.skill WHERE id = $1
             "#,
         )
@@ -643,13 +646,13 @@ pub async fn skill_put_rpc(
             source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
             tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
             patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
-            last_patched_ts, created_ts, updated_ts
+            heal_mode, last_patched_ts, created_ts, updated_ts
         ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8,
             $9, $10, $11, $12, $13,
             $14::jsonb, $15::jsonb, $16, $17, $18, $19,
             $20, $21, $22, $23, $24,
-            $25, NOW(), NOW()
+            $25, $26, NOW(), NOW()
         )
         ON CONFLICT (id) DO UPDATE SET
             title = EXCLUDED.title,
@@ -666,6 +669,7 @@ pub async fn skill_put_rpc(
             consecutive_ok = EXCLUDED.consecutive_ok,
             detected_app_version = EXCLUDED.detected_app_version,
             auto_submit = EXCLUDED.auto_submit,
+            heal_mode = EXCLUDED.heal_mode,
             last_patched_ts = EXCLUDED.last_patched_ts,
             updated_ts = NOW()
         "#,
@@ -694,6 +698,10 @@ pub async fn skill_put_rpc(
     .bind(doc.consecutive_ok)
     .bind(doc.detected_app_version.trim())
     .bind(auto_submit)
+    .bind({
+        let m = doc.heal_mode.trim();
+        if m.is_empty() { "ui" } else { m }
+    })
     .bind(last_patched_ts)
     .execute(&mut *tx)
     .await
@@ -710,7 +718,7 @@ pub async fn skill_put_rpc(
                source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
                tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
                patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
-               last_patched_ts, created_ts, updated_ts, deleted_ts
+               heal_mode, last_patched_ts, created_ts, updated_ts, deleted_ts
         FROM ai.skill WHERE id = $1
         "#,
     )
@@ -1248,7 +1256,7 @@ async fn skill_catalog_install_openskill(
                source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
                tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
                patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
-               last_patched_ts, created_ts, updated_ts, deleted_ts
+               heal_mode, last_patched_ts, created_ts, updated_ts, deleted_ts
         FROM ai.skill WHERE id = $1
         "#,
     )
@@ -1422,7 +1430,7 @@ pub async fn skill_catalog_install_rpc(
                source, catalog_id, catalog_variant_id, catalog_release_id, author_name,
                tags_json, phrases_json, auto_run, surface, target_app, url_pattern,
                patch_epoch, patch_count, consecutive_ok, detected_app_version, auto_submit,
-               last_patched_ts, created_ts, updated_ts, deleted_ts
+               heal_mode, last_patched_ts, created_ts, updated_ts, deleted_ts
         FROM ai.skill WHERE id = $1
         "#,
     )

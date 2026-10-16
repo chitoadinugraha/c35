@@ -550,6 +550,7 @@ async fn bill_manual_compact(
         compact.tokens_in,
         compact.tokens_out,
         0,
+        0,
         None,
         extra,
         Some(billing.to_log_meta()),

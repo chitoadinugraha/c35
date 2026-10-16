@@ -8,9 +8,28 @@ class UiNotifyBanner {
   static OverlayEntry? _entry;
   static Timer? _hideTimer;
 
+  static const _overlayMaxFrames = 30;
+  static int _overlayAttempts = 0;
+
   static void show({required String title, required String body, required String routeJson, VoidCallback? onTap}) {
+    _overlayAttempts = 0;
+    _showWhenOverlayReady(title: title, body: body, routeJson: routeJson, onTap: onTap);
+  }
+
+  static void _showWhenOverlayReady({
+    required String title,
+    required String body,
+    required String routeJson,
+    VoidCallback? onTap,
+  }) {
     final overlay = c35NavigatorKey.currentState?.overlay;
-    if (overlay == null) return;
+    if (overlay == null) {
+      if (_overlayAttempts++ >= _overlayMaxFrames) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showWhenOverlayReady(title: title, body: body, routeJson: routeJson, onTap: onTap);
+      });
+      return;
+    }
     hide();
     _entry = OverlayEntry(
       builder: (context) {

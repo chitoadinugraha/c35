@@ -121,6 +121,7 @@ tool! {
         } else {
             None
         };
+        let billing_held = billing_row.is_some();
 
         let page_url = arg_str(&args, "page_url");
         let allow_hosts = captcha_egress_hosts(&page_url);
@@ -138,12 +139,22 @@ tool! {
         .await
         {
             Ok(l) => l,
-            Err(e) => return Ok(captcha_fail(e, "egress_lease_failed")),
+            Err(e) => {
+                if billing_held {
+                    let _ = captcha_billing_abort(&ctx.pool, &billing_req_id).await;
+                }
+                return Ok(captcha_fail(e, "egress_lease_failed"));
+            }
         };
 
         let (proxy, proxy_type) = match build_twocaptcha_proxy_param(&lease) {
             Ok(p) => p,
-            Err(e) => return Ok(captcha_fail(e, "egress_proxy_failed")),
+            Err(e) => {
+                if billing_held {
+                    let _ = captcha_billing_abort(&ctx.pool, &billing_req_id).await;
+                }
+                return Ok(captcha_fail(e, "egress_proxy_failed"));
+            }
         };
 
         let sitekey = arg_str(&args, "sitekey");

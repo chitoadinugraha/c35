@@ -253,13 +253,14 @@ See [context-compaction.md](context-compaction.md) for full behavior.
 
 | Event | `req_id` | Hold gate | Deduct path |
 |-------|----------|-----------|-------------|
-| User prompt turn | turn `req_id` | `billing_gate_with_hold` | `billing_usage_report` |
+| User prompt turn | turn `req_id` | `billing_gate_with_hold` | `billing_usage_report` (includes `cached_tokens` when provider reports cache hits) |
 | Compact on threshold (same turn) | **parent** turn `req_id` | Already held | `extra_cost_usd` on parent `billing_usage_report` |
 | Per-turn memory extract | **parent** turn `req_id` | Already held | `extra_cost_usd` on parent report |
 | Document OCR inside a Home or channel turn | parent turn `req_id` | Already held | `extra_cost_usd` via `doc_ocr_cost_usd` |
 | Document parse / `doc_index` cache hit | — | — | Not billed |
 | Idle compact / extract | `compact-{chat_id}-{snowflake}` | **None** | `billing_usage_report` if affordable; **skip** job if not |
 | Memory retrieve (embed) | — | — | **Not billed** (platform COGS) |
+| Captcha solve | `captcha_{tool_call_id}` | `captcha_billing_gate` | `captcha_billing_settle` on success; **`captcha_billing_abort`** refunds hold on failure |
 
 ### Document OCR
 
@@ -332,6 +333,10 @@ completion_cost = wholesale_output_cost × 1.50
 cached_read_cost = wholesale_cached_read_cost × 1.50
 ```
 Display metrics in trace view: `(cached_read_tokens) (tokens_in) (tokens_out) (duration_ms) (cost_usd)`.
+
+**Settlement:** Each LLM turn passes `cached_tokens` into `billing_usage_report` (after `tokens_out`). Dedupe row `cost_usd` / `cost_wholesale_usd`, profile ring deduct, and scoped subscription pool deduct all use the same cache-aware wholesale + `RETAIL_MARKUP` path as trace. `ai.log` meta includes `cached_tokens` when &gt; 0.
+
+Wholesale cached-read $/M comes from `ai.llm_model.input_cache_micro_per_m` (catalog sync via fetcher). See [billing-pricing.md](billing-pricing.md).
 
 ---
 

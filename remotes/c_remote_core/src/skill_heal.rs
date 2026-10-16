@@ -10,6 +10,15 @@ pub async fn heal(
     skill: &Skill,
     failure_reason: &str,
 ) -> Result<()> {
+    let mode = skill.heal_mode.trim().to_lowercase();
+    if mode == "off" {
+        report_fail(ctx, act, failure_reason).await;
+        return Ok(());
+    }
+    if mode == "retry" {
+        return heal_retry_only(ctx, act, skill, failure_reason).await;
+    }
+
     info!(skill_id = skill.id, failure = failure_reason, "skill_heal: evaluating self-repair");
 
     let now_ms = unix_now_ms();
@@ -82,6 +91,53 @@ pub async fn heal(
     patched_skill.consecutive_ok = 0;
 
     crate::skill_explore::explore(ctx, act, Some(&patched_skill)).await
+}
+
+async fn heal_retry_only(
+    ctx: &crate::skill_dispatch::DispatchCtx,
+    act: &ActDeviceTaskRun,
+    skill: &Skill,
+    failure_reason: &str,
+) -> Result<()> {
+    const MAX_TRIES: u32 = 3;
+    for attempt in 1..=MAX_TRIES {
+        tokio::time::sleep(std::time::Duration::from_millis(500 * attempt as u64)).await;
+        if crate::skill_tape::play(
+            &ctx.server_url,
+            &ctx.session_key,
+            ctx.device_iid,
+            act,
+            skill,
+        )
+        .await
+        .is_ok()
+        {
+            let _ = crate::skill_api::task_done(
+                &ctx.server_url,
+                &ctx.session_key,
+                act.run_id,
+                ctx.device_iid,
+                true,
+                "done",
+            )
+            .await;
+            return Ok(());
+        }
+    }
+    report_fail(ctx, act, failure_reason).await;
+    Ok(())
+}
+
+async fn report_fail(ctx: &crate::skill_dispatch::DispatchCtx, act: &ActDeviceTaskRun, reason: &str) {
+    let _ = crate::skill_api::task_done(
+        &ctx.server_url,
+        &ctx.session_key,
+        act.run_id,
+        ctx.device_iid,
+        false,
+        reason,
+    )
+    .await;
 }
 
 fn unix_now_ms() -> i64 {

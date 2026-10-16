@@ -12,7 +12,7 @@ Legacy admin tail subject `log.{iid}.{dv}.{topic}` is deprecated; new lifecycle 
 
 See also [billing.md](billing.md), [sync.md](sync.md), [notify.md](notify.md).
 
-User notification inbox is `ai.notify`. `ai.log` only gets the `user.notified` event (`class=event`; meta `notify_id`, `channels`, `title`). Ops reads that via `log_tail`. The app history screen reads `ai.notify`.
+User notification inbox is `ai.notify`. `ai.log` only gets the `user.notified` event (`class=event`; meta `notify_id`, `channels`, `title`, optional `category`, optional `sent_by_iid` when deliver was for another user). Ops reads that via `log_tail`. The app history screen reads `ai.notify`.
 
 Canonical DDL: [`../schemas/log.sql`](../schemas/log.sql)
 

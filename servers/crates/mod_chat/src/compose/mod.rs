@@ -54,6 +54,8 @@ pub struct ComposeTurnOpts<'a> {
     pub extra_tool_include: &'a [String],
     pub extra_tool_exclude: &'a [String],
     pub extra_inst_suffix: &'a str,
+    /// Recent chat + summary snippet for tiered Google Workspace skill injection.
+    pub device_recent_context: &'a str,
     pub bot_web_search: bool,
     pub attachments_json: &'a str,
     pub skip_tool_rag: bool,
@@ -67,6 +69,7 @@ impl<'a> Default for ComposeTurnOpts<'a> {
             extra_tool_include: &[],
             extra_tool_exclude: &[],
             extra_inst_suffix: "",
+            device_recent_context: "",
             bot_web_search: false,
             attachments_json: "[]",
             skip_tool_rag: false,
@@ -274,6 +277,8 @@ pub fn compose_force_device_operate_tool_call(matched_ids: &[String], tools: &[T
         id == "inst.device.operate"
             || id == "inst.device.google_forms"
             || id == "inst.device.google_sheets"
+            || id == "inst.device.google_docs"
+            || id == "inst.device.google_slides"
     }) && (tools_has(tools, "device.input") || tools_has(tools, "computer_use.delegate"))
 }
 
@@ -522,6 +527,8 @@ fn compose_prepare_scoped(
     opts: ComposeTurnOpts<'_>,
 ) -> Result<ComposePrep, ComposeOutput> {
     let device_scope_early = compose_prompt_has_device_scope(mention, text, mention_ids);
+    let device_slides_desktop_early = device_scope_early
+        && crate::prompt::google_slides::user_text_looks_like_device_google_slides(text);
     let mut topics: Vec<String> = if active_topics.is_empty() {
         vec![topic_resolve("", mention_ids, mentions)]
     } else {
@@ -551,9 +558,11 @@ fn compose_prepare_scoped(
     .into_iter()
     .filter(|row| {
         !(device_scope_early && row.id == "inst.mention.sheets")
+            && !(device_slides_desktop_early && row.id == "inst.presentation")
     })
     .collect();
     if matched.iter().any(|r| r.id == "inst.presentation")
+        && !device_slides_desktop_early
         && !topics.iter().any(|t| t == "presentation")
     {
         topics.push("presentation".into());
@@ -564,6 +573,10 @@ fn compose_prepare_scoped(
     let device_scope = device_scope_early;
     let device_sheets_desktop = device_scope
         && crate::prompt::google_sheets::user_text_looks_like_device_spreadsheet_ui(text);
+    let device_docs_desktop = device_scope
+        && crate::prompt::google_docs::user_text_looks_like_device_google_docs(text);
+    let device_slides_desktop = device_scope
+        && crate::prompt::google_slides::user_text_looks_like_device_google_slides(text);
     if device_sheets_desktop {
         if !matched_ids.iter().any(|id| id == "inst.device.google_sheets") {
             matched_ids.push("inst.device.google_sheets".into());
@@ -571,6 +584,23 @@ fn compose_prepare_scoped(
         if !matched_ids.iter().any(|id| id == "inst.device.operate") {
             matched_ids.push("inst.device.operate".into());
         }
+    }
+    if device_docs_desktop {
+        if !matched_ids.iter().any(|id| id == "inst.device.google_docs") {
+            matched_ids.push("inst.device.google_docs".into());
+        }
+        if !matched_ids.iter().any(|id| id == "inst.device.operate") {
+            matched_ids.push("inst.device.operate".into());
+        }
+    }
+    if device_slides_desktop {
+        if !matched_ids.iter().any(|id| id == "inst.device.google_slides") {
+            matched_ids.push("inst.device.google_slides".into());
+        }
+        if !matched_ids.iter().any(|id| id == "inst.device.operate") {
+            matched_ids.push("inst.device.operate".into());
+        }
+        matched_ids.retain(|id| id != "inst.presentation");
     }
     let mut inst_block = inst_matched_prompt(&matched);
     if matched_ids.iter().any(|id| id == "inst.device.google_forms")
@@ -581,15 +611,78 @@ fn compose_prepare_scoped(
         }
         inst_block.push_str(crate::prompt::google_forms::google_forms_playbook_block());
     }
+    let recent_ctx = opts.device_recent_context;
+    let sheets_full_skill = device_sheets_desktop
+        && crate::prompt::google_workspace_skill_gate::inject_full_google_sheets_skill(
+            text,
+            recent_ctx,
+        );
     if device_sheets_desktop {
         if !inst_block.is_empty() {
             inst_block.push_str("\n\n");
         }
         inst_block.push_str(crate::prompt::google_sheets::google_sheets_playbook_block());
+        if sheets_full_skill {
+            inst_block.push_str("\n\n");
+            inst_block.push_str(crate::prompt::google_sheets::GOOGLE_SHEETS_GOTO_RECIPE);
+            inst_block.push_str("\n\n");
+            inst_block.push_str(crate::prompt::google_sheets::GOOGLE_SHEETS_PARENT_TURN_RULE);
+            inst_block.push_str("\n\n");
+            inst_block.push_str(crate::prompt::google_sheets::GOOGLE_SHEETS_FORMAT_TOOL_RULE);
+            if crate::prompt::google_sheets::user_text_looks_like_sheet_format_intent(text) {
+                inst_block.push_str("\n\n[SKILL: google-sheets-device-format]\n");
+                inst_block.push_str(crate::prompt::google_sheets::google_sheets_format_skill_block());
+            }
+        } else {
+            inst_block.push_str("\n\n");
+            inst_block.push_str(
+                crate::prompt::google_workspace_skill_gate::GOOGLE_WORKSPACE_SKILL_DEFERRED_HINT,
+            );
+        }
+    }
+    let docs_full_skill = device_docs_desktop
+        && crate::prompt::google_workspace_skill_gate::inject_full_google_docs_skill(
+            text,
+            recent_ctx,
+        );
+    if device_docs_desktop {
+        if !inst_block.is_empty() {
+            inst_block.push_str("\n\n");
+        }
+        inst_block.push_str(crate::prompt::google_docs::google_docs_playbook_block());
         inst_block.push_str("\n\n");
-        inst_block.push_str(crate::prompt::google_sheets::GOOGLE_SHEETS_GOTO_RECIPE);
+        inst_block.push_str(crate::prompt::google_docs::GOOGLE_DOCS_SKILL_RULE);
+        if docs_full_skill {
+            inst_block.push_str("\n\n[SKILL: google-docs-device]\n");
+            inst_block.push_str(crate::prompt::google_docs::google_docs_skill_block());
+        } else {
+            inst_block.push_str("\n\n");
+            inst_block.push_str(
+                crate::prompt::google_workspace_skill_gate::GOOGLE_WORKSPACE_SKILL_DEFERRED_HINT,
+            );
+        }
+    }
+    let slides_full_skill = device_slides_desktop
+        && crate::prompt::google_workspace_skill_gate::inject_full_google_slides_skill(
+            text,
+            recent_ctx,
+        );
+    if device_slides_desktop {
+        if !inst_block.is_empty() {
+            inst_block.push_str("\n\n");
+        }
+        inst_block.push_str(crate::prompt::google_slides::google_slides_playbook_block());
         inst_block.push_str("\n\n");
-        inst_block.push_str(crate::prompt::google_sheets::GOOGLE_SHEETS_PARENT_TURN_RULE);
+        inst_block.push_str(crate::prompt::google_slides::GOOGLE_SLIDES_SKILL_RULE);
+        if slides_full_skill {
+            inst_block.push_str("\n\n[SKILL: google-slides-device]\n");
+            inst_block.push_str(crate::prompt::google_slides::google_slides_skill_block());
+        } else {
+            inst_block.push_str("\n\n");
+            inst_block.push_str(
+                crate::prompt::google_workspace_skill_gate::GOOGLE_WORKSPACE_SKILL_DEFERRED_HINT,
+            );
+        }
     }
     if !opts.extra_inst_suffix.trim().is_empty() {
         if !inst_block.is_empty() {
@@ -649,6 +742,8 @@ fn compose_prepare_scoped(
         id == "inst.device.operate"
             || id == "inst.device.google_forms"
             || id == "inst.device.google_sheets"
+            || id == "inst.device.google_docs"
+            || id == "inst.device.google_slides"
     }) {
         for name in tool_select::DEVICE_OPERATE_FORCE_TOOLS {
             tool_exclude.retain(|x| x != *name);
@@ -751,6 +846,8 @@ fn compose_finish(
         id == "inst.device.operate"
             || id == "inst.device.google_forms"
             || id == "inst.device.google_sheets"
+            || id == "inst.device.google_docs"
+            || id == "inst.device.google_slides"
     }) {
         for name in tool_select::DEVICE_OPERATE_FORCE_TOOLS {
             if tools.iter().any(|t| t.name == *name) {

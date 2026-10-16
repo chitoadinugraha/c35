@@ -667,11 +667,12 @@ class IoTaskTriggerList extends StatelessWidget {
           children: [
             const Icon(Icons.schedule_outlined, size: 18, color: _accent),
             const SizedBox(width: 8),
-            const Text(
-              'Triggers & Schedules',
-              style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+            const Expanded(
+              child: Text(
+                'Triggers & Schedules',
+                style: TextStyle(color: _text, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
             ),
-            const Spacer(),
             OutlinedButton.icon(
               onPressed: onAdd,
               icon: const Icon(Icons.add, size: 15),

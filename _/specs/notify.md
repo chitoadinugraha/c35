@@ -144,6 +144,19 @@ Hydrate on the existing single-leader boot path (same advisory lock as task sche
 
 Fire payload JSON: `{ "notify_id": i64 }`. Handler calls `notify_deliver`.
 
+## Product emit (`notify_emit`)
+
+Server hooks and staff tools call `notify_emit` in `c35_mod_notify`: insert `ai.notify` with `delay_sec = 0`, then `notify_deliver` inline. `route_json.category` is set when missing (`mail`, `site_order`, `task`, `system`, `reminder`, …). Sync subjects (`app.site_order`, `app.task_run`, mail sidebar JSON) stay for UI refresh; user-visible alerts also go through this pipeline.
+
+| Source | Hook |
+|--------|------|
+| Inbound mail | `mail_user_notify_json` → `notify_hooks` (server_ai) |
+| Guest order | `guest_order_notify_app` after `SyncPush` |
+| Task terminal | `task_worker_spawn` on `done` / `failed` / `cancelled` |
+| Chat / reminders | `notify.schedule`, `notify.send` |
+
+Plan: [plans/2026-10-15-product-notify-all-platforms-multitask.md](plans/2026-10-15-product-notify-all-platforms-multitask.md).
+
 ## Tools
 
 Steering is `inst.task.notify` in `inst.sql` (`kind=task`, `scope=global`, priority 120). Git seed is not live; deploy with `inst_put`. Tool JSON describes parameters only.
@@ -153,8 +166,9 @@ Steering is `inst.task.notify` in `inst.sql` (`kind=task`, `scope=global`, prior
 | `notify.schedule` | yes | `title`, `body`, optional `delay_sec` or `fire_at` (RFC3339), optional `when` = `delay` (default) or `turn`, optional `route` `{chat_id, path}` |
 | `notify.list` | no | optional `limit` (default 20, max 50), optional `unread_only` |
 | `notify.cancel` | yes | `id`. Only `scheduled` or `waiting` owned by the caller becomes `cancelled` |
+| `notify.send` | yes | `title`, `body`, optional `category`, optional `route`, optional `target_iid` (staff only when not self). Immediate deliver; no `delay_sec`. |
 
-`include_tools`: `notify.schedule`, `notify.list`, `notify.cancel`. `exclude_tools`: `web.search`.
+`include_tools`: `notify.schedule`, `notify.list`, `notify.cancel`, `notify.send`. `exclude_tools`: `web.search`. Cross-user send: `inst.staff.notify` (staff roles) includes `notify.send` with `target_iid`.
 
 Phrases (substring): `notify me`, `remind me`, `ingatkan`, `notification`, `in 5 seconds`, `in 5 sec`, `kabari saya`, `kasih tahu saya`.
 

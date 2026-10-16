@@ -38,6 +38,7 @@ class UiAccountMenuAction {
     this.conn,
     this.onSettings,
     this.onReferralTree,
+    this.onTasks,
     this.onBalance,
     this.onPackage,
     this.onCommissionTap,
@@ -67,6 +68,7 @@ class UiAccountMenuAction {
   final ReferralConn? conn;
   final VoidCallback? onSettings;
   final VoidCallback? onReferralTree;
+  final VoidCallback? onTasks;
   final VoidCallback? onBalance;
   final VoidCallback? onPackage;
   final VoidCallback? onCommissionTap;
@@ -409,6 +411,12 @@ class _UiAccountMenuDialogState extends State<_UiAccountMenuDialog> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          if (acts.onTasks != null)
+                            _MenuIconBtn(
+                              icon: Icons.task_alt_rounded,
+                              tooltip: 'account.tasks'.tr(),
+                              onTap: () => _popThen(acts.onTasks),
+                            ),
                           const Spacer(),
                           if (acts.onReferralTree != null) ...[
                             _MenuIconBtn(icon: Icons.account_tree_outlined, tooltip: 'Referral tree', onTap: () => _popThen(acts.onReferralTree)),

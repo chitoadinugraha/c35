@@ -19,6 +19,7 @@ pub async fn boot_handlers_background(
     prompt_worker: Arc<Mutex<Option<PromptRunWorker>>>,
 ) {
     log::booting("handlers");
+    crate::notify_hooks::notify_hooks_init(pool.clone(), nats.clone());
     if let Err(e) = c35_mod_billing::fx_live_init(&pool).await {
         tracing::warn!("fx_live_init: {e:#}");
     }
@@ -50,6 +51,7 @@ pub async fn boot_handlers_background(
     if let Some(nats_client) = nats.as_ref() {
         c35_mod_billing::fx_live_subscribe(pool.clone(), nats_client.clone());
         c35_mod_llm::llm_catalog_nats_subscribe(pool.clone(), nats_client.clone());
+        c35_mod_captcha::captcha_rates_nats_subscribe(pool.clone(), nats_client.clone());
         c35_mod_chat::inst_cache_nats_subscribe(pool.clone(), nats_client.clone());
         c35_mod_task::scheduler::task_scheduler_start(pool.clone(), nats_client.clone());
         let cas_dir = cfg.cas_dir.clone();

@@ -161,11 +161,22 @@ Moves execution from `llm_catalog_spawn()` in `server_ai` boot to fetcher.
 
 ---
 
+## Captcha vendor rates (`captcha_vendor_rates`)
+
+Daily scrape of public list prices (default **24h**, `CAPTCHA_RATES_SYNC_INTERVAL_SECS`).
+
+- HTTP GET `https://2captcha.com/pricing` (or `CAPTCHA_RATES_SOURCE_URL`), HTML parse → per-solve wholesale USD by kind
+- UPSERT `ai.config` key `captcha.2captcha_wholesale` (JSON: `kinds.recaptcha_v2`, …, `fetched_ts_ms`, `source_url`)
+- Skip publish when all kinds move &lt; 0.1% vs stored; on parse failure keep last DB row and log `captcha_rates_parse_failed`
+- NATS `c35.fetch.captcha_rates` → `server_ai` reloads in-memory cache (`captcha_rates_init` on boot)
+- Compile-time constants in `mod_captcha::billing` remain fallback when config empty
+
 ## NATS subjects
 
 ```
 c35.fetch.fx              # FetchFxPush (protobuf)
 c35.fetch.llm_catalog     # FetchLlmCatalogPush (protobuf, sync_ts only)
+c35.fetch.captcha_rates   # FetchCaptchaRatesPush (protobuf)
 ```
 
 Payload definitions: `_/schemas/proto/c35/fetch.proto`.

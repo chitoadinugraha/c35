@@ -126,6 +126,7 @@ const Skill$json = {
       '5': 3,
       '10': 'lastPatchedTsMs'
     },
+    {'1': 'heal_mode', '3': 27, '4': 1, '5': 9, '10': 'healMode'},
     {'1': 'created_ts_ms', '3': 30, '4': 1, '5': 3, '10': 'createdTsMs'},
     {'1': 'updated_ts_ms', '3': 31, '4': 1, '5': 3, '10': 'updatedTsMs'},
     {'1': 'deleted_ts_ms', '3': 32, '4': 1, '5': 3, '10': 'deletedTsMs'},
@@ -149,9 +150,10 @@ final $typed_data.Uint8List skillDescriptor = $convert.base64Decode(
     'BVIKcGF0Y2hFcG9jaBIfCgtwYXRjaF9jb3VudBgWIAEoBVIKcGF0Y2hDb3VudBIlCg5jb25zZW'
     'N1dGl2ZV9vaxgXIAEoBVINY29uc2VjdXRpdmVPaxIwChRkZXRlY3RlZF9hcHBfdmVyc2lvbhgY'
     'IAEoCVISZGV0ZWN0ZWRBcHBWZXJzaW9uEh8KC2F1dG9fc3VibWl0GBkgASgIUgphdXRvU3VibW'
-    'l0EisKEmxhc3RfcGF0Y2hlZF90c19tcxgaIAEoA1IPbGFzdFBhdGNoZWRUc01zEiIKDWNyZWF0'
-    'ZWRfdHNfbXMYHiABKANSC2NyZWF0ZWRUc01zEiIKDXVwZGF0ZWRfdHNfbXMYHyABKANSC3VwZG'
-    'F0ZWRUc01zEiIKDWRlbGV0ZWRfdHNfbXMYICABKANSC2RlbGV0ZWRUc01z');
+    'l0EisKEmxhc3RfcGF0Y2hlZF90c19tcxgaIAEoA1IPbGFzdFBhdGNoZWRUc01zEhsKCWhlYWxf'
+    'bW9kZRgbIAEoCVIIaGVhbE1vZGUSIgoNY3JlYXRlZF90c19tcxgeIAEoA1ILY3JlYXRlZFRzTX'
+    'MSIgoNdXBkYXRlZF90c19tcxgfIAEoA1ILdXBkYXRlZFRzTXMSIgoNZGVsZXRlZF90c19tcxgg'
+    'IAEoA1ILZGVsZXRlZFRzTXM=');
 
 @$core.Deprecated('Use skillStepDescriptor instead')
 const SkillStep$json = {

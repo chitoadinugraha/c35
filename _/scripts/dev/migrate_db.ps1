@@ -1,6 +1,6 @@
 # Apply all _/schemas/*.sql to the configured YugabyteDB (see servers/server_ai/.env.local).
 $ErrorActionPreference = 'Stop'
-$root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path
 Push-Location (Join-Path $root 'servers')
 try {
     cargo run -p c35_store --bin c35_migrate -- apply

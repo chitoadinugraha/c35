@@ -95,13 +95,13 @@ void main() {
 
       expect(find.text('Context usage'), findsOneWidget);
       expect(find.text('19% full'), findsOneWidget);
-      expect(find.text('24.5K / 131.1K'), findsOneWidget);
+      expect(find.text('~24.5K / 131.1K tokens'), findsOneWidget);
       expect(find.text('Conversation'), findsOneWidget);
       expect(find.text('Run Compaction'), findsOneWidget);
       expect(find.byIcon(Icons.compress_rounded), findsOneWidget);
       expect(find.text('Context limit'), findsNothing);
       expect(find.text('128K'), findsOneWidget);
-      expect(find.byIcon(Icons.expand_more_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_drop_down_rounded), findsOneWidget);
       expect(find.text('32K'), findsNothing);
     });
 
@@ -128,11 +128,11 @@ void main() {
       expect(find.text('64K'), findsOneWidget);
       expect(find.text('32K'), findsNothing);
 
-      await tester.tap(find.text('64K'));
+      await tester.tap(find.byIcon(Icons.arrow_drop_down_rounded));
       await tester.pumpAndSettle();
 
       expect(find.text('32K'), findsOneWidget);
-      expect(find.text('64K'), findsNWidgets(2));
+      expect(find.text('128K'), findsOneWidget);
     });
 
     testWidgets('menu lists a window option', (tester) async {
@@ -155,7 +155,7 @@ void main() {
       await tester.tap(find.byType(UiContextMeter));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('128K'));
+      await tester.tap(find.byIcon(Icons.arrow_drop_down_rounded));
       await tester.pumpAndSettle();
 
       expect(find.text('32K'), findsOneWidget);
@@ -185,7 +185,7 @@ void main() {
 
       expect(find.text('Context usage'), findsOneWidget);
       expect(find.text('9.9% full'), findsOneWidget);
-      expect(find.text('6.5K / 65.5K'), findsOneWidget);
+      expect(find.text('~6.5K / 65.5K tokens'), findsOneWidget);
       expect(find.text('Instructions'), findsOneWidget);
       expect(find.text('Conversation'), findsOneWidget);
     });

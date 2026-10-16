@@ -441,6 +441,7 @@ const ResPromptEnd$json = {
       '6': '.c35.ContextUsage',
       '10': 'usage'
     },
+    {'1': 'chat_id', '3': 13, '4': 1, '5': 3, '10': 'chatId'},
   ],
 };
 
@@ -452,7 +453,8 @@ final $typed_data.Uint8List resPromptEndDescriptor = $convert.base64Decode(
     'gGIAEoCVIFbW9kZWwSFQoGcmVxX2lkGAcgASgJUgVyZXFJZBIdCgp0cmFjZV9qc29uGAggASgJ'
     'Ugl0cmFjZUpzb24SIwoNZXJyb3JfbWVzc2FnZRgJIAEoCVIMZXJyb3JNZXNzYWdlEiMKDXByb2'
     '1wdF90b2tlbnMYCiABKAVSDHByb21wdFRva2VucxIlCg5jb250ZXh0X3dpbmRvdxgLIAEoBVIN'
-    'Y29udGV4dFdpbmRvdxInCgV1c2FnZRgMIAEoCzIRLmMzNS5Db250ZXh0VXNhZ2VSBXVzYWdl');
+    'Y29udGV4dFdpbmRvdxInCgV1c2FnZRgMIAEoCzIRLmMzNS5Db250ZXh0VXNhZ2VSBXVzYWdlEh'
+    'cKB2NoYXRfaWQYDSABKANSBmNoYXRJZA==');
 
 @$core.Deprecated('Use resPromptFailDescriptor instead')
 const ResPromptFail$json = {

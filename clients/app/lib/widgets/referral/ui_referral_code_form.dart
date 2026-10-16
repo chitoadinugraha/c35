@@ -64,13 +64,14 @@ class _ReferralCodeFormDialogState extends State<_ReferralCodeFormDialog> {
       _saving = true;
       _error = null;
     });
+    final package = _type == 'package';
     final doc = ReferralCodeDoc(
       code: referralCodeNorm(_codeCtrl.text),
       name: _nameCtrl.text.trim(),
       type: _type,
-      priceUsd: double.tryParse(_priceCtrl.text.trim()) ?? 0,
-      durationMonths: int.tryParse(_durationCtrl.text.trim()) ?? 0,
-      maxUses: int.tryParse(_maxUsesCtrl.text.trim()) ?? 0,
+      priceUsd: package ? (double.tryParse(_priceCtrl.text.trim()) ?? 0) : 0,
+      durationMonths: package ? (int.tryParse(_durationCtrl.text.trim()) ?? 0) : 0,
+      maxUses: package ? (int.tryParse(_maxUsesCtrl.text.trim()) ?? 0) : 0,
       usedCount: widget.existing?.usedCount ?? 0,
       expiresAtMs: widget.existing?.expiresAtMs ?? Int64.ZERO,
       basePlanSlug: _type == 'package' ? _basePlanSlug : '',
@@ -142,28 +143,28 @@ class _ReferralCodeFormDialogState extends State<_ReferralCodeFormDialog> {
                     ],
                     onChanged: _saving ? null : (v) { if (v != null) setState(() => _basePlanSlug = v); },
                   ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _priceCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: const TextStyle(color: _text),
+                    decoration: UiInputDecoration.of(context, labelText: 'Price USD', hintText: '0'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _durationCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: _text),
+                    decoration: UiInputDecoration.of(context, labelText: 'Duration months', hintText: '0'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _maxUsesCtrl,
+                    keyboardType: TextInputType.number,
+                    style: const TextStyle(color: _text),
+                    decoration: UiInputDecoration.of(context, labelText: 'Max uses', hintText: '0'),
+                  ),
                 ],
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _priceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  style: const TextStyle(color: _text),
-                  decoration: UiInputDecoration.of(context, labelText: 'Price USD', hintText: '0'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _durationCtrl,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: _text),
-                  decoration: UiInputDecoration.of(context, labelText: 'Duration months', hintText: '0'),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _maxUsesCtrl,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: _text),
-                  decoration: UiInputDecoration.of(context, labelText: 'Max uses', hintText: '0'),
-                ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   UIError(message: _error!, compact: true),

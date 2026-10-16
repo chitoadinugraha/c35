@@ -92,6 +92,11 @@ When LLM requests hit provider prompt/context cache (e.g. Gemini cached tokens, 
    Turns with cached tokens report the complete sequence:
    `[cached_read] [tokens_in] [tokens_out] [duration_ms] [cost_usd]`
 
+4. **Settlement**:
+   `billing_usage_report` takes provider `cached_tokens` (e.g. Gemini `cachedContentTokenCount`) and uses `billing_cost_with_cache_usd` / `billing_cost_wholesale_with_cache_usd` for `cost_usd`, `cost_wholesale_usd`, profile rings, and bot/device subscription pools — same math as trace `cost_retail_usd`.
+
+**Catalog:** Cached-read wholesale per model is synced into `ai.llm_model.input_cache_micro_per_m` (fetcher: Cloudflare models search + OpenRouter reconcile). Runtime fallback when the column is `0`: `input_micro_per_m / 4` for billing only (admin list shows DB values).
+
 ---
 
 ## Model comparison (retail / 1M tokens)

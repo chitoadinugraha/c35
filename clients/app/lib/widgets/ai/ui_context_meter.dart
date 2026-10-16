@@ -19,11 +19,12 @@ const _border = Color(0xFF3F3F46);
 const _text = Color(0xFFF4F4F5);
 const _muted = Color(0xFFA1A1AA);
 const _ring = Color(0xFF71717A);
-const _cInstructions = Color(0xFFA1A1AA);
-const _cMemory = Color(0xFFC4B5FD);
-const _cContext = Color(0xFFFBBF24);
-const _cTools = Color(0xFF7DD3FC);
-const _cConversation = Color(0xFFFB7185);
+const _cInstructions = Color(0xFF9CA3AF);
+const _cMemory = Color(0xFFA78BFA);
+const _cContext = Color(0xFF34D399);
+const _cTools = Color(0xFF60A5FA);
+const _cConversation = Color(0xFFF472B6);
+const _usageBarH = 10.0;
 
 class ContextUsageParts {
   const ContextUsageParts({this.instructions = 0, this.memory = 0, this.context = 0, this.tools = 0, this.conversation = 0});
@@ -330,7 +331,7 @@ class UiContextMeter extends StatefulWidget {
 class _UiContextMeterState extends State<UiContextMeter> {
   OverlayEntry? _hover;
   OverlayEntry? _menu;
-  var _windowPickerOpen = false;
+  final _windowMenuKey = GlobalKey();
 
   int get _used {
     if (widget.promptTokens > 0) return widget.promptTokens;
@@ -369,7 +370,6 @@ class _UiContextMeterState extends State<UiContextMeter> {
   void _hideMenu() {
     final menu = _menu;
     _menu = null;
-    _windowPickerOpen = false;
     _disposeOverlay(menu);
   }
 
@@ -473,19 +473,24 @@ class _UiContextMeterState extends State<UiContextMeter> {
   Widget _usageBar() {
     final rows = _usageRows;
     final used = rows.fold<int>(0, (acc, row) => acc + row.$2);
-    final rest = (widget.contextLimit - used).clamp(0, widget.contextLimit);
-    if (used <= 0) {
-      return Container(height: 6, decoration: BoxDecoration(color: _panel, borderRadius: BorderRadius.circular(99)));
+    final limit = widget.contextLimit > 0 ? widget.contextLimit : used;
+    if (limit <= 0) {
+      return Container(
+        height: _usageBarH,
+        decoration: BoxDecoration(color: _panel, borderRadius: BorderRadius.circular(4)),
+      );
     }
+    final rest = (limit - used).clamp(0, limit);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(99),
+      borderRadius: BorderRadius.circular(4),
       child: SizedBox(
-        height: 6,
+        height: _usageBarH,
         child: Row(
           children: [
             for (final row in rows)
-              Expanded(flex: row.$2, child: ColoredBox(color: row.$3)),
+              if (row.$2 > 0) Expanded(flex: row.$2, child: ColoredBox(color: row.$3)),
             if (rest > 0) Expanded(flex: rest, child: const ColoredBox(color: _panel)),
+            if (used <= 0) const Expanded(child: ColoredBox(color: _panel)),
           ],
         ),
       ),
@@ -493,12 +498,12 @@ class _UiContextMeterState extends State<UiContextMeter> {
   }
 
   Widget _usageLine(String label, int tokens, Color color) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
+        padding: const EdgeInsets.symmetric(vertical: 4),
         child: Row(
           children: [
-            Container(width: 8, height: 8, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
-            const SizedBox(width: 8),
-            Expanded(child: Text(label, style: const TextStyle(color: _text, fontSize: 12))),
+            Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(width: 10),
+            Expanded(child: Text(label, style: const TextStyle(color: _text, fontSize: 12, height: 1.2))),
             Text(_formatK(tokens), style: const TextStyle(color: _muted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()])),
           ],
         ),
@@ -553,19 +558,24 @@ class _UiContextMeterState extends State<UiContextMeter> {
                               if (widget.windowOptions.isNotEmpty) _contextLimitDropdown(),
                             ],
                           ),
-                          if (widget.windowOptions.isNotEmpty && _windowPickerOpen)
-                            for (final w in widget.windowOptions) _windowOptionRow(w),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           Row(
                             children: [
                               Text('$_percent% full', style: TextStyle(color: _ringColor, fontSize: 12, fontWeight: FontWeight.w600)),
-                              const Spacer(),
-                              Text('${_formatK(_used)} / ${_formatK(widget.contextLimit)}', style: const TextStyle(color: _muted, fontSize: 12)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '~${_formatK(_used)} / ${_formatK(widget.contextLimit)} tokens',
+                                  textAlign: TextAlign.end,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(color: _muted, fontSize: 12, fontFeatures: [FontFeature.tabularFigures()]),
+                                ),
+                              ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           _usageBar(),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 10),
                           for (final row in _usageRows) _usageLine(row.$1, row.$2, row.$3),
                           if (costLabel.isNotEmpty) ...[
                             const SizedBox(height: 4),
@@ -605,49 +615,84 @@ class _UiContextMeterState extends State<UiContextMeter> {
     );
   }
 
-  void _toggleWindowPicker() {
-    _windowPickerOpen = !_windowPickerOpen;
-    _menu?.markNeedsBuild();
+  Future<void> _showWindowMenu() async {
+    if (widget.windowOptions.isEmpty || !mounted || _menu == null) return;
+    final anchorCtx = _windowMenuKey.currentContext;
+    if (anchorCtx == null || !anchorCtx.mounted) return;
+    final box = anchorCtx.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final overlay = Overlay.of(anchorCtx, rootOverlay: true).context.findRenderObject() as RenderBox?;
+    if (overlay == null || !overlay.attached) return;
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final bottomRight = box.localToGlobal(box.size.bottomRight(Offset.zero), ancestor: overlay);
+    final selected = await showMenu<int>(
+      context: anchorCtx,
+      color: _bg,
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: const BorderSide(color: _border)),
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(topLeft, bottomRight),
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        for (final w in widget.windowOptions)
+          PopupMenuItem<int>(
+            value: w,
+            height: 36,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    contextWindowChoiceLabel(w),
+                    style: TextStyle(
+                      color: w == widget.contextLimit ? _text : _muted,
+                      fontSize: 13,
+                      fontWeight: w == widget.contextLimit ? FontWeight.w600 : FontWeight.w500,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+                if (w == widget.contextLimit) const Icon(Icons.check_rounded, size: 16, color: _ring),
+              ],
+            ),
+          ),
+      ],
+    );
+    if (selected == null || selected == widget.contextLimit) return;
+    await _pickWindow(selected);
   }
 
-  Widget _contextLimitDropdown() => InkWell(
-        onTap: _toggleWindowPicker,
+  Widget _contextLimitDropdown() => Material(
+        key: _windowMenuKey,
+        color: _panel,
         borderRadius: BorderRadius.circular(6),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                contextWindowChoiceLabel(widget.contextLimit),
-                style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
-              ),
-              const SizedBox(width: 2),
-              Icon(_windowPickerOpen ? Icons.expand_less_rounded : Icons.expand_more_rounded, size: 18, color: _muted),
-            ],
+        child: InkWell(
+          onTap: () => unawaited(_showWindowMenu()),
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  contextWindowChoiceLabel(widget.contextLimit),
+                  style: const TextStyle(color: _text, fontSize: 12, fontWeight: FontWeight.w600, fontFeatures: [FontFeature.tabularFigures()]),
+                ),
+                const SizedBox(width: 2),
+                const Icon(Icons.arrow_drop_down_rounded, size: 20, color: _muted),
+              ],
+            ),
           ),
         ),
       );
 
-  Widget _windowOptionRow(int window) {
-    final active = window == widget.contextLimit;
-    return InkWell(
-      onTap: () => unawaited(_pickWindow(window)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 6, 12, 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                contextWindowChoiceLabel(window),
-                style: TextStyle(color: active ? _text : _muted, fontSize: 13, fontWeight: active ? FontWeight.w600 : FontWeight.w500),
-              ),
-            ),
-            if (active) const Icon(Icons.check_rounded, size: 16, color: _ring),
-          ],
-        ),
-      ),
-    );
+  void _scheduleOverlayRebuild() {
+    if (_menu == null && _hover == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _menu?.markNeedsBuild();
+      _hover?.markNeedsBuild();
+    });
   }
 
   @override
@@ -657,7 +702,7 @@ class _UiContextMeterState extends State<UiContextMeter> {
       _hideMenu();
       _hideHover();
     }
-    _menu?.markNeedsBuild();
+    _scheduleOverlayRebuild();
   }
 
   @override

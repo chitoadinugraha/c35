@@ -12,8 +12,9 @@ use sqlx::types::Json;
 
 use crate::prompt::google_forms::ComputerUseToolCounts;
 use crate::prompt_run::{
-    prompt_run_insert, prompt_run_job_publish, prompt_run_kind_normalize, prompt_run_summary,
-    prompt_run_tool_counts, prompt_run_wait_terminal, PromptRunRow,
+    prompt_run_fanout_publish, prompt_run_insert, prompt_run_job_publish, prompt_run_kind_normalize,
+    prompt_run_push_from_row, prompt_run_summary, prompt_run_tool_counts, prompt_run_wait_terminal,
+    PromptRunRow,
 };
 use crate::mention_registry::mention_ref_iid;
 use crate::mention_context::{device_iid_resolve, json_device_iid_field};
@@ -233,6 +234,15 @@ pub async fn delegate_run_exec(ctx: &ToolContext, args: &Value) -> anyhow::Resul
     prompt_run_insert(&ctx.pool, &row).await?;
 
     if let Some(nats) = &ctx.nats {
+        if ctx.chat_id > 0 && ctx.owner_iid > 0 {
+            let _ = prompt_run_fanout_publish(
+                nats,
+                ctx.owner_iid,
+                ctx.chat_id,
+                prompt_run_push_from_row(&row),
+            )
+            .await;
+        }
         let js = jetstream::new(nats.clone());
         let job = PromptRunJob {
             req_id: child_req_id.clone(),

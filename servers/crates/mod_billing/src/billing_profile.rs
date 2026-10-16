@@ -3,7 +3,7 @@ use chrono::{Duration, Utc};
 use c35_store::snowflake_id;
 use sqlx::{PgPool, Row};
 
-use crate::billing_cost::billing_cost_usd;
+use crate::billing_cost::billing_cost_with_cache_usd;
 use crate::billing_on_demand::allowance_remaining;
 use crate::billing_pool::{LITE_ALIEN_POOL_IDR, LITE_FRONTIER_POOL_IDR};
 
@@ -635,9 +635,10 @@ pub async fn billing_profile_deduct_turn(
     model: &str,
     tokens_in: i32,
     tokens_out: i32,
+    cached_tokens: i32,
     fx_micro: i64,
 ) -> Result<Option<f64>> {
-    let cost_usd = billing_cost_usd(model, tokens_in, tokens_out);
+    let cost_usd = billing_cost_with_cache_usd(model, tokens_in, tokens_out, cached_tokens.max(0));
     let overflow_usd = billing_profile_deduct_rings(pool, owner_iid, model, cost_usd).await?;
     Ok(overflow_usd.map(|usd| crate::billing_on_demand::usd_to_native(usd, fx_micro)))
 }

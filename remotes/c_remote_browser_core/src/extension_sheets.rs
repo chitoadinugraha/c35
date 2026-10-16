@@ -20,7 +20,7 @@ async fn sheets_rpc(op: &str, params: Value, timeout: Duration) -> anyhow::Resul
 pub async fn extension_sheets_method(method: &str, params: &Value) -> anyhow::Result<Value> {
     let timeout = match method {
         "sheets.append_row" | "sheets.row_read" | "sheets.range_read" => Duration::from_secs(90),
-        "sheets.range_set" | "sheets.row_set" => Duration::from_secs(60),
+        "sheets.range_set" | "sheets.row_set" | "sheets.format_range" => Duration::from_secs(60),
         _ => Duration::from_secs(45),
     };
     sheets_rpc(method, params.clone(), timeout).await

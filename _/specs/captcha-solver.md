@@ -27,7 +27,11 @@ Default bundle: `2captcha.com`, `api.2captcha.com`, plus host from `page_url`.
 
 ## Billing
 
-Wholesale per kind in `c35_mod_captcha::billing` (2Captcha list prices, dated in source). Retail: `billing_to_retail_usd` (**× 1.50**). Successful solves return `wholesale_usd` on the tool result; fallback line item `captcha.solve` uses v2 wholesale in `billing_tool_cost_usd`.
+**Wholesale:** Fetcher task `captcha_vendor_rates` refreshes `ai.config` `captcha.2captcha_wholesale` daily; `captcha_wholesale_usd(kind)` reads cache first, then compile-time list-price fallback.
+
+**Retail:** `billing_to_retail_usd` (**× 1.50**). Per-solve child `req_id` `captcha_{tool_call_id}`: `captcha_billing_gate` (hold) → `captcha_billing_settle` on success; **`captcha_billing_abort`** (refund hold) on solve failure, egress lease/proxy failure, or settle error.
+
+Successful solves return `wholesale_usd` on the tool result (`billing_settled: true`). Fallback line item `captcha.solve` in `billing_tool_cost_usd` uses v2 compile-time wholesale when no tool settle ran.
 
 ## Env
 

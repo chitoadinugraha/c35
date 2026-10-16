@@ -5,6 +5,7 @@
 
 mod bus;
 mod deliver;
+mod emit;
 mod fcm_adapt;
 mod hydrate;
 mod plan;
@@ -13,6 +14,7 @@ mod validate;
 
 pub use bus::NotifyNats;
 pub use deliver::{notify_deliver, notify_release_waiting};
+pub use emit::{notify_emit, NotifyEmit};
 pub use fcm_adapt::NotifyFcm;
 pub use hydrate::hydrate_notify_schedules;
 pub use plan::{plan_delivery, AppConn, DeliveryPlan, FcmTok, PRESENCE_TTL};

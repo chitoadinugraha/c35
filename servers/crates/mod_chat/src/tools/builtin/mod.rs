@@ -54,8 +54,9 @@ pub use browser::{
     BrowserAgentRestartTool, BrowserEnsureTool, BrowserExtensionTool, BrowserFileUploadTool,
     BrowserPageActTool,
     BrowserPageExtractTool, BrowserPageObserveTool, BrowserPageScreenshotTool,
-    BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsRangeReadTool,
-    BrowserCaptchaApplyTool, BrowserSheetsRowSetTool, BrowserTabsTool, BrowserTaskRunTool,
+    BrowserSheetsAppendRowTool, BrowserSheetsCellSetTool, BrowserSheetsFormatRangeTool,
+    BrowserSheetsRangeReadTool, BrowserCaptchaApplyTool, BrowserSheetsRowSetTool, BrowserTabsTool,
+    BrowserTaskRunTool,
 };
 pub use chat_history::{ChatMessagesTool, ChatSearchTool};
 pub use consumption::{
@@ -75,7 +76,7 @@ pub use device_manage::{
 pub use doc_extract::DocExtractTool;
 pub use drive::{DriveListTool, DriveReadTool};
 pub use expense::{ExpenseAddTool, ExpenseDeleteTool, ExpenseSummaryTool};
-pub use gsheet::{GsheetAppendTool, GsheetReadTool, GsheetUpdateTool};
+pub use gsheet::{GsheetAppendTool, GsheetFormatRangeTool, GsheetReadTool, GsheetUpdateTool};
 pub use img_edit::ImgEditTool;
 pub use img_generate::ImgGenerateTool;
 pub use mail::{
@@ -83,7 +84,7 @@ pub use mail::{
 };
 pub use memory::{MemoryForgetTool, MemoryListTool, MemorySaveTool};
 pub use music_generate::MusicGenerateTool;
-pub use notify::{NotifyCancelTool, NotifyListTool, NotifyScheduleTool};
+pub use notify::{NotifyCancelTool, NotifyListTool, NotifyScheduleTool, NotifySendTool};
 pub use presentation_export::{
     presentation_export_exec, PresentationCreateTool, PresentationExportTool,
     PresentationPatchTool, PresentationSourceExtractTool, PresentationSourceStructureTool,

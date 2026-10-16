@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 
 use anyhow::anyhow;
 use c35_fcm::Fcm;
+use c35_mod_admin::{staff_tool_eligible, staff_view_load};
 use c35_mod_notify::{
     async_trait, notify_cancel, notify_list, notify_put, validate_notify_put, FcmSend, NotifyItem,
     NotifyPut, NotifyWhen,
@@ -12,6 +13,8 @@ use serde_json::{json, Value};
 
 use crate::tool;
 use crate::tools::ToolContext;
+
+const NOTIFY_SEND_STAFF_ROLES: &[&str] = &["partner", "director", "root"];
 
 /// Adapts `c35_fcm::Fcm` to `FcmSend`. `from_env` is a no-op sender when credentials are missing.
 struct EnvFcm(Fcm);
@@ -169,6 +172,85 @@ pub async fn notify_list_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result
     }))
 }
 
+async fn notify_recipient_iid(ctx: &ToolContext, args: &Value) -> Result<i64, Value> {
+    let target = args
+        .get("target_iid")
+        .and_then(|v| v.as_i64())
+        .filter(|id| *id > 0);
+    match target {
+        None => Ok(ctx.owner_iid),
+        Some(id) if id == ctx.owner_iid => Ok(ctx.owner_iid),
+        Some(id) => {
+            let staff = staff_view_load(&ctx.pool, ctx.owner_iid).await;
+            if !staff_tool_eligible(
+                &staff,
+                &NOTIFY_SEND_STAFF_ROLES
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>(),
+            ) {
+                return Err(bad_args("forbidden: staff role required to notify another user"));
+            }
+            Ok(id)
+        }
+    }
+}
+
+pub async fn notify_send_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
+    if ctx.owner_iid <= 0 {
+        return Ok(bad_args("caller is required"));
+    }
+    let owner_iid = match notify_recipient_iid(ctx, args).await {
+        Ok(id) => id,
+        Err(v) => return Ok(v),
+    };
+    let Some(title) = arg_str(args, "title").map(str::to_string) else {
+        return Ok(bad_args("title is required"));
+    };
+    let Some(body) = arg_str(args, "body").map(str::to_string) else {
+        return Ok(bad_args("body is required"));
+    };
+    let category = arg_str(args, "category")
+        .filter(|s| !s.is_empty())
+        .unwrap_or("system");
+    let route_json = match args.get("route") {
+        None | Some(Value::Null) => json!({ "category": category }),
+        Some(v) if v.is_object() => {
+            let mut route = v.clone();
+            if let Some(obj) = route.as_object_mut() {
+                obj.insert("category".into(), json!(category));
+            }
+            route
+        }
+        Some(_) => return Ok(bad_args("route must be an object")),
+    };
+
+    let put = NotifyPut {
+        owner_iid,
+        title,
+        body,
+        delay_sec: 0,
+        fire_at: None,
+        when: NotifyWhen::Delay,
+        req_id: ctx.req_id.clone(),
+        route_json,
+    };
+    if let Err(err) = validate_notify_put(&put) {
+        return Ok(bad_args(err.to_string()));
+    }
+    let row = notify_put(&ctx.pool, ctx.nats.as_ref(), fcm(), put)
+        .await
+        .map_err(|e| anyhow!(e))?;
+    let mut out = row_json(&row);
+    if let Some(obj) = out.as_object_mut() {
+        if owner_iid != ctx.owner_iid {
+            obj.insert("target_iid".into(), json!(owner_iid));
+            obj.insert("sent_by_iid".into(), json!(ctx.owner_iid));
+        }
+    }
+    Ok(out)
+}
+
 pub async fn notify_cancel_exec(ctx: &ToolContext, args: &Value) -> anyhow::Result<Value> {
     if ctx.owner_iid <= 0 {
         return Ok(bad_args("caller is required"));
@@ -230,6 +312,27 @@ tool! {
     },
     execute: |args, ctx| {
         notify_list_exec(ctx, &args).await
+    }
+}
+
+tool! {
+    struct: NotifySendTool,
+    name: "notify.send",
+    aliases: ["notify_send"],
+    description: "Send a notification immediately. Default recipient is the caller. Staff (partner, director, root) may set target_iid for another user. category defaults to system.",
+    topics: ["general"],
+    rag_phrases: [
+        "send notification", "notify user", "push notification", "kirim notifikasi",
+    ],
+    parameters: {
+        title: (string, "Notification title", required),
+        body: (string, "Notification body", required),
+        category: (string, "reminder, task, mail, site_order, system, …", optional),
+        route: (object, "Optional route {path, chat_id, …}; category is merged in", optional),
+        target_iid: (integer, "Recipient owner iid; default caller. Staff only when not self.", optional),
+    },
+    execute: |args, ctx| {
+        notify_send_exec(ctx, &args).await
     }
 }
 

@@ -208,6 +208,17 @@ async fn process_prompt_job(
         let pod = std::env::var("HOSTNAME").unwrap_or_else(|_| "local".into());
         let _ = prompt_run_lease_touch(&pool, &req_id, &pod, 120).await?;
         let _ = prompt_run_status_set(&pool, &req_id, "running", None, None).await?;
+        if row.parent_req_id.is_some() {
+            if let Ok(Some(running_row)) = prompt_run_get(&pool, &req_id).await {
+                let _ = prompt_run_fanout_publish(
+                    &nats,
+                    running_row.owner_iid,
+                    running_row.chat_id,
+                    prompt_run_push_from_row(&running_row),
+                )
+                .await;
+            }
+        }
 
         let owner_iid = row.owner_iid;
         let chat_id = row.chat_id;
@@ -529,6 +540,7 @@ async fn process_prompt_job(
                         prompt_tokens: turn.prompt_tokens,
                         context_window: turn.context_window,
                         usage: Some(turn.usage.proto()),
+                        chat_id,
                     },
                 )
                 .await;

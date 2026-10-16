@@ -17,7 +17,7 @@ Run from `_/scripts/deploy` after `dart pub get`. Set env vars (see below) or us
 | `deploy_app_release.dart --android-only` | AAB + APK | Play prod + CAS | `android` | — | Once at end |
 | `deploy_app_release.dart --windows-only` | Windows ZIP | CAS | `windows` | `c35.release.windows` | Once at end |
 | `deploy_app_release.dart --web-only` | Flutter web | S3 | **`web`** | — | Once at end |
-| `push_web.dart` | Flutter web | S3 | **`web`** | — | **No** |
+| `push_web.dart` | Flutter web | S3 | **`web`** | — | Once (unless `DEPLOY_SKIP_VERSION_BUMP=1`) |
 | `play_store_upload_tester.dart` | AAB only | Play internal | **No** | — | Once |
 | `play_store_upload_prod.dart` | AAB + APK | Play prod + CAS | `android` | — | Once |
 | `play_store_upload_promote_prod.dart` | AAB (+ APK on full run) | internal → prod | `android` | — | Once |
@@ -184,7 +184,7 @@ $env:YB_PASSWORD = '<password>'
 # Dart (no PowerShell wrapper)
 dart run deploy_app/deploy_app_release.dart --web-only
 
-# Web build + S3 + /version only (no pubspec bump)
+# Web build + S3 + /version (bumps pubspec unless DEPLOY_SKIP_VERSION_BUMP=1)
 dart run deploy_app/push_web.dart
 
 # Default prod includes web after Windows upload
